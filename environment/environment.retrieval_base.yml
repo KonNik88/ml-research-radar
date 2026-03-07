@@ -1,0 +1,7 @@
+name: ml_radar
+channels:
+  - defaults
+dependencies:
+  - pip
+  - python=3.11
+prefix: D:\Anaconda\envs\ml_radar

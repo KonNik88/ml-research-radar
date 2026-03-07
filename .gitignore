@@ -1,0 +1,11 @@
+archive/
+
+__pycache__/
+*.pyc
+.env
+*.log
+data/
+artifacts/
+mlruns/
+.venv/
+.ipynb_checkpoints/

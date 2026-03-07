@@ -1,206 +1,644 @@
-# ML Research Radar — Custom + UDR (Experimental)
+# ML Research Radar
 
 ![Python](https://img.shields.io/badge/Python-3.11-blue)
-![FastAPI](https://img.shields.io/badge/FastAPI-ready-brightgreen)
+![FastAPI](https://img.shields.io/badge/FastAPI-API-green)
 ![Streamlit](https://img.shields.io/badge/Streamlit-UI-red)
-![Postgres](https://img.shields.io/badge/Postgres-storage-316192)
-![Qdrant](https://img.shields.io/badge/Qdrant-vector%20DB-orange)
-![Docker](https://img.shields.io/badge/Docker-compose-2496ED)
-![RAG](https://img.shields.io/badge/RAG-enabled-black)
-![PEFT](https://img.shields.io/badge/PEFT-optional-lightgrey)
-![Ray](https://img.shields.io/badge/Ray-optional-lightgrey)
-![License: MIT](https://img.shields.io/badge/License-MIT-green)
+![Postgres](https://img.shields.io/badge/Postgres-DB-blue)
+![Qdrant](https://img.shields.io/badge/Qdrant-Vector%20DB-purple)
+![Docker](https://img.shields.io/badge/Docker-Containers-blue)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-Orchestration-blue)
+![Ray](https://img.shields.io/badge/Ray-Distributed-orange)
+![Kafka](https://img.shields.io/badge/Kafka-Event%20Streaming-black)
+![Observability](https://img.shields.io/badge/Observability-Grafana%20%7C%20Loki%20%7C%20Tempo-orange)
 
-> A portfolio‑ready project for **finding, organizing, and reasoning over ML papers & GitHub repos**.  
-> Core is **hand‑built** (ingest → normalize → classify/score → RAG → UI), plus an **experimental NVIDIA UDR** tab to compare with a modern agentic framework.
-
----
-
-## What you get
-- **Custom pipeline** you control end‑to‑end: arXiv/GitHub ingest → Postgres + Qdrant → RAG with citations → Streamlit UI.
-- **Actionable feed**: ranked items with TL;DR, tags, code links, and quick export.
-- **Chat over your corpus** (RAG): ask focused questions; get grounded answers with sources.
-- **Experimental UDR tab**: run the same query via NVIDIA **Universal Deep Research** and compare outputs side‑by‑side.
-- Clean **Docker** setup (API, UI, Postgres, Qdrant) for one‑command local runs.
+Custom end-to-end platform to discover, organize, rank, analyze, and reason over machine learning papers, repositories, and research trends.
 
 ---
 
-## Repository structure
-```
-ml-research-radar/
-  api/                    # FastAPI: ingest/search/rag/summarize/score
-    main.py
-    deps.py
-    schemas/
-    services/
-    workers/              # (optional) Ray tasks/actors
-    requirements.txt
-  ui/                     # Streamlit client
-    streamlit_app.py
-    requirements.txt
-  ingest/                 # arXiv, GitHub, pdf->text
-  nlp/                    # embeddings, keyphrases, taxonomy helpers
-  peft/                   # scripts for LoRA/PEFT fine-tuning (optional)
-  store/
-    migrations/           # SQL (alembic optional)
-    sql/
-  docker/
-    Dockerfile.api
-    Dockerfile.ui
-  configs/
-    .env.example
-    taxonomy.yaml
-    scoring.yaml
-  docker-compose.yml
-  README.md
-  LICENSE
-```
+## Overview
+
+**ML Research Radar** is a long-horizon, production-like ML systems project focused on research discovery and analysis.
+
+The platform is designed to:
+
+- ingest multi-source ML research content
+- normalize and deduplicate documents
+- enrich records with summaries, tags, entities, and links
+- support semantic and hybrid retrieval
+- provide RAG-based question answering over a private corpus
+- surface trends, clusters, timelines, and similarity maps
+- evolve toward observability, orchestration, event-driven processing, and Kubernetes deployment
+- generate structured public research datasets as a natural by-product of the pipeline
+
+This is not a single-model demo. It is an **expandable research platform** with a clear architectural roadmap.
 
 ---
 
-## Services (MVP)
-- **API (FastAPI)** — `/search`, `/feed`, `/rag/query`, `/summarize`, `/ingest/run`  
-- **UI (Streamlit)** — *Feed*, *Chat (RAG)*, *Trends*, *Compare: Custom vs UDR*  
-- **Postgres** — metadata storage (papers/repos, tags, scores)  
-- **Qdrant** — vector index (abstracts/sections/readme embeddings)  
-- **UDR (optional)** — separate container later; not required for MVP
+## Core Goals
+
+- Build a strong end-to-end ML research discovery system
+- Practice modern ML / LLM / MLOps tooling in one coherent project
+- Keep the architecture modular and extensible from the start
+- Grow the project through versioned vertical slices instead of uncontrolled feature creep
+- Reuse derived data later for public dataset releases (Kaggle / GitHub / Hugging Face)
 
 ---
 
-## Quickstart (Docker)
-1) Create `.env` from example and adjust secrets/paths:
-```bash
-cp configs/.env.example configs/.env
-```
-2) Build & run:
-```bash
-docker compose up --build
-```
-- API: <http://localhost:8000/docs>  
-- UI:  <http://localhost:8501>
+## What the System Does
 
-**`docker-compose.yml` (minimal sketch):**
-```yaml
-version: "3.9"
-services:
-  postgres:
-    image: postgres:16
-    environment:
-      - POSTGRES_USER=radar
-      - POSTGRES_PASSWORD=radar
-      - POSTGRES_DB=radar
-    volumes: ["./pgdata:/var/lib/postgresql/data"]
-    ports: ["5432:5432"]
+### Research ingestion
+Collects data from multiple sources such as:
 
-  qdrant:
-    image: qdrant/qdrant:latest
-    volumes: ["./qdrant_storage:/qdrant/storage"]
-    ports: ["6333:6333"]
+- arXiv
+- GitHub
+- OpenAlex
+- Crossref
 
-  api:
-    build: { context: ., dockerfile: docker/Dockerfile.api }
-    env_file: [./configs/.env]
-    depends_on: [postgres, qdrant]
-    ports: ["8000:8000"]
-    volumes: ["./artifacts:/app/artifacts:ro"]
+Planned next sources:
 
-  ui:
-    build: { context: ., dockerfile: docker/Dockerfile.ui }
-    env_file: [./configs/.env]
-    depends_on: [api]
-    ports: ["8501:8501"]
-```
-> For GPU usage later, switch to CUDA base images and run with `--gpus all` (or Compose device reservations).
+- Semantic Scholar
+- Hugging Face
+- Papers with Code
+- domain-specific sources later when justified
 
----
+### Document normalization
+The pipeline normalizes documents and metadata into a stable internal schema using:
 
-## API sketch
-**Health**
-```
-GET  /health
-```
+- canonical URLs
+- stable `doc_id`
+- `content_hash`
+- source harmonization
+- deduplication logic
 
-**Ingest**
-```
-POST /ingest/run
-body: { "sources": ["arxiv","github"], "query": "time series transformer", "date_from": "2025-07-01" }
-GET  /ingest/status/{job_id}
-```
+### Enrichment
+Each item can be enriched with:
 
-**Search & Feed**
-```
-POST /search
-body: {
-  "query": "graph neural networks", 
-  "filters": {"has_code": true, "date_from": "2025-06-01"},
-  "limit": 20, "use_vector": true
-}
+- TL;DR summary
+- taxonomy tags
+- task and method labels
+- datasets and metrics
+- entities and research objects
+- paper ↔ repository links
+- scoring and ranking features
 
-GET  /feed?days=7&limit=30&only_with_code=true
-```
+### Retrieval and RAG
+The platform supports:
 
-**Summarize & Classify**
-```
-POST /summarize   # TL;DR for id/raw text (optionally PEFT-backed)
-POST /classify    # taxonomy tags for id/raw text
-```
+- semantic search
+- similar document retrieval
+- hybrid retrieval and reranking later
+- RAG answers with citations
+- paper comparison workflows
+- research-agent style exploration later
 
-**RAG**
-```
-POST /rag/query
-body: { "question": "How does TFT compare to N-BEATS on electricity?", "top_k": 5, "return_sources": true }
-```
+### Analytics
+The platform is designed to support:
+
+- trend analysis
+- topic evolution
+- weekly topic maps
+- clustering and pseudo-labeling
+- research timelines
+- graph-based exploration
+
+### Product features
+Planned product-facing features include:
+
+- feed and filters
+- bookmarks and saved searches
+- Telegram digests and alerts
+- reading-list generation
+- learning-path generation
+- explainability (“why recommended?”)
 
 ---
 
-## UI sketch
-- **Feed**: ranked cards (TL;DR, tags, code link, save/export).  
-- **Chat (RAG)**: grounded Q&A with citations.  
-- **Trends**: topic/time charts.  
-- **Compare: Custom vs UDR**: same prompt → two columns (our pipeline vs UDR).
+## High-Level Architecture
+
+The system follows this pipeline:
+
+```text
+Sources
+  ↓
+Ingest
+  ↓
+Normalize / Deduplicate
+  ↓
+Enrich
+  ↓
+Store
+  ↓
+Serve
+  ↓
+Analyze / Export
+```
+
+Additional cross-cutting layers:
+
+- LLM workflows
+- analytics
+- observability
+- orchestration
+- dataset export
 
 ---
 
-## NVIDIA UDR (experimental)
-Add an **optional** container `udr` later and a tab in UI.  
-**Why?** Compare our handcrafted pipeline with an agentic framework, highlight trade‑offs (control vs speed, PEFT vs no-finetune). UDR is not required to run the MVP.
+## Data Layers
+
+The project separates data into explicit layers:
+
+```text
+data/
+├── raw/
+├── normalized/
+├── enriched/
+├── analytics/
+└── datasets_release/
+```
+
+### raw
+Raw responses from upstream sources.
+
+Examples:
+- API JSON payloads
+- source metadata dumps
+- PDF references
+- raw HTML snapshots when needed
+
+### normalized
+Cleaned, canonicalized, deduplicated records.
+
+Examples:
+- unified titles/authors/date fields
+- canonical URLs
+- stable IDs
+- cleaned metadata schema
+
+### enriched
+Derived ML/LLM outputs.
+
+Examples:
+- summaries
+- tags
+- entities
+- repo links
+- scores
+- clusters
+- topic labels
+
+### analytics
+Artifacts and structured outputs from analysis workflows.
+
+Examples:
+- trend tables
+- graph exports
+- similarity maps
+- topic evolution outputs
+
+### datasets_release
+Prepared public dataset exports.
+
+Examples:
+- clean metadata dataset
+- enriched metadata dataset
+- graph/linkage dataset
+- topic/cluster dataset
+
+---
+
+## Repository Structure
+
+```text
+ML_Research_Radar/
+├── artifacts/
+├── configs/
+├── data/
+├── docs/
+├── environment/
+├── experiments/
+├── infra/
+├── notebooks/
+├── polyglot/
+├── radar_core/
+├── requirements/
+├── scripts/
+├── services/
+├── store/
+├── tests/
+├── .gitignore
+└── README.md
+```
+
+### `radar_core/`
+The project’s business logic lives here.
+
+Modules include:
+
+- `ingest/`
+- `normalize/`
+- `enrich/`
+- `retrieval/`
+- `ranking/`
+- `rag/`
+- `analytics/`
+- `dataset_export/`
+- `contracts/`
+- `models/`
+- `utils/`
+
+### `services/`
+Service wrappers and entry points.
+
+Includes:
+
+- `api/` — FastAPI
+- `ui/` — Streamlit
+- `workers/`
+- `notifications/`
+- `airflow/` later
+- `langgraph/` later
+
+### `store/`
+Persistence layer.
+
+- `sql/`
+- `alembic/`
+- `qdrant/`
+
+### `infra/`
+Infrastructure layout.
+
+- `docker/`
+- `k8s/`
+- `observability/`
+
+### `docs/`
+Project architecture and planning docs.
+
+- `architecture.md`
+- `roadmap.md`
+- `data_contracts.md`
+- `dataset_strategy.md`
+- `api_reference.md`
+
+---
+
+## Storage Strategy
+
+### PostgreSQL
+Used for:
+
+- canonical documents
+- source mappings
+- processing state
+- enrichments
+- tags and relationships
+- scores
+- feedback
+- release metadata
+
+### Qdrant
+Used for:
+
+- embeddings
+- semantic retrieval
+- similarity search
+- lightweight payload for search workflows
+
+### File-based storage
+Used for:
+
+- raw dumps
+- analytics artifacts
+- export bundles
+- reports and figures
+
+---
+
+## Data Contracts
+
+Several architectural invariants are fixed from the start:
+
+- stable `doc_id`
+- `content_hash`
+- stage tracking
+- pipeline versioning
+- schema versioning
+- idempotent processing
+- separation of raw / derived / serving concerns
+
+Pipeline stages:
+
+```text
+FOUND
+FETCHED
+PARSED
+EMBEDDED
+ENRICHED
+INDEXED
+```
+
+These contracts are critical for:
+
+- deduplication
+- reproducibility
+- re-indexing
+- future Kafka integration
+- dataset versioning
+
+---
+
+## Tech Stack
+
+### Current / core stack
+- Python 3.11
+- FastAPI
+- Streamlit
+- PostgreSQL
+- Qdrant
+- Pydantic
+- Alembic
+- Docker Compose
+- Sentence Transformers
+- PyTorch
+- Plotly
+- UMAP / HDBSCAN
+
+### Planned stack extensions
+- LangChain
+- LangGraph
+- Ray
+- Kafka
+- Airflow
+- Kubernetes
+- Prometheus
+- Grafana
+- Loki
+- Tempo
+- Grafana Alloy / OpenTelemetry-based observability
+
+---
+
+## Environment Notes
+
+The project uses a dedicated environment and installs dependencies incrementally by stages.
+
+Environment snapshots are stored in:
+
+```text
+environment/
+```
+
+Locked package snapshots are stored in:
+
+```text
+requirements/
+```
+
+This helps keep the project reproducible while the stack grows.
+
+---
+
+## Observability Plan
+
+The observability layer is planned as:
+
+- **Prometheus** for metrics
+- **Grafana** for dashboards
+- **Loki** for logs
+- **Tempo** for traces
+- **Alloy** for unified telemetry collection
+
+This layer is intentionally staged later in development, after the core platform becomes functional.
+
+---
+
+## Dataset Release Track
+
+A major side outcome of the project is the ability to release structured public datasets.
+
+Planned dataset families:
+
+1. **Clean Research Metadata**
+   - titles, authors, dates, sources, abstracts, tags, methods, tasks
+
+2. **Paper ↔ Code Linking Dataset**
+   - paper-to-repository relationships and derived metadata
+
+3. **Topic / Cluster Dataset**
+   - cluster IDs, pseudo-labels, topic keywords
+
+4. **Research Graph Dataset**
+   - nodes and edges for graph ML and link prediction
+
+5. **Temporal Research Trends Dataset**
+   - topic and method evolution across time
+
+Potential release platforms:
+
+- Kaggle
+- GitHub Releases
+- Hugging Face Datasets
+
+The public dataset track is an extension of the main pipeline, not a separate project.
 
 ---
 
 ## Roadmap
-- [x] Repo skeleton, Docker scaffolding (API, UI, Postgres, Qdrant)
-- [ ] Ingest MVP (arXiv + GitHub) → Postgres, text → Qdrant
-- [ ] RAG endpoint with citations, Streamlit Chat
-- [ ] Feed ranking (novelty/has_code/profile match), trends
-- [ ] PEFT for TL;DR & taxonomy (optional)
-- [ ] Ray for parallel ingest/vectorization (optional)
-- [ ] UDR comparison tab + container (optional)
-- [ ] Weekly digest export (CSV/Markdown/Telegram)
+
+### v0.1 — Foundation + Core Ingestion
+- repository structure
+- source adapters (initial)
+- Postgres + Qdrant setup
+- contracts
+- raw ingestion
+- normalization foundations
+
+### v0.2 — Search Core
+- search API
+- similar items
+- feed UI
+- initial ranking
+
+### v0.3 — Enrichment Layer
+- summaries
+- structured extraction
+- taxonomy tags
+- enriched records in Postgres
+
+### v0.4 — RAG Layer
+- question answering over corpus
+- citations
+- source panels
+- chat tab in UI
+
+### v0.5 — Product UX Expansion
+- bookmarks
+- saved searches
+- compare papers
+- reading lists
+- Telegram digests
+
+### v0.6 — Analytics Layer
+- trends
+- topic maps
+- clustering
+- timelines
+- similarity exploration
+
+### v0.7 — Retrieval Quality Upgrade
+- hybrid retrieval
+- rerankers
+- improved scoring
+- feedback-aware ranking
+
+### v0.8 — ML Enrichment Expansion
+- NER / entity extraction
+- novelty heuristics
+- personalization
+- user-interest modeling
+
+### v0.9 — Evaluation Layer
+- retrieval evaluation
+- RAG evaluation
+- regression suites
+- golden sets
+
+### v1.0 — Observability / MLOps Layer
+- metrics
+- logs
+- traces
+- dashboards
+
+### v1.1 — Airflow Orchestration
+- scheduled ingest/enrich/export/eval pipelines
+
+### v1.2 — LangGraph / LLM Workflows
+- compare workflows
+- digest workflows
+- research-agent workflows
+
+### v1.3 — Ray Layer
+- parallel ingestion
+- parallel parsing
+- parallel embedding/enrichment
+
+### v1.4 — Kafka Event Layer
+- event contracts
+- decoupled workers
+- retries / DLQ
+- event-driven pipeline evolution
+
+### v1.5 — Kubernetes Layer
+- deployment separation
+- persistent workloads
+- monitoring in cluster
+
+### v1.6+ — Polyglot Expansion
+- Rust utilities
+- Java microservices
+- C++ educational vector tooling
+- Bash automation
 
 ---
 
-## Tech choices
-- **Embeddings**: sentence‑transformers / E5 family (configurable)
-- **LLM**: any provider via adapters; PEFT via LoRA when needed
-- **Storage**: Postgres for metadata; Qdrant for vectors
-- **Orchestration**: simple scheduler; Ray optional for parallel pipelines
-- **Metrics**: manual accept/reject labels; compare Custom vs UDR outputs
+## Planned Functional Extensions
+
+### Product
+- feed
+- filters
+- bookmarks
+- exports
+- watchlists
+- saved searches
+- Telegram alerts
+- explainability
+- compare papers
+- compare with external pipelines
+- reading list generation
+- learning path generation
+
+### Analytics
+- weekly topic clusters
+- similarity maps
+- topic dashboards
+- topic evolution
+- research timeline
+- graph views
+
+### ML / retrieval
+- rerank models
+- taxonomy classifier
+- NER / entity extraction
+- novelty scoring
+- preference modeling
+- personalized ranking
+
+### LLM / reasoning
+- summarize
+- structured extraction
+- RAG
+- digest generation
+- comparison reasoning
+- research agent mode
+- automatic survey / overview generation
+
+### Engineering
+- provider abstraction
+- evaluation suite
+- observability
+- Airflow
+- LangGraph
+- Ray
+- Kafka
+- Kubernetes
+- CI quality stack
 
 ---
 
-## Config
-`configs/.env.example` (sample keys):
-```
-API_HOST=0.0.0.0
-API_PORT=8000
-DB_URL=postgresql+psycopg2://radar:radar@postgres:5432/radar
-QDRANT_URL=http://qdrant:6333
-EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
-LLM_PROVIDER=openai|hf|local
-UDR_URL=http://udr:8001   # optional
-```
+## What Is Intentionally Out of Scope
+
+To keep the project coherent, the following are intentionally not part of the plan:
+
+- multimodal generation
+- image generation
+- unrelated RL demos
+- training large models from scratch
+- isolated toy features that do not strengthen research discovery, retrieval, ranking, reasoning, or analytics
+
+---
+
+## Implementation Principles
+
+- Build from simple to complex
+- Release in vertical slices
+- Keep business logic inside `radar_core`
+- Keep services as wrappers, not logic containers
+- Add new features as modules, stages, workers, endpoints, or tabs
+- Avoid rewriting the foundation when extending the system
+
+---
+
+## Current Status
+
+At the current stage:
+
+- project vision is defined
+- architecture is formalized
+- future extensions are planned
+- environment is prepared at a base level
+- repository structure is initialized
+
+The next real development step is to start implementing the **core data contracts and document pipeline foundations**.
 
 ---
 
 ## License
-This project is released under the **MIT License**.
+
+MIT License
+
+---
+
+## Project Summary
+
+**ML Research Radar** is an expandable platform for discovering, structuring, analyzing, and reasoning over machine learning research content — with a roadmap that spans semantic retrieval, RAG, analytics, public datasets, observability, orchestration, event-driven processing, and polyglot engineering extensions.
