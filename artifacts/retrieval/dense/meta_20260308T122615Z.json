@@ -1,0 +1,7 @@
+{
+  "model_name": "sentence-transformers/all-MiniLM-L6-v2",
+  "embedding_dim": 384,
+  "doc_count": 150,
+  "normalized": true,
+  "batch_size": 64
+}

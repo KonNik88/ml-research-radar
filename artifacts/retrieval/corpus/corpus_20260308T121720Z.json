@@ -1,0 +1,38 @@
+{
+  "build_id": "20260308T121720Z",
+  "corpus_path": "data\\analytics\\reconciled\\canonical_documents.jsonl",
+  "corpus_doc_count": 150,
+  "corpus_fingerprint": "fb375501e9705d5ca566cabbbaafc63d8b7fb63992882b82eca1ff99be5af42c",
+  "sample_ids": [
+    "85324e335cee667448ef213198ed81ee",
+    "9a208e3bf273eb024c45c220d6fa6853",
+    "2eba8a36ff5aa4a56791ce1aa066e2be",
+    "306d92977d3f522f688e78dfd47d1212",
+    "01c61fe746cf6b3fb2b2ab726e269acf",
+    "1f73da81a782cbd29b7888fcd6fd237a",
+    "c82fb284be189afb5453521cd001ae5f",
+    "3b7869b87a2dc4c327e75497b7c89edb",
+    "1a1719860c84dca843bdb776ecf1353f",
+    "da822682f096d6c282e0313599bd1c34"
+  ],
+  "text_fields": [
+    "title",
+    "abstract",
+    "authors",
+    "categories",
+    "tags",
+    "primary_category"
+  ],
+  "sample_documents": [
+    {
+      "canonical_id": "85324e335cee667448ef213198ed81ee",
+      "doc_ids": [
+        "bb0900f49ab69d7308c6bd118941de1a"
+      ],
+      "title": "A Human Pan-Disease Whole Blood Transcriptomics Atlas Reveals Systemic Signatures Across Diseases",
+      "abstract": "This dataset accompanies the manuscript titled “A Human Pan-Disease Whole Blood Transcriptomics Atlas Reveals Systemic Signatures Across Diseases” Whole-blood transcriptomics (WBT) provides critical insights into systemic health and disease. In this study, we established a large-scale WBT Atlas comprising 4,444 samples across 98 distinct health conditions. Through integrative analyses, we identified disease-specific gene expression signatures and developed a multi-omics classification framework capable of distinguishing among these conditions based on their unique transcriptomic profiles. The dataset includes RNA-seq data from 4,444 samples used for atlas construction, along with 10 cohorts utilized for machine learning–based external validation.",
+      "authors": [
+        "Mardinoglu, Adil",
+        "Li, Mengzhen"
+      ],
+      "published_at": 
