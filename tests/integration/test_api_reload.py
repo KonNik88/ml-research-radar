@@ -15,6 +15,8 @@ def test_reload_smoke():
         assert "build_id" in payload
         assert "corpus_doc_count" in payload
         assert "embedding_model_name" in payload
+        assert "model_reused" in payload
+        assert "last_reload_at" in payload
 
 
 def test_health_after_reload_smoke():
@@ -27,3 +29,17 @@ def test_health_after_reload_smoke():
 
         payload = health_response.json()
         assert payload["status"] == "ok"
+
+
+def test_runtime_contains_reload_state():
+    with TestClient(app) as client:
+        client.post("/reload")
+
+        response = client.get("/runtime")
+        assert response.status_code == 200
+
+        payload = response.json()
+        assert "last_loaded_at" in payload
+        assert "last_reload_at" in payload
+        assert "model_reused" in payload
+        assert "current_model_name" in payload

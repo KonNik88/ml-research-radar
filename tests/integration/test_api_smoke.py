@@ -38,6 +38,8 @@ def test_runtime_smoke():
         payload = response.json()
         assert "ready" in payload
         assert "loaded_components" in payload
+        assert "model_reused" in payload
+        assert "current_model_name" in payload
 
 
 def test_search_lexical_smoke():
@@ -94,6 +96,7 @@ def test_search_hybrid_ranked_smoke():
         assert payload["mode"] == "hybrid"
         assert payload["rank_applied"] is True
         assert "meta" in payload
+        assert "timing_ms" in payload["meta"]
         assert isinstance(payload["results"], list)
 
         if payload["results"]:

@@ -161,6 +161,8 @@ def reload_runtime() -> ReloadResponse:
         build_id=runtime.manifest.build_id,
         corpus_doc_count=len(runtime.documents),
         embedding_model_name=runtime.manifest.embedding_model_name,
+        model_reused=runtime.last_model_reused,
+        last_reload_at=runtime.last_reload_at,
     )
 
 

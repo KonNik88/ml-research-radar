@@ -125,8 +125,12 @@ def _hybrid_search_with_model(
     top_k: int,
     lexical_weight: float = 0.55,
     dense_weight: float = 0.45,
-) -> list[dict]:
+) -> tuple[list[dict], dict[str, float]]:
+    t_lexical = time.perf_counter()
     lexical_results = lexical_index.search(query=query, top_k=top_k)
+    lexical_ms = (time.perf_counter() - t_lexical) * 1000
+
+    t_dense = time.perf_counter()
     dense_results = _dense_search_with_model(
         query=query,
         documents=documents,
@@ -135,7 +139,9 @@ def _hybrid_search_with_model(
         embedding_model=embedding_model,
         top_k=top_k,
     )
+    dense_ms = (time.perf_counter() - t_dense) * 1000
 
+    t_merge = time.perf_counter()
     lexical_score_map = {r.canonical_id: float(r.score) for r in lexical_results}
     dense_score_map = {r["canonical_id"]: float(r["score"]) for r in dense_results}
 
@@ -174,7 +180,13 @@ def _hybrid_search_with_model(
         )
 
     combined.sort(key=lambda x: x["hybrid_score"], reverse=True)
-    return combined[:top_k]
+    hybrid_merge_ms = (time.perf_counter() - t_merge) * 1000
+
+    return combined[:top_k], {
+        "lexical_ms": round(lexical_ms, 3),
+        "dense_ms": round(dense_ms, 3),
+        "hybrid_merge_ms": round(hybrid_merge_ms, 3),
+    }
 
 
 def _from_lexical_result(r) -> SearchResultItem:
@@ -314,8 +326,7 @@ def run_search(
             items = [_from_dense_result(r) for r in results]
 
     elif mode == "hybrid":
-        t_retrieve = time.perf_counter()
-        results = _hybrid_search_with_model(
+        results, hybrid_timings = _hybrid_search_with_model(
             query=query,
             documents=documents,
             lexical_index=lexical_artifacts.index,
@@ -324,7 +335,13 @@ def run_search(
             embedding_model=embedding_model,
             top_k=top_k,
         )
-        timings["retrieve_ms"] = round((time.perf_counter() - t_retrieve) * 1000, 3)
+        timings.update(hybrid_timings)
+        timings["retrieve_ms"] = round(
+            hybrid_timings["lexical_ms"]
+            + hybrid_timings["dense_ms"]
+            + hybrid_timings["hybrid_merge_ms"],
+            3,
+        )
 
         if rank:
             t_rank = time.perf_counter()

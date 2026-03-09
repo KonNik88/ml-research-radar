@@ -28,6 +28,8 @@ class ReloadResponse(BaseModel):
     build_id: str
     corpus_doc_count: int
     embedding_model_name: str
+    model_reused: bool
+    last_reload_at: str | None = None
 
 
 class ErrorResponse(BaseModel):
@@ -96,3 +98,7 @@ class RuntimeSnapshotResponse(BaseModel):
     artifacts_root: str
     loaded_components: dict[str, bool]
     last_load_error: str | None = None
+    last_loaded_at: str | None = None
+    last_reload_at: str | None = None
+    model_reused: bool = False
+    current_model_name: str | None = None
