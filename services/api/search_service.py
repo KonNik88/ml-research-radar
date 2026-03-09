@@ -1,20 +1,26 @@
 from __future__ import annotations
 
+import time
 from typing import Literal
 
 import numpy as np
 
 from radar_core.contracts.canonical_document import CanonicalDocument
 from radar_core.ranking.scoring import rank_results
+from services.api.logging import get_logger
 from services.api.runtime import ApiRuntime
 from services.api.schemas import (
     RankingScores,
     RetrievalScores,
+    SearchMeta,
     SearchResponse,
     SearchResultDocument,
     SearchResultItem,
 )
+from services.api.settings import get_settings
 
+
+logger = get_logger(__name__)
 
 SearchMode = Literal["lexical", "dense", "hybrid"]
 
@@ -46,6 +52,21 @@ def _doc_to_schema(doc: CanonicalDocument) -> SearchResultDocument:
         tags=list(doc.tags or []),
         source_count=int(doc.source_count or 0),
     )
+
+
+def _normalize_query(query: str) -> str:
+    settings = get_settings()
+    normalized = query.strip()
+
+    if not normalized:
+        raise ValueError("Query must not be empty after trimming whitespace")
+
+    if len(normalized) > settings.max_query_length:
+        raise ValueError(
+            f"Query is too long: {len(normalized)} > {settings.max_query_length}"
+        )
+
+    return normalized
 
 
 def _dense_search_with_model(
@@ -216,6 +237,10 @@ def run_search(
     top_k: int,
     rank: bool,
 ) -> SearchResponse:
+    settings = get_settings()
+
+    query = _normalize_query(query)
+
     documents = runtime.documents
     lexical_artifacts = runtime.lexical_artifacts
     dense_artifacts = runtime.dense_artifacts
@@ -230,10 +255,24 @@ def run_search(
     ):
         raise RuntimeError("API runtime is not initialized")
 
+    t0 = time.perf_counter()
+    timings: dict[str, float] = {}
+
+    logger.info(
+        "Search request: mode=%s top_k=%s rank=%s query=%s",
+        mode,
+        top_k,
+        rank,
+        query,
+    )
+
     if mode == "lexical":
+        t_retrieve = time.perf_counter()
         results = lexical_artifacts.index.search(query=query, top_k=top_k)
+        timings["retrieve_ms"] = round((time.perf_counter() - t_retrieve) * 1000, 3)
 
         if rank:
+            t_rank = time.perf_counter()
             ranked = rank_results(
                 [
                     {
@@ -249,20 +288,13 @@ def run_search(
                 ],
                 retrieval_score_field="score",
             )
+            timings["rank_ms"] = round((time.perf_counter() - t_rank) * 1000, 3)
             items = [_from_ranked_result(r) for r in ranked]
         else:
             items = [_from_lexical_result(r) for r in results]
 
-        return SearchResponse(
-            query=query,
-            mode=mode,
-            top_k=top_k,
-            rank_applied=rank,
-            build_id=manifest.build_id,
-            results=items,
-        )
-
-    if mode == "dense":
+    elif mode == "dense":
+        t_retrieve = time.perf_counter()
         results = _dense_search_with_model(
             query=query,
             documents=documents,
@@ -271,23 +303,18 @@ def run_search(
             embedding_model=embedding_model,
             top_k=top_k,
         )
+        timings["retrieve_ms"] = round((time.perf_counter() - t_retrieve) * 1000, 3)
 
         if rank:
+            t_rank = time.perf_counter()
             ranked = rank_results(results, retrieval_score_field="score")
+            timings["rank_ms"] = round((time.perf_counter() - t_rank) * 1000, 3)
             items = [_from_ranked_result(r) for r in ranked]
         else:
             items = [_from_dense_result(r) for r in results]
 
-        return SearchResponse(
-            query=query,
-            mode=mode,
-            top_k=top_k,
-            rank_applied=rank,
-            build_id=manifest.build_id,
-            results=items,
-        )
-
-    if mode == "hybrid":
+    elif mode == "hybrid":
+        t_retrieve = time.perf_counter()
         results = _hybrid_search_with_model(
             query=query,
             documents=documents,
@@ -297,8 +324,10 @@ def run_search(
             embedding_model=embedding_model,
             top_k=top_k,
         )
+        timings["retrieve_ms"] = round((time.perf_counter() - t_retrieve) * 1000, 3)
 
         if rank:
+            t_rank = time.perf_counter()
             ranked = rank_results(
                 results,
                 retrieval_score_field="hybrid_score",
@@ -307,17 +336,40 @@ def run_search(
                 source_support_weight=0.10,
                 metadata_quality_weight=0.10,
             )
+            timings["rank_ms"] = round((time.perf_counter() - t_rank) * 1000, 3)
             items = [_from_ranked_result(r) for r in ranked]
         else:
             items = [_from_hybrid_result(r) for r in results]
+    else:
+        raise ValueError(f"Unsupported mode: {mode}")
 
-        return SearchResponse(
-            query=query,
-            mode=mode,
-            top_k=top_k,
-            rank_applied=rank,
+    timings["total_ms"] = round((time.perf_counter() - t0) * 1000, 3)
+
+    logger.info(
+        "Search completed: mode=%s top_k=%s rank=%s results=%s total_ms=%s",
+        mode,
+        top_k,
+        rank,
+        len(items),
+        timings["total_ms"],
+    )
+
+    meta = None
+    if settings.enable_debug_meta:
+        meta = SearchMeta(
             build_id=manifest.build_id,
-            results=items,
+            result_count=len(items),
+            rank_applied=rank,
+            timing_ms=timings,
+            debug_enabled=True,
         )
 
-    raise ValueError(f"Unsupported mode: {mode}")
+    return SearchResponse(
+        query=query,
+        mode=mode,
+        top_k=top_k,
+        rank_applied=rank,
+        build_id=manifest.build_id,
+        meta=meta,
+        results=items,
+    )

@@ -18,6 +18,28 @@ def test_health_smoke():
         assert "corpus_path" in payload
 
 
+def test_info_smoke():
+    with TestClient(app) as client:
+        response = client.get("/info")
+        assert response.status_code == 200
+
+        payload = response.json()
+        assert "api_title" in payload
+        assert "api_version" in payload
+        assert "build_id" in payload
+        assert "loaded_components" in payload
+
+
+def test_runtime_smoke():
+    with TestClient(app) as client:
+        response = client.get("/runtime")
+        assert response.status_code == 200
+
+        payload = response.json()
+        assert "ready" in payload
+        assert "loaded_components" in payload
+
+
 def test_search_lexical_smoke():
     with TestClient(app) as client:
         response = client.get(
@@ -33,6 +55,7 @@ def test_search_lexical_smoke():
         payload = response.json()
         assert payload["mode"] == "lexical"
         assert payload["top_k"] == 3
+        assert "meta" in payload
         assert isinstance(payload["results"], list)
 
 
@@ -50,6 +73,7 @@ def test_search_dense_smoke():
 
         payload = response.json()
         assert payload["mode"] == "dense"
+        assert "meta" in payload
         assert isinstance(payload["results"], list)
 
 
@@ -69,6 +93,7 @@ def test_search_hybrid_ranked_smoke():
         payload = response.json()
         assert payload["mode"] == "hybrid"
         assert payload["rank_applied"] is True
+        assert "meta" in payload
         assert isinstance(payload["results"], list)
 
         if payload["results"]:

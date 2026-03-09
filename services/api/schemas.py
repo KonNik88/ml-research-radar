@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -11,6 +11,37 @@ class HealthResponse(BaseModel):
     corpus_doc_count: int
     embedding_model_name: str
     corpus_path: str
+
+
+class ApiInfoResponse(BaseModel):
+    api_title: str
+    api_version: str
+    build_id: str
+    corpus_doc_count: int
+    embedding_model_name: str
+    artifacts_root: str
+    loaded_components: dict[str, bool]
+
+
+class ReloadResponse(BaseModel):
+    status: str
+    build_id: str
+    corpus_doc_count: int
+    embedding_model_name: str
+
+
+class ErrorResponse(BaseModel):
+    error_code: str
+    message: str
+    details: dict[str, Any] | None = None
+
+
+class SearchMeta(BaseModel):
+    build_id: str
+    result_count: int
+    rank_applied: bool
+    timing_ms: dict[str, float] = Field(default_factory=dict)
+    debug_enabled: bool = False
 
 
 class SearchResultDocument(BaseModel):
@@ -53,4 +84,15 @@ class SearchResponse(BaseModel):
     top_k: int
     rank_applied: bool
     build_id: str
+    meta: SearchMeta | None = None
     results: list[SearchResultItem]
+
+
+class RuntimeSnapshotResponse(BaseModel):
+    ready: bool
+    build_id: str | None = None
+    corpus_doc_count: int = 0
+    embedding_model_name: str | None = None
+    artifacts_root: str
+    loaded_components: dict[str, bool]
+    last_load_error: str | None = None
