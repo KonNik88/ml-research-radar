@@ -7,10 +7,10 @@ import requests
 import streamlit as st
 
 DEFAULT_API_BASE_URL = os.getenv("ML_RADAR_API_BASE_URL", "http://127.0.0.1:8000")
-REQUEST_TIMEOUT_SECONDS = 20
+REQUEST_TIMEOUT_SECONDS = 30
 MODE_OPTIONS = ["lexical", "dense", "hybrid"]
+SORT_OPTIONS = ["relevance", "year_desc", "year_asc"]
 MAX_TOP_K = 100
-
 
 st.set_page_config(
     page_title="ML Research Radar",
@@ -77,18 +77,37 @@ def trigger_reload(base_url: str) -> dict[str, Any]:
 
 
 def run_search(
+    *,
     base_url: str,
     query: str,
     mode: str,
     top_k: int,
     rank: bool,
+    year_from: int | None,
+    year_to: int | None,
+    category: str | None,
+    source: str | None,
+    offset: int,
+    sort_by: str,
 ) -> dict[str, Any]:
-    params = {
+    params: dict[str, Any] = {
         "query": query,
         "mode": mode,
         "top_k": top_k,
         "rank": str(rank).lower(),
+        "offset": offset,
+        "sort_by": sort_by,
     }
+
+    if year_from is not None:
+        params["year_from"] = year_from
+    if year_to is not None:
+        params["year_to"] = year_to
+    if category:
+        params["category"] = category
+    if source:
+        params["source"] = source
+
     return api_get(base_url, "/search", params=params)
 
 
@@ -153,7 +172,9 @@ def render_sidebar(base_url: str) -> None:
         st.sidebar.error(f"API unavailable: {exc}")
 
 
-def render_search_controls() -> tuple[str, str, int, bool, bool]:
+def render_search_controls() -> tuple[
+    str, str, int, bool, int | None, int | None, str | None, str | None, int, str, bool
+]:
     st.title("🔎 ML Research Radar")
     st.caption("Поиск ML-статей через FastAPI backend: lexical, dense и hybrid retrieval.")
 
@@ -164,17 +185,50 @@ def render_search_controls() -> tuple[str, str, int, bool, bool]:
             placeholder="Например: retrieval augmented generation for scientific literature",
         )
 
-        col1, col2, col3 = st.columns([1, 1, 1])
-        with col1:
+        row1_col1, row1_col2, row1_col3 = st.columns(3)
+        with row1_col1:
             mode = st.selectbox("Mode", MODE_OPTIONS, index=2)
-        with col2:
+        with row1_col2:
             top_k = st.number_input("Top K", min_value=1, max_value=MAX_TOP_K, value=10, step=1)
-        with col3:
+        with row1_col3:
             rank = st.checkbox("Apply ranking", value=True)
+
+        row2_col1, row2_col2, row2_col3 = st.columns(3)
+        with row2_col1:
+            year_from_raw = st.text_input("Year from", value="")
+        with row2_col2:
+            year_to_raw = st.text_input("Year to", value="")
+        with row2_col3:
+            sort_by = st.selectbox("Sort by", SORT_OPTIONS, index=0)
+
+        row3_col1, row3_col2, row3_col3 = st.columns(3)
+        with row3_col1:
+            category = st.text_input("Category", value="", placeholder="Например: cs.LG")
+        with row3_col2:
+            source = st.text_input("Source", value="", placeholder="Например: arxiv")
+        with row3_col3:
+            offset = st.number_input("Offset", min_value=0, max_value=10000, value=0, step=1)
 
         submitted = st.form_submit_button("Search", use_container_width=True)
 
-    return query, mode, int(top_k), rank, submitted
+    year_from = int(year_from_raw) if year_from_raw.strip() else None
+    year_to = int(year_to_raw) if year_to_raw.strip() else None
+    category = category.strip() or None
+    source = source.strip() or None
+
+    return (
+        query,
+        mode,
+        int(top_k),
+        rank,
+        year_from,
+        year_to,
+        category,
+        source,
+        int(offset),
+        sort_by,
+        submitted,
+    )
 
 
 def render_meta(meta: dict[str, Any] | None) -> None:
@@ -183,15 +237,35 @@ def render_meta(meta: dict[str, Any] | None) -> None:
         return
 
     st.markdown("### Search meta")
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Build ID", meta.get("build_id", "—"))
-    col2.metric("Result count", meta.get("result_count", 0))
-    col3.metric("Rank applied", str(meta.get("rank_applied", False)))
+
+    row1 = st.columns(4)
+    row1[0].metric("Build ID", meta.get("build_id", "—"))
+    row1[1].metric("Result count", meta.get("result_count", 0))
+    row1[2].metric("Returned count", meta.get("returned_count", 0))
+    row1[3].metric("Rank applied", str(meta.get("rank_applied", False)))
+
+    row2 = st.columns(4)
+    row2[0].metric("Offset", meta.get("offset", 0))
+    row2[1].metric("Sort by", meta.get("sort_by", "—"))
+    row2[2].metric(
+        "Retrieved before filters",
+        meta.get("retrieved_candidates_before_filters", "—"),
+    )
+    row2[3].metric(
+        "Retrieved after filters",
+        meta.get("retrieved_candidates_after_filters", "—"),
+    )
+
+    applied_filters = meta.get("applied_filters")
+    if applied_filters:
+        with st.expander("Applied filters", expanded=False):
+            st.json(applied_filters)
 
     timing = meta.get("timing_ms", {}) or {}
     if timing:
         st.markdown("#### Timing (ms)")
-        timing_cols = st.columns(min(4, max(1, len(timing))))
+        keys = list(timing.keys())
+        timing_cols = st.columns(min(4, max(1, len(keys))))
         for idx, (key, value) in enumerate(timing.items()):
             timing_cols[idx % len(timing_cols)].metric(key, value)
 
@@ -300,7 +374,23 @@ def main() -> None:
 
     render_sidebar(api_base_url)
 
-    query, mode, top_k, rank, submitted = render_search_controls()
+    try:
+        (
+            query,
+            mode,
+            top_k,
+            rank,
+            year_from,
+            year_to,
+            category,
+            source,
+            offset,
+            sort_by,
+            submitted,
+        ) = render_search_controls()
+    except ValueError:
+        st.error("Year from / Year to должны быть целыми числами.")
+        st.stop()
 
     if submitted:
         st.session_state["last_query"] = query
@@ -312,13 +402,19 @@ def main() -> None:
                     mode=mode,
                     top_k=top_k,
                     rank=rank,
+                    year_from=year_from,
+                    year_to=year_to,
+                    category=category,
+                    source=source,
+                    offset=offset,
+                    sort_by=sort_by,
                 )
             render_results(payload)
         except Exception as exc:
             st.error(str(exc))
             st.stop()
     else:
-        st.info("Введите запрос и нажмите Search.")
+        st.info("Введите запрос, при необходимости задайте фильтры и нажмите Search.")
 
 
 if __name__ == "__main__":
