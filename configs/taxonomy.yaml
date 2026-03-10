@@ -1,0 +1,157 @@
+taxonomy:
+  core_categories:
+    arxiv:
+      - cs.LG
+      - cs.AI
+      - stat.ML
+      - cs.CV
+      - cs.CL
+      - cs.NE
+      - cs.IR
+      - cs.RO
+      - cs.HC
+      - eess.AS
+      - eess.IV
+
+  topic_groups:
+    graph_ml:
+      aliases:
+        - "graph neural networks"
+        - "gnn"
+        - "graph learning"
+        - "message passing"
+      arxiv_categories:
+        - cs.LG
+        - cs.AI
+      tags:
+        - graph_ml
+
+    nlp:
+      aliases:
+        - "natural language processing"
+        - "nlp"
+        - "language model"
+        - "llm"
+        - "transformer"
+      arxiv_categories:
+        - cs.CL
+        - cs.LG
+        - cs.AI
+      tags:
+        - nlp
+        - llm
+
+    computer_vision:
+      aliases:
+        - "computer vision"
+        - "image classification"
+        - "object detection"
+        - "segmentation"
+        - "cnn"
+      arxiv_categories:
+        - cs.CV
+        - cs.LG
+      tags:
+        - cv
+
+    tabular_ml:
+      aliases:
+        - "tabular data"
+        - "gradient boosting"
+        - "catboost"
+        - "xgboost"
+        - "tabnet"
+      arxiv_categories:
+        - cs.LG
+        - stat.ML
+      tags:
+        - tabular_ml
+
+    time_series:
+      aliases:
+        - "time series"
+        - "forecasting"
+        - "temporal modeling"
+      arxiv_categories:
+        - cs.LG
+        - stat.ML
+      tags:
+        - time_series
+
+    recommender_systems:
+      aliases:
+        - "recommender systems"
+        - "recommendation"
+        - "collaborative filtering"
+        - "retrieval"
+      arxiv_categories:
+        - cs.IR
+        - cs.LG
+      tags:
+        - recommender_systems
+
+    reinforcement_learning:
+      aliases:
+        - "reinforcement learning"
+        - "rl"
+        - "policy optimization"
+        - "actor critic"
+      arxiv_categories:
+        - cs.LG
+        - cs.AI
+      tags:
+        - rl
+
+    multimodal:
+      aliases:
+        - "multimodal"
+        - "vision language"
+        - "clip"
+        - "cross modal"
+      arxiv_categories:
+        - cs.CV
+        - cs.CL
+        - cs.LG
+      tags:
+        - multimodal
+
+    audio_ml:
+      aliases:
+        - "audio"
+        - "speech"
+        - "speaker recognition"
+        - "audio tagging"
+      arxiv_categories:
+        - eess.AS
+        - cs.SD
+        - cs.LG
+      tags:
+        - audio_ml
+
+    scientific_ml:
+      aliases:
+        - "scientific machine learning"
+        - "physics informed"
+        - "computational biology"
+        - "bioinformatics"
+      arxiv_categories:
+        - cs.LG
+        - q-bio.QM
+        - q-bio.BM
+      tags:
+        - scientific_ml
+
+normalization:
+  category_aliases:
+    stat.ML: "ml"
+    cs.LG: "ml"
+    cs.AI: "ai"
+    cs.CL: "nlp"
+    cs.CV: "cv"
+    cs.IR: "ir"
+    eess.AS: "audio"
+    eess.IV: "vision"
+
+  source_aliases:
+    arxiv: "arxiv"
+    openalex: "openalex"

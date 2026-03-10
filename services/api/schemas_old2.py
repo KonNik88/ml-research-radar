@@ -52,8 +52,8 @@ class SearchMeta(BaseModel):
     timing_ms: dict[str, float] = Field(default_factory=dict)
     debug_enabled: bool = False
     applied_filters: SearchFilters | None = None
-    retrieved_candidates_before_filters: int | None = None
-    retrieved_candidates_after_filters: int | None = None
+    total_candidates_before_filters: int | None = None
+    total_candidates_after_filters: int | None = None
     offset: int = 0
     returned_count: int = 0
     sort_by: str | None = None

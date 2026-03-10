@@ -6,7 +6,6 @@ from typing import Any, Literal
 
 import numpy as np
 
-from radar_core.config import load_scoring_config
 from radar_core.contracts.canonical_document import CanonicalDocument
 from radar_core.ranking.scoring import rank_results
 from services.api.logging import get_logger
@@ -37,22 +36,6 @@ class SearchFilterParams:
     source: str | None = None
     offset: int = 0
     sort_by: SearchSortBy = "relevance"
-
-
-def _load_search_scoring_params() -> dict[str, float]:
-    cfg = load_scoring_config()
-
-    hybrid_cfg = cfg.get("retrieval", {}).get("hybrid", {})
-    ranking_weights = cfg.get("ranking", {}).get("weights", {})
-
-    return {
-        "hybrid_lexical_weight": float(hybrid_cfg.get("lexical_weight", 0.55)),
-        "hybrid_dense_weight": float(hybrid_cfg.get("dense_weight", 0.45)),
-        "ranking_retrieval_weight": float(ranking_weights.get("retrieval", 0.60)),
-        "ranking_recency_weight": float(ranking_weights.get("recency", 0.20)),
-        "ranking_source_support_weight": float(ranking_weights.get("source_support", 0.10)),
-        "ranking_metadata_quality_weight": float(ranking_weights.get("metadata_quality", 0.10)),
-    }
 
 
 def _minmax_normalize(score_map: dict[str, float]) -> dict[str, float]:
@@ -420,7 +403,6 @@ def run_search(
     sort_by: SearchSortBy = "relevance",
 ) -> SearchResponse:
     settings = get_settings()
-    scoring_params = _load_search_scoring_params()
 
     query = _normalize_query(query)
 
@@ -499,8 +481,6 @@ def run_search(
             dense_ids=dense_artifacts.ids,
             embedding_model=embedding_model,
             top_k=candidate_k,
-            lexical_weight=scoring_params["hybrid_lexical_weight"],
-            dense_weight=scoring_params["hybrid_dense_weight"],
         )
         timings.update(hybrid_timings)
         timings["retrieve_ms"] = round(
@@ -512,9 +492,9 @@ def run_search(
     else:
         raise ValueError(f"Unsupported mode: {mode}")
 
-    retrieved_candidates_before_filters = len(raw_candidates)
+    total_candidates_before_filters = len(raw_candidates)
     filtered_candidates = _apply_filters(raw_candidates, filters)
-    retrieved_candidates_after_filters = len(filtered_candidates)
+    total_candidates_after_filters = len(filtered_candidates)
 
     if rank:
         t_rank = time.perf_counter()
@@ -522,10 +502,10 @@ def run_search(
         ranked_results = rank_results(
             filtered_candidates,
             retrieval_score_field=retrieval_score_field,
-            retrieval_weight=scoring_params["ranking_retrieval_weight"],
-            recency_weight=scoring_params["ranking_recency_weight"],
-            source_support_weight=scoring_params["ranking_source_support_weight"],
-            metadata_quality_weight=scoring_params["ranking_metadata_quality_weight"],
+            retrieval_weight=0.60,
+            recency_weight=0.20,
+            source_support_weight=0.10,
+            metadata_quality_weight=0.10,
         )
         timings["rank_ms"] = round((time.perf_counter() - t_rank) * 1000, 3)
 
@@ -553,7 +533,7 @@ def run_search(
         top_k,
         rank,
         offset,
-        retrieved_candidates_after_filters,
+        total_candidates_after_filters,
         len(items),
         timings["total_ms"],
     )
@@ -572,8 +552,8 @@ def run_search(
                 category=category,
                 source=source,
             ),
-            retrieved_candidates_before_filters=retrieved_candidates_before_filters,
-            retrieved_candidates_after_filters=retrieved_candidates_after_filters,
+            total_candidates_before_filters=total_candidates_before_filters,
+            total_candidates_after_filters=total_candidates_after_filters,
             offset=offset,
             returned_count=len(items),
             sort_by=sort_by,

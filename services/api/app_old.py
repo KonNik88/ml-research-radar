@@ -172,12 +172,6 @@ def search(
     mode: Literal["lexical", "dense", "hybrid"] = Query("hybrid"),
     top_k: int | None = Query(None, ge=1),
     rank: bool = Query(False),
-    year_from: int | None = Query(None, ge=1900, le=2100),
-    year_to: int | None = Query(None, ge=1900, le=2100),
-    category: str | None = Query(None, description="Category or tag filter"),
-    source: str | None = Query(None, description="Source filter, e.g. arxiv/openalex"),
-    offset: int = Query(0, ge=0),
-    sort_by: Literal["relevance", "year_desc", "year_asc"] = Query("relevance"),
 ) -> SearchResponse:
     runtime = get_runtime()
     if not runtime.is_ready():
@@ -189,19 +183,10 @@ def search(
             f"top_k={resolved_top_k} exceeds max_top_k={settings.max_top_k}"
         )
 
-    if year_from is not None and year_to is not None and year_from > year_to:
-        raise ValueError("year_from must be less than or equal to year_to")
-
     return run_search(
         runtime=runtime,
         query=query,
         mode=mode,
         top_k=resolved_top_k,
         rank=rank,
-        year_from=year_from,
-        year_to=year_to,
-        category=category,
-        source=source,
-        offset=offset,
-        sort_by=sort_by,
     )

@@ -1,0 +1,57 @@
+sources:
+  enabled:
+    - arxiv
+    - openalex
+
+profiles:
+  test:
+    arxiv:
+      search_query: "machine learning"
+      max_results: 50
+      sort_by: "submittedDate"
+      sort_order: "descending"
+
+    openalex:
+      search: "machine learning"
+      per_page: 50
+      filter: "from_publication_date:2024-01-01"
+      sort: "publication_date:desc"
+
+  dev:
+    arxiv:
+      search_query: |
+        cat:cs.LG OR cat:cs.AI OR cat:cs.CV OR cat:cs.CL OR cat:stat.ML
+      max_results: 300
+      sort_by: "submittedDate"
+      sort_order: "descending"
+
+    openalex:
+      search: "machine learning"
+      per_page: 300
+      filter: "from_publication_date:2023-01-01"
+      sort: "publication_date:desc"
+
+  full:
+    arxiv:
+      search_query: |
+        cat:cs.LG OR cat:cs.AI OR cat:cs.CV OR cat:cs.CL OR cat:stat.ML
+      max_results: 1000
+      sort_by: "submittedDate"
+      sort_order: "descending"
+
+    openalex:
+      search: "machine learning"
+      per_page: 1000
+      filter: "from_publication_date:2022-01-01"
+      sort: "publication_date:desc"
+
+defaults:
+  profile: "dev"
+  deduplicate_after_ingest: true
+  run_reconcile: true
+
+limits:
+  hard_max_results_per_source: 5000
+  recommended_test_corpus_size: 100
+  recommended_dev_corpus_size: 300
+  recommended_full_corpus_size: 1000
