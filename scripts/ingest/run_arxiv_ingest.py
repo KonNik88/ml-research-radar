@@ -15,9 +15,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--mode",
-        choices=["test", "full"],
+        choices=["test", "medium", "full"],
         default="test",
-        help="test = быстрая выборка, full = побольше документов",
+        help="test = быстрая выборка, medium = средняя, full = расширенная",
     )
     return parser
 
@@ -32,10 +32,19 @@ def build_query(mode: str) -> ArxivQuery:
             sort_order="descending",
         )
 
+    if mode == "medium":
+        return ArxivQuery(
+            search_query="cat:cs.LG OR cat:cs.AI OR cat:cs.CL OR cat:cs.CV OR cat:stat.ML",
+            start=0,
+            max_results=300,
+            sort_by="submittedDate",
+            sort_order="descending",
+        )
+
     return ArxivQuery(
-        search_query="cat:cs.LG OR cat:cs.AI OR cat:cs.CL",
+        search_query="cat:cs.LG OR cat:cs.AI OR cat:cs.CL OR cat:cs.CV OR cat:stat.ML",
         start=0,
-        max_results=100,
+        max_results=1000,
         sort_by="submittedDate",
         sort_order="descending",
     )
@@ -52,7 +61,6 @@ def main() -> None:
     raw_dir, normalized_dir, state_dir = store.prepare_run_dirs(source=source, run_ts=run_ts)
 
     state_path = state_dir / "local_document_index.json"
-
     query = build_query(args.mode)
 
     local_index = LocalDocumentIndex(state_path)
@@ -100,7 +108,11 @@ def main() -> None:
         updated_rows=updated_rows,
         unchanged_rows=unchanged_rows,
     )
-    manifest_path = store.save_manifest(source=source, run_ts=run_ts, manifest=manifest.to_dict())
+    manifest_path = store.save_manifest(
+        source=source,
+        run_ts=run_ts,
+        manifest=manifest.to_dict(),
+    )
 
     print(f"[OK] arXiv ingest finished: {len(deduped_docs)} documents")
     print(f"[OK] new={len(new_docs)} updated={len(updated_docs)} unchanged={len(unchanged_docs)}")
