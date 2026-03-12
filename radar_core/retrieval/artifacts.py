@@ -45,8 +45,18 @@ DEFAULT_TEXT_FIELDS = [
     "abstract",
     "authors",
     "categories",
+    "concepts",
+    "keywords",
     "tags",
     "primary_category",
+    "venue",
+    "journal",
+    "conference",
+    "publisher",
+    "publication_type",
+    "comment",
+    "journal_ref",
+    "language",
 ]
 
 

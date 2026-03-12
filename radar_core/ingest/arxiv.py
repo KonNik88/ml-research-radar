@@ -61,6 +61,10 @@ class ArxivIngestor(BaseIngestor[ArxivQuery, object, object]):
         canonical_url = canonicalize_url(entry_id)
         doc_id = build_doc_id(canonical_url)
 
+        arxiv_id = self._extract_arxiv_id(entry_id)
+        published_at = self._parse_dt(entry.get("published"))
+        updated_at = self._parse_dt(entry.get("updated"))
+
         payload = {
             "id": entry.get("id"),
             "title": entry.get("title"),
@@ -84,6 +88,11 @@ class ArxivIngestor(BaseIngestor[ArxivQuery, object, object]):
                 source=self.source_name,
                 source_id=entry.get("id"),
                 source_url=entry.get("id"),
+                source_record_id=arxiv_id,
+                source_record_url=entry.get("id"),
+                source_api_url=None,
+                source_updated_at=updated_at,
+                raw_source_name=self.source_name,
             ),
             pipeline_version=self.pipeline_version,
             stages=[
@@ -99,6 +108,8 @@ class ArxivIngestor(BaseIngestor[ArxivQuery, object, object]):
                 ),
             ],
             payload=payload,
+            created_at=published_at or datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
 
     def parse_entry_to_normalized(
@@ -110,7 +121,7 @@ class ArxivIngestor(BaseIngestor[ArxivQuery, object, object]):
         canonical_url = canonicalize_url(entry_id)
         doc_id = build_doc_id(canonical_url)
 
-        title = self._normalize_text(entry.get("title"))
+        title = self._normalize_text(entry.get("title")) or ""
         abstract = self._normalize_text(entry.get("summary"))
         comment = self._normalize_text(entry.get("arxiv_comment"))
         journal_ref = self._normalize_text(entry.get("arxiv_journal_ref"))
@@ -142,10 +153,13 @@ class ArxivIngestor(BaseIngestor[ArxivQuery, object, object]):
         content_hash = build_content_hash(title=title, abstract=abstract or "")
 
         external_ids: dict[str, str] = {}
+        source_ids: dict[str, str] = {}
+
         if doi:
             external_ids["doi"] = doi
         if arxiv_id:
             external_ids["arxiv"] = arxiv_id
+            source_ids["arxiv"] = arxiv_id
 
         concepts: list[str] = []
         keywords: list[str] = []
@@ -157,6 +171,26 @@ class ArxivIngestor(BaseIngestor[ArxivQuery, object, object]):
             links=entry.get("links", []),
         )
         has_code_link = len(code_links) > 0
+
+        has_pdf = pdf_url is not None
+        is_withdrawn = self._detect_withdrawn(title, abstract, comment)
+        is_review = self._detect_review(title, abstract, comment)
+        is_survey = self._detect_survey(title, abstract, comment)
+
+        open_access = True
+        metadata_completeness_score = self._estimate_metadata_completeness(
+            title=title,
+            abstract=abstract,
+            authors=authors,
+            doi=doi,
+            publication_date=published_at,
+            primary_category=primary_category,
+            categories=categories,
+            pdf_url=pdf_url,
+            code_links=code_links,
+            comment=comment,
+            journal_ref=journal_ref,
+        )
 
         return NormalizedDocument(
             # identity
@@ -170,12 +204,21 @@ class ArxivIngestor(BaseIngestor[ArxivQuery, object, object]):
             source_id=entry_id,
             source_record_id=arxiv_id,
             source_record_url=entry_id,
+            source_ids=source_ids,
+            source_api_url=None,
             external_ids=external_ids,
 
             # stable ids
             doi=doi,
             arxiv_id=arxiv_id,
             openalex_id=None,
+
+            # optional extra ids
+            pmid=None,
+            pmcid=None,
+            semantic_scholar_id=None,
+            dblp_id=None,
+            mag_id=None,
 
             # core content
             title=title,
@@ -191,7 +234,7 @@ class ArxivIngestor(BaseIngestor[ArxivQuery, object, object]):
             pdf_url=pdf_url,
             repo_url=code_links[0] if code_links else None,
             license=license_url,
-            open_access=True,
+            open_access=open_access,
 
             # taxonomy / topics
             primary_category=primary_category,
@@ -223,16 +266,24 @@ class ArxivIngestor(BaseIngestor[ArxivQuery, object, object]):
             code_links=code_links,
             dataset_links=[],
             model_links=[],
+            has_dataset_link=False,
+            has_model_link=False,
 
             # lightweight flags
-            has_pdf=pdf_url is not None,
-            is_withdrawn=self._detect_withdrawn(title, abstract, comment),
+            has_pdf=has_pdf,
+            is_withdrawn=is_withdrawn,
+
+            # optional heuristics
+            is_open_access=open_access,
+            is_preprint=True,
+            is_review=is_review,
+            is_survey=is_survey,
 
             # provenance / bookkeeping
             raw_artifact_path=raw_artifact_path,
             raw_source_name=self.source_name,
             ingested_at=datetime.now(timezone.utc),
-            metadata_completeness_score=None,
+            metadata_completeness_score=metadata_completeness_score,
 
             pipeline_version=self.pipeline_version,
             stages=[
@@ -306,13 +357,11 @@ class ArxivIngestor(BaseIngestor[ArxivQuery, object, object]):
     ) -> list[str]:
         candidates: list[str] = []
 
-        # direct links in arXiv feed
         for link in links or []:
             href = link.get("href")
             if href and ArxivIngestor._looks_like_code_link(href):
                 candidates.append(href)
 
-        # links mentioned in comment / abstract
         for text in (comment, abstract):
             if not text:
                 continue
@@ -320,7 +369,6 @@ class ArxivIngestor(BaseIngestor[ArxivQuery, object, object]):
                 if ArxivIngestor._looks_like_code_link(match):
                     candidates.append(match.rstrip(".,);]"))
 
-        # deduplicate preserving order
         return list(dict.fromkeys(candidates))
 
     @staticmethod
@@ -368,3 +416,56 @@ class ArxivIngestor(BaseIngestor[ArxivQuery, object, object]):
             part for part in [title or "", abstract or "", comment or ""] if part
         ).lower()
         return "withdrawn" in haystack or "retracted" in haystack
+
+    @staticmethod
+    def _detect_review(
+        title: Optional[str],
+        abstract: Optional[str],
+        comment: Optional[str],
+    ) -> bool:
+        haystack = " ".join(
+            part for part in [title or "", abstract or "", comment or ""] if part
+        ).lower()
+        return "review" in haystack
+
+    @staticmethod
+    def _detect_survey(
+        title: Optional[str],
+        abstract: Optional[str],
+        comment: Optional[str],
+    ) -> bool:
+        haystack = " ".join(
+            part for part in [title or "", abstract or "", comment or ""] if part
+        ).lower()
+        return "survey" in haystack
+
+    @staticmethod
+    def _estimate_metadata_completeness(
+        *,
+        title: str,
+        abstract: Optional[str],
+        authors: list[str],
+        doi: Optional[str],
+        publication_date: Optional[datetime],
+        primary_category: Optional[str],
+        categories: list[str],
+        pdf_url: Optional[str],
+        code_links: list[str],
+        comment: Optional[str],
+        journal_ref: Optional[str],
+    ) -> float:
+        checks = [
+            bool(title),
+            bool(abstract),
+            bool(authors),
+            bool(doi),
+            publication_date is not None,
+            bool(primary_category),
+            bool(categories),
+            pdf_url is not None,
+            bool(code_links),
+            bool(comment),
+            bool(journal_ref),
+        ]
+        score = sum(1 for flag in checks if flag) / len(checks)
+        return round(score, 4)

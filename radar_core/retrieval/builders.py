@@ -22,14 +22,36 @@ from radar_core.retrieval.artifacts import (
 from radar_core.retrieval.lexical import BM25Index, build_bm25_index
 
 
+def _safe_join(values: list[str] | None) -> str:
+    if not values:
+        return ""
+    return " ".join(str(v).strip() for v in values if str(v).strip())
+
+
 def _doc_to_text(doc: CanonicalDocument) -> str:
+    """
+    Build retrieval text for both lexical and dense indexing.
+
+    Keep this backward-compatible, but enrich it with the new metadata fields
+    so richer corpus metadata actually influences retrieval quality.
+    """
     parts = [
         getattr(doc, "title", "") or "",
         getattr(doc, "abstract", "") or "",
-        " ".join(getattr(doc, "authors", []) or []),
-        " ".join(getattr(doc, "categories", []) or []),
-        " ".join(getattr(doc, "tags", []) or []),
+        _safe_join(getattr(doc, "authors", []) or []),
+        _safe_join(getattr(doc, "categories", []) or []),
+        _safe_join(getattr(doc, "concepts", []) or []),
+        _safe_join(getattr(doc, "keywords", []) or []),
+        _safe_join(getattr(doc, "tags", []) or []),
         getattr(doc, "primary_category", "") or "",
+        getattr(doc, "venue", "") or "",
+        getattr(doc, "journal", "") or "",
+        getattr(doc, "conference", "") or "",
+        getattr(doc, "publisher", "") or "",
+        getattr(doc, "publication_type", "") or "",
+        getattr(doc, "comment", "") or "",
+        getattr(doc, "journal_ref", "") or "",
+        getattr(doc, "language", "") or "",
     ]
     return "\n".join(part for part in parts if part)
 
@@ -103,6 +125,7 @@ def build_dense_embeddings(
         "doc_count": len(ids),
         "normalized": True,
         "batch_size": batch_size,
+        "text_fields": list(DEFAULT_TEXT_FIELDS),
     }
     return embeddings, ids, meta
 

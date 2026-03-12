@@ -21,11 +21,16 @@ class SourceLink(BaseModel):
     fetched_at: Optional[datetime] = None
     source_updated_at: Optional[datetime] = None
 
+    # richer provenance, backward-compatible
+    source_api_url: Optional[HttpUrl] = None
+    raw_source_name: Optional[str] = None
+    run_ts: Optional[str] = None
+
 
 class CanonicalDocument(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    # identity
+    # ===== identity =====
     canonical_id: str
     doc_ids: List[str] = Field(default_factory=list)
 
@@ -34,7 +39,15 @@ class CanonicalDocument(BaseModel):
     openalex_id: Optional[str] = None
     source_ids: Dict[str, str] = Field(default_factory=dict)
 
-    # core content
+    # additional stable identifiers for future enrichment / DB schema
+    external_ids: Dict[str, str] = Field(default_factory=dict)
+    pmid: Optional[str] = None
+    pmcid: Optional[str] = None
+    semantic_scholar_id: Optional[str] = None
+    dblp_id: Optional[str] = None
+    mag_id: Optional[str] = None
+
+    # ===== core content =====
     title: str
     abstract: Optional[str] = None
     authors: List[str] = Field(default_factory=list)
@@ -44,7 +57,7 @@ class CanonicalDocument(BaseModel):
     updated_at: Optional[datetime] = None
     year: Optional[int] = None
 
-    # links / accessibility
+    # ===== links / accessibility =====
     landing_page_url: Optional[HttpUrl] = None
     pdf_url: Optional[HttpUrl] = None
     repo_url: Optional[HttpUrl] = None
@@ -52,14 +65,14 @@ class CanonicalDocument(BaseModel):
     license: Optional[str] = None
     open_access: Optional[bool] = None
 
-    # taxonomy / topics
+    # ===== taxonomy / topics =====
     primary_category: Optional[str] = None
     categories: List[str] = Field(default_factory=list)
     concepts: List[str] = Field(default_factory=list)
     keywords: List[str] = Field(default_factory=list)
     tags: List[str] = Field(default_factory=list)
 
-    # publication metadata
+    # ===== publication metadata =====
     comment: Optional[str] = None
     journal_ref: Optional[str] = None
     venue: Optional[str] = None
@@ -69,7 +82,7 @@ class CanonicalDocument(BaseModel):
     publication_type: Optional[str] = None
     language: Optional[str] = None
 
-    # citation / graph-ready metadata
+    # ===== citation / graph-ready metadata =====
     cited_by_count: Optional[int] = None
     references_count: Optional[int] = None
     referenced_ids: List[str] = Field(default_factory=list)
@@ -77,18 +90,30 @@ class CanonicalDocument(BaseModel):
     referenced_arxiv_ids: List[str] = Field(default_factory=list)
     citation_graph_available: bool = False
 
-    # code / assets
+    # ===== code / assets =====
     has_code_link: bool = False
     code_links: List[HttpUrl] = Field(default_factory=list)
     dataset_links: List[HttpUrl] = Field(default_factory=list)
     model_links: List[HttpUrl] = Field(default_factory=list)
 
-    # provenance
+    # convenience flags for future filters / analytics
+    has_dataset_link: bool = False
+    has_model_link: bool = False
+
+    # ===== provenance =====
     sources: List[SourceLink] = Field(default_factory=list)
     source_count: int = 0
+    unique_source_count: int = 0
 
-    # quality / bookkeeping
+    # ===== quality / bookkeeping =====
     metadata_completeness_score: Optional[float] = None
+
+    # optional heuristics / flags copied from normalized layer when useful
+    is_open_access: Optional[bool] = None
+    is_preprint: Optional[bool] = None
+    is_review: bool = False
+    is_survey: bool = False
+    is_withdrawn: bool = False
 
     reconciliation_key: str
     created_at: datetime = Field(default_factory=utc_now)

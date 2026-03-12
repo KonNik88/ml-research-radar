@@ -1,0 +1,31 @@
+{
+  "build_id": "20260312T171428Z",
+  "created_at": "20260312T171437Z",
+  "corpus_path": "data\\analytics\\reconciled\\canonical_documents.jsonl",
+  "corpus_doc_count": 60,
+  "corpus_fingerprint": "893690cb4d2bbf14190b65ce1ce5e2d06d7d95eb1755b6ec94457ff64f0e06ce",
+  "lexical_index_path": "artifacts\\retrieval\\lexical\\bm25_20260312T171428Z.pkl",
+  "lexical_ids_path": "artifacts\\retrieval\\lexical\\ids_20260312T171428Z.json",
+  "dense_embeddings_path": "artifacts\\retrieval\\dense\\embeddings_20260312T171428Z.npy",
+  "dense_ids_path": "artifacts\\retrieval\\dense\\ids_20260312T171428Z.json",
+  "dense_meta_path": "artifacts\\retrieval\\dense\\meta_20260312T171428Z.json",
+  "embedding_model_name": "sentence-transformers/all-MiniLM-L6-v2",
+  "text_fields": [
+    "title",
+    "abstract",
+    "authors",
+    "categories",
+    "concepts",
+    "keywords",
+    "tags",
+    "primary_category",
+    "venue",
+    "journal",
+    "conference",
+    "publisher",
+    "publication_type",
+    "comment",
+    "journal_ref",
+    "language"
+  ]
+}

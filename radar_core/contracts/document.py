@@ -52,6 +52,14 @@ class SourceInfo(BaseModel):
     source_url: Optional[HttpUrl] = None
     fetched_at: datetime = Field(default_factory=utc_now)
 
+    # backward-compatible enrichment fields
+    source_record_id: Optional[str] = None
+    source_record_url: Optional[HttpUrl] = None
+    source_api_url: Optional[HttpUrl] = None
+    source_updated_at: Optional[datetime] = None
+    raw_source_name: Optional[str] = None
+    run_ts: Optional[str] = None
+
 
 class RawDocument(BaseModel):
     model_config = ConfigDict(extra="allow")
@@ -71,25 +79,37 @@ class RawDocument(BaseModel):
 class NormalizedDocument(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    # identity
+    # ===== identity =====
     doc_id: str
     canonical_url: HttpUrl
     content_hash: str
     document_type: DocumentType = DocumentType.PAPER
 
-    # source identity
+    # ===== source identity / provenance =====
     source: str
     source_id: Optional[str] = None
     source_record_id: Optional[str] = None
     source_record_url: Optional[HttpUrl] = None
+
+    # richer provenance without breaking current code
+    source_ids: Dict[str, str] = Field(default_factory=dict)
+    source_api_url: Optional[HttpUrl] = None
+
     external_ids: Dict[str, str] = Field(default_factory=dict)
 
-    # stable identifiers
+    # ===== stable identifiers =====
     doi: Optional[str] = None
     arxiv_id: Optional[str] = None
     openalex_id: Optional[str] = None
 
-    # core bibliographic fields
+    # additional ids for future enrichment / storage / analytics
+    pmid: Optional[str] = None
+    pmcid: Optional[str] = None
+    semantic_scholar_id: Optional[str] = None
+    dblp_id: Optional[str] = None
+    mag_id: Optional[str] = None
+
+    # ===== core bibliographic fields =====
     title: str
     abstract: Optional[str] = None
     authors: List[str] = Field(default_factory=list)
@@ -99,7 +119,7 @@ class NormalizedDocument(BaseModel):
     updated_source_at: Optional[datetime] = None
     year: Optional[int] = None
 
-    # links / accessibility
+    # ===== links / accessibility =====
     landing_page_url: Optional[HttpUrl] = None
     pdf_url: Optional[HttpUrl] = None
     repo_url: Optional[HttpUrl] = None
@@ -107,14 +127,14 @@ class NormalizedDocument(BaseModel):
     license: Optional[str] = None
     open_access: Optional[bool] = None
 
-    # taxonomy / topical metadata
+    # ===== taxonomy / topical metadata =====
     primary_category: Optional[str] = None
     categories: List[str] = Field(default_factory=list)
     concepts: List[str] = Field(default_factory=list)
     keywords: List[str] = Field(default_factory=list)
     tags: List[str] = Field(default_factory=list)
 
-    # publication metadata
+    # ===== publication metadata =====
     comment: Optional[str] = None
     journal_ref: Optional[str] = None
     venue: Optional[str] = None
@@ -124,7 +144,7 @@ class NormalizedDocument(BaseModel):
     publication_type: Optional[str] = None
     language: Optional[str] = None
 
-    # citation / graph-ready metadata
+    # ===== citation / graph-ready metadata =====
     cited_by_count: Optional[int] = None
     references_count: Optional[int] = None
     referenced_ids: List[str] = Field(default_factory=list)
@@ -132,17 +152,27 @@ class NormalizedDocument(BaseModel):
     referenced_arxiv_ids: List[str] = Field(default_factory=list)
     citation_graph_available: bool = False
 
-    # code / assets
+    # ===== code / assets =====
     has_code_link: bool = False
     code_links: List[HttpUrl] = Field(default_factory=list)
     dataset_links: List[HttpUrl] = Field(default_factory=list)
     model_links: List[HttpUrl] = Field(default_factory=list)
 
-    # lightweight flags
+    # optional convenience flags for future filters/API/UI
+    has_dataset_link: bool = False
+    has_model_link: bool = False
+
+    # ===== lightweight flags =====
     has_pdf: bool = False
     is_withdrawn: bool = False
 
-    # provenance / bookkeeping
+    # optional quality / type heuristics
+    is_open_access: Optional[bool] = None
+    is_preprint: Optional[bool] = None
+    is_review: bool = False
+    is_survey: bool = False
+
+    # ===== provenance / bookkeeping =====
     raw_artifact_path: Optional[str] = None
     raw_source_name: Optional[str] = None
     ingested_at: datetime = Field(default_factory=utc_now)

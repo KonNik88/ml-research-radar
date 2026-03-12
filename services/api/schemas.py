@@ -44,6 +44,12 @@ class SearchFilters(BaseModel):
     category: str | None = None
     source: str | None = None
 
+    # richer filters for the expanded corpus
+    publication_type: str | None = None
+    venue: str | None = None
+    open_access: bool | None = None
+    has_code_link: bool | None = None
+
 
 class SearchMeta(BaseModel):
     build_id: str
@@ -64,12 +70,44 @@ class SearchResultDocument(BaseModel):
     title: str
     abstract: str | None = None
     authors: list[str] = Field(default_factory=list)
+
     year: int | None = None
     doi: str | None = None
+    arxiv_id: str | None = None
+    openalex_id: str | None = None
+
     primary_category: str | None = None
     categories: list[str] = Field(default_factory=list)
+    concepts: list[str] = Field(default_factory=list)
+    keywords: list[str] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
+
+    venue: str | None = None
+    journal: str | None = None
+    conference: str | None = None
+    publisher: str | None = None
+    publication_type: str | None = None
+    language: str | None = None
+
+    landing_page_url: str | None = None
+    pdf_url: str | None = None
+    repo_url: str | None = None
+
+    open_access: bool | None = None
+    has_code_link: bool = False
+    code_links: list[str] = Field(default_factory=list)
+
+    cited_by_count: int | None = None
+    references_count: int | None = None
+
     source_count: int = 0
+    unique_source_count: int = 0
+
+    metadata_completeness_score: float | None = None
+    is_preprint: bool | None = None
+    is_review: bool = False
+    is_survey: bool = False
+    is_withdrawn: bool = False
 
 
 class RetrievalScores(BaseModel):

@@ -216,20 +216,37 @@ def merge_source_ids(documents: list[NormalizedDocument]) -> dict[str, str]:
     source_ids: dict[str, str] = {}
 
     for doc in documents:
+        # richer per-source ids first
+        for key, value in (doc.source_ids or {}).items():
+            if value and key not in source_ids:
+                source_ids[key] = value
+
+        # source slot
         if doc.source and doc.source_id and doc.source not in source_ids:
             source_ids[doc.source] = doc.source_id
 
+        # stable ids
         if doc.arxiv_id and "arxiv" not in source_ids:
             source_ids["arxiv"] = doc.arxiv_id
 
         if doc.openalex_id and "openalex" not in source_ids:
             source_ids["openalex"] = doc.openalex_id
 
+        # fallback from external ids
         for key, value in doc.external_ids.items():
             if value and key not in source_ids:
                 source_ids[key] = value
 
     return source_ids
+
+
+def merge_external_ids(documents: list[NormalizedDocument]) -> dict[str, str]:
+    external_ids: dict[str, str] = {}
+    for doc in documents:
+        for key, value in (doc.external_ids or {}).items():
+            if value and key not in external_ids:
+                external_ids[key] = value
+    return external_ids
 
 
 def build_source_links(documents: list[NormalizedDocument]) -> list[SourceLink]:
@@ -245,6 +262,9 @@ def build_source_links(documents: list[NormalizedDocument]) -> list[SourceLink]:
                 canonical_url=d.canonical_url,
                 fetched_at=d.ingested_at,
                 source_updated_at=d.updated_source_at,
+                source_api_url=d.source_api_url,
+                raw_source_name=d.raw_source_name,
+                run_ts=None,
             )
         )
 
@@ -267,6 +287,10 @@ def compute_metadata_completeness_score(documents: list[NormalizedDocument]) -> 
     primary_category = choose_best_primary_category(documents)
     categories = merge_unique_strings([d.categories for d in documents])
     pdf_url = choose_best_pdf_url(documents)
+    venue = choose_first_nonempty_string(documents, "venue")
+    cited_by_count = choose_max_int(documents, "cited_by_count")
+    references_count = choose_max_int(documents, "references_count")
+    has_code_link = any(d.has_code_link for d in documents)
 
     checks = [
         bool(title),
@@ -277,6 +301,10 @@ def compute_metadata_completeness_score(documents: list[NormalizedDocument]) -> 
         bool(primary_category),
         bool(categories),
         pdf_url is not None,
+        bool(venue),
+        cited_by_count is not None,
+        references_count is not None,
+        has_code_link,
     ]
     score = sum(1 for flag in checks if flag) / len(checks)
     return round(score, 4)
@@ -308,6 +336,13 @@ def reconcile_documents(documents: list[NormalizedDocument]) -> list[CanonicalDo
         arxiv_id = choose_best_arxiv_id(docs)
         openalex_id = choose_best_openalex_id(docs)
         source_ids = merge_source_ids(docs)
+        external_ids = merge_external_ids(docs)
+
+        pmid = choose_first_nonempty_string(docs, "pmid")
+        pmcid = choose_first_nonempty_string(docs, "pmcid")
+        semantic_scholar_id = choose_first_nonempty_string(docs, "semantic_scholar_id")
+        dblp_id = choose_first_nonempty_string(docs, "dblp_id")
+        mag_id = choose_first_nonempty_string(docs, "mag_id")
 
         landing_page_url = choose_best_landing_page_url(docs)
         pdf_url = choose_best_pdf_url(docs)
@@ -343,6 +378,17 @@ def reconcile_documents(documents: list[NormalizedDocument]) -> list[CanonicalDo
         dataset_links = merge_unique_strings([d.dataset_links for d in docs])
         model_links = merge_unique_strings([d.model_links for d in docs])
 
+        has_dataset_link = any(bool(getattr(d, "has_dataset_link", False)) for d in docs) or bool(dataset_links)
+        has_model_link = any(bool(getattr(d, "has_model_link", False)) for d in docs) or bool(model_links)
+
+        unique_source_count = len({d.source for d in docs if d.source})
+
+        is_open_access = choose_any_bool(docs, "is_open_access")
+        is_preprint = choose_any_bool(docs, "is_preprint")
+        is_review = any(bool(getattr(d, "is_review", False)) for d in docs)
+        is_survey = any(bool(getattr(d, "is_survey", False)) for d in docs)
+        is_withdrawn = any(bool(d.is_withdrawn) for d in docs)
+
         metadata_completeness_score = compute_metadata_completeness_score(docs)
 
         canonical_documents.append(
@@ -353,6 +399,12 @@ def reconcile_documents(documents: list[NormalizedDocument]) -> list[CanonicalDo
                 arxiv_id=arxiv_id,
                 openalex_id=openalex_id,
                 source_ids=source_ids,
+                external_ids=external_ids,
+                pmid=pmid,
+                pmcid=pmcid,
+                semantic_scholar_id=semantic_scholar_id,
+                dblp_id=dblp_id,
+                mag_id=mag_id,
                 title=title,
                 abstract=abstract,
                 authors=authors,
@@ -388,9 +440,17 @@ def reconcile_documents(documents: list[NormalizedDocument]) -> list[CanonicalDo
                 code_links=code_links,
                 dataset_links=dataset_links,
                 model_links=model_links,
+                has_dataset_link=has_dataset_link,
+                has_model_link=has_model_link,
                 sources=build_source_links(docs),
                 source_count=len(docs),
+                unique_source_count=unique_source_count,
                 metadata_completeness_score=metadata_completeness_score,
+                is_open_access=is_open_access,
+                is_preprint=is_preprint,
+                is_review=is_review,
+                is_survey=is_survey,
+                is_withdrawn=is_withdrawn,
                 reconciliation_key=reconciliation_key,
             )
         )

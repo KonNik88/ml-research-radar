@@ -35,6 +35,10 @@ class SearchFilterParams:
     year_to: int | None = None
     category: str | None = None
     source: str | None = None
+    publication_type: str | None = None
+    venue: str | None = None
+    open_access: bool | None = None
+    has_code_link: bool | None = None
     offset: int = 0
     sort_by: SearchSortBy = "relevance"
 
@@ -69,6 +73,24 @@ def _minmax_normalize(score_map: dict[str, float]) -> dict[str, float]:
     return {k: (v - min_v) / (max_v - min_v) for k, v in score_map.items()}
 
 
+def _string_or_none(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _string_list(values: Any) -> list[str]:
+    if not values:
+        return []
+    out: list[str] = []
+    for value in values:
+        text = _string_or_none(value)
+        if text:
+            out.append(text)
+    return out
+
+
 def _doc_to_schema(doc: CanonicalDocument) -> SearchResultDocument:
     return SearchResultDocument(
         canonical_id=doc.canonical_id,
@@ -77,10 +99,34 @@ def _doc_to_schema(doc: CanonicalDocument) -> SearchResultDocument:
         authors=list(doc.authors or []),
         year=doc.year,
         doi=doc.doi,
+        arxiv_id=getattr(doc, "arxiv_id", None),
+        openalex_id=getattr(doc, "openalex_id", None),
         primary_category=doc.primary_category,
         categories=list(doc.categories or []),
+        concepts=list(getattr(doc, "concepts", []) or []),
+        keywords=list(getattr(doc, "keywords", []) or []),
         tags=list(doc.tags or []),
+        venue=getattr(doc, "venue", None),
+        journal=getattr(doc, "journal", None),
+        conference=getattr(doc, "conference", None),
+        publisher=getattr(doc, "publisher", None),
+        publication_type=getattr(doc, "publication_type", None),
+        language=getattr(doc, "language", None),
+        landing_page_url=_string_or_none(getattr(doc, "landing_page_url", None)),
+        pdf_url=_string_or_none(getattr(doc, "pdf_url", None)),
+        repo_url=_string_or_none(getattr(doc, "repo_url", None)),
+        open_access=getattr(doc, "open_access", None),
+        has_code_link=bool(getattr(doc, "has_code_link", False)),
+        code_links=_string_list(getattr(doc, "code_links", []) or []),
+        cited_by_count=getattr(doc, "cited_by_count", None),
+        references_count=getattr(doc, "references_count", None),
         source_count=int(doc.source_count or 0),
+        unique_source_count=int(getattr(doc, "unique_source_count", 0) or 0),
+        metadata_completeness_score=getattr(doc, "metadata_completeness_score", None),
+        is_preprint=getattr(doc, "is_preprint", None),
+        is_review=bool(getattr(doc, "is_review", False)),
+        is_survey=bool(getattr(doc, "is_survey", False)),
+        is_withdrawn=bool(getattr(doc, "is_withdrawn", False)),
     )
 
 
@@ -289,11 +335,15 @@ def _matches_category(doc: CanonicalDocument, category: str | None) -> bool:
     primary = (doc.primary_category or "").lower()
     categories = [c.lower() for c in (doc.categories or [])]
     tags = [t.lower() for t in (doc.tags or [])]
+    concepts = [c.lower() for c in (getattr(doc, "concepts", []) or [])]
+    keywords = [k.lower() for k in (getattr(doc, "keywords", []) or [])]
 
     return (
         category_norm == primary
         or category_norm in categories
         or category_norm in tags
+        or category_norm in concepts
+        or category_norm in keywords
     )
 
 
@@ -307,6 +357,47 @@ def _matches_source(doc: CanonicalDocument, source: str | None) -> bool:
 
     sources = [(src.source or "").lower() for src in (doc.sources or [])]
     return source_norm in sources
+
+
+def _matches_publication_type(doc: CanonicalDocument, publication_type: str | None) -> bool:
+    if not publication_type:
+        return True
+
+    query_value = publication_type.strip().lower()
+    if not query_value:
+        return True
+
+    doc_value = (getattr(doc, "publication_type", None) or "").strip().lower()
+    return doc_value == query_value
+
+
+def _matches_venue(doc: CanonicalDocument, venue: str | None) -> bool:
+    if not venue:
+        return True
+
+    query_value = venue.strip().lower()
+    if not query_value:
+        return True
+
+    candidates = [
+        (getattr(doc, "venue", None) or "").strip().lower(),
+        (getattr(doc, "journal", None) or "").strip().lower(),
+        (getattr(doc, "conference", None) or "").strip().lower(),
+        (getattr(doc, "publisher", None) or "").strip().lower(),
+    ]
+    return query_value in [c for c in candidates if c]
+
+
+def _matches_open_access(doc: CanonicalDocument, open_access: bool | None) -> bool:
+    if open_access is None:
+        return True
+    return getattr(doc, "open_access", None) is open_access
+
+
+def _matches_has_code_link(doc: CanonicalDocument, has_code_link: bool | None) -> bool:
+    if has_code_link is None:
+        return True
+    return bool(getattr(doc, "has_code_link", False)) is has_code_link
 
 
 def _apply_filters(
@@ -330,6 +421,18 @@ def _apply_filters(
             continue
 
         if not _matches_source(doc, filters.source):
+            continue
+
+        if not _matches_publication_type(doc, filters.publication_type):
+            continue
+
+        if not _matches_venue(doc, filters.venue):
+            continue
+
+        if not _matches_open_access(doc, filters.open_access):
+            continue
+
+        if not _matches_has_code_link(doc, filters.has_code_link):
             continue
 
         filtered.append(candidate)
@@ -416,6 +519,10 @@ def run_search(
     year_to: int | None = None,
     category: str | None = None,
     source: str | None = None,
+    publication_type: str | None = None,
+    venue: str | None = None,
+    open_access: bool | None = None,
+    has_code_link: bool | None = None,
     offset: int = 0,
     sort_by: SearchSortBy = "relevance",
 ) -> SearchResponse:
@@ -443,6 +550,10 @@ def run_search(
         year_to=year_to,
         category=category,
         source=source,
+        publication_type=publication_type,
+        venue=venue,
+        open_access=open_access,
+        has_code_link=has_code_link,
         offset=offset,
         sort_by=sort_by,
     )
@@ -463,6 +574,10 @@ def run_search(
             "year_to": year_to,
             "category": category,
             "source": source,
+            "publication_type": publication_type,
+            "venue": venue,
+            "open_access": open_access,
+            "has_code_link": has_code_link,
         },
     )
 
@@ -571,6 +686,10 @@ def run_search(
                 year_to=year_to,
                 category=category,
                 source=source,
+                publication_type=publication_type,
+                venue=venue,
+                open_access=open_access,
+                has_code_link=has_code_link,
             ),
             retrieved_candidates_before_filters=retrieved_candidates_before_filters,
             retrieved_candidates_after_filters=retrieved_candidates_after_filters,
