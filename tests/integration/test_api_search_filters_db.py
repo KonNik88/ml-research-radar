@@ -1,3 +1,8 @@
+"""
+Integration tests for DB backend only.
+Run with ML_RADAR_SEARCH_BACKEND=db
+"""
+
 from fastapi.testclient import TestClient
 
 from services.api.app import app

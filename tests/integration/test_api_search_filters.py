@@ -1,3 +1,8 @@
+"""
+Integration tests for file backend only.
+Run with ML_RADAR_SEARCH_BACKEND=file
+"""
+
 from __future__ import annotations
 
 import pytest

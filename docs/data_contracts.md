@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines the planned data model for research papers in ML Research Radar.
+This document defines the current data model for research papers in ML Research Radar.
 
 The goal is to support:
 
@@ -13,243 +13,276 @@ The goal is to support:
 - similarity search
 - clustering
 - graph construction
-- future citation graph features
-- future implementation finder and code linkage
+- citation/reference graph preparation
+- future code/artifact linkage
+- future product features built on canonical paper entities
 
 The project uses a two-level paper model:
 
-1. **Document** — source-level normalized record  
+1. **Document** — source-level normalized record
 2. **CanonicalDocument** — reconciled merged paper entity
 
-At the current stage, the project expands the **paper metadata layer first**, using arXiv as the main source for the first implementation wave.
+At the current stage, the project expands the **paper metadata layer first**, using arXiv as the current backbone source.
 
-GitHub repositories and other external sources will be added later as separate entities.
-
----
-
-# Field Registry
-
-## Identity fields
-
-| Field | Purpose | Source-level (`Document`) | Canonical (`CanonicalDocument`) | Phase | Status |
-|---|---|---:|---:|---|---|
-| source | source name | yes | no | B1 | planned |
-| source_record_id | original id in source | yes | no | B1 | planned |
-| doi | stable paper id | yes | yes | B1 | planned |
-| arxiv_id | arXiv identifier | yes | yes | B1 | planned |
-| openalex_id | OpenAlex identifier | yes | yes | B2 | planned |
-| canonical_id | internal merged id | no | yes | existing | implemented |
-| source_ids | map of source → source id | no | yes | B1 | planned |
+GitHub repositories and other external entities are intentionally postponed and will be added later as separate entity types.
 
 ---
 
-## Core content fields
+# 1. Model overview
 
-| Field | Purpose | Document | CanonicalDocument | Phase | Status |
-|---|---|---:|---:|---|---|
-| title | main title | yes | yes | existing | implemented |
-| abstract | abstract text | yes | yes | existing | implemented |
-| authors | author names | yes | yes | existing | implemented |
-| publication_year | basic year field | yes | yes | B1 | planned |
-| publication_date | normalized publication date | yes | yes | B1 | planned |
-| updated_date | last update date | yes | yes | B1 | planned |
+## 1.1 `Document`
+A normalized source-level paper record.
 
----
+Represents:
+- one source manifestation
+- one normalized source record
+- source-specific metadata after normalization
+- source-level identity and provenance
 
-## Taxonomy and topic fields
+## 1.2 `CanonicalDocument`
+A merged paper entity created by reconciliation.
 
-| Field | Purpose | Document | CanonicalDocument | Phase | Status |
-|---|---|---:|---:|---|---|
-| primary_category | main category | yes | yes | existing/B1 normalize | partial |
-| categories | category list | yes | yes | existing | implemented |
-| concepts | richer source concepts/topics | yes | yes | B1 | planned |
-| keywords | extracted/available keywords | yes | yes | B1 | planned |
-| tags | normalized tags | yes | yes | B1 | planned |
-
----
-
-## Links and accessibility fields
-
-| Field | Purpose | Document | CanonicalDocument | Phase | Status |
-|---|---|---:|---:|---|---|
-| landing_page_url | source page url | yes | yes | B1 | planned |
-| pdf_url | direct pdf link | yes | yes | B1 | planned |
-| license | document license | yes | yes | B1 | planned |
-| open_access | OA flag | yes | yes | B1 | planned |
+Represents:
+- one paper-level canonical entity
+- merged identifiers
+- merged metadata
+- source provenance
+- paper-level flags and quality signals
+- current serving/retrieval corpus unit
 
 ---
 
-## Citation / graph-ready fields
+# 2. Identity fields
 
-| Field | Purpose | Document | CanonicalDocument | Phase | Status |
-|---|---|---:|---:|---|---|
-| cited_by_count | citation count | yes | yes | B1 | planned |
-| references_count | number of references | yes | yes | B1 | planned |
-| referenced_ids | referenced work ids | yes | yes | B1 | planned |
-| referenced_dois | referenced DOIs | yes | yes | B3 | planned |
-| referenced_arxiv_ids | referenced arXiv ids | yes | yes | B3 | planned |
-| citation_graph_available | graph-ready marker | yes | yes | B3 | planned |
-
----
-
-## Code / assets fields
-
-| Field | Purpose | Document | CanonicalDocument | Phase | Status |
-|---|---|---:|---:|---|---|
-| has_code_link | whether code link exists | yes | yes | B1 | planned |
-| code_links | list of code links | yes | yes | B1 | planned |
-| dataset_links | dataset references | yes | yes | B3 | planned |
-| model_links | model/demo links | yes | yes | B3 | planned |
-
----
-
-## Publication info fields
-
-| Field | Purpose | Document | CanonicalDocument | Phase | Status |
-|---|---|---:|---:|---|---|
-| venue | normalized venue name | yes | yes | B2 | planned |
-| journal | journal name | yes | yes | B2 | planned |
-| conference | conference name | yes | yes | B2 | planned |
-| publisher | publisher | yes | yes | B2 | planned |
-| publication_type | article / preprint / proceedings etc. | yes | yes | B2 | planned |
+| Field | Purpose | Document | CanonicalDocument | Current Status |
+|---|---|---:|---:|---|
+| `source` | source name | yes | no | implemented |
+| `source_record_id` | original id in source | yes | no | implemented |
+| `source_record_url` | source page / record url | yes | no | implemented |
+| `source_api_url` | API endpoint url | yes | no | implemented |
+| `doc_id` | source-level stable internal id | yes | no | implemented |
+| `doi` | stable bibliographic paper id | yes | yes | implemented |
+| `arxiv_id` | arXiv identifier | yes | yes | implemented |
+| `openalex_id` | OpenAlex identifier | yes | yes | implemented |
+| `semantic_scholar_id` | Semantic Scholar identifier | yes | yes | implemented |
+| `dblp_id` | DBLP identifier | yes | yes | implemented |
+| `pmid` | PubMed identifier | yes | yes | implemented where available |
+| `pmcid` | PubMed Central identifier | yes | yes | implemented where available |
+| `canonical_id` | internal merged canonical id | no | yes | implemented |
+| `canonical_url` | normalized canonical URL / manifestation URL | yes | no | implemented |
+| `source_ids` | source → source id map | yes | yes | implemented |
+| `external_ids` | richer external identifier map | yes | yes | implemented |
 
 ---
 
-## Provenance and quality fields
+# 3. Core content fields
 
-| Field | Purpose | Document | CanonicalDocument | Phase | Status |
-|---|---|---:|---:|---|---|
-| source_count | number of merged sources | no | yes | existing | implemented |
-| sources | merged source provenance | no | yes | existing/B1 expand | partial |
-| ingested_at | ingestion timestamp | yes | no | B1 | planned |
-| source_updated_at | source update timestamp | yes | yes | B2 | planned |
-| raw_source_name | raw source alias | yes | no | B2 | planned |
-| metadata_completeness_score | completeness heuristic | yes | yes | B3 | planned |
-
----
-
-# Phase Plan
-
-## Phase B1 — Core paper metadata expansion
-
-Fields:
-
-- source
-- source_record_id
-- doi
-- arxiv_id
-- source_ids
-- title
-- abstract
-- authors
-- publication_year
-- publication_date
-- updated_date
-- primary_category
-- categories
-- concepts
-- keywords
-- tags
-- landing_page_url
-- pdf_url
-- license
-- open_access
-- cited_by_count
-- references_count
-- referenced_ids
-- has_code_link
-- code_links
-- source_count
-- sources
-
-Goal:
-
-- expand paper contracts
-- implement arXiv-side extraction for available fields
-- extend reconcile rules
-- preserve backward compatibility with retrieval/API where possible
+| Field | Purpose | Document | CanonicalDocument | Current Status |
+|---|---|---:|---:|---|
+| `title` | main title | yes | yes | implemented |
+| `abstract` | abstract text | yes | yes | implemented |
+| `authors` | author names | yes | yes | implemented |
+| `document_type` | source-level entity type | yes | no | implemented |
+| `year` | normalized publication year | yes | yes | implemented |
+| `published_at` | normalized publication timestamp | yes | yes | implemented |
+| `publication_date` | normalized publication date field | yes | yes | implemented |
+| `updated_source_at` | source update timestamp | yes | no | implemented |
+| `updated_at` / `updated_record_at` | pipeline / canonical update timestamp | yes | yes | implemented |
+| `created_at` | creation timestamp | yes | yes | implemented |
 
 ---
 
-## Phase B2 — Publication and provenance enrichment
+# 4. Taxonomy and topic fields
 
-Fields:
-
-- openalex_id
-- venue
-- journal
-- conference
-- publisher
-- publication_type
-- source_updated_at
-- raw_source_name
-
-Goal:
-
-- improve publication analytics
-- improve filtering
-- prepare for richer cross-source reconciliation
+| Field | Purpose | Document | CanonicalDocument | Current Status |
+|---|---|---:|---:|---|
+| `primary_category` | main category | yes | yes | implemented |
+| `categories` | category list | yes | yes | implemented |
+| `concepts` | richer topic concepts | yes | yes | implemented |
+| `keywords` | available / extracted keywords | yes | yes | implemented |
+| `tags` | normalized topic/tag surface | yes | yes | implemented |
 
 ---
 
-## Phase B3 — Graph/product/quality enrichment
+# 5. Links and accessibility fields
 
-Fields:
-
-- referenced_dois
-- referenced_arxiv_ids
-- citation_graph_available
-- dataset_links
-- model_links
-- metadata_completeness_score
-
-Goal:
-
-- make corpus graph-ready
-- support future analytics/widgets/product features
+| Field | Purpose | Document | CanonicalDocument | Current Status |
+|---|---|---:|---:|---|
+| `landing_page_url` | main source page | yes | yes | implemented |
+| `pdf_url` | direct PDF link | yes | yes | implemented |
+| `repo_url` | primary repo link | yes | yes | implemented where available |
+| `license` | document/content license | yes | yes | implemented |
+| `open_access` | open manifestation availability | yes | yes | implemented |
+| `is_open_access` | bibliographic OA evidence | yes | yes | implemented |
+| `has_pdf` | PDF availability flag | yes | yes | implemented |
 
 ---
 
-# Reconciliation Principles
+# 6. Citation / graph-ready fields
+
+| Field | Purpose | Document | CanonicalDocument | Current Status |
+|---|---|---:|---:|---|
+| `cited_by_count` | citation count | yes | yes | implemented |
+| `references_count` | number of references | yes | yes | implemented |
+| `referenced_ids` | referenced work ids | yes | yes | implemented |
+| `referenced_dois` | referenced DOIs | yes | yes | implemented |
+| `referenced_arxiv_ids` | referenced arXiv ids | yes | yes | implemented |
+| `citation_graph_available` | graph-ready marker | yes | yes | implemented |
+
+---
+
+# 7. Code / asset fields
+
+| Field | Purpose | Document | CanonicalDocument | Current Status |
+|---|---|---:|---:|---|
+| `has_code_link` | whether code link exists | yes | yes | implemented |
+| `code_links` | code links | yes | yes | implemented |
+| `dataset_links` | dataset links | yes | yes | implemented |
+| `model_links` | model/demo links | yes | yes | implemented |
+| `has_dataset_link` | dataset flag | yes | yes | implemented |
+| `has_model_link` | model flag | yes | yes | implemented |
+
+---
+
+# 8. Publication info fields
+
+| Field | Purpose | Document | CanonicalDocument | Current Status |
+|---|---|---:|---:|---|
+| `venue` | normalized venue | yes | yes | implemented |
+| `journal` | journal name | yes | yes | implemented |
+| `conference` | conference name | yes | yes | implemented |
+| `publisher` | publisher | yes | yes | implemented |
+| `publication_type` | article / preprint / book-chapter etc. | yes | yes | implemented |
+| `journal_ref` | source journal reference text | yes | yes | implemented |
+| `comment` | source comment text | yes | yes | implemented |
+| `language` | language | yes | yes | implemented |
+
+---
+
+# 9. Provenance and quality fields
+
+| Field | Purpose | Document | CanonicalDocument | Current Status |
+|---|---|---:|---:|---|
+| `source_count` | number of merged source records | no | yes | implemented |
+| `unique_source_count` | unique contributing source count | no | yes | implemented |
+| `sources` | canonical provenance entries | no | yes | implemented |
+| `doc_ids` | contributing source-level ids | no | yes | implemented |
+| `ingested_at` | ingestion timestamp | yes | no | implemented |
+| `raw_artifact_path` | raw artifact reference | yes | no | implemented |
+| `raw_source_name` | raw source alias | yes | no | implemented |
+| `metadata_completeness_score` | completeness heuristic | yes | yes | implemented |
+| `pipeline_version` | pipeline version | yes | no | implemented |
+| `stages` | stage status trail | yes | no | implemented |
+| `reconciliation_key` | grouping key used for canonical merge | no | yes | implemented |
+
+---
+
+# 10. Current serving/storage notes
+
+## 10.1 Source of truth
+The canonical JSONL corpus remains the current source of truth.
+
+## 10.2 Serving layer
+Postgres currently acts as a materialized serving layer.
+
+## 10.3 Retrieval layer
+Retrieval artifacts remain file-based:
+
+- lexical index
+- dense embeddings
+- hybrid retrieval logic
+
+## 10.4 Current serving asymmetry
+Current API backends are intentionally asymmetric:
+
+- **file backend** = retrieval-oriented
+- **db backend** = browse/filter + lexical search v1
+
+This is the current transition state and is expected.
+
+---
+
+# 11. Reconciliation principles
 
 ## Identity priority
 
 1. DOI
-2. arXiv id
-3. future fallback strategies (not in current phase)
+2. external DOI
+3. arXiv id
+4. external arXiv id
+5. title + year fallback
 
 ## Merge rules
 
-### Prefer non-empty values for:
-- title
-- abstract
-- publication_date
-- pdf_url
-- landing_page_url
+### Prefer trusted non-empty values for:
+- `title`
+- `abstract`
+- `publication_date`
+- `pdf_url`
+- `landing_page_url`
+- `publisher`
+- `publication_type`
+- `venue`
+- `journal`
+- `conference`
+- `license`
 
 ### Union + deduplicate for:
-- authors
-- categories
-- concepts
-- keywords
-- tags
-- referenced_ids
-- code_links
-- sources
+- `authors`
+- `categories`
+- `concepts`
+- `keywords`
+- `tags`
+- `referenced_ids`
+- `referenced_dois`
+- `referenced_arxiv_ids`
+- `code_links`
+- `dataset_links`
+- `model_links`
+- provenance/source identifiers
 
 ### Prefer max value for:
-- cited_by_count
-- references_count
+- `cited_by_count`
+- `references_count`
+- `source_count`
+- `unique_source_count`
+- `metadata_completeness_score`
 
 ### Preserve provenance always:
-- source_count
-- sources
-- source_ids
+- `sources`
+- `source_ids`
+- `external_ids`
+- `doc_ids`
 
 ---
 
-# Notes
+# 12. Current scope boundaries
 
-- GitHub repositories are intentionally excluded from the current phase.
-- Repository ingestion will be introduced later as a separate entity layer.
-- The current target corpus size after paper metadata expansion is approximately **1000–2000 canonical documents**.
+## Included now
+- paper entities
+- source-level normalized documents
+- canonical merged paper entities
+- retrieval and serving metadata
+
+## Explicitly postponed
+- GitHub repositories as first-class entities
+- repo-to-paper graph as a full entity layer
+- chunk-level full-text entities
+- NER/entity extraction layer
+- LLM summaries and RAG-specific chunk contracts
+
+---
+
+# 13. Design principle
+
+ML Research Radar is centered on stable canonical paper entities.
+
+The data contract prioritizes:
+
+- clear identity boundaries
+- source-aware normalization
+- provenance-preserving merge
+- search/retrieval compatibility
+- future graph/artifact extensibility
+
+over a flat one-record-per-source design.

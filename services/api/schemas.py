@@ -7,15 +7,18 @@ from pydantic import BaseModel, Field
 
 class HealthResponse(BaseModel):
     status: str
+    backend_mode: str
+    ready: bool
     build_id: str
     corpus_doc_count: int
     embedding_model_name: str | None = None
-    corpus_path: str
+    checks: dict[str, bool] = Field(default_factory=dict)
 
 
 class ApiInfoResponse(BaseModel):
     api_title: str
     api_version: str
+    backend_mode: str
     build_id: str
     corpus_doc_count: int
     embedding_model_name: str | None = None
@@ -25,11 +28,14 @@ class ApiInfoResponse(BaseModel):
 
 class ReloadResponse(BaseModel):
     status: str
+    backend_mode: str
+    message: str
     build_id: str
     corpus_doc_count: int
     embedding_model_name: str | None = None
-    model_reused: bool
+    model_reused: bool = False
     last_reload_at: str | None = None
+
 
 class ErrorResponse(BaseModel):
     error_code: str
@@ -42,8 +48,6 @@ class SearchFilters(BaseModel):
     year_to: int | None = None
     category: str | None = None
     source: str | None = None
-
-    # richer filters for the expanded corpus
     publication_type: str | None = None
     venue: str | None = None
     open_access: bool | None = None
@@ -142,17 +146,19 @@ class SearchResponse(BaseModel):
 
 class RuntimeSnapshotResponse(BaseModel):
     ready: bool
-    backend_mode: str | None = None
+    backend_mode: str
     build_id: str | None = None
     corpus_doc_count: int = 0
     embedding_model_name: str | None = None
     artifacts_root: str
-    loaded_components: dict[str, bool]
+    loaded_components: dict[str, bool] = Field(default_factory=dict)
+    db_connected: bool = False
     last_load_error: str | None = None
     last_loaded_at: str | None = None
     last_reload_at: str | None = None
     model_reused: bool = False
     current_model_name: str | None = None
+
 
 class DocumentListResponse(BaseModel):
     total: int

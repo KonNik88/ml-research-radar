@@ -4,17 +4,21 @@
 
 This document defines how source-level normalized documents are merged into canonical paper entities.
 
-The merge policy is the core quality mechanism of ML Research Radar. It controls:
-- identity resolution,
-- field-level source priorities,
-- conflict resolution,
-- and semantic normalization for important metadata fields.
+The merge layer is the core quality gate of ML Research Radar. It controls:
+
+- identity resolution
+- field-level source priorities
+- conflict resolution
+- semantic normalization for important metadata fields
+- provenance preservation
+
+The system is intentionally conservative: it prefers explicit source roles and stable canonical paper entities over aggressive field filling that introduces semantic noise.
 
 ---
 
 ## 1. Identity resolution
 
-Canonical grouping is currently based on the following priority:
+Canonical grouping currently follows this priority:
 
 1. DOI
 2. external DOI
@@ -23,10 +27,14 @@ Canonical grouping is currently based on the following priority:
 5. normalized title + year fallback
 
 ### Notes
+
 - DOI is the strongest reconciliation key
-- arXiv id is a secondary identity path
+- arXiv id is the secondary identity path
 - title + year is fallback-only and should be treated conservatively
 - arXiv version normalization remains a known technical debt area (`2412.19245` vs `2412.19245v1`)
+- `doc_id` is source-level identity
+- `canonical_id` is paper-level identity
+- external/public-facing document identity should always be canonical-level
 
 ---
 
@@ -38,114 +46,164 @@ The system does **not** assume one source is best for all fields.
 
 Instead, source priority is field-dependent.
 
+This is intentional and central to canonical quality.
+
 ---
 
-## 3. Field-level merge priorities
+## 3. Current source families
 
-### 3.1 Backbone content fields
-Preferred source:
-1. arxiv
-2. openalex_alignment
-3. semantic_scholar_alignment
-4. crossref_alignment
+### 3.1 Backbone source
+- `arxiv`
+
+### 3.2 Semantic enrichment sources
+- `openalex_alignment`
+- `semantic_scholar_alignment`
+
+### 3.3 Bibliographic stabilization source
+- `crossref_alignment`
+
+### 3.4 Planned artifact/code enrichment source
+- `paperswithcode_alignment`
+
+---
+
+## 4. Field-level merge priorities
+
+### 4.1 Backbone content fields
+
+Preferred source order:
+
+1. `arxiv`
+2. `openalex_alignment`
+3. `semantic_scholar_alignment`
+4. `crossref_alignment`
 
 Applies mainly to:
-- title
-- abstract
-- authors
-- categories
-- comment
-- journal_ref
-- pdf_url
+
+- `title`
+- `abstract`
+- `authors`
+- `primary_category`
+- `categories`
+- `comment`
+- `journal_ref`
+- `pdf_url`
+- `landing_page_url`
 
 Reason:
-arXiv is currently the main content backbone and main manifestation source.
+
+`arxiv` is currently the backbone manifestation source and main text source.
 
 ---
 
-### 3.2 Semantic enrichment fields
-Preferred source:
-1. openalex_alignment
-2. semantic_scholar_alignment
-3. arxiv
-4. crossref_alignment
+### 4.2 Semantic enrichment fields
 
-Applies to:
-- concepts
-- keywords
-- tags
-- cited_by_count
-- referenced_ids
+Preferred source order:
+
+1. `openalex_alignment`
+2. `semantic_scholar_alignment`
+3. `arxiv`
+4. `crossref_alignment`
+
+Applies mainly to:
+
+- `concepts`
+- `keywords`
+- `tags`
+- `cited_by_count`
+- `referenced_ids`
+- `open_access` hints
+- semantic venue/topic metadata
 
 Reason:
+
 OpenAlex currently provides the richest semantic and citation-oriented metadata.
 
 ---
 
-### 3.3 Bibliographic stabilization fields
-Preferred source:
-1. crossref_alignment
-2. openalex_alignment
-3. semantic_scholar_alignment
-4. arxiv
+### 4.3 Bibliographic stabilization fields
 
-Applies to:
-- publisher
-- publication_type
-- references_count
-- referenced_dois
-- license
+Preferred source order:
+
+1. `crossref_alignment`
+2. `openalex_alignment`
+3. `semantic_scholar_alignment`
+4. `arxiv`
+
+Applies mainly to:
+
+- `publisher`
+- `publication_type`
+- `references_count`
+- `referenced_dois`
+- `license`
+- bibliographic publication date normalization
 
 Reason:
+
 Crossref is currently the strongest bibliographic authority among connected sources.
 
 ---
 
-### 3.4 Artifact/code fields
-Preferred source:
-1. paperswithcode_alignment
-2. arxiv
-3. openalex_alignment
-4. semantic_scholar_alignment
-5. crossref_alignment
+### 4.4 Artifact/code fields
 
-Applies to:
-- repo_url
-- code_links
-- dataset_links
-- model_links
-- has_code_link
-- has_dataset_link
-- has_model_link
+Preferred source order:
+
+1. `paperswithcode_alignment`
+2. `arxiv`
+3. `openalex_alignment`
+4. `semantic_scholar_alignment`
+5. `crossref_alignment`
+
+Applies mainly to:
+
+- `repo_url`
+- `code_links`
+- `dataset_links`
+- `model_links`
+- `has_code_link`
+- `has_dataset_link`
+- `has_model_link`
 
 Reason:
-Papers with Code is planned as the artifact enrichment layer.
+
+Papers with Code is planned as the dedicated artifact enrichment layer.
 
 ---
 
-## 4. Special semantic rules
+## 5. Special semantic rules
 
-### 4.1 publication_type
+### 5.1 `publication_type`
+
 Rule:
-- published bibliographic type should override generic preprint classification when reliable bibliographic evidence exists
-- `article`, `conference-paper`, `book-chapter`, etc. should be preferred over `preprint` where appropriate
+
+- reliable published bibliographic type should override generic preprint classification when trustworthy bibliographic evidence exists
+- values such as `article`, `conference-paper`, `book-chapter` should be preferred over `preprint` when appropriate
 
 Current trusted sources:
-- Crossref first
-- OpenAlex second
+
+1. `crossref_alignment`
+2. `openalex_alignment`
+
+Notes:
+
+- arXiv being present does **not** imply canonical `publication_type=preprint`
+- manifestation-level preprint availability and bibliographic publication type must be separated
 
 ---
 
-### 4.2 open_access vs is_open_access
+### 5.2 `open_access` vs `is_open_access`
 
-#### open_access
+These two fields are intentionally distinct.
+
+#### `open_access`
 Meaning:
 - whether an open manifestation exists anywhere
 
 Typical example:
-- arXiv version exists → `open_access = true`
+- arXiv PDF exists → `open_access = true`
 
-#### is_open_access
+#### `is_open_access`
 Meaning:
 - whether there is explicit bibliographic open-access evidence from trusted non-arXiv sources
 
@@ -153,82 +211,144 @@ Typical evidence:
 - OpenAlex OA metadata
 - reliable publisher-side OA metadata
 
-This distinction is intentional.
+Rule:
+
+- do not collapse these two concepts into one
+- preserve manifestation-level openness separately from bibliographic OA evidence
 
 ---
 
-### 4.3 license
-Rule:
-- real open licenses (e.g. `cc-by`) should be preferred over generic publisher/TDM policy URLs
-- publisher text-mining policy URLs are not equivalent to content license labels
+### 5.3 `license`
 
-Crossref license data should be treated carefully and normalized when possible.
+Rule:
+
+- real open licenses (for example `cc-by`) should be preferred over generic publisher or text-mining policy URLs
+- publisher TDM policy URLs are not equivalent to content license labels
+
+Crossref license data must be treated conservatively and normalized when possible.
 
 ---
 
-### 4.4 venue / journal / conference
+### 5.4 `venue`, `journal`, `conference`
+
 Rule:
+
 - venue-related fields require conservative normalization
 - book series should not automatically become `journal`
-- noisy `journal="ArXiv"` values should not override clearer DOI-based venue metadata
-- conference series and journals must be separated where possible
+- noisy values such as `journal="ArXiv"` must not override clearer DOI-based bibliographic venue metadata
+- conference names and journals should remain separated where possible
 
 This remains an active refinement area.
 
 ---
 
-## 5. Multi-value merge behavior
+## 6. Multi-value merge behavior
 
-For list-like fields, the policy is union + deduplication.
+For list-like fields, the policy is:
+
+**union + deduplication**
 
 Applies to:
-- categories
-- concepts
-- keywords
-- tags
-- referenced_ids
-- referenced_dois
-- code_links
-- dataset_links
-- model_links
 
-Deduplication should be case-insensitive where applicable and URL-normalization-aware for links.
+- `authors`
+- `categories`
+- `concepts`
+- `keywords`
+- `tags`
+- `referenced_ids`
+- `referenced_dois`
+- `referenced_arxiv_ids`
+- `code_links`
+- `dataset_links`
+- `model_links`
+
+Deduplication rules:
+
+- case-insensitive where appropriate
+- normalization-aware for identifiers
+- URL-normalization-aware for links
 
 ---
 
-## 6. Provenance preservation
+## 7. Provenance preservation
 
-Canonical records must preserve source provenance:
+Canonical records must preserve source provenance.
+
+At minimum, canonical records should retain:
+
 - contributing source list
 - source record ids
 - source record urls
+- canonical/source urls
 - fetched timestamps
 - source update timestamps
+- source API urls where available
+- raw source name
 
-This is required for auditability and future debugging.
+This is required for:
+
+- auditability
+- future debugging
+- source drilldown
+- merge inspection
+- future `/documents/{id}/sources` style endpoints
 
 ---
 
-## 7. Known technical debt
+## 8. Merge behavior by conflict type
+
+### Prefer non-empty values for:
+- `title`
+- `abstract`
+- `pdf_url`
+- `landing_page_url`
+- `publisher`
+- `publication_type`
+- `venue`
+- `journal`
+- `conference`
+- `license`
+
+### Prefer max value for:
+- `cited_by_count`
+- `references_count`
+- `source_count`
+- `unique_source_count`
+- `metadata_completeness_score`
+
+### Preserve and union for:
+- identifiers
+- categories/tags/concepts/keywords
+- references
+- artifact links
+- provenance fields
+
+---
+
+## 9. Known technical debt
 
 Current known technical debt areas:
+
 - arXiv version normalization
-- external_ids key harmonization (`doi` vs `DOI`, `arxiv` vs `ArXiv`)
+- external id key harmonization (`doi` vs `DOI`, `arxiv` vs `ArXiv`)
 - venue / journal / conference normalization
 - license normalization
 - source config lag behind operational pipeline
 - future artifact merge policy for Papers with Code not yet implemented
+- some source-level field noise in Semantic Scholar and OpenAlex metadata
+- stricter canonical handling for manifestation-level vs bibliographic-level fields
 
 ---
 
-## 8. Design principle
+## 10. Design principle
 
 The merge layer is the core quality gate of the system.
 
-The project should prefer:
-- explicit source roles,
-- conservative conflict resolution,
-- provenance-preserving merge,
-- and stable canonical paper entities
+The project prefers:
+
+- explicit source roles
+- conservative conflict resolution
+- provenance-preserving merge
+- stable canonical paper entities
 
 over aggressive field filling that introduces semantic noise.

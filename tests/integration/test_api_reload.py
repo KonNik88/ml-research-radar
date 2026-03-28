@@ -12,6 +12,8 @@ def test_reload_smoke():
 
         payload = response.json()
         assert payload["status"] == "reloaded"
+        assert payload["backend_mode"] in {"file", "db"}
+        assert "message" in payload
         assert "build_id" in payload
         assert "corpus_doc_count" in payload
         assert "embedding_model_name" in payload
@@ -29,6 +31,8 @@ def test_health_after_reload_smoke():
 
         payload = health_response.json()
         assert payload["status"] == "ok"
+        assert payload["ready"] is True
+        assert payload["backend_mode"] in {"file", "db"}
 
 
 def test_runtime_contains_reload_state():
@@ -43,3 +47,4 @@ def test_runtime_contains_reload_state():
         assert "last_reload_at" in payload
         assert "model_reused" in payload
         assert "current_model_name" in payload
+        assert "backend_mode" in payload

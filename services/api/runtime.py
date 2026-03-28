@@ -51,7 +51,7 @@ class ApiRuntime:
         logger.info("Loading API runtime with backend=%s", self.backend_mode)
 
         try:
-            if settings.search_backend == "db":
+            if self.backend_mode == "db":
                 self._load_db_runtime()
             else:
                 self._load_file_runtime()
@@ -80,7 +80,6 @@ class ApiRuntime:
         if not db_store.ping():
             raise RuntimeError("Postgres DB store is not available")
 
-        # optional snapshot count
         total_docs = db_store.count_documents()
 
         self.db_store = db_store
@@ -157,13 +156,32 @@ class ApiRuntime:
         )
 
     def reload(self) -> None:
-        logger.info("Reloading API runtime")
+        logger.info("Reloading API runtime for backend=%s", self.backend_mode)
         self.load()
         self.last_reload_at = _utc_now_iso()
 
+    def _db_connected(self) -> bool:
+        if self.db_store is None:
+            return False
+        try:
+            return self.db_store.ping()
+        except Exception:
+            logger.exception("Failed to ping DB store during runtime snapshot")
+            return False
+
+    def _loaded_components(self) -> dict[str, bool]:
+        return {
+            "manifest": self.manifest is not None,
+            "documents": len(self.documents) > 0,
+            "lexical_artifacts": self.lexical_artifacts is not None,
+            "dense_artifacts": self.dense_artifacts is not None,
+            "embedding_model": self.embedding_model is not None,
+            "db_store": self.db_store is not None,
+        }
+
     def is_ready(self) -> bool:
         if self.backend_mode == "db":
-            return self.db_store is not None
+            return self._db_connected()
 
         return (
             self.manifest is not None
@@ -175,36 +193,42 @@ class ApiRuntime:
 
     def runtime_snapshot(self) -> dict:
         settings = get_settings()
+        loaded_components = self._loaded_components()
 
-        corpus_doc_count = 0
-        if self.backend_mode == "file":
-            corpus_doc_count = len(self.documents)
-        elif self.db_store is not None:
-            try:
-                corpus_doc_count = self.db_store.count_documents()
-            except Exception:
+        db_connected = self._db_connected()
+        if self.backend_mode == "db":
+            build_id = "db-runtime"
+            embedding_model_name = None
+            current_model_name = None
+            model_reused = False
+            if db_connected and self.db_store is not None:
+                try:
+                    corpus_doc_count = self.db_store.count_documents()
+                except Exception:
+                    corpus_doc_count = 0
+            else:
                 corpus_doc_count = 0
+        else:
+            build_id = self.manifest.build_id if self.manifest else None
+            embedding_model_name = self.current_model_name
+            current_model_name = self.current_model_name
+            model_reused = self.last_model_reused
+            corpus_doc_count = len(self.documents)
 
         return {
             "ready": self.is_ready(),
             "backend_mode": self.backend_mode,
-            "build_id": self.manifest.build_id if self.manifest else None,
+            "build_id": build_id,
             "corpus_doc_count": corpus_doc_count,
-            "embedding_model_name": self.current_model_name,
+            "embedding_model_name": embedding_model_name,
             "artifacts_root": str(settings.artifacts_root),
-            "loaded_components": {
-                "manifest": self.manifest is not None,
-                "documents": len(self.documents) > 0,
-                "lexical_artifacts": self.lexical_artifacts is not None,
-                "dense_artifacts": self.dense_artifacts is not None,
-                "embedding_model": self.embedding_model is not None,
-                "db_store": self.db_store is not None,
-            },
+            "loaded_components": loaded_components,
+            "db_connected": db_connected,
             "last_load_error": self.last_load_error,
             "last_loaded_at": self.last_loaded_at,
             "last_reload_at": self.last_reload_at,
-            "model_reused": self.last_model_reused,
-            "current_model_name": self.current_model_name,
+            "model_reused": model_reused,
+            "current_model_name": current_model_name,
         }
 
 

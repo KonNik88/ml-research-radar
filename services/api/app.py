@@ -17,7 +17,6 @@ from services.api.schemas import (
     ReloadResponse,
     RuntimeSnapshotResponse,
     SearchResponse,
-    SearchResultDocument,
 )
 from services.api.search_service import db_row_to_schema, run_search
 from services.api.settings import get_settings
@@ -106,32 +105,29 @@ async def handle_generic_error(_: Request, exc: Exception):
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     runtime = get_runtime()
-    if not runtime.is_ready():
+    snapshot = runtime.runtime_snapshot()
+
+    if not snapshot["ready"]:
         raise RuntimeError("Runtime is not ready")
 
-    if runtime.backend_mode == "db":
-        total_docs = 0
-        if runtime.db_store is not None:
-            total_docs = runtime.db_store.count_documents()
-
-        return HealthResponse(
-            status="ok",
-            build_id="db-runtime",
-            corpus_doc_count=total_docs,
-            embedding_model_name=None,
-            corpus_path="postgres://ml_radar/canonical_documents",
-        )
-
-    manifest = runtime.manifest
-    if manifest is None:
-        raise RuntimeError("Manifest is not loaded")
+    checks = {
+        "manifest_loaded": snapshot["loaded_components"].get("manifest", False),
+        "documents_loaded": snapshot["loaded_components"].get("documents", False),
+        "lexical_artifacts_loaded": snapshot["loaded_components"].get("lexical_artifacts", False),
+        "dense_artifacts_loaded": snapshot["loaded_components"].get("dense_artifacts", False),
+        "embedding_model_loaded": snapshot["loaded_components"].get("embedding_model", False),
+        "db_store_loaded": snapshot["loaded_components"].get("db_store", False),
+        "db_connected": snapshot.get("db_connected", False),
+    }
 
     return HealthResponse(
         status="ok",
-        build_id=manifest.build_id,
-        corpus_doc_count=manifest.corpus_doc_count,
-        embedding_model_name=manifest.embedding_model_name,
-        corpus_path=manifest.corpus_path,
+        backend_mode=snapshot["backend_mode"],
+        ready=snapshot["ready"],
+        build_id=snapshot["build_id"] or "unknown",
+        corpus_doc_count=snapshot["corpus_doc_count"],
+        embedding_model_name=snapshot["embedding_model_name"],
+        checks=checks,
     )
 
 
@@ -140,26 +136,13 @@ def info() -> ApiInfoResponse:
     runtime = get_runtime()
     snapshot = runtime.runtime_snapshot()
 
-    if runtime.backend_mode == "db":
-        return ApiInfoResponse(
-            api_title=settings.api_title,
-            api_version=settings.api_version,
-            build_id="db-runtime",
-            corpus_doc_count=snapshot["corpus_doc_count"],
-            embedding_model_name=None,
-            artifacts_root=snapshot["artifacts_root"],
-            loaded_components=snapshot["loaded_components"],
-        )
-
-    if runtime.manifest is None:
-        raise RuntimeError("Manifest is not loaded")
-
     return ApiInfoResponse(
         api_title=settings.api_title,
         api_version=settings.api_version,
-        build_id=runtime.manifest.build_id,
+        backend_mode=snapshot["backend_mode"],
+        build_id=snapshot["build_id"] or "unknown",
         corpus_doc_count=snapshot["corpus_doc_count"],
-        embedding_model_name=runtime.manifest.embedding_model_name,
+        embedding_model_name=snapshot["embedding_model_name"],
         artifacts_root=snapshot["artifacts_root"],
         loaded_components=snapshot["loaded_components"],
     )
@@ -178,32 +161,25 @@ def reload_runtime() -> ReloadResponse:
 
     runtime = get_runtime()
     runtime.reload()
+    snapshot = runtime.runtime_snapshot()
 
-    if runtime.backend_mode == "db":
-        total_docs = 0
-        if runtime.db_store is not None:
-            total_docs = runtime.db_store.count_documents()
-
-        return ReloadResponse(
-            status="reloaded",
-            build_id="db-runtime",
-            corpus_doc_count=total_docs,
-            embedding_model_name=None,
-            model_reused=False,
-            last_reload_at=runtime.last_reload_at,
-        )
-
-    if runtime.manifest is None:
-        raise RuntimeError("Manifest is not loaded after reload")
+    message = (
+        "DB backend runtime reloaded successfully"
+        if snapshot["backend_mode"] == "db"
+        else "File backend runtime reloaded successfully"
+    )
 
     return ReloadResponse(
         status="reloaded",
-        build_id=runtime.manifest.build_id,
-        corpus_doc_count=len(runtime.documents),
-        embedding_model_name=runtime.manifest.embedding_model_name,
-        model_reused=runtime.last_model_reused,
-        last_reload_at=runtime.last_reload_at,
+        backend_mode=snapshot["backend_mode"],
+        message=message,
+        build_id=snapshot["build_id"] or "unknown",
+        corpus_doc_count=snapshot["corpus_doc_count"],
+        embedding_model_name=snapshot["embedding_model_name"],
+        model_reused=snapshot["model_reused"],
+        last_reload_at=snapshot["last_reload_at"],
     )
+
 
 @app.get("/search", response_model=SearchResponse)
 def search(
@@ -252,6 +228,7 @@ def search(
         offset=offset,
         sort_by=sort_by,
     )
+
 
 @app.get("/documents", response_model=DocumentListResponse)
 def list_documents(

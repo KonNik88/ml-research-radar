@@ -1,20 +1,42 @@
+"""
+Integration tests for DB backend only.
+Run with ML_RADAR_SEARCH_BACKEND=db
+"""
+
 from fastapi.testclient import TestClient
 
 from services.api.app import app
+
+
+def test_health_db_smoke():
+    with TestClient(app) as client:
+        response = client.get("/health")
+        assert response.status_code == 200
+
+        body = response.json()
+        assert body["status"] == "ok"
+        assert body["backend_mode"] == "db"
+        assert body["ready"] is True
+        assert body["checks"]["db_connected"] is True
 
 
 def test_runtime_db_smoke():
     with TestClient(app) as client:
         response = client.get("/runtime")
         assert response.status_code == 200
+
         body = response.json()
         assert body["backend_mode"] == "db"
+        assert body["db_connected"] is True
+        assert body["loaded_components"]["manifest"] is False
+        assert body["loaded_components"]["db_store"] is True
 
 
 def test_documents_db_smoke():
     with TestClient(app) as client:
         response = client.get("/documents", params={"limit": 3})
         assert response.status_code == 200
+
         body = response.json()
         assert "results" in body
         assert len(body["results"]) <= 3
@@ -31,6 +53,7 @@ def test_search_db_lexical_smoke():
             },
         )
         assert response.status_code == 200
+
         body = response.json()
         assert body["query"] == "graph neural networks"
         assert body["mode"] == "lexical"
@@ -51,6 +74,7 @@ def test_search_db_lexical_with_filters():
             },
         )
         assert response.status_code == 200
+
         body = response.json()
         assert body["mode"] == "lexical"
         assert "results" in body
@@ -67,6 +91,7 @@ def test_search_db_dense_rejected():
             },
         )
         assert response.status_code == 400
+
         body = response.json()
         assert body["error_code"] == "bad_request"
         assert "not supported for db backend v1" in body["message"].lower()
@@ -84,6 +109,7 @@ def test_search_db_hybrid_rejected():
             },
         )
         assert response.status_code == 400
+
         body = response.json()
         assert body["error_code"] == "bad_request"
         assert "not supported for db backend v1" in body["message"].lower()

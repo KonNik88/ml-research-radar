@@ -1,3 +1,8 @@
+"""
+Integration tests for file backend only.
+Run with ML_RADAR_SEARCH_BACKEND=file
+"""
+
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
@@ -12,10 +17,13 @@ def test_health_smoke():
 
         payload = response.json()
         assert payload["status"] == "ok"
+        assert payload["backend_mode"] == "file"
+        assert payload["ready"] is True
         assert "build_id" in payload
         assert "corpus_doc_count" in payload
-        assert "embedding_model_name" in payload
-        assert "corpus_path" in payload
+        assert "checks" in payload
+        assert payload["checks"]["manifest_loaded"] is True
+        assert payload["checks"]["db_connected"] is False
 
 
 def test_info_smoke():
@@ -24,6 +32,7 @@ def test_info_smoke():
         assert response.status_code == 200
 
         payload = response.json()
+        assert payload["backend_mode"] == "file"
         assert "api_title" in payload
         assert "api_version" in payload
         assert "build_id" in payload
@@ -36,8 +45,11 @@ def test_runtime_smoke():
         assert response.status_code == 200
 
         payload = response.json()
-        assert "ready" in payload
-        assert "loaded_components" in payload
+        assert payload["ready"] is True
+        assert payload["backend_mode"] == "file"
+        assert payload["loaded_components"]["manifest"] is True
+        assert payload["loaded_components"]["embedding_model"] is True
+        assert payload["db_connected"] is False
         assert "model_reused" in payload
         assert "current_model_name" in payload
 
