@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Optional
+from urllib.parse import urlparse
 
 import requests
 
@@ -20,6 +22,34 @@ from radar_core.utils.ids import build_content_hash, build_doc_id, canonicalize_
 
 
 OPENALEX_WORKS_API_BASE = "https://api.openalex.org/works"
+
+CURRENT_YEAR_UTC = datetime.now(timezone.utc).year
+MAX_REASONABLE_FUTURE_YEAR = CURRENT_YEAR_UTC + 1
+
+URL_RE = re.compile(r"https?://[^\s<>)\]}\"']+")
+
+REPO_HOSTS = (
+    "github.com",
+    "gitlab.com",
+    "bitbucket.org",
+    "codeberg.org",
+    "huggingface.co",
+)
+
+DATASET_HOST_HINTS = (
+    "kaggle.com",
+    "huggingface.co/datasets",
+    "zenodo.org",
+    "figshare.com",
+    "data.mendeley.com",
+    "datadryad.org",
+)
+
+MODEL_HOST_HINTS = (
+    "huggingface.co",
+    "replicate.com",
+    "civitai.com",
+)
 
 
 @dataclass
@@ -51,291 +81,26 @@ class OpenAlexQuery:
 
 class OpenAlexIngestor(BaseIngestor[OpenAlexQuery, dict, dict]):
     source_name = "openalex"
-    pipeline_version = "0.2.0"
+    pipeline_version = "0.2.1"
 
-    def fetch_feed(self, query: OpenAlexQuery) -> dict:
-        response = requests.get(
-            OPENALEX_WORKS_API_BASE,
-            params=query.to_params(),
-            timeout=60,
-        )
-        response.raise_for_status()
-        return response.json()
-
-    def iter_entries(self, feed: dict) -> list[dict]:
-        return list(feed.get("results", []))
-
-    def parse_entry_to_raw(self, entry: dict) -> RawDocument:
-        canonical_url = self._extract_canonical_url(entry)
-        doc_id = build_doc_id(canonical_url)
-
-        openalex_id = entry.get("id")
-        updated_at = self._parse_dt(entry.get("updated_date"))
-
-        payload = {
-            "id": entry.get("id"),
-            "doi": entry.get("doi"),
-            "display_name": entry.get("display_name"),
-            "title": entry.get("title"),
-            "publication_year": entry.get("publication_year"),
-            "publication_date": entry.get("publication_date"),
-            "updated_date": entry.get("updated_date"),
-            "language": entry.get("language"),
-            "type": entry.get("type"),
-            "type_crossref": entry.get("type_crossref"),
-            "cited_by_count": entry.get("cited_by_count"),
-            "referenced_works": entry.get("referenced_works", []),
-            "ids": entry.get("ids", {}),
-            "authorships": entry.get("authorships", []),
-            "primary_location": entry.get("primary_location"),
-            "locations": entry.get("locations", []),
-            "primary_topic": entry.get("primary_topic"),
-            "topics": entry.get("topics", []),
-            "keywords": entry.get("keywords", []),
-            "concepts": entry.get("concepts", []),
-            "abstract_inverted_index": entry.get("abstract_inverted_index"),
-            "is_retracted": entry.get("is_retracted"),
-            "open_access": entry.get("open_access"),
-        }
-
-        return RawDocument(
-            doc_id=doc_id,
-            canonical_url=canonical_url,
-            document_type=DocumentType.PAPER,
-            source_info=SourceInfo(
-                source=self.source_name,
-                source_id=openalex_id,
-                source_url=openalex_id,
-                source_record_id=openalex_id,
-                source_record_url=openalex_id,
-                source_api_url=openalex_id,
-                source_updated_at=updated_at,
-                raw_source_name=self.source_name,
-            ),
-            pipeline_version=self.pipeline_version,
-            stages=[
-                ProcessingStageRecord(
-                    stage=PipelineStage.FOUND,
-                    status=StageStatus.SUCCESS,
-                    pipeline_version=self.pipeline_version,
-                ),
-                ProcessingStageRecord(
-                    stage=PipelineStage.FETCHED,
-                    status=StageStatus.SUCCESS,
-                    pipeline_version=self.pipeline_version,
-                ),
-            ],
-            payload=payload,
-            updated_at=datetime.now(timezone.utc),
-        )
-
-    def parse_entry_to_normalized(
-        self,
-        entry: dict,
-        raw_artifact_path: Optional[str] = None,
-    ) -> NormalizedDocument:
-        canonical_url = self._extract_canonical_url(entry)
-        doc_id = build_doc_id(canonical_url)
-
-        openalex_id = entry.get("id")
-        title = (entry.get("display_name") or entry.get("title") or "").strip()
-        abstract = self._reconstruct_abstract(entry.get("abstract_inverted_index"))
-
-        authors = self._extract_authors(entry)
-        published_at = self._parse_date(entry.get("publication_date"))
-        updated_source_at = self._parse_dt(entry.get("updated_date"))
-        year = entry.get("publication_year")
-
-        doi = self._normalize_text(entry.get("doi"))
-        pdf_url = self._extract_pdf_url(entry)
-        license_value = self._extract_license(entry)
-        landing_page_url = self._extract_landing_page_url(entry)
-        repo_url = None  # пока OpenAlex как paper source, repo links отдельно не вытягиваем
-
-        primary_topic = entry.get("primary_topic") or {}
-        topics = entry.get("topics") or []
-        keywords_raw = entry.get("keywords") or []
-        concepts_raw = entry.get("concepts") or []
-
-        primary_category = self._normalize_text(primary_topic.get("display_name"))
-        categories = self._extract_display_names(topics)
-        keywords = self._extract_display_names(keywords_raw)
-        concepts = self._extract_display_names(concepts_raw)
-        tags = list(dict.fromkeys(categories + keywords + concepts))
-
-        content_hash = build_content_hash(title=title, abstract=abstract or "")
-
-        ids_block = entry.get("ids") or {}
-        external_ids: dict[str, str] = {}
-        source_ids: dict[str, str] = {}
-
-        if openalex_id:
-            source_ids["openalex"] = openalex_id
-            external_ids["openalex"] = openalex_id
-            external_ids["openalex_id"] = openalex_id
-
-        if doi:
-            external_ids["doi"] = doi
-
-        pmid = self._normalize_text(ids_block.get("pmid"))
-        pmcid = self._normalize_text(ids_block.get("pmcid"))
-        mag_id = self._normalize_text(ids_block.get("mag"))
-
-        if pmid:
-            external_ids["pmid"] = pmid
-        if pmcid:
-            external_ids["pmcid"] = pmcid
-        if mag_id:
-            external_ids["mag"] = mag_id
-
-        publication_type = self._normalize_text(entry.get("type") or entry.get("type_crossref"))
-        language = self._normalize_text(entry.get("language"))
-
-        venue = self._extract_venue(entry)
-        journal = self._extract_journal(entry, publication_type=publication_type)
-        conference = self._extract_conference(entry, publication_type=publication_type)
-        publisher = self._extract_publisher(entry)
-
-        cited_by_count = entry.get("cited_by_count")
-        referenced_ids = self._extract_referenced_ids(entry)
-        references_count = len(referenced_ids) if referenced_ids else None
-
-        open_access = self._extract_open_access(entry)
-        is_withdrawn = bool(entry.get("is_retracted", False))
-
-        is_review = self._detect_review(title, abstract)
-        is_survey = self._detect_survey(title, abstract)
-
-        has_pdf = pdf_url is not None
-        has_code_link = False
-        code_links: list[str] = []
-        dataset_links: list[str] = []
-        model_links: list[str] = []
-
-        metadata_completeness_score = self._estimate_metadata_completeness(
-            title=title,
-            abstract=abstract,
-            authors=authors,
-            doi=doi,
-            publication_date=published_at,
-            primary_category=primary_category,
-            categories=categories,
-            pdf_url=pdf_url,
-            cited_by_count=cited_by_count,
-            venue=venue,
-            references_count=references_count,
-        )
-
-        return NormalizedDocument(
-            # identity
-            doc_id=doc_id,
-            canonical_url=canonical_url,
-            content_hash=content_hash,
-            document_type=DocumentType.PAPER,
-
-            # source identity
-            source=self.source_name,
-            source_id=openalex_id,
-            source_record_id=openalex_id,
-            source_record_url=openalex_id,
-            source_ids=source_ids,
-            source_api_url=openalex_id,
-            external_ids=external_ids,
-
-            # stable identifiers
-            doi=doi,
-            arxiv_id=None,
-            openalex_id=openalex_id,
-            pmid=pmid,
-            pmcid=pmcid,
-            semantic_scholar_id=None,
-            dblp_id=None,
-            mag_id=mag_id,
-
-            # core bibliographic fields
-            title=title,
-            abstract=abstract,
-            authors=authors,
-            published_at=published_at,
-            publication_date=published_at,
-            updated_source_at=updated_source_at,
-            year=year,
-
-            # links / accessibility
-            landing_page_url=landing_page_url,
-            pdf_url=pdf_url,
-            repo_url=repo_url,
-            license=license_value,
-            open_access=open_access,
-
-            # taxonomy / topical metadata
-            primary_category=primary_category,
-            categories=categories,
-            concepts=concepts,
-            keywords=keywords,
-            tags=tags,
-
-            # publication metadata
-            comment=None,
-            journal_ref=None,
-            venue=venue,
-            journal=journal,
-            conference=conference,
-            publisher=publisher,
-            publication_type=publication_type,
-            language=language,
-
-            # citation / graph-ready metadata
-            cited_by_count=cited_by_count,
-            references_count=references_count,
-            referenced_ids=referenced_ids,
-            referenced_dois=[],
-            referenced_arxiv_ids=[],
-            citation_graph_available=bool(referenced_ids),
-
-            # code / assets
-            has_code_link=has_code_link,
-            code_links=code_links,
-            dataset_links=dataset_links,
-            model_links=model_links,
-            has_dataset_link=False,
-            has_model_link=False,
-
-            # lightweight flags
-            has_pdf=has_pdf,
-            is_withdrawn=is_withdrawn,
-
-            # optional heuristics
-            is_open_access=open_access,
-            is_preprint=self._is_preprint(publication_type),
-            is_review=is_review,
-            is_survey=is_survey,
-
-            # provenance / bookkeeping
-            raw_artifact_path=raw_artifact_path,
-            raw_source_name=self.source_name,
-            ingested_at=datetime.now(timezone.utc),
-            metadata_completeness_score=metadata_completeness_score,
-
-            pipeline_version=self.pipeline_version,
-            stages=[
-                ProcessingStageRecord(
-                    stage=PipelineStage.FOUND,
-                    status=StageStatus.SUCCESS,
-                    pipeline_version=self.pipeline_version,
-                ),
-                ProcessingStageRecord(
-                    stage=PipelineStage.FETCHED,
-                    status=StageStatus.SUCCESS,
-                    pipeline_version=self.pipeline_version,
-                ),
-                ProcessingStageRecord(
-                    stage=PipelineStage.PARSED,
-                    status=StageStatus.SUCCESS,
-                    pipeline_version=self.pipeline_version,
-                ),
-            ],
-        )
+    @staticmethod
+    def _looks_like_repository_venue(name: Optional[str]) -> bool:
+        if not name:
+            return False
+        lowered = name.lower()
+        return any(token in lowered for token in [
+            "zenodo",
+            "repository",
+            "escholarship",
+            "open collections",
+            "arxiv",
+            "figshare",
+            "ssrn",
+            "hal ",
+            "hal-",
+            "biorxiv",
+            "medrxiv",
+        ])
 
     @staticmethod
     def _normalize_text(value: Any) -> Optional[str]:
@@ -343,6 +108,170 @@ class OpenAlexIngestor(BaseIngestor[OpenAlexQuery, dict, dict]):
             return None
         text = str(value).strip()
         return text or None
+
+    @staticmethod
+    def _normalize_arxiv_id(value: Any) -> Optional[str]:
+        text = OpenAlexIngestor._normalize_text(value)
+        if not text:
+            return None
+
+        lowered = text.lower().strip()
+        prefixes = [
+            "https://arxiv.org/abs/",
+            "http://arxiv.org/abs/",
+            "https://export.arxiv.org/abs/",
+            "http://export.arxiv.org/abs/",
+            "arxiv:",
+        ]
+        for prefix in prefixes:
+            if lowered.startswith(prefix):
+                lowered = lowered[len(prefix):].strip()
+                break
+
+        lowered = lowered.strip().strip("/")
+        return lowered or None
+
+    @staticmethod
+    def _normalize_doi(value: Any) -> Optional[str]:
+        text = OpenAlexIngestor._normalize_text(value)
+        if not text:
+            return None
+
+        lowered = text.lower().strip()
+        prefixes = [
+            "https://doi.org/",
+            "http://doi.org/",
+            "https://dx.doi.org/",
+            "http://dx.doi.org/",
+            "doi:",
+        ]
+        for prefix in prefixes:
+            if lowered.startswith(prefix):
+                lowered = lowered[len(prefix):].strip()
+                break
+
+        lowered = lowered.strip().strip("/")
+        return lowered or None
+
+    @staticmethod
+    def _extract_source_block(entry: dict) -> dict:
+        primary_location = entry.get("primary_location") or {}
+        source = primary_location.get("source") or {}
+        return source if isinstance(source, dict) else {}
+
+    @staticmethod
+    def _extract_source_type(entry: dict) -> Optional[str]:
+        source = OpenAlexIngestor._extract_source_block(entry)
+        source_type = source.get("type")
+        if source_type and str(source_type).strip():
+            return str(source_type).strip().lower()
+        return None
+
+    @staticmethod
+    def _extract_source_display_name(entry: dict) -> Optional[str]:
+        source = OpenAlexIngestor._extract_source_block(entry)
+        display_name = source.get("display_name")
+        if display_name and str(display_name).strip():
+            return str(display_name).strip()
+        return None
+
+    @staticmethod
+    def _extract_topic_names(entry: dict) -> list[str]:
+        values: list[str] = []
+
+        primary_topic = entry.get("primary_topic") or {}
+        primary_name = primary_topic.get("display_name")
+        if primary_name and str(primary_name).strip():
+            values.append(str(primary_name).strip())
+
+        for topic in entry.get("topics") or []:
+            name = topic.get("display_name")
+            if name and str(name).strip():
+                values.append(str(name).strip())
+
+        return list(dict.fromkeys(values))
+
+    @staticmethod
+    def _extract_venue(entry: dict) -> Optional[str]:
+        return OpenAlexIngestor._extract_source_display_name(entry)
+
+    @staticmethod
+    def _extract_journal(entry: dict, publication_type: Optional[str]) -> Optional[str]:
+        source_type = OpenAlexIngestor._extract_source_type(entry)
+        venue = OpenAlexIngestor._extract_source_display_name(entry)
+
+        if not venue:
+            return None
+        if source_type == "journal":
+            return venue
+
+        pub_type = (publication_type or "").lower()
+
+        if source_type == "conference":
+            return None
+        if OpenAlexIngestor._looks_like_repository_venue(venue):
+            return None
+        if "preprint" in pub_type:
+            return None
+
+        return venue
+
+    @staticmethod
+    def _extract_conference(entry: dict) -> Optional[str]:
+        source_type = OpenAlexIngestor._extract_source_type(entry)
+        venue = OpenAlexIngestor._extract_source_display_name(entry)
+        if source_type == "conference":
+            return venue
+        return None
+
+    @staticmethod
+    def _extract_publisher(entry: dict) -> Optional[str]:
+        source = OpenAlexIngestor._extract_source_block(entry)
+
+        for key in ("host_organization_name", "host_organization"):
+            value = source.get(key)
+            if value and str(value).strip():
+                return str(value).strip()
+
+        display_name = source.get("display_name")
+        source_type = source.get("type")
+        if display_name and str(display_name).strip():
+            display_name = str(display_name).strip()
+            if source_type != "conference" and not OpenAlexIngestor._looks_like_repository_venue(display_name):
+                return display_name
+
+        return None
+
+    @staticmethod
+    def _sanitize_year(
+        raw_year: Any,
+        publication_date: Optional[datetime],
+        updated_source_at: Optional[datetime],
+    ) -> Optional[int]:
+        candidate: Optional[int] = None
+
+        if raw_year is not None:
+            try:
+                candidate = int(raw_year)
+            except (TypeError, ValueError):
+                candidate = None
+
+        if candidate is None and publication_date is not None:
+            candidate = publication_date.year
+
+        if candidate is None:
+            return None
+
+        if candidate < 1900:
+            return None
+
+        if candidate <= MAX_REASONABLE_FUTURE_YEAR:
+            return candidate
+
+        if publication_date is not None and 1900 <= publication_date.year <= MAX_REASONABLE_FUTURE_YEAR:
+            return publication_date.year
+
+        return None
 
     @staticmethod
     def _extract_canonical_url(entry: dict) -> str:
@@ -440,52 +369,6 @@ class OpenAlexIngestor(BaseIngestor[OpenAlexQuery, dict, dict]):
         return None
 
     @staticmethod
-    def _extract_venue(entry: dict) -> Optional[str]:
-        primary_location = entry.get("primary_location") or {}
-        source = primary_location.get("source") or {}
-        display_name = source.get("display_name")
-        if display_name and str(display_name).strip():
-            return str(display_name).strip()
-        return None
-
-    @staticmethod
-    def _extract_journal(entry: dict, publication_type: Optional[str]) -> Optional[str]:
-        venue = OpenAlexIngestor._extract_venue(entry)
-        if not venue:
-            return None
-
-        pub_type = (publication_type or "").lower()
-        if any(token in pub_type for token in ["article", "journal"]):
-            return venue
-        return None
-
-    @staticmethod
-    def _extract_conference(entry: dict, publication_type: Optional[str]) -> Optional[str]:
-        venue = OpenAlexIngestor._extract_venue(entry)
-        if not venue:
-            return None
-
-        pub_type = (publication_type or "").lower()
-        if any(token in pub_type for token in ["conference", "proceedings"]):
-            return venue
-        return None
-
-    @staticmethod
-    def _extract_publisher(entry: dict) -> Optional[str]:
-        primary_location = entry.get("primary_location") or {}
-        source = primary_location.get("source") or {}
-
-        host_org_name = source.get("host_organization_name")
-        if host_org_name and str(host_org_name).strip():
-            return str(host_org_name).strip()
-
-        host_org = source.get("host_organization")
-        if host_org and str(host_org).strip():
-            return str(host_org).strip()
-
-        return None
-
-    @staticmethod
     def _extract_referenced_ids(entry: dict) -> list[str]:
         referenced = entry.get("referenced_works") or []
         values = []
@@ -520,7 +403,13 @@ class OpenAlexIngestor(BaseIngestor[OpenAlexQuery, dict, dict]):
     def _parse_dt(value: Optional[str]) -> Optional[datetime]:
         if not value:
             return None
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+
+        return dt
 
     @staticmethod
     def _is_preprint(publication_type: Optional[str]) -> Optional[bool]:
@@ -542,6 +431,104 @@ class OpenAlexIngestor(BaseIngestor[OpenAlexQuery, dict, dict]):
         return "survey" in haystack
 
     @staticmethod
+    def _collect_candidate_urls(entry: dict) -> list[str]:
+        urls: list[str] = []
+
+        def add(value: Any) -> None:
+            if value and str(value).strip():
+                urls.append(str(value).strip())
+
+        add(entry.get("id"))
+        add(entry.get("doi"))
+
+        primary_location = entry.get("primary_location") or {}
+        add(primary_location.get("landing_page_url"))
+        add(primary_location.get("pdf_url"))
+
+        source = primary_location.get("source") or {}
+        add(source.get("homepage_url"))
+
+        for location in entry.get("locations") or []:
+            add(location.get("landing_page_url"))
+            add(location.get("pdf_url"))
+            loc_source = location.get("source") or {}
+            add(loc_source.get("homepage_url"))
+
+        for value in (
+            entry.get("title"),
+            entry.get("display_name"),
+            OpenAlexIngestor._reconstruct_abstract(entry.get("abstract_inverted_index")),
+        ):
+            if value:
+                urls.extend(URL_RE.findall(str(value)))
+
+        unique_urls: list[str] = []
+        seen: set[str] = set()
+        for url in urls:
+            norm = url.strip()
+            if not norm or norm in seen:
+                continue
+            seen.add(norm)
+            unique_urls.append(norm)
+
+        return unique_urls
+
+    @staticmethod
+    def _is_repo_url(url: str) -> bool:
+        try:
+            host = (urlparse(url).netloc or "").lower()
+        except Exception:
+            return False
+        return any(repo_host in host for repo_host in REPO_HOSTS)
+
+    @staticmethod
+    def _is_dataset_url(url: str) -> bool:
+        lowered = url.lower()
+        return any(hint in lowered for hint in DATASET_HOST_HINTS)
+
+    @staticmethod
+    def _is_model_url(url: str) -> bool:
+        lowered = url.lower()
+        return any(hint in lowered for hint in MODEL_HOST_HINTS)
+
+    @classmethod
+    def _extract_asset_links(
+        cls,
+        entry: dict,
+    ) -> tuple[Optional[str], list[str], list[str], list[str]]:
+        urls = cls._collect_candidate_urls(entry)
+
+        repo_links: list[str] = []
+        dataset_links: list[str] = []
+        model_links: list[str] = []
+
+        for url in urls:
+            if cls._is_repo_url(url):
+                repo_links.append(url)
+            if cls._is_dataset_url(url):
+                dataset_links.append(url)
+            if cls._is_model_url(url):
+                model_links.append(url)
+
+        def unique_keep_order(items: list[str]) -> list[str]:
+            out: list[str] = []
+            seen: set[str] = set()
+            for item in items:
+                norm = item.strip().lower()
+                if not norm or norm in seen:
+                    continue
+                seen.add(norm)
+                out.append(item.strip())
+            return out
+
+        repo_links = unique_keep_order(repo_links)
+        dataset_links = unique_keep_order(dataset_links)
+        model_links = unique_keep_order(model_links)
+
+        repo_url = repo_links[0] if repo_links else None
+        return repo_url, repo_links, dataset_links, model_links
+
+    @staticmethod
     def _estimate_metadata_completeness(
         *,
         title: str,
@@ -555,6 +542,7 @@ class OpenAlexIngestor(BaseIngestor[OpenAlexQuery, dict, dict]):
         cited_by_count: Optional[int],
         venue: Optional[str],
         references_count: Optional[int],
+        has_code_link: bool = False,
     ) -> float:
         checks = [
             bool(title),
@@ -568,6 +556,309 @@ class OpenAlexIngestor(BaseIngestor[OpenAlexQuery, dict, dict]):
             cited_by_count is not None,
             bool(venue),
             references_count is not None,
+            has_code_link,
         ]
         score = sum(1 for flag in checks if flag) / len(checks)
         return round(score, 4)
+
+    def fetch_feed(self, query: OpenAlexQuery) -> dict:
+        response = requests.get(
+            OPENALEX_WORKS_API_BASE,
+            params=query.to_params(),
+            timeout=60,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def iter_entries(self, feed: dict) -> list[dict]:
+        return list(feed.get("results", []))
+
+    def parse_entry_to_raw(self, entry: dict) -> RawDocument:
+        canonical_url = self._extract_canonical_url(entry)
+        doc_id = build_doc_id(canonical_url)
+
+        openalex_id = entry.get("id")
+        updated_at = self._parse_dt(entry.get("updated_date"))
+
+        payload = {
+            "id": entry.get("id"),
+            "doi": entry.get("doi"),
+            "display_name": entry.get("display_name"),
+            "title": entry.get("title"),
+            "publication_year": entry.get("publication_year"),
+            "publication_date": entry.get("publication_date"),
+            "updated_date": entry.get("updated_date"),
+            "language": entry.get("language"),
+            "type": entry.get("type"),
+            "type_crossref": entry.get("type_crossref"),
+            "cited_by_count": entry.get("cited_by_count"),
+            "referenced_works": entry.get("referenced_works", []),
+            "ids": entry.get("ids", {}),
+            "authorships": entry.get("authorships", []),
+            "primary_location": entry.get("primary_location"),
+            "locations": entry.get("locations", []),
+            "primary_topic": entry.get("primary_topic"),
+            "topics": entry.get("topics", []),
+            "keywords": entry.get("keywords", []),
+            "concepts": entry.get("concepts", []),
+            "abstract_inverted_index": entry.get("abstract_inverted_index"),
+            "is_retracted": entry.get("is_retracted"),
+            "open_access": entry.get("open_access"),
+        }
+
+        return RawDocument(
+            doc_id=doc_id,
+            canonical_url=canonical_url,
+            document_type=DocumentType.PAPER,
+            source_info=SourceInfo(
+                source=self.source_name,
+                source_id=openalex_id,
+                source_url=openalex_id,
+                source_record_id=openalex_id,
+                source_record_url=openalex_id,
+                source_api_url=openalex_id,
+                source_updated_at=updated_at,
+                raw_source_name=self.source_name,
+            ),
+            pipeline_version=self.pipeline_version,
+            stages=[
+                ProcessingStageRecord(
+                    stage=PipelineStage.FOUND,
+                    status=StageStatus.SUCCESS,
+                    pipeline_version=self.pipeline_version,
+                ),
+                ProcessingStageRecord(
+                    stage=PipelineStage.FETCHED,
+                    status=StageStatus.SUCCESS,
+                    pipeline_version=self.pipeline_version,
+                ),
+            ],
+            payload=payload,
+            updated_at=datetime.now(timezone.utc),
+        )
+
+    def parse_entry_to_normalized(
+        self,
+        entry: dict,
+        raw_artifact_path: Optional[str] = None,
+    ) -> NormalizedDocument:
+        canonical_url = self._extract_canonical_url(entry)
+        doc_id = build_doc_id(canonical_url)
+
+        openalex_id = entry.get("id")
+        title = (entry.get("display_name") or entry.get("title") or "").strip()
+        abstract = self._reconstruct_abstract(entry.get("abstract_inverted_index"))
+
+        authors = self._extract_authors(entry)
+        published_at = self._parse_date(entry.get("publication_date"))
+        updated_source_at = self._parse_dt(entry.get("updated_date"))
+        year = self._sanitize_year(
+            entry.get("publication_year"),
+            publication_date=published_at,
+            updated_source_at=updated_source_at,
+        )
+
+        doi = self._normalize_doi(entry.get("doi"))
+        pdf_url = self._extract_pdf_url(entry)
+        license_value = self._extract_license(entry)
+        landing_page_url = self._extract_landing_page_url(entry)
+
+        repo_url, code_links, dataset_links, model_links = self._extract_asset_links(entry)
+
+        primary_topic = entry.get("primary_topic") or {}
+        topics = entry.get("topics") or []
+        keywords_raw = entry.get("keywords") or []
+        concepts_raw = entry.get("concepts") or []
+
+        primary_category = self._normalize_text(primary_topic.get("display_name"))
+        topic_names = self._extract_topic_names(entry)
+        categories = list(dict.fromkeys(self._extract_display_names(topics)))
+        keywords = list(dict.fromkeys(self._extract_display_names(keywords_raw) + topic_names))
+        concepts = self._extract_display_names(concepts_raw)
+        tags = list(dict.fromkeys(categories + keywords + concepts))
+
+        content_hash = build_content_hash(title=title, abstract=abstract or "")
+
+        ids_block = entry.get("ids") or {}
+        external_ids: dict[str, str] = {}
+        source_ids: dict[str, str] = {}
+
+        arxiv_id = self._normalize_arxiv_id(
+            ids_block.get("arxiv")
+            or ids_block.get("arxiv_id")
+        )
+        pmid = self._normalize_text(ids_block.get("pmid"))
+        pmcid = self._normalize_text(ids_block.get("pmcid"))
+        mag_id = self._normalize_text(ids_block.get("mag"))
+
+        if openalex_id:
+            source_ids["openalex"] = openalex_id
+            external_ids["openalex"] = openalex_id
+            external_ids["openalex_id"] = openalex_id
+
+        if doi:
+            external_ids["doi"] = doi
+
+        if arxiv_id:
+            external_ids["arxiv"] = arxiv_id
+            source_ids["arxiv"] = arxiv_id
+
+        if pmid:
+            external_ids["pmid"] = pmid
+        if pmcid:
+            external_ids["pmcid"] = pmcid
+        if mag_id:
+            external_ids["mag"] = mag_id
+
+        publication_type = self._normalize_text(entry.get("type") or entry.get("type_crossref"))
+        language = self._normalize_text(entry.get("language"))
+
+        venue = self._extract_venue(entry)
+        journal = self._extract_journal(entry, publication_type=publication_type)
+        conference = self._extract_conference(entry)
+        publisher = self._extract_publisher(entry)
+
+        cited_by_count = entry.get("cited_by_count")
+        if cited_by_count is not None:
+            try:
+                cited_by_count = int(cited_by_count)
+            except (TypeError, ValueError):
+                cited_by_count = None
+
+        referenced_ids = self._extract_referenced_ids(entry)
+        references_count = len(referenced_ids) if referenced_ids else None
+
+        open_access = self._extract_open_access(entry)
+        is_withdrawn = bool(entry.get("is_retracted", False))
+
+        is_review = self._detect_review(title, abstract)
+        is_survey = self._detect_survey(title, abstract)
+
+        has_pdf = pdf_url is not None
+        has_code_link = bool(code_links)
+
+        metadata_completeness_score = self._estimate_metadata_completeness(
+            title=title,
+            abstract=abstract,
+            authors=authors,
+            doi=doi,
+            publication_date=published_at,
+            primary_category=primary_category,
+            categories=categories,
+            pdf_url=pdf_url,
+            cited_by_count=cited_by_count,
+            venue=venue,
+            references_count=references_count,
+            has_code_link=has_code_link,
+        )
+
+        return NormalizedDocument(
+            # identity
+            doc_id=doc_id,
+            canonical_url=canonical_url,
+            content_hash=content_hash,
+            document_type=DocumentType.PAPER,
+
+            # source identity
+            source=self.source_name,
+            source_id=openalex_id,
+            source_record_id=openalex_id,
+            source_record_url=openalex_id,
+            source_ids=source_ids,
+            source_api_url=openalex_id,
+            external_ids=external_ids,
+
+            # stable identifiers
+            doi=doi,
+            arxiv_id=arxiv_id,
+            openalex_id=openalex_id,
+            pmid=pmid,
+            pmcid=pmcid,
+            semantic_scholar_id=None,
+            dblp_id=None,
+            mag_id=mag_id,
+
+            # core bibliographic fields
+            title=title,
+            abstract=abstract,
+            authors=authors,
+            published_at=published_at,
+            publication_date=published_at,
+            updated_source_at=updated_source_at,
+            year=year,
+
+            # links / accessibility
+            landing_page_url=landing_page_url,
+            pdf_url=pdf_url,
+            repo_url=repo_url,
+            license=license_value,
+            open_access=open_access,
+
+            # taxonomy / topical metadata
+            primary_category=primary_category,
+            categories=categories,
+            concepts=concepts,
+            keywords=keywords,
+            tags=tags,
+
+            # publication metadata
+            comment=None,
+            journal_ref=None,
+            venue=venue,
+            journal=journal,
+            conference=conference,
+            publisher=publisher,
+            publication_type=publication_type,
+            language=language,
+
+            # citation / graph-ready metadata
+            cited_by_count=cited_by_count,
+            references_count=references_count,
+            referenced_ids=referenced_ids,
+            referenced_dois=[],
+            referenced_arxiv_ids=[],
+            citation_graph_available=bool(referenced_ids),
+
+            # code / assets
+            has_code_link=has_code_link,
+            code_links=code_links,
+            dataset_links=dataset_links,
+            model_links=model_links,
+            has_dataset_link=bool(dataset_links),
+            has_model_link=bool(model_links),
+
+            # lightweight flags
+            has_pdf=has_pdf,
+            is_withdrawn=is_withdrawn,
+
+            # optional heuristics
+            is_open_access=open_access,
+            is_preprint=self._is_preprint(publication_type),
+            is_review=is_review,
+            is_survey=is_survey,
+
+            # provenance / bookkeeping
+            raw_artifact_path=raw_artifact_path,
+            raw_source_name=self.source_name,
+            ingested_at=datetime.now(timezone.utc),
+            metadata_completeness_score=metadata_completeness_score,
+
+            pipeline_version=self.pipeline_version,
+            stages=[
+                ProcessingStageRecord(
+                    stage=PipelineStage.FOUND,
+                    status=StageStatus.SUCCESS,
+                    pipeline_version=self.pipeline_version,
+                ),
+                ProcessingStageRecord(
+                    stage=PipelineStage.FETCHED,
+                    status=StageStatus.SUCCESS,
+                    pipeline_version=self.pipeline_version,
+                ),
+                ProcessingStageRecord(
+                    stage=PipelineStage.PARSED,
+                    status=StageStatus.SUCCESS,
+                    pipeline_version=self.pipeline_version,
+                ),
+            ],
+        )

@@ -70,17 +70,46 @@ def compute_source_support_score(source_count: int | None, max_source_count: int
 
 
 def compute_metadata_quality_score(document: Any) -> float:
-    checks = [
-        bool(getattr(document, "title", None)),
-        bool(getattr(document, "abstract", None)),
-        bool(getattr(document, "authors", None)),
-        bool(getattr(document, "year", None)),
-        bool(getattr(document, "doi", None)),
-        bool(getattr(document, "categories", None)),
-        bool(getattr(document, "tags", None)),
-        bool(getattr(document, "primary_category", None)),
-    ]
-    return sum(1 for flag in checks if flag) / len(checks)
+    """
+    Weighted metadata quality heuristic.
+
+    Kept config-free for now to preserve backward compatibility of ranking calls.
+    Weights are aligned conceptually with scoring.yaml:
+    title > abstract > authors > year > doi > taxonomy fields.
+    """
+    field_weights = {
+        "title": 0.22,
+        "abstract": 0.20,
+        "authors": 0.14,
+        "year": 0.10,
+        "doi": 0.10,
+        "primary_category": 0.08,
+        "categories": 0.08,
+        "tags": 0.05,
+        "venue": 0.01,
+        "journal": 0.01,
+        "publisher": 0.01,
+    }
+
+    def present(value: Any) -> bool:
+        if value is None:
+            return False
+        if isinstance(value, str):
+            return bool(value.strip())
+        if isinstance(value, (list, tuple, set, dict)):
+            return len(value) > 0
+        return True
+
+    total_weight = sum(field_weights.values())
+    if total_weight <= 0:
+        return 0.0
+
+    score = 0.0
+    for field_name, weight in field_weights.items():
+        if present(getattr(document, field_name, None)):
+            score += weight
+
+    return score / total_weight
 
 
 def rank_results(

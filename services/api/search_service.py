@@ -129,6 +129,43 @@ def _doc_to_schema(doc: CanonicalDocument) -> SearchResultDocument:
         is_withdrawn=bool(getattr(doc, "is_withdrawn", False)),
     )
 
+def db_row_to_schema(doc: dict[str, Any]) -> SearchResultDocument:
+    return SearchResultDocument(
+        canonical_id=doc["canonical_id"],
+        title=doc["title"],
+        abstract=doc.get("abstract"),
+        authors=list(doc.get("authors") or []),
+        year=doc.get("year"),
+        doi=doc.get("doi"),
+        arxiv_id=doc.get("arxiv_id"),
+        openalex_id=doc.get("openalex_id"),
+        primary_category=doc.get("primary_category"),
+        categories=list(doc.get("categories") or []),
+        concepts=list(doc.get("concepts") or []),
+        keywords=list(doc.get("keywords") or []),
+        tags=list(doc.get("tags") or []),
+        venue=doc.get("venue"),
+        journal=doc.get("journal"),
+        conference=doc.get("conference"),
+        publisher=doc.get("publisher"),
+        publication_type=doc.get("publication_type"),
+        language=doc.get("language"),
+        landing_page_url=_string_or_none(doc.get("landing_page_url")),
+        pdf_url=_string_or_none(doc.get("pdf_url")),
+        repo_url=_string_or_none(doc.get("repo_url")),
+        open_access=doc.get("open_access"),
+        has_code_link=bool(doc.get("has_code_link", False)),
+        code_links=_string_list(doc.get("code_links") or []),
+        cited_by_count=doc.get("cited_by_count"),
+        references_count=doc.get("references_count"),
+        source_count=int(doc.get("source_count") or 0),
+        unique_source_count=int(doc.get("unique_source_count") or 0),
+        metadata_completeness_score=doc.get("metadata_completeness_score"),
+        is_preprint=doc.get("is_preprint"),
+        is_review=bool(doc.get("is_review", False)),
+        is_survey=bool(doc.get("is_survey", False)),
+        is_withdrawn=bool(doc.get("is_withdrawn", False)),
+    )
 
 def _normalize_query(query: str) -> str:
     settings = get_settings()
@@ -508,7 +545,7 @@ def _candidate_pool_size(
     return min(candidate_k, max(corpus_size, 1))
 
 
-def run_search(
+def _run_file_search(
     *,
     runtime: ApiRuntime,
     query: str,
@@ -706,4 +743,290 @@ def run_search(
         build_id=manifest.build_id,
         meta=meta,
         results=items,
+    )
+
+
+def _db_candidate_to_item(candidate: dict[str, Any]) -> SearchResultItem:
+    return SearchResultItem(
+        document=db_row_to_schema(candidate["document"]),
+        retrieval=RetrievalScores(score=float(candidate.get("score", 0.0))),
+        ranking=None,
+    )
+
+
+def _db_ranked_candidate_to_item(candidate: dict[str, Any]) -> SearchResultItem:
+    return SearchResultItem(
+        document=db_row_to_schema(candidate["document"]),
+        retrieval=RetrievalScores(score=float(candidate.get("score", 0.0))),
+        ranking=RankingScores(
+            final_score=float(candidate.get("final_score", 0.0)),
+            retrieval_score=float(candidate.get("retrieval_score", 0.0)),
+            recency_score=float(candidate.get("recency_score", 0.0)),
+            source_support_score=float(candidate.get("source_support_score", 0.0)),
+            metadata_quality_score=float(candidate.get("metadata_quality_score", 0.0)),
+        ),
+    )
+
+
+def _normalize_year(year: Any) -> int | None:
+    if year is None:
+        return None
+    try:
+        return int(year)
+    except (TypeError, ValueError):
+        return None
+
+
+def _rank_db_candidates(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    years = [_normalize_year(c["document"].get("year")) for c in candidates]
+    valid_years = [y for y in years if y is not None]
+    min_year = min(valid_years) if valid_years else None
+    max_year = max(valid_years) if valid_years else None
+
+    ranked: list[dict[str, Any]] = []
+    for candidate in candidates:
+        doc = candidate["document"]
+        retrieval_score = float(candidate.get("score", 0.0))
+
+        year = _normalize_year(doc.get("year"))
+        if year is None or min_year is None or max_year is None or min_year == max_year:
+            recency_score = 0.0
+        else:
+            recency_score = (year - min_year) / (max_year - min_year)
+
+        source_support_raw = int(doc.get("source_count") or 0)
+        source_support_score = min(source_support_raw / 4.0, 1.0)
+
+        metadata_quality_score = float(doc.get("metadata_completeness_score") or 0.0)
+        final_score = (
+            0.75 * retrieval_score
+            + 0.10 * recency_score
+            + 0.10 * source_support_score
+            + 0.05 * metadata_quality_score
+        )
+
+        enriched = dict(candidate)
+        enriched.update({
+            "retrieval_score": retrieval_score,
+            "recency_score": recency_score,
+            "source_support_score": source_support_score,
+            "metadata_quality_score": metadata_quality_score,
+            "final_score": final_score,
+        })
+        ranked.append(enriched)
+
+    ranked.sort(key=lambda x: x["final_score"], reverse=True)
+    return ranked
+
+
+def _sort_db_candidates(
+    candidates: list[dict[str, Any]],
+    sort_by: SearchSortBy,
+    *,
+    ranked: bool,
+) -> list[dict[str, Any]]:
+    if sort_by == "relevance":
+        if ranked:
+            return sorted(candidates, key=lambda x: x.get("final_score", 0.0), reverse=True)
+        return sorted(candidates, key=lambda x: x.get("score", 0.0), reverse=True)
+
+    if sort_by == "year_desc":
+        return sorted(
+            candidates,
+            key=lambda x: (
+                _normalize_year(x["document"].get("year")) is not None,
+                _normalize_year(x["document"].get("year")) if _normalize_year(x["document"].get("year")) is not None else -9999,
+            ),
+            reverse=True,
+        )
+
+    if sort_by == "year_asc":
+        return sorted(
+            candidates,
+            key=lambda x: (
+                _normalize_year(x["document"].get("year")) is None,
+                _normalize_year(x["document"].get("year")) if _normalize_year(x["document"].get("year")) is not None else 9999,
+            ),
+        )
+
+    raise ValueError(f"Unsupported sort_by: {sort_by}")
+
+
+def run_db_search(
+    *,
+    runtime: ApiRuntime,
+    query: str,
+    mode: SearchMode,
+    top_k: int,
+    rank: bool,
+    year_from: int | None = None,
+    year_to: int | None = None,
+    category: str | None = None,
+    source: str | None = None,
+    publication_type: str | None = None,
+    venue: str | None = None,
+    open_access: bool | None = None,
+    has_code_link: bool | None = None,
+    offset: int = 0,
+    sort_by: SearchSortBy = "relevance",
+) -> SearchResponse:
+    settings = get_settings()
+    query = _normalize_query(query)
+
+    if mode != "lexical":
+        raise ValueError(f"{mode} search is not supported for db backend v1")
+
+    if runtime.db_store is None:
+        raise RuntimeError("DB runtime is not initialized")
+
+    filters = SearchFilterParams(
+        year_from=year_from,
+        year_to=year_to,
+        category=category,
+        source=source,
+        publication_type=publication_type,
+        venue=venue,
+        open_access=open_access,
+        has_code_link=has_code_link,
+        offset=offset,
+        sort_by=sort_by,
+    )
+
+    t0 = time.perf_counter()
+    timings: dict[str, float] = {}
+    candidate_k = max(top_k + offset, top_k * 5, 50)
+
+    total_matches = runtime.db_store.count_search_documents(
+        query_text=query,
+        year_from=year_from,
+        year_to=year_to,
+        category=category,
+        source=source,
+        publication_type=publication_type,
+        venue=venue,
+        is_open_access=open_access,
+        has_code_link=has_code_link,
+    )
+
+    t_retrieve = time.perf_counter()
+    raw_rows = runtime.db_store.search_search_documents(
+        query_text=query,
+        year_from=year_from,
+        year_to=year_to,
+        category=category,
+        source=source,
+        publication_type=publication_type,
+        venue=venue,
+        is_open_access=open_access,
+        has_code_link=has_code_link,
+        limit=candidate_k,
+        offset=0,
+    )
+    timings["retrieve_ms"] = round((time.perf_counter() - t_retrieve) * 1000, 3)
+
+    raw_candidates = [{"document": row, "score": float(row.get("score", 0.0))} for row in raw_rows]
+
+    if rank:
+        t_rank = time.perf_counter()
+        ranked_candidates = _rank_db_candidates(raw_candidates)
+        timings["rank_ms"] = round((time.perf_counter() - t_rank) * 1000, 3)
+        sorted_candidates = _sort_db_candidates(ranked_candidates, sort_by, ranked=True)
+        paged_candidates = sorted_candidates[offset: offset + top_k]
+        items = [_db_ranked_candidate_to_item(c) for c in paged_candidates]
+    else:
+        sorted_candidates = _sort_db_candidates(raw_candidates, sort_by, ranked=False)
+        paged_candidates = sorted_candidates[offset: offset + top_k]
+        items = [_db_candidate_to_item(c) for c in paged_candidates]
+
+    timings["total_ms"] = round((time.perf_counter() - t0) * 1000, 3)
+
+    meta = None
+    if settings.enable_debug_meta:
+        meta = SearchMeta(
+            build_id="db-runtime",
+            result_count=len(items),
+            rank_applied=rank,
+            timing_ms=timings,
+            debug_enabled=True,
+            applied_filters=SearchFilters(
+                year_from=filters.year_from,
+                year_to=filters.year_to,
+                category=filters.category,
+                source=filters.source,
+                publication_type=filters.publication_type,
+                venue=filters.venue,
+                open_access=filters.open_access,
+                has_code_link=filters.has_code_link,
+            ),
+            retrieved_candidates_before_filters=total_matches,
+            retrieved_candidates_after_filters=total_matches,
+            offset=offset,
+            returned_count=len(items),
+            sort_by=sort_by,
+        )
+
+    return SearchResponse(
+        query=query,
+        mode="lexical",
+        top_k=top_k,
+        rank_applied=rank,
+        build_id="db-runtime",
+        meta=meta,
+        results=items,
+    )
+
+
+def run_search(
+    *,
+    runtime: ApiRuntime,
+    query: str,
+    mode: SearchMode,
+    top_k: int,
+    rank: bool,
+    year_from: int | None = None,
+    year_to: int | None = None,
+    category: str | None = None,
+    source: str | None = None,
+    publication_type: str | None = None,
+    venue: str | None = None,
+    open_access: bool | None = None,
+    has_code_link: bool | None = None,
+    offset: int = 0,
+    sort_by: SearchSortBy = "relevance",
+) -> SearchResponse:
+    if runtime.backend_mode == "db":
+        return run_db_search(
+            runtime=runtime,
+            query=query,
+            mode=mode,
+            top_k=top_k,
+            rank=rank,
+            year_from=year_from,
+            year_to=year_to,
+            category=category,
+            source=source,
+            publication_type=publication_type,
+            venue=venue,
+            open_access=open_access,
+            has_code_link=has_code_link,
+            offset=offset,
+            sort_by=sort_by,
+        )
+
+    return _run_file_search(
+        runtime=runtime,
+        query=query,
+        mode=mode,
+        top_k=top_k,
+        rank=rank,
+        year_from=year_from,
+        year_to=year_to,
+        category=category,
+        source=source,
+        publication_type=publication_type,
+        venue=venue,
+        open_access=open_access,
+        has_code_link=has_code_link,
+        offset=offset,
+        sort_by=sort_by,
     )

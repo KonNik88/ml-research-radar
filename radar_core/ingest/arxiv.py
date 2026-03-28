@@ -25,6 +25,13 @@ ARXIV_API_BASE = "http://export.arxiv.org/api/query"
 
 URL_RE = re.compile(r"https?://[^\s<>()\"']+")
 
+CONFERENCE_HINT_RE = re.compile(
+    r"\b("
+    r"neurips|nips|iclr|icml|cvpr|iccv|eccv|aaai|ijcai|acl|emnlp|naacl|eacl|coling|"
+    r"kdd|www|thewebconf|sigir|uai|aistats|interspeech|acmmm|mm|wacv"
+    r")\b",
+    flags=re.IGNORECASE,
+)
 
 @dataclass
 class ArxivQuery:
@@ -171,6 +178,8 @@ class ArxivIngestor(BaseIngestor[ArxivQuery, object, object]):
             links=entry.get("links", []),
         )
         has_code_link = len(code_links) > 0
+        repo_url = self._extract_repo_url(code_links)
+        conference_hint = self._extract_conference_hint(comment)
 
         has_pdf = pdf_url is not None
         is_withdrawn = self._detect_withdrawn(title, abstract, comment)
@@ -232,7 +241,7 @@ class ArxivIngestor(BaseIngestor[ArxivQuery, object, object]):
             # links / accessibility
             landing_page_url=landing_page_url,
             pdf_url=pdf_url,
-            repo_url=code_links[0] if code_links else None,
+            repo_url=repo_url,
             license=license_url,
             open_access=open_access,
 
@@ -248,7 +257,7 @@ class ArxivIngestor(BaseIngestor[ArxivQuery, object, object]):
             journal_ref=journal_ref,
             venue=None,
             journal=None,
-            conference=None,
+            conference=conference_hint,
             publisher=None,
             publication_type="preprint",
             language="en",
@@ -372,6 +381,65 @@ class ArxivIngestor(BaseIngestor[ArxivQuery, object, object]):
         return list(dict.fromkeys(candidates))
 
     @staticmethod
+    def _extract_repo_url(code_links: list[str]) -> Optional[str]:
+        for url in code_links:
+            if ArxivIngestor._looks_like_repo_host(url):
+                return url
+        return code_links[0] if code_links else None
+
+    @staticmethod
+    def _looks_like_repo_host(url: str) -> bool:
+        lowered = url.lower()
+        return any(
+            host in lowered
+            for host in [
+                "github.com",
+                "gitlab.com",
+                "bitbucket.org",
+                "codeberg.org",
+                "huggingface.co",
+            ]
+        )
+
+    @staticmethod
+    def _extract_conference_hint(comment: Optional[str]) -> Optional[str]:
+        if not comment:
+            return None
+
+        match = CONFERENCE_HINT_RE.search(comment)
+        if not match:
+            return None
+
+        conf = match.group(1).upper()
+        mapping = {
+            "NIPS": "NeurIPS",
+            "NEURIPS": "NeurIPS",
+            "ICLR": "ICLR",
+            "ICML": "ICML",
+            "CVPR": "CVPR",
+            "ICCV": "ICCV",
+            "ECCV": "ECCV",
+            "AAAI": "AAAI",
+            "IJCAI": "IJCAI",
+            "ACL": "ACL",
+            "EMNLP": "EMNLP",
+            "NAACL": "NAACL",
+            "EACL": "EACL",
+            "COLING": "COLING",
+            "KDD": "KDD",
+            "WWW": "WWW",
+            "THEWEBCONF": "TheWebConf",
+            "SIGIR": "SIGIR",
+            "UAI": "UAI",
+            "AISTATS": "AISTATS",
+            "INTERSPEECH": "Interspeech",
+            "ACMMM": "ACMMM",
+            "MM": "MM",
+            "WACV": "WACV",
+        }
+        return mapping.get(conf, conf.title())
+
+    @staticmethod
     def _looks_like_code_link(url: str) -> bool:
         lowered = url.lower()
         return any(
@@ -380,9 +448,14 @@ class ArxivIngestor(BaseIngestor[ArxivQuery, object, object]):
                 "github.com",
                 "gitlab.com",
                 "bitbucket.org",
+                "codeberg.org",
                 "huggingface.co",
-                "code",
+                "project",
                 "implementation",
+                "source-code",
+                "source_code",
+                "code",
+                "software",
             ]
         )
 

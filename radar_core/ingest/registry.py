@@ -4,12 +4,18 @@ from typing import Dict, Type
 
 from radar_core.ingest.arxiv import ArxivIngestor
 from radar_core.ingest.base import BaseIngestor
+from radar_core.ingest.crossref import CrossrefIngestor
 from radar_core.ingest.openalex import OpenAlexIngestor
+from radar_core.ingest.semantic_scholar import SemanticScholarIngestor
+from radar_core.ingest.paperswithcode import PapersWithCodeIngestor
 
 
 INGESTOR_REGISTRY: Dict[str, Type[BaseIngestor]] = {
     "arxiv": ArxivIngestor,
     "openalex": OpenAlexIngestor,
+    "semantic_scholar": SemanticScholarIngestor,
+    "crossref": CrossrefIngestor,
+    "paperswithcode": PapersWithCodeIngestor,
 }
 
 

@@ -1,13 +1,193 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime
-from typing import Iterable, Optional
+from datetime import datetime, timezone
+import re
+from typing import Iterable, Optional, Any
 
 from radar_core.contracts.canonical_document import CanonicalDocument, SourceLink
 from radar_core.contracts.document import NormalizedDocument
 from radar_core.utils.ids import stable_hash
 
+
+CURRENT_YEAR_UTC = datetime.utcnow().year
+MAX_REASONABLE_FUTURE_YEAR = CURRENT_YEAR_UTC + 1
+
+SOURCE_PRIORITY_DEFAULT = {
+    "openalex": 100,
+    "crossref": 95,
+    "arxiv": 80,
+    "semantic_scholar": 70,
+}
+
+SOURCE_PRIORITY_COMMENT = {
+    "arxiv": 100,
+    "openalex": 80,
+}
+
+SOURCE_PRIORITY_BIBLIO = {
+    "crossref": 100,
+    "openalex": 95,
+    "semantic_scholar": 80,
+    "arxiv": 60,
+}
+
+SOURCE_PRIORITY_VENUE = {
+    "openalex": 100,
+    "crossref": 95,
+    "semantic_scholar": 80,
+    "arxiv": 60,
+}
+
+SOURCE_PRIORITY_LICENSE = {
+    "openalex": 100,
+    "crossref": 90,
+    "semantic_scholar": 70,
+    "arxiv": 60,
+}
+
+SOURCE_PRIORITY_ARTIFACTS = {
+    "paperswithcode": 100,
+    "arxiv": 80,
+    "openalex": 60,
+    "semantic_scholar": 50,
+    "crossref": 40,
+}
+
+def normalize_title_for_key(title: str) -> str:
+    value = (title or "").strip().lower()
+    value = re.sub(r"\s+", " ", value)
+    value = re.sub(r"[^\w\s]", "", value)
+    return value.strip()
+
+def looks_like_series_title(value: str | None) -> bool:
+    if not value:
+        return False
+
+    text = value.strip().lower()
+    patterns = [
+        "lecture notes in",
+        "springer series",
+        "advances in intelligent systems",
+        "communications in computer and information science",
+    ]
+    return any(p in text for p in patterns)
+
+def normalize_venue_fields(
+    publication_type: str | None,
+    venue: str | None,
+    journal: str | None,
+    conference: str | None,
+) -> tuple[str | None, str | None, str | None]:
+    pub = (publication_type or "").strip().lower()
+
+    # book-chapter / proceedings-like records:
+    # keep container in venue, but avoid pretending it is a journal
+    if pub == "book-chapter":
+        if journal and looks_like_series_title(journal):
+            journal = None
+        if conference and looks_like_series_title(conference):
+            conference = None
+
+    # if conference record has no conference field but venue looks fine, reuse venue
+    if pub == "conference" and not conference and venue:
+        conference = venue
+
+    return venue, journal, conference
+
+def normalize_license_value(value: str | None) -> str | None:
+    if not value:
+        return None
+
+    text = str(value).strip().lower()
+    if not text:
+        return None
+
+    text = text.replace("_", "-").replace(" ", "-")
+
+    known_map = {
+        "cc-by": "cc-by",
+        "cc-by-4.0": "cc-by",
+        "cc-by-sa": "cc-by-sa",
+        "cc-by-sa-4.0": "cc-by-sa",
+        "cc-by-nc": "cc-by-nc",
+        "cc-by-nc-4.0": "cc-by-nc",
+        "cc-by-nc-sa": "cc-by-nc-sa",
+        "cc-by-nc-sa-4.0": "cc-by-nc-sa",
+        "cc-by-nc-nd": "cc-by-nc-nd",
+        "cc-by-nc-nd-4.0": "cc-by-nc-nd",
+        "cc0": "cc0",
+        "cc0-1.0": "cc0",
+    }
+
+    if text in known_map:
+        return known_map[text]
+
+    if "creativecommons.org/licenses/by/" in text:
+        return "cc-by"
+    if "creativecommons.org/licenses/by-sa/" in text:
+        return "cc-by-sa"
+    if "creativecommons.org/licenses/by-nc/" in text:
+        return "cc-by-nc"
+    if "creativecommons.org/licenses/by-nc-sa/" in text:
+        return "cc-by-nc-sa"
+    if "creativecommons.org/licenses/by-nc-nd/" in text:
+        return "cc-by-nc-nd"
+    if "creativecommons.org/publicdomain/zero/" in text:
+        return "cc0"
+
+    if "elsevier.com/tdm" in text:
+        return "publisher-tdm-policy"
+    if "springer.com/tdm" in text or "springernature.com" in text:
+        return "publisher-tdm-policy"
+    if "ieeexplore.ieee.org" in text and "license" in text:
+        return "publisher-license-page"
+    if "acm.org/publications/policies/copyright_policy" in text:
+        return "publisher-copyright-policy"
+
+    return text
+
+def choose_best_license(documents: list[NormalizedDocument]) -> str | None:
+    candidates: list[tuple[int, int, str]] = []
+
+    for doc in documents:
+        raw_value = getattr(doc, "license", None)
+        norm_value = normalize_license_value(raw_value)
+        if not norm_value:
+            continue
+
+        priority = SOURCE_PRIORITY_LICENSE.get(doc.source or "", 0)
+
+        # Предпочитаем настоящие license labels над policy URLs
+        quality = 0
+        if norm_value.startswith("cc-") or norm_value == "cc0":
+            quality = 100
+        elif norm_value == "publisher-tdm-policy":
+            quality = 30
+        elif norm_value == "publisher-license-page":
+            quality = 20
+        elif norm_value == "publisher-copyright-policy":
+            quality = 10
+
+        candidates.append((quality, priority, norm_value))
+
+    if not candidates:
+        return None
+
+    candidates.sort(reverse=True)
+    return candidates[0][2]
+
+def dedupe_preserve_order(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        if not value:
+            continue
+        if value in seen:
+            continue
+        seen.add(value)
+        result.append(value)
+    return result
 
 def build_reconciliation_key(doc: NormalizedDocument) -> str:
     """
@@ -27,13 +207,134 @@ def build_reconciliation_key(doc: NormalizedDocument) -> str:
     if doc.arxiv_id:
         return f"arxiv::{doc.arxiv_id.lower().strip()}"
 
-    title = (doc.title or "").strip().lower()
+    ext_arxiv = doc.external_ids.get("arxiv")
+    if ext_arxiv:
+        return f"arxiv::{ext_arxiv.lower().strip()}"
+
+    title = normalize_title_for_key(doc.title or "")
     year = str(doc.year) if doc.year is not None else "unknown"
     return f"title_year::{title}::{year}"
 
 
 def build_canonical_id(reconciliation_key: str) -> str:
     return stable_hash(reconciliation_key, length=32)
+
+def choose_best_publication_type(documents: list[NormalizedDocument]) -> str | None:
+    """
+    Conservative publication_type merge.
+
+    Rules:
+    - prefer a non-preprint publication type if any source provides it;
+    - otherwise fall back to normal priority-based selection.
+    """
+    non_preprint_docs = [
+        d for d in documents
+        if getattr(d, "publication_type", None)
+        and not bool(getattr(d, "is_preprint", False))
+    ]
+    if non_preprint_docs:
+        return choose_preferred_string(
+            non_preprint_docs,
+            "publication_type",
+            source_priority=SOURCE_PRIORITY_BIBLIO,
+            prefer_longer=False,
+        )
+
+    return choose_preferred_string(
+        documents,
+        "publication_type",
+        source_priority=SOURCE_PRIORITY_BIBLIO,
+        prefer_longer=False,
+    )
+
+def choose_canonical_open_access(
+    documents: list[NormalizedDocument],
+) -> bool | None:
+    """
+    Manifestation-level OA:
+    True if any source clearly indicates an open-access manifestation exists.
+    This includes arXiv and OA publisher/API signals.
+    """
+    explicit_true = [
+        d for d in documents
+        if getattr(d, "open_access", None) is True
+    ]
+    if explicit_true:
+        return True
+
+    explicit_false = [
+        d for d in documents
+        if getattr(d, "open_access", None) is False
+    ]
+    if explicit_false:
+        return False
+
+    return None
+
+def choose_canonical_is_open_access(
+    documents: list[NormalizedDocument],
+) -> bool | None:
+    """
+    Strict bibliographic OA signal.
+
+    True  -> confirmed by non-arXiv source
+    False -> confirmed closed by non-arXiv source and no non-arXiv OA signal
+    None  -> only arXiv/open manifestation evidence exists, but no bibliographic confirmation
+    """
+    non_arxiv_docs = [d for d in documents if (d.source or "") != "arxiv"]
+
+    non_arxiv_true = [
+        d for d in non_arxiv_docs
+        if getattr(d, "is_open_access", None) is True
+        or getattr(d, "open_access", None) is True
+    ]
+    if non_arxiv_true:
+        return True
+
+    non_arxiv_false = [
+        d for d in non_arxiv_docs
+        if getattr(d, "is_open_access", None) is False
+        or getattr(d, "open_access", None) is False
+    ]
+    if non_arxiv_false:
+        return False
+
+    # only arXiv/open-manifestation evidence exists -> unknown for bibliographic OA
+    return None
+
+def choose_canonical_is_preprint(
+    documents: list[NormalizedDocument],
+    publication_type: str | None,
+) -> bool | None:
+    """
+    Canonical preprint flag should not be an unconditional OR across sources.
+
+    If any source clearly represents a journal/article/proceedings publication,
+    canonical paper is not treated as purely preprint anymore.
+    """
+    has_explicit_non_preprint = any(
+        getattr(d, "publication_type", None) and not bool(getattr(d, "is_preprint", False))
+        for d in documents
+    )
+    if has_explicit_non_preprint:
+        return False
+
+    explicit_flags = [
+        getattr(d, "is_preprint", None)
+        for d in documents
+        if getattr(d, "is_preprint", None) is not None
+    ]
+    if explicit_flags:
+        return any(bool(v) for v in explicit_flags)
+
+    if publication_type:
+        text = str(publication_type).strip().lower()
+        if text in {"preprint", "working paper"}:
+            return True
+        if text in {"article", "journal-article", "journal article", "conference", "proceedings", "book-chapter"}:
+            return False
+
+    return None
 
 
 def choose_best_title(documents: list[NormalizedDocument]) -> str:
@@ -44,6 +345,15 @@ def choose_best_title(documents: list[NormalizedDocument]) -> str:
     )
     return docs[0].title
 
+def sort_documents_by_priority(
+    documents: list[NormalizedDocument],
+    source_priority: dict[str, int],
+) -> list[NormalizedDocument]:
+    return sorted(
+        documents,
+        key=lambda d: source_priority.get(d.source or "", 0),
+        reverse=True,
+    )
 
 def choose_best_abstract(documents: list[NormalizedDocument]) -> str | None:
     docs = [d for d in documents if d.abstract]
@@ -72,6 +382,40 @@ def choose_first_nonempty_string(
     return None
 
 
+def choose_preferred_string(
+    documents: list[NormalizedDocument],
+    attr_name: str,
+    *,
+    source_priority: dict[str, int] | None = None,
+    prefer_longer: bool = False,
+) -> str | None:
+    source_priority = source_priority or SOURCE_PRIORITY_DEFAULT
+    candidates: list[tuple[int, int, str]] = []
+
+    for doc in documents:
+        value = getattr(doc, attr_name, None)
+        if isinstance(value, str):
+            value = value.strip()
+            if not value:
+                continue
+        elif value is None:
+            continue
+        else:
+            value = str(value).strip()
+            if not value:
+                continue
+
+        priority = source_priority.get(doc.source or "", 0)
+        length_score = len(value) if prefer_longer else 0
+        candidates.append((priority, length_score, value))
+
+    if not candidates:
+        return None
+
+    candidates.sort(reverse=True)
+    return candidates[0][2]
+
+
 def choose_best_published_at(documents: list[NormalizedDocument]) -> Optional[datetime]:
     candidates = [d.published_at for d in documents if d.published_at is not None]
     if not candidates:
@@ -87,14 +431,25 @@ def choose_best_publication_date(documents: list[NormalizedDocument]) -> Optiona
 
 
 def choose_best_updated_at(documents: list[NormalizedDocument]) -> Optional[datetime]:
-    candidates = [d.updated_source_at for d in documents if d.updated_source_at is not None]
+    candidates = []
+    for d in documents:
+        value = d.updated_source_at
+        if value is None:
+            continue
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        candidates.append(value)
+
     if not candidates:
         return None
     return max(candidates)
 
 
 def choose_best_year(documents: list[NormalizedDocument]) -> int | None:
-    candidates = [d.year for d in documents if d.year is not None]
+    candidates = [
+        d.year for d in documents
+        if d.year is not None and 1900 <= d.year <= MAX_REASONABLE_FUTURE_YEAR
+    ]
     if not candidates:
         return None
     return min(candidates)
@@ -142,10 +497,18 @@ def choose_best_landing_page_url(documents: list[NormalizedDocument]):
 
 
 def choose_best_repo_url(documents: list[NormalizedDocument]):
-    for d in documents:
-        if d.repo_url:
-            return d.repo_url
-    return None
+    docs_with_repo = [d for d in documents if d.repo_url]
+    if not docs_with_repo:
+        return None
+
+    docs_with_repo.sort(
+        key=lambda d: (
+            SOURCE_PRIORITY_ARTIFACTS.get(d.source or "", 0),
+            len(str(d.repo_url or "")),
+        ),
+        reverse=True,
+    )
+    return docs_with_repo[0].repo_url
 
 
 def choose_best_primary_category(documents: list[NormalizedDocument]) -> str | None:
@@ -216,26 +579,18 @@ def merge_source_ids(documents: list[NormalizedDocument]) -> dict[str, str]:
     source_ids: dict[str, str] = {}
 
     for doc in documents:
-        # richer per-source ids first
         for key, value in (doc.source_ids or {}).items():
             if value and key not in source_ids:
                 source_ids[key] = value
 
-        # source slot
         if doc.source and doc.source_id and doc.source not in source_ids:
             source_ids[doc.source] = doc.source_id
 
-        # stable ids
         if doc.arxiv_id and "arxiv" not in source_ids:
             source_ids["arxiv"] = doc.arxiv_id
 
         if doc.openalex_id and "openalex" not in source_ids:
             source_ids["openalex"] = doc.openalex_id
-
-        # fallback from external ids
-        for key, value in doc.external_ids.items():
-            if value and key not in source_ids:
-                source_ids[key] = value
 
     return source_ids
 
@@ -287,7 +642,7 @@ def compute_metadata_completeness_score(documents: list[NormalizedDocument]) -> 
     primary_category = choose_best_primary_category(documents)
     categories = merge_unique_strings([d.categories for d in documents])
     pdf_url = choose_best_pdf_url(documents)
-    venue = choose_first_nonempty_string(documents, "venue")
+    venue = choose_preferred_string(documents, "venue", source_priority=SOURCE_PRIORITY_VENUE,)
     cited_by_count = choose_max_int(documents, "cited_by_count")
     references_count = choose_max_int(documents, "references_count")
     has_code_link = any(d.has_code_link for d in documents)
@@ -331,7 +686,7 @@ def reconcile_documents(documents: list[NormalizedDocument]) -> list[CanonicalDo
         publication_date = choose_best_publication_date(docs)
         updated_at = choose_best_updated_at(docs)
         year = choose_best_year(docs)
-
+        docs_biblio = sort_documents_by_priority(docs, SOURCE_PRIORITY_BIBLIO)
         doi = choose_best_doi(docs)
         arxiv_id = choose_best_arxiv_id(docs)
         openalex_id = choose_best_openalex_id(docs)
@@ -348,8 +703,8 @@ def reconcile_documents(documents: list[NormalizedDocument]) -> list[CanonicalDo
         pdf_url = choose_best_pdf_url(docs)
         repo_url = choose_best_repo_url(docs)
 
-        license_value = choose_first_nonempty_string(docs, "license")
-        open_access = choose_any_bool(docs, "open_access")
+        license_value = choose_best_license(docs)
+        open_access = choose_canonical_open_access(docs)
 
         primary_category = choose_best_primary_category(docs)
         categories = merge_unique_strings([d.categories for d in docs])
@@ -357,44 +712,97 @@ def reconcile_documents(documents: list[NormalizedDocument]) -> list[CanonicalDo
         keywords = merge_unique_strings([d.keywords for d in docs])
         tags = merge_unique_strings([d.tags for d in docs])
 
-        comment = choose_first_nonempty_string(docs, "comment")
-        journal_ref = choose_first_nonempty_string(docs, "journal_ref")
-        venue = choose_first_nonempty_string(docs, "venue")
-        journal = choose_first_nonempty_string(docs, "journal")
-        conference = choose_first_nonempty_string(docs, "conference")
-        publisher = choose_first_nonempty_string(docs, "publisher")
-        publication_type = choose_first_nonempty_string(docs, "publication_type")
-        language = choose_first_nonempty_string(docs, "language")
+        comment = choose_preferred_string(
+            docs,
+            "comment",
+            source_priority=SOURCE_PRIORITY_COMMENT,
+            prefer_longer=True,
+        )
+        journal_ref = choose_preferred_string(
+            docs,
+            "journal_ref",
+            source_priority=SOURCE_PRIORITY_COMMENT,
+            prefer_longer=True,
+        )
+
+        publication_type = choose_best_publication_type(docs)
+
+        venue = choose_preferred_string(
+            docs,
+            "venue",
+            source_priority=SOURCE_PRIORITY_VENUE,
+            prefer_longer=False,
+        )
+        journal = choose_preferred_string(
+            docs,
+            "journal",
+            source_priority=SOURCE_PRIORITY_VENUE,
+            prefer_longer=False,
+        )
+        conference = choose_preferred_string(
+            docs,
+            "conference",
+            source_priority=SOURCE_PRIORITY_VENUE,
+            prefer_longer=False,
+        )
+        venue, journal, conference = normalize_venue_fields(
+            publication_type,
+            venue,
+            journal,
+            conference,
+        )
+        publisher = choose_preferred_string(
+            docs,
+            "publisher",
+            source_priority=SOURCE_PRIORITY_BIBLIO,
+            prefer_longer=False,
+        )
+        language = choose_preferred_string(
+            docs,
+            "language",
+            source_priority=SOURCE_PRIORITY_DEFAULT,
+            prefer_longer=False,
+        )
 
         cited_by_count = choose_max_int(docs, "cited_by_count")
         references_count = choose_max_int(docs, "references_count")
-        referenced_ids = merge_unique_strings([d.referenced_ids for d in docs])
-        referenced_dois = merge_unique_strings([d.referenced_dois for d in docs])
-        referenced_arxiv_ids = merge_unique_strings([d.referenced_arxiv_ids for d in docs])
+        referenced_ids = merge_unique_strings([d.referenced_ids for d in docs_biblio])
+        referenced_dois = merge_unique_strings([d.referenced_dois for d in docs_biblio])
+        referenced_arxiv_ids = merge_unique_strings([d.referenced_arxiv_ids for d in docs_biblio])
         citation_graph_available = any(d.citation_graph_available for d in docs)
 
-        has_code_link = any(d.has_code_link for d in docs)
         code_links = merge_unique_strings([d.code_links for d in docs])
         dataset_links = merge_unique_strings([d.dataset_links for d in docs])
         model_links = merge_unique_strings([d.model_links for d in docs])
 
-        has_dataset_link = any(bool(getattr(d, "has_dataset_link", False)) for d in docs) or bool(dataset_links)
-        has_model_link = any(bool(getattr(d, "has_model_link", False)) for d in docs) or bool(model_links)
+        has_code_link = (
+            any(bool(getattr(d, "has_code_link", False)) for d in docs)
+            or bool(code_links)
+            or any(bool(getattr(d, "repo_url", None)) for d in docs)
+        )
+        has_dataset_link = (
+            any(bool(getattr(d, "has_dataset_link", False)) for d in docs)
+            or bool(dataset_links)
+        )
+        has_model_link = (
+            any(bool(getattr(d, "has_model_link", False)) for d in docs)
+            or bool(model_links)
+        )
 
         unique_source_count = len({d.source for d in docs if d.source})
 
-        is_open_access = choose_any_bool(docs, "is_open_access")
-        is_preprint = choose_any_bool(docs, "is_preprint")
+        is_open_access = choose_canonical_is_open_access(docs)
+        is_preprint = choose_canonical_is_preprint(docs, publication_type)
         is_review = any(bool(getattr(d, "is_review", False)) for d in docs)
         is_survey = any(bool(getattr(d, "is_survey", False)) for d in docs)
-        is_withdrawn = any(bool(d.is_withdrawn) for d in docs)
+        is_withdrawn = any(bool(getattr(d, "is_withdrawn", False)) for d in docs)
 
         metadata_completeness_score = compute_metadata_completeness_score(docs)
 
         canonical_documents.append(
             CanonicalDocument(
                 canonical_id=canonical_id,
-                doc_ids=[d.doc_id for d in docs],
+                doc_ids = dedupe_preserve_order([d.doc_id for d in docs if getattr(d, "doc_id", None)]),
                 doi=doi,
                 arxiv_id=arxiv_id,
                 openalex_id=openalex_id,

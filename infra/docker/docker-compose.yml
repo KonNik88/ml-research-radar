@@ -1,0 +1,33 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: ml_radar_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ml_radar
+      POSTGRES_USER: ml_radar
+      POSTGRES_PASSWORD: ml_radar_dev
+    ports:
+      - "15432:5432"
+    volumes:
+      - ml_radar_postgres_data:/var/lib/postgresql/data
+      - ../../store/sql:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ml_radar -d ml_radar"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: ml_radar_qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - ml_radar_qdrant_data:/qdrant/storage
+
+volumes:
+  ml_radar_postgres_data:
+  ml_radar_qdrant_data:

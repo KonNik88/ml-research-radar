@@ -11,13 +11,15 @@ from services.api.logging import get_logger
 from services.api.runtime import get_runtime
 from services.api.schemas import (
     ApiInfoResponse,
+    DocumentListResponse,
     ErrorResponse,
     HealthResponse,
     ReloadResponse,
     RuntimeSnapshotResponse,
     SearchResponse,
+    SearchResultDocument,
 )
-from services.api.search_service import run_search
+from services.api.search_service import db_row_to_schema, run_search
 from services.api.settings import get_settings
 
 
@@ -107,6 +109,19 @@ def health() -> HealthResponse:
     if not runtime.is_ready():
         raise RuntimeError("Runtime is not ready")
 
+    if runtime.backend_mode == "db":
+        total_docs = 0
+        if runtime.db_store is not None:
+            total_docs = runtime.db_store.count_documents()
+
+        return HealthResponse(
+            status="ok",
+            build_id="db-runtime",
+            corpus_doc_count=total_docs,
+            embedding_model_name=None,
+            corpus_path="postgres://ml_radar/canonical_documents",
+        )
+
     manifest = runtime.manifest
     if manifest is None:
         raise RuntimeError("Manifest is not loaded")
@@ -124,6 +139,17 @@ def health() -> HealthResponse:
 def info() -> ApiInfoResponse:
     runtime = get_runtime()
     snapshot = runtime.runtime_snapshot()
+
+    if runtime.backend_mode == "db":
+        return ApiInfoResponse(
+            api_title=settings.api_title,
+            api_version=settings.api_version,
+            build_id="db-runtime",
+            corpus_doc_count=snapshot["corpus_doc_count"],
+            embedding_model_name=None,
+            artifacts_root=snapshot["artifacts_root"],
+            loaded_components=snapshot["loaded_components"],
+        )
 
     if runtime.manifest is None:
         raise RuntimeError("Manifest is not loaded")
@@ -153,6 +179,20 @@ def reload_runtime() -> ReloadResponse:
     runtime = get_runtime()
     runtime.reload()
 
+    if runtime.backend_mode == "db":
+        total_docs = 0
+        if runtime.db_store is not None:
+            total_docs = runtime.db_store.count_documents()
+
+        return ReloadResponse(
+            status="reloaded",
+            build_id="db-runtime",
+            corpus_doc_count=total_docs,
+            embedding_model_name=None,
+            model_reused=False,
+            last_reload_at=runtime.last_reload_at,
+        )
+
     if runtime.manifest is None:
         raise RuntimeError("Manifest is not loaded after reload")
 
@@ -164,7 +204,6 @@ def reload_runtime() -> ReloadResponse:
         model_reused=runtime.last_model_reused,
         last_reload_at=runtime.last_reload_at,
     )
-
 
 @app.get("/search", response_model=SearchResponse)
 def search(
@@ -212,4 +251,64 @@ def search(
         has_code_link=has_code_link,
         offset=offset,
         sort_by=sort_by,
+    )
+
+@app.get("/documents", response_model=DocumentListResponse)
+def list_documents(
+    query: str | None = Query(None, description="Simple text query over title/abstract/venue/publisher"),
+    limit: int = Query(10, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    year_from: int | None = Query(None, ge=1900, le=2100),
+    year_to: int | None = Query(None, ge=1900, le=2100),
+    category: str | None = Query(None),
+    source: str | None = Query(None),
+    publication_type: str | None = Query(None),
+    venue: str | None = Query(None),
+    open_access: bool | None = Query(None),
+    has_code_link: bool | None = Query(None),
+    sort_by: Literal["year_desc", "year_asc", "title_asc"] = Query("year_desc"),
+) -> DocumentListResponse:
+    runtime = get_runtime()
+    if not runtime.is_ready():
+        raise RuntimeError("Runtime is not ready")
+
+    if runtime.db_store is None:
+        raise RuntimeError("DB backend is not enabled")
+
+    if year_from is not None and year_to is not None and year_from > year_to:
+        raise ValueError("year_from must be less than or equal to year_to")
+
+    rows = runtime.db_store.search_documents(
+        query_text=query,
+        year_from=year_from,
+        year_to=year_to,
+        category=category,
+        source=source,
+        publication_type=publication_type,
+        venue=venue,
+        is_open_access=open_access,
+        has_code_link=has_code_link,
+        limit=limit,
+        offset=offset,
+        sort_by=sort_by,
+    )
+
+    total = runtime.db_store.count_documents(
+        query_text=query,
+        year_from=year_from,
+        year_to=year_to,
+        category=category,
+        source=source,
+        publication_type=publication_type,
+        venue=venue,
+        is_open_access=open_access,
+        has_code_link=has_code_link,
+    )
+
+    return DocumentListResponse(
+        total=total,
+        offset=offset,
+        limit=limit,
+        sort_by=sort_by,
+        results=[db_row_to_schema(row) for row in rows],
     )

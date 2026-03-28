@@ -15,9 +15,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--mode",
-        choices=["test", "medium", "full"],
+        choices=["test", "medium", "full", "historical"],
         default="test",
-        help="test = быстрая выборка, medium = средняя, full = расширенная",
+        help=(
+            "test = быстрая latest-выборка, "
+            "medium = средняя latest-выборка, "
+            "full = расширенная latest-выборка, "
+            "historical = исторический arXiv slice (2023-2024) для overlap с OpenAlex historical"
+        ),
     )
     return parser
 
@@ -41,13 +46,29 @@ def build_query(mode: str) -> ArxivQuery:
             sort_order="descending",
         )
 
-    return ArxivQuery(
-        search_query="cat:cs.LG OR cat:cs.AI OR cat:cs.CL OR cat:cs.CV OR cat:stat.ML",
-        start=0,
-        max_results=1000,
-        sort_by="submittedDate",
-        sort_order="descending",
-    )
+    if mode == "full":
+        return ArxivQuery(
+            search_query="cat:cs.LG OR cat:cs.AI OR cat:cs.CL OR cat:cs.CV OR cat:stat.ML",
+            start=0,
+            max_results=1000,
+            sort_by="submittedDate",
+            sort_order="descending",
+        )
+
+    if mode == "historical":
+        return ArxivQuery(
+            search_query=(
+                "("
+                "cat:cs.LG OR cat:cs.AI OR cat:cs.CL OR cat:cs.CV OR cat:stat.ML"
+                ") AND submittedDate:[202301010000 TO 202412312359]"
+            ),
+            start=0,
+            max_results=1000,
+            sort_by="submittedDate",
+            sort_order="descending",
+        )
+
+    raise ValueError(f"Unsupported arXiv mode: {mode}")
 
 
 def main() -> None:

@@ -1,7 +1,12 @@
 sources:
   enabled:
     - arxiv
-    - openalex
+    - openalex_alignment
+    - semantic_scholar_alignment
+    - crossref_alignment
+
+  experimental:
+    - paperswithcode_alignment
 
 profiles:
   test:

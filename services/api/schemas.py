@@ -9,7 +9,7 @@ class HealthResponse(BaseModel):
     status: str
     build_id: str
     corpus_doc_count: int
-    embedding_model_name: str
+    embedding_model_name: str | None = None
     corpus_path: str
 
 
@@ -18,7 +18,7 @@ class ApiInfoResponse(BaseModel):
     api_version: str
     build_id: str
     corpus_doc_count: int
-    embedding_model_name: str
+    embedding_model_name: str | None = None
     artifacts_root: str
     loaded_components: dict[str, bool]
 
@@ -27,10 +27,9 @@ class ReloadResponse(BaseModel):
     status: str
     build_id: str
     corpus_doc_count: int
-    embedding_model_name: str
+    embedding_model_name: str | None = None
     model_reused: bool
     last_reload_at: str | None = None
-
 
 class ErrorResponse(BaseModel):
     error_code: str
@@ -143,6 +142,7 @@ class SearchResponse(BaseModel):
 
 class RuntimeSnapshotResponse(BaseModel):
     ready: bool
+    backend_mode: str | None = None
     build_id: str | None = None
     corpus_doc_count: int = 0
     embedding_model_name: str | None = None
@@ -153,3 +153,10 @@ class RuntimeSnapshotResponse(BaseModel):
     last_reload_at: str | None = None
     model_reused: bool = False
     current_model_name: str | None = None
+
+class DocumentListResponse(BaseModel):
+    total: int
+    offset: int
+    limit: int
+    sort_by: str
+    results: list[SearchResultDocument]

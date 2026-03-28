@@ -29,6 +29,16 @@ class ApiSettings(BaseSettings):
 
     log_level: str = "INFO"
 
+    # backend mode
+    search_backend: str = Field(default="file")  # file | db
+
+    # postgres settings
+    postgres_host: str = Field(default="127.0.0.1")
+    postgres_port: int = Field(default=15432)
+    postgres_dbname: str = Field(default="ml_radar")
+    postgres_user: str = Field(default="ml_radar")
+    postgres_password: str = Field(default="ml_radar_dev")
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> ApiSettings:

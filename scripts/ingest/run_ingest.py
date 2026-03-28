@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -22,11 +23,99 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--mode",
-        choices=["test", "full"],
+        choices=["test", "full", "historical", "historical_2024"],
         default="test",
-        help="test = быстрая выборка, full = побольше документов",
+        help=(
+            "test = быстрая latest-выборка, "
+            "full = побольше latest-документов, "
+            "historical = paper-centric historical slice для citation/reference анализа"
+        ),
     )
     return parser
+
+
+def build_openalex_query(mode: str):
+    from radar_core.ingest.openalex import OpenAlexQuery
+
+    api_key = os.getenv("OPENALEX_API_KEY")
+    mailto = os.getenv("OPENALEX_MAILTO")
+
+    # Latest radar slice: свежие paper-like работы
+    latest_search_query = "machine learning deep learning neural network artificial intelligence"
+
+    # Historical slice: чуть шире формулировка, чтобы собрать citation-rich корпус
+    historical_search_query = (
+        "machine learning deep learning artificial intelligence "
+        "representation learning computer vision natural language processing"
+    )
+
+    if mode == "test":
+        return OpenAlexQuery(
+            search=latest_search_query,
+            filter=(
+                "from_publication_date:2025-01-01,"
+                "type:article|preprint,"
+                "has_abstract:true,"
+                "has_doi:true,"
+                "has_references:true"
+            ),
+            per_page=20,
+            sort="publication_date:desc",
+            mailto=mailto,
+            api_key=api_key,
+        )
+
+    if mode == "full":
+        return OpenAlexQuery(
+            search=latest_search_query,
+            filter=(
+                "from_publication_date:2024-01-01,"
+                "type:article|preprint,"
+                "has_abstract:true,"
+                "has_doi:true,"
+                "has_references:true"
+            ),
+            per_page=50,
+            sort="publication_date:desc",
+            mailto=mailto,
+            api_key=api_key,
+        )
+
+    if mode == "historical":
+        return OpenAlexQuery(
+            search=historical_search_query,
+            filter=(
+                "from_publication_date:2023-01-01,"
+                "to_publication_date:2024-12-31,"
+                "type:article|preprint,"
+                "has_abstract:true,"
+                "has_doi:true,"
+                "has_references:true"
+            ),
+            per_page=100,
+            sort="cited_by_count:desc",
+            mailto=mailto,
+            api_key=api_key,
+        )
+
+    if mode == "historical_2024":
+        return OpenAlexQuery(
+            search=historical_search_query,
+            filter=(
+                "from_publication_date:2024-01-01,"
+                "to_publication_date:2024-12-31,"
+                "type:article|preprint,"
+                "has_abstract:true,"
+                "has_doi:true,"
+                "has_references:true"
+            ),
+            per_page=100,
+            sort="cited_by_count:desc",
+            mailto=mailto,
+            api_key=api_key,
+        )
+
+    raise ValueError(f"Unsupported OpenAlex mode: {mode}")
 
 
 def build_query(source: str, mode: str):
@@ -40,6 +129,8 @@ def build_query(source: str, mode: str):
                 sort_order="descending",
             )
 
+        # Для arXiv пока full и historical ведём одинаково,
+        # чтобы не усложнять логику до следующей итерации.
         return ArxivQuery(
             search_query="cat:cs.LG OR cat:cs.AI OR cat:cs.CL",
             start=0,
@@ -49,22 +140,7 @@ def build_query(source: str, mode: str):
         )
 
     if source == "openalex":
-        from radar_core.ingest.openalex import OpenAlexQuery
-
-        if mode == "test":
-            return OpenAlexQuery(
-                search="machine learning",
-                filter="from_publication_date:2025-01-01",
-                per_page=10,
-                sort="publication_date:desc",
-            )
-
-        return OpenAlexQuery(
-            search="machine learning",
-            filter="from_publication_date:2024-01-01",
-            per_page=50,
-            sort="publication_date:desc",
-        )
+        return build_openalex_query(mode)
 
     raise ValueError(f"Unsupported source for query builder: {source}")
 
@@ -128,7 +204,11 @@ def main() -> None:
         updated_rows=updated_rows,
         unchanged_rows=unchanged_rows,
     )
-    manifest_path = store.save_manifest(source=source, run_ts=run_ts, manifest=manifest.to_dict())
+    manifest_path = store.save_manifest(
+        source=source,
+        run_ts=run_ts,
+        manifest=manifest.to_dict(),
+    )
 
     print(f"[OK] source={source}")
     print(f"[OK] ingest finished: {len(deduped_docs)} documents")
