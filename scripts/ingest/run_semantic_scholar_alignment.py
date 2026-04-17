@@ -4,6 +4,7 @@ import argparse
 import json
 import re
 import sys
+import time
 from dataclasses import asdict, is_dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -46,7 +47,7 @@ def to_jsonable(obj: Any) -> Any:
         return asdict(obj)
     if isinstance(obj, Path):
         return str(obj)
-    if isinstance(obj, (datetime,)):
+    if isinstance(obj, datetime):
         return obj.isoformat().replace("+00:00", "Z")
     if isinstance(obj, list):
         return [to_jsonable(x) for x in obj]
@@ -90,14 +91,9 @@ def find_latest_normalized_file(source_dir: Path) -> Path:
     if not candidates:
         raise FileNotFoundError(f"No normalized JSONL found in: {source_dir}")
 
-    # Accept only primary timestamped snapshots like:
-    # documents.20260315T144637Z.jsonl
     pattern = re.compile(r"^documents\.\d{8}T\d{6}Z\.jsonl$")
+    primary_snapshots = [p for p in candidates if pattern.match(p.name)]
 
-    primary_snapshots = [
-        p for p in candidates
-        if pattern.match(p.name)
-    ]
     if primary_snapshots:
         return sorted(primary_snapshots)[-1]
 
@@ -107,6 +103,7 @@ def find_latest_normalized_file(source_dir: Path) -> Path:
 def normalize_doi(value: Any) -> str | None:
     if value is None:
         return None
+
     text = str(value).strip().lower()
     if not text:
         return None
@@ -143,6 +140,49 @@ def extract_candidate_dois(rows: list[dict[str, Any]]) -> tuple[list[str], dict[
     return sorted(doi_to_doc.keys()), doi_to_doc
 
 
+def load_doi_candidates(path: Path, limit: int | None) -> tuple[list[str], dict[str, dict[str, Any]]]:
+    """
+    Supports:
+    1. plain text file with one DOI per line
+    2. jsonl with at least field "doi"
+    """
+    if not path.exists():
+        raise FileNotFoundError(f"DOI list file not found: {path}")
+
+    doi_to_doc: dict[str, dict[str, Any]] = {}
+
+    is_jsonl = path.suffix.lower() == ".jsonl"
+
+    if is_jsonl:
+        with path.open("r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                row = json.loads(line)
+                doi = normalize_doi(row.get("doi"))
+                if not doi or doi in doi_to_doc:
+                    continue
+                doi_to_doc[doi] = row
+                if limit is not None and len(doi_to_doc) >= limit:
+                    break
+    else:
+        with path.open("r", encoding="utf-8") as f:
+            for line in f:
+                doi = normalize_doi(line.strip())
+                if not doi or doi in doi_to_doc:
+                    continue
+                doi_to_doc[doi] = {
+                    "doi": doi,
+                    "source_bucket": "doi_list",
+                    "input_file": str(path),
+                }
+                if limit is not None and len(doi_to_doc) >= limit:
+                    break
+
+    return sorted(doi_to_doc.keys()), doi_to_doc
+
+
 def chunked(items: list[str], size: int) -> list[list[str]]:
     return [items[i:i + size] for i in range(0, len(items), size)]
 
@@ -152,36 +192,44 @@ def build_markdown_report(summary: dict[str, Any]) -> str:
         "# Semantic Scholar alignment ingest",
         "",
         f"- generated_at: `{summary['generated_at']}`",
+        f"- input_mode: `{summary['input_mode']}`",
         f"- input_file: `{summary['input_file']}`",
         f"- doi_candidates: **{summary['doi_candidates']}**",
         f"- doi_batches: **{summary['doi_batches']}**",
         f"- fetched_entries: **{summary['fetched_entries']}**",
         f"- normalized_docs: **{summary['normalized_docs']}**",
+        f"- failed_batches: **{summary['failed_batches']}**",
         f"- raw_dir: `{summary['raw_dir']}`",
         f"- normalized_output: `{summary['normalized_output']}`",
     ]
 
     if summary.get("sample_dois"):
-        lines.extend(
-            [
-                "",
-                "## Sample DOIs",
-                "",
-            ]
-        )
+        lines.extend(["", "## Sample DOIs", ""])
         for doi in summary["sample_dois"]:
             lines.append(f"- `{doi}`")
+
+    if summary.get("failed_batch_examples"):
+        lines.extend(["", "## Failed batch examples", ""])
+        for item in summary["failed_batch_examples"]:
+            lines.append(
+                f"- batch `{item['batch_index']}` / size `{item['batch_size']}` / error `{item['error']}`"
+            )
 
     return "\n".join(lines) + "\n"
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Fetch Semantic Scholar records aligned to latest normalized arXiv DOIs."
+        description="Fetch Semantic Scholar records aligned either from latest normalized arXiv DOIs or a selective DOI list."
     )
     parser.add_argument(
         "--input",
         help="Explicit normalized arXiv JSONL path. If omitted, latest under data/normalized/arxiv is used.",
+    )
+    parser.add_argument(
+        "--doi-list",
+        default=None,
+        help="Optional path to DOI list input (.txt or .jsonl). If set, selective mode is used.",
     )
     parser.add_argument(
         "--normalized-root",
@@ -211,7 +259,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=100,
+        default=20,
         help="Batch size for Semantic Scholar paper batch lookup.",
     )
     parser.add_argument(
@@ -226,6 +274,12 @@ def parse_args() -> argparse.Namespace:
         default=60,
         help="HTTP timeout in seconds.",
     )
+    parser.add_argument(
+        "--sleep-seconds",
+        type=float,
+        default=1.5,
+        help="Sleep between Semantic Scholar batches.",
+    )
     return parser.parse_args()
 
 
@@ -239,23 +293,32 @@ def main() -> None:
     output_dir = Path(args.output_dir)
     reports_dir = Path(args.reports_dir)
 
-    input_path = Path(args.input) if args.input else find_latest_normalized_file(normalized_root / "arxiv")
-    input_rows = load_jsonl(input_path)
+    if args.doi_list:
+        input_mode = "doi_list"
+        input_path = Path(args.doi_list)
+        doi_candidates, _doi_to_doc = load_doi_candidates(input_path, args.limit)
 
-    doi_candidates, doi_to_doc = extract_candidate_dois(input_rows)
+        print(f"[INFO] input_mode=doi_list")
+        print(f"[INFO] doi_list_file resolved: {input_path}")
+        print(f"[INFO] DOI candidates after limit: {len(doi_candidates)}")
+    else:
+        input_mode = "arxiv_snapshot"
+        input_path = Path(args.input) if args.input else find_latest_normalized_file(normalized_root / "arxiv")
+        input_rows = load_jsonl(input_path)
 
-    print(f"[INFO] input rows loaded: {len(input_rows)}")
-    print(f"[INFO] DOI candidates before limit: {len(doi_candidates)}")
-    print(f"[INFO] input file resolved: {input_path}")
+        doi_candidates, _doi_to_doc = extract_candidate_dois(input_rows)
 
-    if args.limit is not None:
-        doi_candidates = doi_candidates[: args.limit]
+        print(f"[INFO] input_mode=arxiv_snapshot")
+        print(f"[INFO] input rows loaded: {len(input_rows)}")
+        print(f"[INFO] DOI candidates before limit: {len(doi_candidates)}")
+        print(f"[INFO] input file resolved: {input_path}")
+
+        if args.limit is not None:
+            doi_candidates = doi_candidates[: args.limit]
 
     if not doi_candidates:
-        sample_keys = list(input_rows[0].keys())[:20] if input_rows else []
         raise RuntimeError(
-            f"No DOI candidates found in normalized arXiv input: {input_path}. "
-            f"Sample keys: {sample_keys}"
+            f"No DOI candidates found for input: {input_path}"
         )
 
     ingestor = SemanticScholarIngestor()
@@ -265,6 +328,8 @@ def main() -> None:
 
     normalized_docs: list[NormalizedDocument] = []
     fetched_entries_total = 0
+    failed_batches = 0
+    failed_batch_examples: list[dict[str, Any]] = []
 
     doi_batches = chunked(doi_candidates, max(1, args.batch_size))
 
@@ -275,40 +340,81 @@ def main() -> None:
             api_key=args.api_key,
             timeout=args.timeout,
         )
-        feed = ingestor.fetch_feed(query)
-        entries = ingestor.iter_entries(feed)
-        fetched_entries_total += len(entries)
 
-        batch_raw_path = raw_run_dir / f"batch_{batch_idx:04d}.json"
-        write_json(
-            batch_raw_path,
-            {
-                "query_paper_ids": paper_ids,
-                "response": feed,
-            },
-        )
+        try:
+            feed = ingestor.fetch_feed(query)
+            entries = ingestor.iter_entries(feed)
+            fetched_entries_total += len(entries)
 
-        for entry_idx, entry in enumerate(entries):
-            raw_artifact_name = f"batch_{batch_idx:04d}_entry_{entry_idx:05d}.json"
-            raw_artifact_path = raw_run_dir / raw_artifact_name
-            write_json(raw_artifact_path, entry)
+            if (batch_idx + 1) % 10 == 0 or batch_idx == 0:
+                print(
+                    f"[INFO] batch {batch_idx + 1}/{len(doi_batches)} "
+                    f"entries={len(entries)} "
+                    f"fetched_total={fetched_entries_total}"
+                )
 
-            normalized = ingestor.parse_entry_to_normalized(
-                entry,
-                raw_artifact_path=raw_artifact_name,
+            batch_raw_path = raw_run_dir / f"batch_{batch_idx:04d}.json"
+            write_json(
+                batch_raw_path,
+                {
+                    "query_paper_ids": paper_ids,
+                    "response": feed,
+                },
             )
-            normalized_docs.append(normalized)
+
+            for entry_idx, entry in enumerate(entries):
+                raw_artifact_name = f"batch_{batch_idx:04d}_entry_{entry_idx:05d}.json"
+                raw_artifact_path = raw_run_dir / raw_artifact_name
+                write_json(raw_artifact_path, entry)
+
+                normalized = ingestor.parse_entry_to_normalized(
+                    entry,
+                    raw_artifact_path=raw_artifact_name,
+                )
+                normalized_docs.append(normalized)
+
+        except Exception as exc:
+            failed_batches += 1
+            err_repr = repr(exc)
+
+            print(
+                f"[WARN] batch {batch_idx + 1}/{len(doi_batches)} failed: {err_repr}"
+            )
+
+            write_json(
+                raw_run_dir / f"batch_{batch_idx:04d}.json",
+                {
+                    "query_paper_ids": paper_ids,
+                    "error": err_repr,
+                },
+            )
+
+            if len(failed_batch_examples) < 20:
+                failed_batch_examples.append(
+                    {
+                        "batch_index": batch_idx + 1,
+                        "batch_size": len(paper_ids),
+                        "error": err_repr,
+                    }
+                )
+
+        finally:
+            if args.sleep_seconds > 0:
+                time.sleep(args.sleep_seconds)
 
     normalized_output_path = output_dir / f"documents.{run_ts}.jsonl"
     write_jsonl(normalized_output_path, normalized_docs)
 
     summary = {
         "generated_at": run_ts,
+        "input_mode": input_mode,
         "input_file": str(input_path).replace("/", "\\"),
         "doi_candidates": len(doi_candidates),
         "doi_batches": len(doi_batches),
         "fetched_entries": fetched_entries_total,
         "normalized_docs": len(normalized_docs),
+        "failed_batches": failed_batches,
+        "failed_batch_examples": failed_batch_examples,
         "raw_dir": str(raw_run_dir).replace("/", "\\"),
         "normalized_output": str(normalized_output_path).replace("/", "\\"),
         "sample_dois": doi_candidates[:10],
@@ -326,11 +432,13 @@ def main() -> None:
     write_text(md_report_path, md_report)
     write_text(hist_md_path, md_report)
 
+    print(f"[OK] input_mode: {input_mode}")
     print(f"[OK] input file: {input_path}")
     print(f"[OK] DOI candidates: {len(doi_candidates)}")
     print(f"[OK] DOI batches: {len(doi_batches)}")
     print(f"[OK] fetched entries: {fetched_entries_total}")
     print(f"[OK] normalized docs: {len(normalized_docs)}")
+    print(f"[OK] failed batches: {failed_batches}")
     print(f"[OK] raw dir: {raw_run_dir}")
     print(f"[OK] normalized output: {normalized_output_path}")
     print(f"[OK] JSON report: {json_report_path}")

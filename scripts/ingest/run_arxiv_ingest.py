@@ -91,6 +91,11 @@ def main() -> None:
     ingestor = ArxivIngestor()
     raw_docs, normalized_docs = ingestor.ingest(query=query)
 
+    if not raw_docs and not normalized_docs:
+        raise RuntimeError(
+            f"arXiv ingest returned zero documents for query={query.__dict__}"
+        )
+
     deduped_docs = deduplicate_documents(normalized_docs)
     new_docs, updated_docs, unchanged_docs = split_new_vs_updated(
         deduped_docs,

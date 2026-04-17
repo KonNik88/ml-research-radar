@@ -120,25 +120,69 @@ def extract_candidate_dois(rows: list[dict[str, Any]]) -> tuple[list[str], dict[
     return sorted(doi_to_doc.keys()), doi_to_doc
 
 
+def load_doi_candidates(path: Path, limit: int | None) -> tuple[list[str], dict[str, dict[str, Any]]]:
+    """
+    Supports:
+    1. plain text file with one DOI per line
+    2. jsonl with at least field "doi"
+    """
+    if not path.exists():
+        raise FileNotFoundError(f"DOI list file not found: {path}")
+
+    doi_to_doc: dict[str, dict[str, Any]] = {}
+    is_jsonl = path.suffix.lower() == ".jsonl"
+
+    if is_jsonl:
+        with path.open("r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                row = json.loads(line)
+                doi = normalize_doi(row.get("doi"))
+                if not doi or doi in doi_to_doc:
+                    continue
+                doi_to_doc[doi] = row
+                if limit is not None and len(doi_to_doc) >= limit:
+                    break
+    else:
+        with path.open("r", encoding="utf-8") as f:
+            for line in f:
+                doi = normalize_doi(line.strip())
+                if not doi or doi in doi_to_doc:
+                    continue
+                doi_to_doc[doi] = {
+                    "doi": doi,
+                    "source_bucket": "doi_list",
+                    "input_file": str(path),
+                }
+                if limit is not None and len(doi_to_doc) >= limit:
+                    break
+
+    return sorted(doi_to_doc.keys()), doi_to_doc
+
+
 def chunked(items: list[str], size: int) -> list[list[str]]:
     return [items[i:i + size] for i in range(0, len(items), size)]
 
 
 def build_match_row(
-    arxiv_row: dict[str, Any],
+    input_row: dict[str, Any],
     crossref_doc: Optional[NormalizedDocument],
     *,
     error: Optional[str] = None,
 ) -> dict[str, Any]:
-    arxiv_doi = normalize_doi(arxiv_row.get("doi"))
+    input_doi = normalize_doi(input_row.get("doi"))
 
     if error is not None:
         return {
             "status": "error",
-            "arxiv_doc_id": arxiv_row.get("doc_id"),
-            "arxiv_title": arxiv_row.get("title"),
-            "arxiv_year": arxiv_row.get("year"),
-            "arxiv_doi": arxiv_doi,
+            "input_doc_id": input_row.get("doc_id"),
+            "input_title": input_row.get("title"),
+            "input_year": input_row.get("year"),
+            "input_arxiv_id": input_row.get("arxiv_id"),
+            "input_doi": input_doi,
+            "source_bucket": input_row.get("source_bucket"),
             "crossref_doi": None,
             "crossref_title": None,
             "crossref_year": None,
@@ -148,10 +192,12 @@ def build_match_row(
     if crossref_doc is None:
         return {
             "status": "not_found",
-            "arxiv_doc_id": arxiv_row.get("doc_id"),
-            "arxiv_title": arxiv_row.get("title"),
-            "arxiv_year": arxiv_row.get("year"),
-            "arxiv_doi": arxiv_doi,
+            "input_doc_id": input_row.get("doc_id"),
+            "input_title": input_row.get("title"),
+            "input_year": input_row.get("year"),
+            "input_arxiv_id": input_row.get("arxiv_id"),
+            "input_doi": input_doi,
+            "source_bucket": input_row.get("source_bucket"),
             "crossref_doi": None,
             "crossref_title": None,
             "crossref_year": None,
@@ -159,10 +205,12 @@ def build_match_row(
 
     return {
         "status": "found",
-        "arxiv_doc_id": arxiv_row.get("doc_id"),
-        "arxiv_title": arxiv_row.get("title"),
-        "arxiv_year": arxiv_row.get("year"),
-        "arxiv_doi": arxiv_doi,
+        "input_doc_id": input_row.get("doc_id"),
+        "input_title": input_row.get("title"),
+        "input_year": input_row.get("year"),
+        "input_arxiv_id": input_row.get("arxiv_id"),
+        "input_doi": input_doi,
+        "source_bucket": input_row.get("source_bucket"),
         "crossref_doi": crossref_doc.doi,
         "crossref_title": crossref_doc.title,
         "crossref_year": crossref_doc.year,
@@ -174,6 +222,7 @@ def build_markdown_report(summary: dict[str, Any]) -> str:
         "# Crossref alignment ingest",
         "",
         f"- generated_at: `{summary['generated_at']}`",
+        f"- input_mode: `{summary['input_mode']}`",
         f"- input_file: `{summary['input_file']}`",
         f"- doi_candidates: **{summary['doi_candidates']}**",
         f"- doi_batches: **{summary['doi_batches']}**",
@@ -198,12 +247,17 @@ def build_markdown_report(summary: dict[str, Any]) -> str:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Fetch Crossref records aligned to latest normalized arXiv DOIs."
+        description="Fetch Crossref records aligned either from latest normalized arXiv DOIs or a selective DOI list."
     )
     parser.add_argument(
         "--input",
         default=None,
         help="Explicit normalized arXiv JSONL path. If omitted, latest under data/normalized/arxiv is used.",
+    )
+    parser.add_argument(
+        "--doi-list",
+        default=None,
+        help="Optional path to DOI list input (.txt or .jsonl). If set, selective mode is used.",
     )
     parser.add_argument(
         "--mailto",
@@ -236,16 +290,22 @@ def main() -> None:
     run_dt = utc_now()
     run_ts = ts_slug(run_dt)
 
-    input_path = Path(args.input) if args.input else find_latest_normalized_file(ARXIV_NORMALIZED_DIR)
-    input_rows = load_jsonl(input_path)
+    if args.doi_list:
+        input_mode = "doi_list"
+        input_path = Path(args.doi_list)
+        doi_candidates, doi_to_doc = load_doi_candidates(input_path, args.limit)
+    else:
+        input_mode = "arxiv_snapshot"
+        input_path = Path(args.input) if args.input else find_latest_normalized_file(ARXIV_NORMALIZED_DIR)
+        input_rows = load_jsonl(input_path)
 
-    doi_candidates, doi_to_doc = extract_candidate_dois(input_rows)
+        doi_candidates, doi_to_doc = extract_candidate_dois(input_rows)
 
-    if args.limit is not None:
-        doi_candidates = doi_candidates[: args.limit]
+        if args.limit is not None:
+            doi_candidates = doi_candidates[: args.limit]
 
     if not doi_candidates:
-        raise RuntimeError(f"No DOI candidates found in normalized arXiv input: {input_path}")
+        raise RuntimeError(f"No DOI candidates found for input: {input_path}")
 
     ingestor = CrossrefIngestor()
 
@@ -270,8 +330,8 @@ def main() -> None:
             entries = ingestor.iter_entries(feed)
         except Exception as exc:
             for doi in doi_batch:
-                arxiv_row = doi_to_doc.get(doi, {})
-                match_rows.append(build_match_row(arxiv_row, None, error=repr(exc)))
+                input_row = doi_to_doc.get(doi, {})
+                match_rows.append(build_match_row(input_row, None, error=repr(exc)))
             continue
 
         fetched_entries_total += len(entries)
@@ -301,13 +361,14 @@ def main() -> None:
             raw_docs.append(raw_doc)
             normalized_docs.append(norm_doc)
 
-            if norm_doc.doi:
-                found_by_doi[norm_doc.doi] = norm_doc
+            norm_doi = normalize_doi(norm_doc.doi)
+            if norm_doi:
+                found_by_doi[norm_doi] = norm_doc
 
         for doi in doi_batch:
-            arxiv_row = doi_to_doc.get(doi, {})
+            input_row = doi_to_doc.get(doi, {})
             crossref_doc = found_by_doi.get(doi)
-            match_rows.append(build_match_row(arxiv_row, crossref_doc))
+            match_rows.append(build_match_row(input_row, crossref_doc))
 
     normalized_output_path = NORMALIZED_ALIGNMENT_DIR / f"documents.{run_ts}.jsonl"
     raw_output_path = raw_run_dir / "documents.raw.jsonl"
@@ -319,6 +380,7 @@ def main() -> None:
 
     summary = {
         "generated_at": run_ts,
+        "input_mode": input_mode,
         "input_file": str(input_path).replace("/", "\\"),
         "doi_candidates": len(doi_candidates),
         "doi_batches": len(doi_batches),
@@ -347,6 +409,7 @@ def main() -> None:
     write_text(latest_md, md_report)
     write_text(hist_md, md_report)
 
+    print(f"[OK] input_mode: {input_mode}")
     print(f"[OK] input file: {input_path}")
     print(f"[OK] DOI candidates: {len(doi_candidates)}")
     print(f"[OK] DOI batches: {len(doi_batches)}")

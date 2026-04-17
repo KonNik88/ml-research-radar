@@ -1,5 +1,3 @@
-# path: scripts/analytics/corpus_audit.py
-
 from __future__ import annotations
 
 import argparse

@@ -1,0 +1,21 @@
+query_groups:
+  broad:
+    - "graph neural networks"
+    - "diffusion models"
+    - "transformer language models"
+    - "reinforcement learning"
+    - "multimodal learning"
+
+  mid_specific:
+    - "tabular transformers"
+    - "self supervised vision"
+    - "recommender systems ranking"
+    - "scientific machine learning"
+    - "audio tagging"
+
+  edge_diagnostic:
+    - "prompt tuning"
+    - "model compression"
+    - "protein language models"
+    - "anomaly detection tabular"
+    - "retrieval augmented generation"

@@ -22,8 +22,6 @@ class LocalIndexRecord:
 
 class LocalDocumentIndex:
     """
-    Простой локальный state store.
-    Хранит минимальный индекс документов:
     doc_id -> content_hash/source/last_seen_run_ts/updated_at
     """
 

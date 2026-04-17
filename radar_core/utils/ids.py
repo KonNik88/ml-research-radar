@@ -18,19 +18,11 @@ def normalize_text(text: Optional[str]) -> str:
 
 
 def canonicalize_url(url: str) -> str:
-    """
-    Базовая канонизация URL.
-    На старте не пытаемся быть слишком умными.
-    """
     parsed = urlparse(url.strip())
 
     scheme = parsed.scheme.lower() or "https"
     netloc = parsed.netloc.lower()
-
-    # Убираем trailing slash, кроме корня
     path = parsed.path.rstrip("/") if parsed.path != "/" else parsed.path
-
-    # Сортируем query params для стабильности
     query_pairs = sorted(parse_qsl(parsed.query, keep_blank_values=True))
     query = urlencode(query_pairs)
 

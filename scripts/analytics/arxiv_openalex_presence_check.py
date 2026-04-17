@@ -228,8 +228,6 @@ def top_fuzzy_matches(
 
             oa_author = first_author_key(oa)
             ax_author = first_author_key(ax)
-
-            # лёгкое усиление уверенности, если совпадает первый автор
             author_match = bool(oa_author and ax_author and oa_author == ax_author)
             if author_match:
                 score = min(1.0, score + 0.02)

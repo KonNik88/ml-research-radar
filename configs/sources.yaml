@@ -50,6 +50,13 @@ profiles:
       filter: "from_publication_date:2022-01-01"
       sort: "publication_date:desc"
 
+  medium_scale:
+    arxiv:
+      search_query: "cat:cs.LG OR cat:cs.AI OR cat:cs.CV OR cat:cs.CL OR cat:stat.ML"
+      batch_size: 25
+      sort_by: "submittedDate"
+      sort_order: "descending"
+
 defaults:
   profile: "dev"
   deduplicate_after_ingest: true

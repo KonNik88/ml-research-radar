@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import argparse
 import json
+import re
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -8,17 +10,41 @@ import psycopg
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_CANONICAL_PATH = PROJECT_ROOT / "data" / "analytics" / "reconciled" / "canonical_documents.jsonl"
+DEFAULT_NORMALIZED_DIR = PROJECT_ROOT / "data" / "normalized"
 
-CANONICAL_PATH = PROJECT_ROOT / "data" / "analytics" / "reconciled" / "canonical_documents.jsonl"
-NORMALIZED_DIR = PROJECT_ROOT / "data" / "normalized"
-
-DB_CONFIG = {
-    "host": "127.0.0.1",
-    "port": 15432,
-    "dbname": "ml_radar",
-    "user": "ml_radar",
-    "password": "ml_radar_dev",
+ALLOWED_SOURCE_DIRS = {
+    "arxiv",
+    "openalex_alignment",
+    "semantic_scholar_alignment",
+    "crossref_alignment",
 }
+
+PRIMARY_SNAPSHOT_RE = re.compile(r"^documents\.\d{8}T\d{6}Z\.jsonl$")
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Export canonical and normalized documents into Postgres serving tables."
+    )
+    parser.add_argument(
+        "--canonical-path",
+        type=Path,
+        default=DEFAULT_CANONICAL_PATH,
+        help="Path to canonical JSONL file.",
+    )
+    parser.add_argument(
+        "--normalized-dir",
+        type=Path,
+        default=DEFAULT_NORMALIZED_DIR,
+        help="Root directory with normalized source subdirectories.",
+    )
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=15432)
+    parser.add_argument("--dbname", default="ml_radar")
+    parser.add_argument("--user", default="ml_radar")
+    parser.add_argument("--password", default="ml_radar_dev")
+    return parser
 
 
 def read_jsonl(path: Path) -> Iterable[dict[str, Any]]:
@@ -327,34 +353,81 @@ def insert_references(cur: psycopg.Cursor, canonical_id: str, doc: dict[str, Any
         )
 
 
-def iter_normalized_files() -> Iterable[Path]:
-    for source_dir in NORMALIZED_DIR.iterdir():
+def iter_normalized_files(normalized_dir: Path) -> Iterable[Path]:
+    for source_name in sorted(ALLOWED_SOURCE_DIRS):
+        source_dir = normalized_dir / source_name
         if not source_dir.is_dir():
             continue
-        for path in source_dir.glob("*.jsonl"):
-            yield path
+
+        candidates = sorted(
+            p for p in source_dir.glob("documents.*.jsonl")
+            if PRIMARY_SNAPSHOT_RE.match(p.name)
+        )
+        if not candidates:
+            continue
+
+        yield candidates[-1]
 
 
 def main() -> None:
-    if not CANONICAL_PATH.exists():
-        raise FileNotFoundError(f"Canonical file not found: {CANONICAL_PATH}")
+    args = build_parser().parse_args()
 
-    with psycopg.connect(**DB_CONFIG) as conn:
+    canonical_path = args.canonical_path
+    normalized_dir = args.normalized_dir
+
+    if not canonical_path.exists():
+        raise FileNotFoundError(f"Canonical file not found: {canonical_path}")
+    if not normalized_dir.exists():
+        raise FileNotFoundError(f"Normalized dir not found: {normalized_dir}")
+
+    db_config = {
+        "host": args.host,
+        "port": args.port,
+        "dbname": args.dbname,
+        "user": args.user,
+        "password": args.password,
+    }
+
+    with psycopg.connect(**db_config) as conn:
         with conn.cursor() as cur:
             print("Loading source documents...")
             source_count = 0
-            for path in iter_normalized_files():
-                for doc in read_jsonl(path):
-                    insert_source(cur, source_row(doc))
+            skipped_source_rows = 0
+
+            for path in iter_normalized_files(normalized_dir):
+                print(f"Loading source file: {path}")
+                for line_idx, doc in enumerate(read_jsonl(path), start=1):
+                    row = source_row(doc)
+
+                    missing_fields = []
+                    if not row.get("source"):
+                        missing_fields.append("source")
+                    if not row.get("source_id"):
+                        missing_fields.append("source_id")
+                    if not row.get("title"):
+                        missing_fields.append("title")
+
+                    if missing_fields:
+                        skipped_source_rows += 1
+                        print(
+                            f"[WARN] skipping invalid source document: "
+                            f"path={path} line={line_idx} missing={missing_fields} "
+                            f"doc_id={doc.get('doc_id')}"
+                        )
+                        continue
+
+                    insert_source(cur, row)
                     source_count += 1
+
             print(f"Inserted/updated source docs: {source_count}")
+            print(f"Skipped invalid source docs: {skipped_source_rows}")
 
             print("Loading canonical documents...")
             canonical_count = 0
             link_count = 0
             ref_count = 0
 
-            for doc in read_jsonl(CANONICAL_PATH):
+            for doc in read_jsonl(canonical_path):
                 insert_canonical(cur, canonical_row(doc))
                 canonical_id = doc["canonical_id"]
 
@@ -365,7 +438,6 @@ def main() -> None:
                     insert_link(cur, canonical_id, link)
                     link_count += 1
 
-                before = ref_count
                 insert_references(cur, canonical_id, doc)
                 ref_count += (
                     len(doc.get("referenced_dois", []))
@@ -382,14 +454,16 @@ def main() -> None:
                 """,
                 (
                     "postgres_v1_export",
-                    str(PROJECT_ROOT / "data"),
+                    str(canonical_path),
                     "SUCCESS",
                     json.dumps(
                         {
                             "source_documents": source_count,
+                            "skipped_source_documents": skipped_source_rows,
                             "canonical_documents": canonical_count,
                             "canonical_source_links": link_count,
                             "document_references": ref_count,
+                            "normalized_dir": str(normalized_dir),
                         },
                         ensure_ascii=False,
                     ),
@@ -399,6 +473,9 @@ def main() -> None:
         conn.commit()
 
     print("Export completed successfully.")
+    print(f"canonical_path: {canonical_path}")
+    print(f"normalized_dir: {normalized_dir}")
+    print(f"db: {args.host}:{args.port}/{args.dbname}")
 
 
 if __name__ == "__main__":

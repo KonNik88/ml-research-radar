@@ -1,5 +1,3 @@
-# scripts/analytics/openalex_metadata_diagnostics.py
-
 from __future__ import annotations
 
 import json

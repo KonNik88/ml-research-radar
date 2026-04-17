@@ -1,5 +1,3 @@
-# path: scripts/analytics/compare_audits.py
-
 from __future__ import annotations
 
 import argparse

@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 import requests
+import time
 
 from radar_core.contracts.document import (
     DocumentType,
@@ -21,6 +22,9 @@ from radar_core.utils.ids import build_content_hash, build_doc_id, canonicalize_
 
 SEMANTIC_SCHOLAR_GRAPH_API_BASE = "https://api.semanticscholar.org/graph/v1"
 SEMANTIC_SCHOLAR_PAPER_BATCH_API = f"{SEMANTIC_SCHOLAR_GRAPH_API_BASE}/paper/batch"
+SEMANTIC_SCHOLAR_MAX_RETRIES = 5
+SEMANTIC_SCHOLAR_DEFAULT_BACKOFF_SECONDS = 5.0
+SEMANTIC_SCHOLAR_MIN_REQUEST_INTERVAL_SECONDS = 1.5
 
 DEFAULT_FIELDS = [
     "paperId",
@@ -56,6 +60,18 @@ class SemanticScholarIngestor(BaseIngestor[SemanticScholarQuery, dict, dict]):
     source_name = "semantic_scholar"
     pipeline_version = "0.3.0"
 
+    def __init__(self) -> None:
+        self._last_request_ts: float | None = None
+
+    def _respect_rate_limit(self) -> None:
+        if self._last_request_ts is None:
+            return
+
+        elapsed = time.monotonic() - self._last_request_ts
+        remaining = SEMANTIC_SCHOLAR_MIN_REQUEST_INTERVAL_SECONDS - elapsed
+        if remaining > 0:
+            time.sleep(remaining)
+
     @staticmethod
     def _normalize_text(value: Any) -> Optional[str]:
         if value is None:
@@ -71,7 +87,6 @@ class SemanticScholarIngestor(BaseIngestor[SemanticScholarQuery, dict, dict]):
 
         lowered = text.strip().lower()
 
-        # Semantic Scholar sometimes returns journal="ArXiv" for non-arXiv canonical records.
         if lowered == "arxiv" and venue and venue.strip().lower() != "arxiv":
             return None
 
@@ -100,7 +115,6 @@ class SemanticScholarIngestor(BaseIngestor[SemanticScholarQuery, dict, dict]):
         ]
 
         if any(marker in venue_l for marker in conference_markers):
-            # Springer LNCS / proceedings chapter-like DOI pattern is often chapter/proceedings content
             if doi_l.startswith("10.1007/") and "_" in doi_l:
                 return "book-chapter"
             return "conference"
@@ -364,22 +378,101 @@ class SemanticScholarIngestor(BaseIngestor[SemanticScholarQuery, dict, dict]):
         if query.api_key:
             headers["x-api-key"] = query.api_key
 
-        response = requests.post(
-            SEMANTIC_SCHOLAR_PAPER_BATCH_API,
-            params=query.to_params(),
-            json={"ids": query.paper_ids},
-            headers=headers,
-            timeout=query.timeout,
-        )
-        response.raise_for_status()
-        payload = response.json()
+        last_error: Exception | None = None
 
-        if isinstance(payload, list):
-            return {"data": payload}
-        if isinstance(payload, dict) and "data" in payload:
-            return payload
+        for attempt in range(1, SEMANTIC_SCHOLAR_MAX_RETRIES + 1):
+            try:
+                self._respect_rate_limit()
 
-        return {"data": []}
+                response = requests.post(
+                    SEMANTIC_SCHOLAR_PAPER_BATCH_API,
+                    params=query.to_params(),
+                    json={"ids": query.paper_ids},
+                    headers=headers,
+                    timeout=query.timeout,
+                )
+                self._last_request_ts = time.monotonic()
+
+            except requests.RequestException as exc:
+                last_error = RuntimeError(
+                    f"Semantic Scholar request exception: "
+                    f"attempt={attempt}/{SEMANTIC_SCHOLAR_MAX_RETRIES} "
+                    f"batch_size={len(query.paper_ids)} "
+                    f"error={repr(exc)}"
+                )
+                if attempt == SEMANTIC_SCHOLAR_MAX_RETRIES:
+                    raise last_error from exc
+
+                sleep_s = SEMANTIC_SCHOLAR_DEFAULT_BACKOFF_SECONDS * attempt
+                print(
+                    f"[WARN] Semantic Scholar network error "
+                    f"(attempt={attempt}/{SEMANTIC_SCHOLAR_MAX_RETRIES}, "
+                    f"sleep={sleep_s:.1f}s, batch_size={len(query.paper_ids)})"
+                )
+                print(f"[WARN] exception: {repr(exc)}")
+                time.sleep(sleep_s)
+                continue
+
+            if response.status_code == 429:
+                retry_after = response.headers.get("Retry-After")
+                if retry_after:
+                    try:
+                        sleep_s = max(float(retry_after), SEMANTIC_SCHOLAR_DEFAULT_BACKOFF_SECONDS)
+                    except ValueError:
+                        sleep_s = SEMANTIC_SCHOLAR_DEFAULT_BACKOFF_SECONDS * attempt
+                else:
+                    sleep_s = SEMANTIC_SCHOLAR_DEFAULT_BACKOFF_SECONDS * attempt
+
+                preview = response.text[:300].replace("\n", " ")
+                print(
+                    f"[WARN] Semantic Scholar rate limited "
+                    f"(attempt={attempt}/{SEMANTIC_SCHOLAR_MAX_RETRIES}, "
+                    f"sleep={sleep_s:.1f}s, batch_size={len(query.paper_ids)})"
+                )
+                print(f"[WARN] response preview: {preview}")
+
+                if attempt == SEMANTIC_SCHOLAR_MAX_RETRIES:
+                    response.raise_for_status()
+
+                time.sleep(sleep_s)
+                continue
+
+            try:
+                response.raise_for_status()
+            except Exception as exc:
+                preview = response.text[:500].replace("\n", " ")
+                last_error = RuntimeError(
+                    f"Semantic Scholar request failed: "
+                    f"status={response.status_code} "
+                    f"batch_size={len(query.paper_ids)} "
+                    f"body_preview={preview}"
+                )
+                if attempt == SEMANTIC_SCHOLAR_MAX_RETRIES:
+                    raise last_error from exc
+
+                sleep_s = SEMANTIC_SCHOLAR_DEFAULT_BACKOFF_SECONDS * attempt
+                print(
+                    f"[WARN] Semantic Scholar HTTP error "
+                    f"(attempt={attempt}/{SEMANTIC_SCHOLAR_MAX_RETRIES}, "
+                    f"sleep={sleep_s:.1f}s, status={response.status_code}, "
+                    f"batch_size={len(query.paper_ids)})"
+                )
+                time.sleep(sleep_s)
+                continue
+
+            payload = response.json()
+
+            if isinstance(payload, list):
+                return {"data": payload}
+            if isinstance(payload, dict) and "data" in payload:
+                return payload
+
+            return {"data": []}
+
+        if last_error is not None:
+            raise last_error
+
+        raise RuntimeError("Semantic Scholar fetch failed unexpectedly")
 
     def iter_entries(self, feed: dict[str, Any]) -> list[dict]:
         data = feed.get("data") or []

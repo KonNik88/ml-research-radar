@@ -5,8 +5,10 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 from urllib.parse import urlencode
-
+import time
+from email.utils import parsedate_to_datetime
 import feedparser
+import requests
 
 from radar_core.contracts.document import (
     DocumentType,
@@ -21,8 +23,10 @@ from radar_core.ingest.base import BaseIngestor
 from radar_core.utils.ids import build_content_hash, build_doc_id, canonicalize_url
 
 
-ARXIV_API_BASE = "http://export.arxiv.org/api/query"
-
+ARXIV_API_BASE = "https://export.arxiv.org/api/query"
+ARXIV_MIN_REQUEST_INTERVAL_SECONDS = 8.0
+ARXIV_MAX_RETRIES = 5
+ARXIV_DEFAULT_BACKOFF_SECONDS = 20.0
 URL_RE = re.compile(r"https?://[^\s<>()\"']+")
 
 CONFERENCE_HINT_RE = re.compile(
@@ -56,12 +60,110 @@ class ArxivIngestor(BaseIngestor[ArxivQuery, object, object]):
     source_name = "arxiv"
     pipeline_version = "0.2.0"
 
+    def __init__(self) -> None:
+        self._last_request_ts: float | None = None
+
+    def _respect_rate_limit(self) -> None:
+        if self._last_request_ts is None:
+            return
+
+        elapsed = time.monotonic() - self._last_request_ts
+        remaining = ARXIV_MIN_REQUEST_INTERVAL_SECONDS - elapsed
+        if remaining > 0:
+            time.sleep(remaining)
+
+    @staticmethod
+    def _retry_after_seconds(response: requests.Response) -> float | None:
+        value = response.headers.get("Retry-After")
+        if not value:
+            return None
+
+        value = value.strip()
+        if not value:
+            return None
+
+        # Retry-After: seconds
+        try:
+            return max(float(value), 0.0)
+        except ValueError:
+            pass
+
+        # Retry-After: HTTP date
+        try:
+            dt = parsedate_to_datetime(value)
+            now = datetime.now(timezone.utc)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return max((dt - now).total_seconds(), 0.0)
+        except Exception:
+            return None
+
     def fetch_feed(self, query: ArxivQuery):
         url = query.to_url()
-        return feedparser.parse(url)
+
+        headers = {
+            "User-Agent": "ML-Research-Radar/0.2.0 (research ingest; local development)"
+        }
+
+        last_error: Exception | None = None
+
+        for attempt in range(1, ARXIV_MAX_RETRIES + 1):
+            self._respect_rate_limit()
+
+            response = requests.get(url, headers=headers, timeout=60)
+            self._last_request_ts = time.monotonic()
+
+            if response.status_code == 429:
+                retry_after = self._retry_after_seconds(response)
+                sleep_s = retry_after if retry_after is not None else (ARXIV_DEFAULT_BACKOFF_SECONDS * attempt)
+
+                body_preview = response.text[:500].replace("\n", " ")
+                print(
+                    f"[WARN] arXiv rate limited request "
+                    f"(attempt={attempt}/{ARXIV_MAX_RETRIES}, sleep={sleep_s:.1f}s, url={url})"
+                )
+                print(f"[WARN] response preview: {body_preview}")
+
+                if attempt == ARXIV_MAX_RETRIES:
+                    response.raise_for_status()
+
+                time.sleep(sleep_s)
+                continue
+
+            try:
+                response.raise_for_status()
+            except Exception as exc:
+                body_preview = response.text[:1000].replace("\n", " ")
+                raise RuntimeError(
+                    f"arXiv request failed: url={url} status={response.status_code} "
+                    f"body_preview={body_preview}"
+                ) from exc
+
+            text = response.text
+            feed = feedparser.parse(text)
+
+            if not getattr(feed, "entries", None):
+                bozo = getattr(feed, "bozo", 0)
+                bozo_exc = getattr(feed, "bozo_exception", None)
+                preview = text[:1000].replace("\n", " ")
+
+                raise RuntimeError(
+                    "arXiv returned no entries. "
+                    f"url={url} status={response.status_code} "
+                    f"bozo={bozo} bozo_exception={repr(bozo_exc)} "
+                    f"body_preview={preview}"
+                )
+
+            return feed
+
+        if last_error is not None:
+            raise last_error
+
+        raise RuntimeError(f"Failed to fetch arXiv feed after {ARXIV_MAX_RETRIES} attempts: {url}")
 
     def iter_entries(self, feed) -> list[object]:
-        return list(feed.entries)
+        entries = list(getattr(feed, "entries", []) or [])
+        return entries
 
     def parse_entry_to_raw(self, entry) -> RawDocument:
         entry_id = entry.get("id")

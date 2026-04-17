@@ -291,8 +291,6 @@ class CrossrefIngestor(BaseIngestor[CrossrefQuery, dict, dict]):
             pdf_url: Optional[str],
             license_value: Optional[str],
     ) -> Optional[bool]:
-        # В первой версии считаем OA только если есть явный PDF/link,
-        # но не по одному лишь license URL от издателя.
         if pdf_url:
             return True
         return None

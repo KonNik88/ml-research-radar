@@ -39,11 +39,7 @@ def build_openalex_query(mode: str):
 
     api_key = os.getenv("OPENALEX_API_KEY")
     mailto = os.getenv("OPENALEX_MAILTO")
-
-    # Latest radar slice: свежие paper-like работы
     latest_search_query = "machine learning deep learning neural network artificial intelligence"
-
-    # Historical slice: чуть шире формулировка, чтобы собрать citation-rich корпус
     historical_search_query = (
         "machine learning deep learning artificial intelligence "
         "representation learning computer vision natural language processing"

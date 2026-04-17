@@ -1,4 +1,5 @@
 archive/
+artifacts/
 artifacts/reports/
 
 __pycache__/
@@ -15,6 +16,7 @@ venv/
 .pytest_cache/
 .coverage
 
+data/
 data/raw/
 data/normalized/
 data/state/
