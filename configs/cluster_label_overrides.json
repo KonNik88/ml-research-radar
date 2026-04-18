@@ -1,0 +1,42 @@
+{
+  "34": {
+    "label": "computer_vision_deep_learning",
+    "reason": "Curated as deep vision cluster based on dominant cs.CV categories and core example titles."
+  },
+  "43": {
+    "label": "bayesian_probabilistic_graphical_models",
+    "reason": "Auto label mixed probabilistic graphical modeling with search/constraint themes."
+  },
+  "27": {
+    "label": "logic_and_knowledge_representation",
+    "reason": "Logic, semantics, entailment, and ASP-style reasoning dominate this cluster."
+  },
+  "17": {
+    "label": "optimization_metaheuristics",
+    "reason": "Evolutionary, genetic, and optimization signals dominate over generic neural-network wording."
+  },
+  "32": {
+    "label": "graph_and_network_science",
+    "reason": "Graph, community, spectral, and stochastic block model terms dominate."
+  },
+  "48": {
+    "label": "classical_machine_learning_classification",
+    "reason": "Cluster is centered on classification, feature selection, SVM-style and classical ML topics."
+  },
+  "35": {
+    "label": "kernel_methods_and_classical_machine_learning",
+    "reason": "Kernel, metric learning, regression, and classical ML methods dominate."
+  },
+  "18": {
+    "label": "statistical_learning_theory",
+    "reason": "Bounds, estimation, complexity, and statistical theory signals are dominant."
+  },
+  "49": {
+    "label": "human_computer_interaction_collaborative_systems",
+    "reason": "User interaction, collaborative systems, online design, and usability themes dominate."
+  },
+  "45": {
+    "label": "bandits_and_online_learning",
+    "reason": "Bandits, regret, online learning, and feedback terms dominate."
+  }
+}

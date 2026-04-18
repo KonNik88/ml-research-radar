@@ -16,9 +16,11 @@ venv/
 .pytest_cache/
 .coverage
 
-data/
+data/arXiv_Dataset
 data/raw/
+data/datasets_release
 data/normalized/
+data/enriched
 data/state/
 data/analytics/
 
