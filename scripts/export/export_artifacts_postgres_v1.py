@@ -1,0 +1,836 @@
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import sys
+from collections import Counter
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+from urllib.parse import urlparse
+
+
+try:
+    import psycopg2 as pg_driver  # type: ignore
+except ImportError:
+    try:
+        import psycopg as pg_driver  # type: ignore
+    except ImportError as exc:
+        raise RuntimeError(
+            "Neither psycopg2 nor psycopg is installed. "
+            "Install one of them in the ml_radar environment."
+        ) from exc
+
+
+DEFAULT_ENTITIES_PATH = Path("data/enriched/artifact_links/artifact_entities_latest.jsonl")
+DEFAULT_LINKS_PATH = Path("data/enriched/artifact_links/artifact_links_latest.jsonl")
+DEFAULT_REPORT_DIR = Path("artifacts/reports/export")
+
+
+PROVIDER_SPECIFIC_TRUSTED_TYPES = {
+    "github_repository",
+    "gitlab_repository",
+    "bitbucket_repository",
+    "codeberg_repository",
+    "huggingface_model",
+    "huggingface_dataset",
+    "huggingface_space",
+    "figshare_artifact",
+    "zenodo_artifact",
+    "youtube_video",
+    "kaggle_dataset",
+}
+
+
+TRUSTED_GENERIC_FIELDS = {
+    "comment",
+    "code_links",
+    "dataset_links",
+    "model_links",
+    "repo_url",
+}
+
+
+TECHNICAL_NOISE_DOMAINS = {
+    "w3.org",
+    "www.w3.org",
+}
+
+
+BIBLIOGRAPHIC_OR_RESOLVER_DOMAINS = {
+    "arxiv.org",
+    "www.arxiv.org",
+    "doi.org",
+    "www.doi.org",
+    "dx.doi.org",
+    "openalex.org",
+    "www.openalex.org",
+    "semanticscholar.org",
+    "www.semanticscholar.org",
+    "api.semanticscholar.org",
+    "crossref.org",
+    "www.crossref.org",
+    "ncbi.nlm.nih.gov",
+    "www.ncbi.nlm.nih.gov",
+    "pubmed.ncbi.nlm.nih.gov",
+    "aclanthology.org",
+    "www.aclanthology.org",
+    "openreview.net",
+    "www.openreview.net",
+    "api.openreview.net",
+    "api2.openreview.net",
+    "portal.acm.org",
+    "dl.acm.org",
+    "acm.org",
+    "www.acm.org",
+    "springerlink.com",
+    "www.springerlink.com",
+    "link.springer.com",
+    "ieeexplore.ieee.org",
+    "proceedings.neurips.cc",
+    "papers.nips.cc",
+    "proceedings.mlr.press",
+    "openaccess.thecvf.com",
+    "hdl.handle.net",
+    "nbn-resolving.de",
+    "imstat.org",
+    "www.imstat.org",
+}
+
+def load_dotenv_file(path: Path) -> None:
+    if not path.exists():
+        return
+
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+
+        os.environ.setdefault(key, value)
+
+
+load_dotenv_file(Path(".env"))
+load_dotenv_file(Path("infra/docker/.env"))
+
+def utc_now_ts() -> str:
+    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+
+
+def utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def stable_hash(*parts: Any, length: int = 32) -> str:
+    text = "\n".join("" if p is None else str(p) for p in parts)
+    return hashlib.md5(text.encode("utf-8")).hexdigest()[:length]
+
+
+def iter_jsonl(path: Path):
+    with path.open("r", encoding="utf-8") as f:
+        for line_no, line in enumerate(f, start=1):
+            line = line.strip()
+            if not line:
+                continue
+
+            try:
+                yield json.loads(line), line_no
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"Invalid JSONL: {path} line={line_no}: {exc}") from exc
+
+
+def load_jsonl(path: Path) -> list[dict[str, Any]]:
+    return [row for row, _ in iter_jsonl(path)]
+
+
+def write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def normalize_host(host: str | None) -> str:
+    host = (host or "").lower().strip()
+    if host.startswith("www."):
+        host = host[4:]
+    return host
+
+
+def url_host(url: str | None) -> str:
+    if not url:
+        return ""
+    try:
+        return normalize_host(urlparse(url).netloc)
+    except Exception:
+        return ""
+
+
+def domain_matches(host: str, domains: set[str]) -> bool:
+    host = normalize_host(host)
+
+    for domain in domains:
+        domain = normalize_host(domain)
+        if host == domain or host.endswith("." + domain):
+            return True
+
+    return False
+
+
+def jsonb(value: Any) -> str:
+    return json.dumps(value if value is not None else {}, ensure_ascii=False)
+
+
+def get_db_config() -> dict[str, Any]:
+    return {
+        "host": os.getenv(
+            "ML_RADAR_DB_HOST",
+            os.getenv("ML_RADAR_POSTGRES_HOST", os.getenv("POSTGRES_HOST", "127.0.0.1")),
+        ),
+        "port": int(
+            os.getenv(
+                "ML_RADAR_DB_PORT",
+                os.getenv("ML_RADAR_POSTGRES_PORT", os.getenv("POSTGRES_PORT", "15432")),
+            )
+        ),
+        "dbname": os.getenv(
+            "ML_RADAR_DB_NAME",
+            os.getenv(
+                "ML_RADAR_POSTGRES_DBNAME",
+                os.getenv("POSTGRES_DB", "ml_radar"),
+            ),
+        ),
+        "user": os.getenv(
+            "ML_RADAR_DB_USER",
+            os.getenv("ML_RADAR_POSTGRES_USER", os.getenv("POSTGRES_USER", "ml_radar")),
+        ),
+        "password": os.getenv(
+            "ML_RADAR_DB_PASSWORD",
+            os.getenv(
+                "ML_RADAR_POSTGRES_PASSWORD",
+                os.getenv("POSTGRES_PASSWORD", "ml_radar"),
+            ),
+        ),
+    }
+
+
+def connect_db():
+    cfg = get_db_config()
+    return pg_driver.connect(**cfg)
+
+
+def is_trusted_observation(obs: dict[str, Any]) -> bool:
+    artifact_type = obs.get("artifact_type")
+    provider = obs.get("provider")
+    relation_type = obs.get("relation_type")
+    source_field = obs.get("source_field")
+    confidence = float(obs.get("confidence") or 0.0)
+    host = url_host(obs.get("normalized_url"))
+
+    if not obs.get("canonical_id"):
+        return False
+
+    if not obs.get("artifact_id"):
+        return False
+
+    if relation_type == "unknown":
+        return False
+
+    if domain_matches(host, TECHNICAL_NOISE_DOMAINS):
+        return False
+
+    if artifact_type in PROVIDER_SPECIFIC_TRUSTED_TYPES:
+        return confidence >= 0.65
+
+    if provider == "generic":
+        if confidence < 0.9:
+            return False
+
+        if source_field not in TRUSTED_GENERIC_FIELDS:
+            return False
+
+        if domain_matches(host, BIBLIOGRAPHIC_OR_RESOLVER_DOMAINS):
+            return False
+
+        return True
+
+    return False
+
+
+def entity_preference_score(entity: dict[str, Any]) -> tuple[int, int, str]:
+    provider = entity.get("provider")
+    artifact_type = entity.get("artifact_type") or ""
+
+    provider_score = 1
+    if provider != "generic":
+        provider_score = 2
+
+    type_score = 1
+    if artifact_type in PROVIDER_SPECIFIC_TRUSTED_TYPES:
+        type_score = 3
+    elif artifact_type.startswith("generic_code"):
+        type_score = 2
+    elif artifact_type.startswith("generic_dataset"):
+        type_score = 2
+    elif artifact_type.startswith("generic_model"):
+        type_score = 2
+
+    return provider_score, type_score, artifact_type
+
+
+def dedupe_entities_for_db(
+    entities: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], dict[str, str], list[dict[str, Any]]]:
+    by_url: dict[str, dict[str, Any]] = {}
+    artifact_id_remap: dict[str, str] = {}
+    collisions: list[dict[str, Any]] = []
+
+    for entity in entities:
+        normalized_url = entity.get("normalized_url")
+        artifact_id = entity.get("artifact_id")
+
+        if not normalized_url or not artifact_id:
+            continue
+
+        if normalized_url not in by_url:
+            by_url[normalized_url] = entity
+            artifact_id_remap[artifact_id] = artifact_id
+            continue
+
+        existing = by_url[normalized_url]
+        existing_score = entity_preference_score(existing)
+        candidate_score = entity_preference_score(entity)
+
+        if candidate_score > existing_score:
+            by_url[normalized_url] = entity
+            artifact_id_remap[existing["artifact_id"]] = artifact_id
+            artifact_id_remap[artifact_id] = artifact_id
+            collisions.append(
+                {
+                    "normalized_url": normalized_url,
+                    "kept_artifact_id": artifact_id,
+                    "replaced_artifact_id": existing.get("artifact_id"),
+                    "reason": "candidate_preferred",
+                }
+            )
+        else:
+            artifact_id_remap[artifact_id] = existing["artifact_id"]
+            collisions.append(
+                {
+                    "normalized_url": normalized_url,
+                    "kept_artifact_id": existing.get("artifact_id"),
+                    "replaced_artifact_id": artifact_id,
+                    "reason": "existing_preferred",
+                }
+            )
+
+    return list(by_url.values()), artifact_id_remap, collisions
+
+
+def remap_observations(
+    observations: list[dict[str, Any]],
+    entities_by_id: dict[str, dict[str, Any]],
+    artifact_id_remap: dict[str, str],
+) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+
+    for obs in observations:
+        obs = dict(obs)
+        old_artifact_id = obs.get("artifact_id")
+        new_artifact_id = artifact_id_remap.get(old_artifact_id, old_artifact_id)
+
+        if new_artifact_id != old_artifact_id:
+            obs["artifact_id"] = new_artifact_id
+
+            entity = entities_by_id.get(new_artifact_id)
+            if entity:
+                obs["artifact_type"] = entity.get("artifact_type")
+                obs["provider"] = entity.get("provider")
+                obs["normalized_url"] = entity.get("normalized_url")
+
+        out.append(obs)
+
+    return out
+
+
+def build_trusted_link_rows(observations: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    trusted = [obs for obs in observations if is_trusted_observation(obs)]
+
+    # One public/materialized paper-artifact link should represent:
+    # canonical paper + artifact entity + relation type.
+    #
+    # Multiple trusted observations from comment/repo_url/code_links/source/canonical
+    # are evidence for the same link and should be preserved in metadata, not create
+    # duplicate paper_artifact_links rows.
+    by_key: dict[tuple[str, str, str], dict[str, Any]] = {}
+
+    for obs in trusted:
+        canonical_id = str(obs.get("canonical_id"))
+        artifact_id = str(obs.get("artifact_id"))
+        relation_type = str(obs.get("relation_type"))
+        source_field = str(obs.get("source_field"))
+        evidence_source = f"{obs.get('source_layer') or 'unknown'}:{obs.get('source_name') or 'unknown'}"
+        confidence = float(obs.get("confidence") or 0.0)
+
+        key = (
+            canonical_id,
+            artifact_id,
+            relation_type,
+        )
+
+        evidence_item = {
+            "observation_id": obs.get("observation_id"),
+            "source_layer": obs.get("source_layer"),
+            "source_name": obs.get("source_name"),
+            "source_doc_id": obs.get("source_doc_id"),
+            "source_field": source_field,
+            "evidence_source": evidence_source,
+            "raw_url": obs.get("raw_url"),
+            "normalized_url": obs.get("normalized_url"),
+            "confidence": confidence,
+            "provider": obs.get("provider"),
+            "artifact_type": obs.get("artifact_type"),
+        }
+
+        if key not in by_key:
+            by_key[key] = {
+                "link_id": stable_hash("paper_artifact_link", canonical_id, artifact_id, relation_type),
+                "canonical_id": canonical_id,
+                "artifact_id": artifact_id,
+                "relation_type": relation_type,
+                "confidence": confidence,
+                "evidence_source": evidence_source,
+                "evidence_url": obs.get("normalized_url"),
+                "source_field": source_field,
+                "source_doc_id": obs.get("source_doc_id"),
+                "metadata": {
+                    "observation_ids": [obs.get("observation_id")],
+                    "evidence": [evidence_item],
+                    "provider": obs.get("provider"),
+                    "artifact_type": obs.get("artifact_type"),
+                    "extraction_stage": "internal_artifact_extraction_v1",
+                },
+            }
+            continue
+
+        existing = by_key[key]
+        existing["metadata"].setdefault("observation_ids", [])
+        existing["metadata"].setdefault("evidence", [])
+
+        existing["metadata"]["observation_ids"].append(obs.get("observation_id"))
+        existing["metadata"]["evidence"].append(evidence_item)
+
+        # Keep the strongest representative evidence on top-level columns.
+        if confidence > float(existing.get("confidence") or 0.0):
+            existing["confidence"] = confidence
+            existing["evidence_source"] = evidence_source
+            existing["evidence_url"] = obs.get("normalized_url")
+            existing["source_field"] = source_field
+            existing["source_doc_id"] = obs.get("source_doc_id")
+
+    return list(by_key.values())
+
+
+def truncate_artifact_tables(conn) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            TRUNCATE TABLE
+                paper_artifact_links,
+                artifact_observations,
+                artifact_entities
+            RESTART IDENTITY;
+            """
+        )
+
+
+def db_scalar(conn, sql: str) -> int:
+    with conn.cursor() as cur:
+        cur.execute(sql)
+        value = cur.fetchone()[0]
+        return int(value or 0)
+
+
+def ensure_canonical_documents_exist(conn) -> int:
+    return db_scalar(conn, "SELECT COUNT(*) FROM canonical_documents;")
+
+
+def upsert_artifact_entities(conn, entities: list[dict[str, Any]]) -> int:
+    sql = """
+    INSERT INTO artifact_entities (
+        artifact_id,
+        artifact_type,
+        provider,
+        external_id,
+        normalized_url,
+        canonical_url,
+        name,
+        owner,
+        title,
+        description,
+        license,
+        stars,
+        forks,
+        downloads,
+        likes,
+        topics,
+        tags,
+        metadata,
+        first_seen_at,
+        last_seen_at,
+        fetched_at,
+        created_at,
+        updated_at
+    )
+    VALUES (
+        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+        %s::jsonb, %s::jsonb, %s::jsonb,
+        now(), now(), %s, %s, %s
+    )
+    ON CONFLICT (artifact_id)
+    DO UPDATE SET
+        artifact_type = EXCLUDED.artifact_type,
+        provider = EXCLUDED.provider,
+        external_id = EXCLUDED.external_id,
+        normalized_url = EXCLUDED.normalized_url,
+        canonical_url = EXCLUDED.canonical_url,
+        name = COALESCE(EXCLUDED.name, artifact_entities.name),
+        owner = COALESCE(EXCLUDED.owner, artifact_entities.owner),
+        title = COALESCE(EXCLUDED.title, artifact_entities.title),
+        description = COALESCE(EXCLUDED.description, artifact_entities.description),
+        license = COALESCE(EXCLUDED.license, artifact_entities.license),
+        stars = COALESCE(EXCLUDED.stars, artifact_entities.stars),
+        forks = COALESCE(EXCLUDED.forks, artifact_entities.forks),
+        downloads = COALESCE(EXCLUDED.downloads, artifact_entities.downloads),
+        likes = COALESCE(EXCLUDED.likes, artifact_entities.likes),
+        topics = EXCLUDED.topics,
+        tags = EXCLUDED.tags,
+        metadata = artifact_entities.metadata || EXCLUDED.metadata,
+        last_seen_at = now(),
+        fetched_at = COALESCE(EXCLUDED.fetched_at, artifact_entities.fetched_at),
+        created_at = COALESCE(EXCLUDED.created_at, artifact_entities.created_at),
+        updated_at = COALESCE(EXCLUDED.updated_at, artifact_entities.updated_at);
+    """
+
+    count = 0
+    with conn.cursor() as cur:
+        for entity in entities:
+            cur.execute(
+                sql,
+                (
+                    entity.get("artifact_id"),
+                    entity.get("artifact_type"),
+                    entity.get("provider"),
+                    entity.get("external_id"),
+                    entity.get("normalized_url"),
+                    entity.get("canonical_url"),
+                    entity.get("name"),
+                    entity.get("owner"),
+                    entity.get("title"),
+                    entity.get("description"),
+                    entity.get("license"),
+                    entity.get("stars"),
+                    entity.get("forks"),
+                    entity.get("downloads"),
+                    entity.get("likes"),
+                    jsonb(entity.get("topics") or []),
+                    jsonb(entity.get("tags") or []),
+                    jsonb(entity.get("metadata") or {}),
+                    entity.get("fetched_at"),
+                    entity.get("created_at"),
+                    entity.get("updated_at"),
+                ),
+            )
+            count += 1
+
+    return count
+
+
+def upsert_artifact_observations(conn, observations: list[dict[str, Any]]) -> int:
+    sql = """
+    INSERT INTO artifact_observations (
+        observation_id,
+        artifact_id,
+        artifact_type,
+        provider,
+        raw_url,
+        normalized_url,
+        source_layer,
+        source_name,
+        source_doc_id,
+        canonical_id,
+        source_field,
+        evidence_text,
+        relation_type,
+        confidence,
+        observed_at,
+        metadata
+    )
+    VALUES (
+        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+        %s::jsonb
+    )
+    ON CONFLICT (observation_id)
+    DO UPDATE SET
+        artifact_id = EXCLUDED.artifact_id,
+        artifact_type = EXCLUDED.artifact_type,
+        provider = EXCLUDED.provider,
+        raw_url = EXCLUDED.raw_url,
+        normalized_url = EXCLUDED.normalized_url,
+        source_layer = EXCLUDED.source_layer,
+        source_name = EXCLUDED.source_name,
+        source_doc_id = EXCLUDED.source_doc_id,
+        canonical_id = EXCLUDED.canonical_id,
+        source_field = EXCLUDED.source_field,
+        evidence_text = EXCLUDED.evidence_text,
+        relation_type = EXCLUDED.relation_type,
+        confidence = EXCLUDED.confidence,
+        observed_at = EXCLUDED.observed_at,
+        metadata = artifact_observations.metadata || EXCLUDED.metadata;
+    """
+
+    count = 0
+    with conn.cursor() as cur:
+        for obs in observations:
+            cur.execute(
+                sql,
+                (
+                    obs.get("observation_id"),
+                    obs.get("artifact_id"),
+                    obs.get("artifact_type"),
+                    obs.get("provider"),
+                    obs.get("raw_url"),
+                    obs.get("normalized_url"),
+                    obs.get("source_layer"),
+                    obs.get("source_name"),
+                    obs.get("source_doc_id"),
+                    obs.get("canonical_id"),
+                    obs.get("source_field"),
+                    obs.get("evidence_text"),
+                    obs.get("relation_type"),
+                    float(obs.get("confidence") or 0.0),
+                    obs.get("observed_at") or utc_now_iso(),
+                    jsonb(obs.get("metadata") or {}),
+                ),
+            )
+            count += 1
+
+    return count
+
+
+def upsert_paper_artifact_links(conn, links: list[dict[str, Any]]) -> int:
+    sql = """
+    INSERT INTO paper_artifact_links (
+        link_id,
+        canonical_id,
+        artifact_id,
+        relation_type,
+        confidence,
+        evidence_source,
+        evidence_url,
+        source_field,
+        source_doc_id,
+        metadata,
+        created_at,
+        updated_at
+    )
+    VALUES (
+        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, now(), now()
+    )
+    ON CONFLICT ON CONSTRAINT paper_artifact_links_unique
+    DO UPDATE SET
+        confidence = GREATEST(paper_artifact_links.confidence, EXCLUDED.confidence),
+        evidence_url = COALESCE(EXCLUDED.evidence_url, paper_artifact_links.evidence_url),
+        source_doc_id = COALESCE(EXCLUDED.source_doc_id, paper_artifact_links.source_doc_id),
+        metadata = paper_artifact_links.metadata || EXCLUDED.metadata,
+        updated_at = now();
+    """
+
+    count = 0
+    with conn.cursor() as cur:
+        for link in links:
+            cur.execute(
+                sql,
+                (
+                    link.get("link_id"),
+                    link.get("canonical_id"),
+                    link.get("artifact_id"),
+                    link.get("relation_type"),
+                    float(link.get("confidence") or 0.0),
+                    link.get("evidence_source"),
+                    link.get("evidence_url"),
+                    link.get("source_field"),
+                    link.get("source_doc_id"),
+                    jsonb(link.get("metadata") or {}),
+                ),
+            )
+            count += 1
+
+    return count
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Export artifact entities, observations and trusted paper-artifact links to Postgres."
+    )
+    parser.add_argument("--entities", type=Path, default=DEFAULT_ENTITIES_PATH)
+    parser.add_argument("--links", type=Path, default=DEFAULT_LINKS_PATH)
+    parser.add_argument("--report-dir", type=Path, default=DEFAULT_REPORT_DIR)
+    parser.add_argument("--replace", action="store_true")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--require-canonical-docs", action="store_true", default=True)
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
+    run_ts = utc_now_ts()
+
+    if not args.entities.exists():
+        raise FileNotFoundError(f"Artifact entities file not found: {args.entities}")
+
+    if not args.links.exists():
+        raise FileNotFoundError(f"Artifact links file not found: {args.links}")
+
+    print(f"[INFO] Loading artifact entities: {args.entities}")
+    raw_entities = load_jsonl(args.entities)
+
+    print(f"[INFO] Loading artifact observations: {args.links}")
+    raw_observations = load_jsonl(args.links)
+
+    db_entities, artifact_id_remap, normalized_url_collisions = dedupe_entities_for_db(raw_entities)
+    entities_by_id = {
+        entity["artifact_id"]: entity
+        for entity in db_entities
+        if entity.get("artifact_id")
+    }
+
+    observations = remap_observations(
+        raw_observations,
+        entities_by_id=entities_by_id,
+        artifact_id_remap=artifact_id_remap,
+    )
+
+    trusted_links = build_trusted_link_rows(observations)
+
+    by_provider_entities = Counter(e.get("provider") for e in db_entities)
+    by_provider_observations = Counter(o.get("provider") for o in observations)
+    by_relation_observations = Counter(o.get("relation_type") for o in observations)
+
+    print(f"[INFO] raw_entities={len(raw_entities)}")
+    print(f"[INFO] db_entities={len(db_entities)}")
+    print(f"[INFO] observations={len(observations)}")
+    print(f"[INFO] trusted_paper_artifact_links={len(trusted_links)}")
+    print(f"[INFO] normalized_url_collisions={len(normalized_url_collisions)}")
+
+    report: dict[str, Any] = {
+        "report_name": "export_artifacts_postgres_v1",
+        "generated_at_utc": utc_now_iso(),
+        "run_ts": run_ts,
+        "entities_path": str(args.entities).replace("\\", "/"),
+        "links_path": str(args.links).replace("\\", "/"),
+        "dry_run": args.dry_run,
+        "replace": args.replace,
+        "raw_entities_count": len(raw_entities),
+        "db_entities_count": len(db_entities),
+        "observations_count": len(observations),
+        "trusted_paper_artifact_links_count": len(trusted_links),
+        "normalized_url_collisions_count": len(normalized_url_collisions),
+        "normalized_url_collisions_sample": normalized_url_collisions[:30],
+        "by_provider_entities": dict(sorted(by_provider_entities.items())),
+        "by_provider_observations": dict(sorted(by_provider_observations.items())),
+        "by_relation_observations": dict(sorted(by_relation_observations.items())),
+        "db": {
+            "host": get_db_config()["host"],
+            "port": get_db_config()["port"],
+            "dbname": get_db_config()["dbname"],
+            "user": get_db_config()["user"],
+        },
+        "ok": False,
+    }
+
+    if args.dry_run:
+        report["ok"] = True
+        report["message"] = "Dry run completed; no DB writes performed."
+        write_export_reports(args.report_dir, report)
+        print("[OK] dry-run completed")
+        return
+
+    conn = connect_db()
+
+    try:
+        canonical_count = ensure_canonical_documents_exist(conn)
+        report["canonical_documents_count_before"] = canonical_count
+
+        if args.require_canonical_docs and canonical_count == 0:
+            raise RuntimeError(
+                "canonical_documents table is empty. "
+                "Run scripts.export.export_postgres_v1 before exporting artifact links."
+            )
+
+        if args.replace:
+            print("[INFO] Replacing artifact tables...")
+            truncate_artifact_tables(conn)
+
+        print("[INFO] Upserting artifact_entities...")
+        upserted_entities = upsert_artifact_entities(conn, db_entities)
+
+        print("[INFO] Upserting artifact_observations...")
+        upserted_observations = upsert_artifact_observations(conn, observations)
+
+        print("[INFO] Upserting paper_artifact_links...")
+        upserted_links = upsert_paper_artifact_links(conn, trusted_links)
+
+        conn.commit()
+
+        report.update(
+            {
+                "upserted_entities": upserted_entities,
+                "upserted_observations": upserted_observations,
+                "upserted_paper_artifact_links": upserted_links,
+                "artifact_entities_db_count": db_scalar(conn, "SELECT COUNT(*) FROM artifact_entities;"),
+                "artifact_observations_db_count": db_scalar(conn, "SELECT COUNT(*) FROM artifact_observations;"),
+                "paper_artifact_links_db_count": db_scalar(conn, "SELECT COUNT(*) FROM paper_artifact_links;"),
+                "canonical_documents_count_after": db_scalar(conn, "SELECT COUNT(*) FROM canonical_documents;"),
+                "ok": True,
+            }
+        )
+
+    except Exception as exc:
+        conn.rollback()
+        report["ok"] = False
+        report["error"] = repr(exc)
+        write_export_reports(args.report_dir, report)
+        raise
+
+    finally:
+        conn.close()
+
+    write_export_reports(args.report_dir, report)
+
+    print(f"[OK] upserted_entities={report['upserted_entities']}")
+    print(f"[OK] upserted_observations={report['upserted_observations']}")
+    print(f"[OK] upserted_paper_artifact_links={report['upserted_paper_artifact_links']}")
+    print(f"[OK] artifact_entities_db_count={report['artifact_entities_db_count']}")
+    print(f"[OK] artifact_observations_db_count={report['artifact_observations_db_count']}")
+    print(f"[OK] paper_artifact_links_db_count={report['paper_artifact_links_db_count']}")
+    print(f"[OK] report JSON: {args.report_dir / 'export_artifacts_postgres_v1_latest.json'}")
+
+
+def write_export_reports(report_dir: Path, report: dict[str, Any]) -> None:
+    history_dir = report_dir / "history"
+    run_ts = report["run_ts"]
+
+    latest_json = report_dir / "export_artifacts_postgres_v1_latest.json"
+    history_json = history_dir / f"export_artifacts_postgres_v1_{run_ts}.json"
+
+    write_json(latest_json, report)
+    write_json(history_json, report)
+
+
+if __name__ == "__main__":
+    main()

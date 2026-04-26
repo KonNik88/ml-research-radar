@@ -229,17 +229,17 @@ def audit_canonical(rows: list[dict[str, Any]]) -> dict[str, Any]:
             p["duplicated_exact_source_entries"] = duplicated_exact_keys
             add_issue(errors, "duplicate_exact_provenance_entries", p)
 
-        # ---- WARNINGS: suspicious but may be legitimate under current semantics ----
-        if len(source_ids_keys) > 1 and unique_provenance_count <= 1:
-            add_issue(warnings, "single_provenance_family_but_multi_family_identifier_map", payload)
-
-        if row.get("arxiv_id") and "arxiv" not in unique_provenance_sources:
-            add_issue(warnings, "arxiv_identifier_without_arxiv_provenance", payload)
-
+        # ---- WARNINGS: suspicious and still worth surfacing ----
         if row.get("openalex_id") and "openalex" not in unique_provenance_sources:
             add_issue(warnings, "openalex_identifier_without_openalex_provenance", payload)
 
-        # ---- INFO: expected under current design, but useful diagnostics ----
+        # ---- INFO: expected under current design / source asymmetry ----
+        if len(source_ids_keys) > 1 and unique_provenance_count <= 1:
+            add_issue(info, "single_provenance_family_but_multi_family_identifier_map", payload)
+
+        if row.get("arxiv_id") and "arxiv" not in unique_provenance_sources:
+            add_issue(info, "arxiv_identifier_without_arxiv_provenance", payload)
+
         if doc_ids_len < sources_len:
             add_issue(info, "doc_ids_shorter_than_sources", payload)
 

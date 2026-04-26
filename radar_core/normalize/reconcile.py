@@ -47,7 +47,6 @@ SOURCE_PRIORITY_LICENSE = {
 }
 
 SOURCE_PRIORITY_ARTIFACTS = {
-    "paperswithcode": 100,
     "arxiv": 80,
     "openalex": 60,
     "semantic_scholar": 50,

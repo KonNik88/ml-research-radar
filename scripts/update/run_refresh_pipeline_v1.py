@@ -20,12 +20,24 @@ STEP_ORDER = [
     "candidate_provenance_audit",
     "promote_candidate",
     "export_postgres",
+    "extract_artifacts",
+    "artifact_quality_check",
+    "export_artifacts_postgres",
+    "artifact_db_smoke",
     "rebuild_retrieval",
     "retrieval_checks",
     "postpass_audit",
     "known_issues",
     "dod_check",
 ]
+
+
+ARTIFACT_STEPS = {
+    "extract_artifacts",
+    "artifact_quality_check",
+    "export_artifacts_postgres",
+    "artifact_db_smoke",
+}
 
 
 def utc_now_ts() -> str:
@@ -106,6 +118,7 @@ def summarize_canonical(path: Path) -> dict[str, Any] | None:
             line = line.strip()
             if not line:
                 continue
+
             payload = json.loads(line)
             doc_count += 1
 
@@ -237,6 +250,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Forward --require-known-issues to DoD check.",
     )
     parser.add_argument(
+        "--require-artifacts",
+        action="store_true",
+        help=(
+            "Run artifact stages and forward --require-artifacts to DoD. "
+            "Without this flag, artifact stages are planned but disabled."
+        ),
+    )
+    parser.add_argument(
         "--execute",
         action="store_true",
         help="Actually execute the pipeline. Without this flag, dry-run only.",
@@ -244,13 +265,33 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def step_enabled(step_name: str, stop_after: str) -> bool:
-    return STEP_ORDER.index(step_name) <= STEP_ORDER.index(stop_after)
+def step_enabled(step_name: str, stop_after: str, include_artifacts: bool) -> bool:
+    if STEP_ORDER.index(step_name) > STEP_ORDER.index(stop_after):
+        return False
+
+    if step_name in ARTIFACT_STEPS and not include_artifacts:
+        return False
+
+    return True
+
+
+def step_reason(step_name: str, stop_after: str, include_artifacts: bool, execute: bool) -> str:
+    if STEP_ORDER.index(step_name) > STEP_ORDER.index(stop_after):
+        return f"Excluded because stop-after={stop_after}"
+
+    if step_name in ARTIFACT_STEPS and not include_artifacts:
+        return "Artifact stage disabled because --require-artifacts was not provided"
+
+    if not execute:
+        return "Dry-run mode only"
+
+    return "Included in execute run"
 
 
 def main() -> None:
     args = build_parser().parse_args()
     run_ts = utc_now_ts()
+    include_artifacts = bool(args.require_artifacts)
 
     candidate_path = (
         args.candidate_path
@@ -287,6 +328,33 @@ def main() -> None:
         promote_cmd.append("--execute")
 
     export_cmd = [sys.executable, "-m", "scripts.export.export_postgres_v1"]
+
+    extract_artifacts_cmd = [
+        sys.executable,
+        "-m",
+        "scripts.enrich.extract_artifact_links",
+    ]
+
+    artifact_quality_cmd = [
+        sys.executable,
+        "-m",
+        "scripts.validation.check_artifact_links_quality",
+        "--strict",
+    ]
+
+    export_artifacts_cmd = [
+        sys.executable,
+        "-m",
+        "scripts.export.export_artifacts_postgres_v1",
+        "--replace",
+    ]
+
+    artifact_db_smoke_cmd = [
+        sys.executable,
+        "-m",
+        "scripts.export.test_artifact_db_read",
+    ]
+
     rebuild_cmd = [sys.executable, "-m", "scripts.retrieval.build_indexes"]
     retrieval_checks_cmd = [sys.executable, "-m", "scripts.validation.run_retrieval_checks"]
     postpass_audit_cmd = [sys.executable, "-m", "scripts.validation.run_postpass_audit"]
@@ -295,12 +363,18 @@ def main() -> None:
     dod_cmd = [sys.executable, "-m", "scripts.update.check_refresh_definition_of_done"]
     if args.require_known_issues:
         dod_cmd.append("--require-known-issues")
+    if args.require_artifacts:
+        dod_cmd.append("--require-artifacts")
 
     step_cmds = {
         "reconcile_candidate": reconcile_cmd,
         "candidate_provenance_audit": candidate_provenance_cmd,
         "promote_candidate": promote_cmd,
         "export_postgres": export_cmd,
+        "extract_artifacts": extract_artifacts_cmd,
+        "artifact_quality_check": artifact_quality_cmd,
+        "export_artifacts_postgres": export_artifacts_cmd,
+        "artifact_db_smoke": artifact_db_smoke_cmd,
         "rebuild_retrieval": rebuild_cmd,
         "retrieval_checks": retrieval_checks_cmd,
         "postpass_audit": postpass_audit_cmd,
@@ -310,20 +384,23 @@ def main() -> None:
 
     planned_steps = []
     for step_name in STEP_ORDER:
-        enabled = step_enabled(step_name, args.stop_after)
+        enabled = step_enabled(
+            step_name=step_name,
+            stop_after=args.stop_after,
+            include_artifacts=include_artifacts,
+        )
         will_run = bool(args.execute and enabled)
-        if not enabled:
-            reason = f"Excluded because stop-after={args.stop_after}"
-        elif not args.execute:
-            reason = "Dry-run mode only"
-        else:
-            reason = "Included in execute run"
         planned_steps.append(
             {
                 "name": step_name,
                 "enabled": enabled,
                 "will_run": will_run,
-                "reason": reason,
+                "reason": step_reason(
+                    step_name=step_name,
+                    stop_after=args.stop_after,
+                    include_artifacts=include_artifacts,
+                    execute=args.execute,
+                ),
                 "cmd": " ".join(step_cmds[step_name]),
             }
         )
@@ -333,7 +410,12 @@ def main() -> None:
 
     if args.execute:
         for step_name in STEP_ORDER:
-            if not step_enabled(step_name, args.stop_after):
+            enabled = step_enabled(
+                step_name=step_name,
+                stop_after=args.stop_after,
+                include_artifacts=include_artifacts,
+            )
+            if not enabled:
                 continue
 
             result = run_step(step_name, step_cmds[step_name])
@@ -366,6 +448,8 @@ def main() -> None:
             "validation_dir": normalize_path(args.validation_dir),
             "merge_reports": args.merge_report or [],
             "require_known_issues": bool(args.require_known_issues),
+            "require_artifacts": bool(args.require_artifacts),
+            "include_artifact_stages": include_artifacts,
         },
         "candidate": {
             "path": normalize_path(candidate_path),
@@ -389,6 +473,8 @@ def main() -> None:
 
     print(f"[OK] mode={report['mode']}")
     print(f"[OK] stop_after={report['stop_after']}")
+    print(f"[OK] require_artifacts={report['inputs']['require_artifacts']}")
+    print(f"[OK] include_artifact_stages={report['inputs']['include_artifact_stages']}")
     print(f"[OK] candidate_path={normalize_path(candidate_path)}")
     if candidate_summary:
         print(f"[OK] candidate_doc_count={candidate_summary['doc_count']}")

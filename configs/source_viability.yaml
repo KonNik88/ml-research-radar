@@ -1,0 +1,196 @@
+version: 1
+
+defaults:
+  timeout_sec: 45
+  retry_count: 2
+  retry_sleep_sec: 2
+  user_agent: "ML-Research-Radar/0.2 source-viability-check"
+  max_preview_chars: 500
+
+sources:
+  github:
+    enabled: true
+    source_type: artifact
+    status: candidate
+    access_mode: rest_api
+    auth:
+      token_env: GITHUB_TOKEN
+      header: Authorization
+      scheme: Bearer
+    notes: "Artifact source for repositories, code links, topics, stars, releases. Not a paper source."
+    checks:
+      - name: api_root
+        required: true
+        method: GET
+        url: "https://api.github.com"
+        expect:
+          status_code: 200
+          json_path_exists: "current_user_url"
+
+      - name: repository_search_smoke
+        required: true
+        method: GET
+        url: "https://api.github.com/search/repositories?q=machine+learning&per_page=5"
+        expect:
+          status_code: 200
+          json_path_exists: "items"
+          min_items_path: "items"
+          min_items: 1
+
+      - name: paper_artifact_match_probe
+        required: false
+        method: GET
+        url: "https://api.github.com/search/repositories?q=1511.05493&per_page=5"
+        expect:
+          status_code: 200
+          json_path_exists: "items"
+
+  huggingface_hub:
+    enabled: true
+    source_type: artifact
+    status: candidate
+    access_mode: rest_api_or_python_client
+    auth:
+      token_env: HF_TOKEN
+      header: Authorization
+      scheme: Bearer
+    notes: "Artifact ecosystem for models, datasets, spaces, model cards and dataset cards. Not paper truth."
+    checks:
+      - name: models_search_smoke
+        required: true
+        method: GET
+        url: "https://huggingface.co/api/models?search=graph%20neural%20networks&limit=5"
+        expect:
+          status_code: 200
+          root_type: list
+          min_items: 1
+
+      - name: datasets_search_smoke
+        required: false
+        method: GET
+        url: "https://huggingface.co/api/datasets?search=machine%20learning&limit=5"
+        expect:
+          status_code: 200
+          root_type: list
+
+  openreview:
+    enabled: true
+    source_type: paper
+    status: candidate
+    access_mode: api_v2_or_python_client
+    auth:
+      token_env: OPENREVIEW_TOKEN
+    notes: "Paper source for ML conferences. API v2 is preferred; old venues may need legacy API handling. If REST checks are flaky, use Python-client viability later."
+    checks:
+      - name: api2_group_smoke
+        required: true
+        method: GET
+        url: "https://api2.openreview.net/groups?id=ICLR.cc/2024/Conference"
+        expect:
+          status_code: 200
+
+      - name: api2_iclr_2024_notes_probe
+        required: false
+        method: GET
+        url: "https://api2.openreview.net/notes?invitation=ICLR.cc/2024/Conference/-/Submission&limit=5"
+        expect:
+          status_code: 200
+          json_path_exists: "notes"
+
+  acl_anthology:
+    enabled: true
+    source_type: paper
+    status: candidate
+    access_mode: bulk_metadata
+    auth: {}
+    notes: "NLP/domain paper source. Prefer bulk metadata from ACL Anthology repository or official bulk citation exports."
+    checks:
+      - name: metadata_repository_xml_dir
+        required: true
+        method: GET
+        url: "https://api.github.com/repos/acl-org/acl-anthology/contents/data/xml"
+        expect:
+          status_code: 200
+          root_type: list
+          min_items: 1
+
+      - name: acl_xml_file_api_probe
+        required: false
+        method: GET
+        url: "https://api.github.com/repos/acl-org/acl-anthology/contents/data/xml/1998.coling.xml"
+        expect:
+          status_code: 200
+          json_path_exists: "download_url"
+
+  pubmed:
+    enabled: true
+    source_type: paper
+    status: candidate
+    access_mode: ncbi_eutilities
+    auth:
+      token_env: NCBI_API_KEY
+      query_param: api_key
+    notes: "Biomedical/domain expansion source. PubMed identity is PMID-first, DOI where available. NCBI API key is optional for low-rate checks."
+    checks:
+      - name: einfo_json_smoke
+        required: true
+        method: GET
+        url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/einfo.fcgi?db=pubmed&retmode=json&tool=MLResearchRadar"
+        expect:
+          status_code: 200
+          json_path_exists: "einforesult"
+
+      - name: esearch_json_probe
+        required: false
+        method: GET
+        url: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=machine%20learning&retmode=json&retmax=5&tool=MLResearchRadar"
+        expect:
+          status_code: 200
+          json_path_exists: "esearchresult.idlist"
+          min_items_path: "esearchresult.idlist"
+          min_items: 1
+
+  biorxiv:
+    enabled: true
+    source_type: paper
+    status: candidate
+    access_mode: public_api
+    auth: {}
+    notes: "Biomedical preprint source. Domain expansion, not core ML source."
+    checks:
+      - name: details_json_known_range
+        required: true
+        method: GET
+        url: "https://api.biorxiv.org/details/biorxiv/2024-01-01/2024-01-07/0/json"
+        expect:
+          status_code: 200
+          json_path_exists: "collection"
+          min_items_path: "collection"
+          min_items: 1
+
+  medrxiv:
+    enabled: true
+    source_type: paper
+    status: candidate
+    access_mode: public_api
+    auth: {}
+    notes: "Medical preprint source. Domain expansion, not core ML source."
+    checks:
+      - name: details_json_known_range
+        required: true
+        method: GET
+        url: "https://api.medrxiv.org/details/medrxiv/2020-03-21/2020-03-24/0/json"
+        expect:
+          status_code: 200
+          json_path_exists: "collection"
+          min_items_path: "collection"
+          min_items: 1
+
+  paperswithcode:
+    enabled: false
+    source_type: artifact
+    status: blocked
+    access_mode: archived_only
+    auth: {}
+    notes: "Live integration blocked. Upstream live path did not provide usable JSON. Future option: offline historical backfill only."
+    checks: []

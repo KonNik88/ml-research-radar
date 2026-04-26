@@ -11,6 +11,8 @@ from services.api.logging import get_logger
 from services.api.runtime import get_runtime
 from services.api.schemas import (
     ApiInfoResponse,
+    ArtifactListResponse,
+    DocumentArtifactsResponse,
     DocumentListResponse,
     ErrorResponse,
     HealthResponse,
@@ -194,7 +196,7 @@ def search(
     publication_type: str | None = Query(None, description="Publication type filter, e.g. article/preprint"),
     venue: str | None = Query(None, description="Venue/journal/conference/publisher filter"),
     open_access: bool | None = Query(None, description="Open access filter"),
-    has_code_link: bool | None = Query(None, description="Filter by presence of code link"),
+    has_code_link: bool | None = Query(None, description="Filter by presence of legacy canonical code link"),
     offset: int = Query(0, ge=0),
     sort_by: Literal["relevance", "year_desc", "year_asc"] = Query("relevance"),
 ) -> SearchResponse:
@@ -242,7 +244,38 @@ def list_documents(
     publication_type: str | None = Query(None),
     venue: str | None = Query(None),
     open_access: bool | None = Query(None),
-    has_code_link: bool | None = Query(None),
+    has_code_link: bool | None = Query(
+        None,
+        description="Legacy canonical/source-layer code link flag. Does not use artifact layer.",
+    ),
+    has_trusted_artifact: bool | None = Query(
+        None,
+        description="Filter by any trusted paper-artifact link.",
+    ),
+    has_trusted_code_artifact: bool | None = Query(
+        None,
+        description="Filter by trusted code artifact link.",
+    ),
+    has_trusted_dataset_artifact: bool | None = Query(
+        None,
+        description="Filter by trusted dataset artifact link.",
+    ),
+    has_trusted_model_artifact: bool | None = Query(
+        None,
+        description="Filter by trusted model artifact link.",
+    ),
+    has_trusted_demo_artifact: bool | None = Query(
+        None,
+        description="Filter by trusted demo/video/project artifact link.",
+    ),
+    artifact_provider: str | None = Query(
+        None,
+        description="Filter documents by trusted artifact provider, e.g. github/figshare/zenodo.",
+    ),
+    artifact_type: str | None = Query(
+        None,
+        description="Filter documents by trusted artifact type, e.g. github_repository.",
+    ),
     sort_by: Literal["year_desc", "year_asc", "title_asc"] = Query("year_desc"),
 ) -> DocumentListResponse:
     runtime = get_runtime()
@@ -265,6 +298,13 @@ def list_documents(
         venue=venue,
         is_open_access=open_access,
         has_code_link=has_code_link,
+        has_trusted_artifact=has_trusted_artifact,
+        has_trusted_code_artifact=has_trusted_code_artifact,
+        has_trusted_dataset_artifact=has_trusted_dataset_artifact,
+        has_trusted_model_artifact=has_trusted_model_artifact,
+        has_trusted_demo_artifact=has_trusted_demo_artifact,
+        artifact_provider=artifact_provider,
+        artifact_type=artifact_type,
         limit=limit,
         offset=offset,
         sort_by=sort_by,
@@ -280,6 +320,13 @@ def list_documents(
         venue=venue,
         is_open_access=open_access,
         has_code_link=has_code_link,
+        has_trusted_artifact=has_trusted_artifact,
+        has_trusted_code_artifact=has_trusted_code_artifact,
+        has_trusted_dataset_artifact=has_trusted_dataset_artifact,
+        has_trusted_model_artifact=has_trusted_model_artifact,
+        has_trusted_demo_artifact=has_trusted_demo_artifact,
+        artifact_provider=artifact_provider,
+        artifact_type=artifact_type,
     )
 
     return DocumentListResponse(
@@ -288,4 +335,105 @@ def list_documents(
         limit=limit,
         sort_by=sort_by,
         results=[db_row_to_schema(row) for row in rows],
+    )
+
+
+@app.get("/artifacts", response_model=ArtifactListResponse)
+def list_artifacts(
+    provider: str | None = Query(None, description="Artifact provider, e.g. github/figshare/zenodo"),
+    artifact_type: str | None = Query(None, description="Artifact type, e.g. github_repository"),
+    relation_type: str | None = Query(None, description="Trusted paper-artifact relation, e.g. code/dataset/model/demo"),
+    owner: str | None = Query(None, description="Artifact owner/namespace when available"),
+    min_confidence: float | None = Query(None, ge=0.0, le=1.0),
+    has_paper_links: bool | None = Query(None, description="Filter artifacts by trusted paper links presence"),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    sort_by: Literal[
+        "linked_papers_desc",
+        "provider_asc",
+        "type_asc",
+        "owner_asc",
+        "last_seen_desc",
+    ] = Query("linked_papers_desc"),
+) -> ArtifactListResponse:
+    runtime = get_runtime()
+    if not runtime.is_ready():
+        raise RuntimeError("Runtime is not ready")
+
+    if runtime.db_store is None:
+        raise RuntimeError("DB backend is not enabled")
+
+    rows = runtime.db_store.list_artifacts(
+        provider=provider,
+        artifact_type=artifact_type,
+        relation_type=relation_type,
+        owner=owner,
+        min_confidence=min_confidence,
+        has_paper_links=has_paper_links,
+        limit=limit,
+        offset=offset,
+        sort_by=sort_by,
+    )
+
+    total = runtime.db_store.count_artifacts(
+        provider=provider,
+        artifact_type=artifact_type,
+        relation_type=relation_type,
+        owner=owner,
+        min_confidence=min_confidence,
+        has_paper_links=has_paper_links,
+    )
+
+    return ArtifactListResponse(
+        total=total,
+        offset=offset,
+        limit=limit,
+        sort_by=sort_by,
+        results=rows,
+    )
+
+
+@app.get("/documents/{canonical_id}/artifacts", response_model=DocumentArtifactsResponse)
+def get_document_artifacts(
+    canonical_id: str,
+    relation_type: str | None = Query(None, description="Trusted relation filter, e.g. code/dataset/model/demo"),
+    provider: str | None = Query(None, description="Artifact provider filter"),
+    artifact_type: str | None = Query(None, description="Artifact type filter"),
+    min_confidence: float | None = Query(None, ge=0.0, le=1.0),
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+) -> DocumentArtifactsResponse:
+    runtime = get_runtime()
+    if not runtime.is_ready():
+        raise RuntimeError("Runtime is not ready")
+
+    if runtime.db_store is None:
+        raise RuntimeError("DB backend is not enabled")
+
+    document = runtime.db_store.get_document_by_id(canonical_id)
+    if document is None:
+        raise HTTPException(status_code=404, detail=f"Document not found: {canonical_id}")
+
+    rows = runtime.db_store.get_document_artifacts(
+        canonical_id=canonical_id,
+        relation_type=relation_type,
+        provider=provider,
+        artifact_type=artifact_type,
+        min_confidence=min_confidence,
+        limit=limit,
+        offset=offset,
+    )
+
+    total = runtime.db_store.count_document_artifacts(
+        canonical_id=canonical_id,
+        relation_type=relation_type,
+        provider=provider,
+        artifact_type=artifact_type,
+        min_confidence=min_confidence,
+    )
+
+    return DocumentArtifactsResponse(
+        canonical_id=canonical_id,
+        total=total,
+        results=rows,
     )

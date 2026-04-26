@@ -1,0 +1,199 @@
+version: 1
+
+inputs:
+  canonical_path: "data/analytics/reconciled/canonical_documents.jsonl"
+  normalized_dir: "data/normalized"
+
+  # Stable source families used by the current green 4-source paper baseline.
+  source_dirs:
+    - arxiv
+    - openalex_alignment
+    - semantic_scholar_alignment
+    - crossref_alignment
+
+  # Explicit snapshots for reproducible artifact extraction.
+  # This prevents accidental selection of derivative files like:
+  # documents.*.updated.jsonl / documents.*.unchanged.jsonl
+  source_files:
+    arxiv: "data/normalized/arxiv/documents.20260404T161108Z.jsonl"
+    openalex_alignment: "data/normalized/openalex_alignment/documents.20260412T162220Z.jsonl"
+    semantic_scholar_alignment: "data/normalized/semantic_scholar_alignment/documents.20260412T162234Z.jsonl"
+    crossref_alignment: "data/normalized/crossref_alignment/documents.20260412T162249Z.jsonl"
+
+outputs:
+  enriched_dir: "data/enriched/artifact_links"
+  reports_dir: "artifacts/reports/validation"
+
+url_extraction:
+  max_urls_per_document: 50
+
+  # Important:
+  # We intentionally do NOT extract from pdf_url / landing_page_url / canonical_url
+  # because those fields mostly contain paper/full-text/bibliographic URLs rather than artifacts.
+  include_fields:
+    canonical:
+      - abstract
+      - comment
+      - repo_url
+      - code_links
+      - dataset_links
+      - model_links
+      - external_urls
+      - metadata
+
+    source:
+      - abstract
+      - comment
+      - repo_url
+      - code_links
+      - dataset_links
+      - model_links
+      - external_urls
+      - metadata
+
+artifact_types:
+  github_repository:
+    provider: github
+    url_patterns:
+      - "github.com/{owner}/{repo}"
+    confidence_base: 0.85
+
+  gitlab_repository:
+    provider: gitlab
+    url_patterns:
+      - "gitlab.com/{owner}/{repo}"
+    confidence_base: 0.80
+
+  bitbucket_repository:
+    provider: bitbucket
+    url_patterns:
+      - "bitbucket.org/{owner}/{repo}"
+    confidence_base: 0.75
+
+  codeberg_repository:
+    provider: codeberg
+    url_patterns:
+      - "codeberg.org/{owner}/{repo}"
+    confidence_base: 0.75
+
+  huggingface_model:
+    provider: huggingface
+    url_patterns:
+      - "huggingface.co/{namespace}/{name}"
+    confidence_base: 0.75
+
+  huggingface_dataset:
+    provider: huggingface
+    url_patterns:
+      - "huggingface.co/datasets/{namespace}/{name}"
+    confidence_base: 0.85
+
+  huggingface_space:
+    provider: huggingface
+    url_patterns:
+      - "huggingface.co/spaces/{namespace}/{name}"
+    confidence_base: 0.85
+
+  kaggle_dataset:
+    provider: kaggle
+    url_patterns:
+      - "kaggle.com/datasets/{owner}/{dataset}"
+    confidence_base: 0.75
+
+  zenodo_artifact:
+    provider: zenodo
+    url_patterns:
+      - "zenodo.org/records/{record_id}"
+      - "zenodo.org/record/{record_id}"
+    confidence_base: 0.70
+
+  figshare_artifact:
+    provider: figshare
+    url_patterns:
+      - "figshare.com"
+    confidence_base: 0.65
+
+  youtube_video:
+    provider: youtube
+    url_patterns:
+      - "youtube.com/watch?v={video_id}"
+      - "youtu.be/{video_id}"
+    confidence_base: 0.70
+
+  generic_code_url:
+    provider: generic
+    url_patterns: []
+    confidence_base: 0.50
+
+  generic_dataset_url:
+    provider: generic
+    url_patterns: []
+    confidence_base: 0.50
+
+  generic_model_url:
+    provider: generic
+    url_patterns: []
+    confidence_base: 0.50
+
+  generic_artifact_url:
+    provider: generic
+    url_patterns: []
+    confidence_base: 0.50
+
+relation_keywords:
+  code:
+    - code
+    - source code
+    - implementation
+    - github
+    - repository
+    - repo
+    - software
+    - matlab code
+    - python code
+    - package
+    - toolkit
+    - library
+
+  dataset:
+    - dataset
+    - data set
+    - benchmark data
+    - data repository
+    - corpus
+    - supplementary data
+    - supplementary dataset
+    - data produced
+    - data are available
+    - data available
+    - data for this analysis
+
+  model:
+    - model
+    - checkpoint
+    - pretrained
+    - pre-trained
+    - weights
+    - hugging face
+    - huggingface
+
+  demo:
+    - demo
+    - app
+    - space
+    - web demo
+    - video
+    - demonstration
+    - demonstrative video
+
+confidence:
+  existing_structured_field: 1.0
+  comment_with_keyword: 0.9
+  abstract_with_keyword: 0.8
+  metadata_with_keyword: 0.7
+  generic_url: 0.5
+
+validation:
+  min_expected_total_links: 1
+  warn_if_no_github_links: true
+  warn_if_no_huggingface_links: false

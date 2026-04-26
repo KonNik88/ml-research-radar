@@ -166,3 +166,70 @@ class DocumentListResponse(BaseModel):
     limit: int
     sort_by: str
     results: list[SearchResultDocument]
+
+
+class ArtifactEntityResponse(BaseModel):
+    artifact_id: str
+    artifact_type: str
+    provider: str
+
+    external_id: str | None = None
+    normalized_url: str
+    canonical_url: str
+
+    name: str | None = None
+    owner: str | None = None
+    title: str | None = None
+    description: str | None = None
+    license: str | None = None
+
+    stars: int | None = None
+    forks: int | None = None
+    downloads: int | None = None
+    likes: int | None = None
+
+    topics: list[Any] = Field(default_factory=list)
+    tags: list[Any] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    first_seen_at: str | None = None
+    last_seen_at: str | None = None
+    fetched_at: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+
+    linked_papers_count: int | None = None
+    relation_types: list[str] = Field(default_factory=list)
+
+
+class PaperArtifactLinkResponse(BaseModel):
+    link_id: str
+    canonical_id: str
+    artifact_id: str
+    relation_type: str
+    confidence: float = 0.0
+
+    evidence_source: str | None = None
+    evidence_url: str | None = None
+    source_field: str | None = None
+    source_doc_id: str | None = None
+
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: str | None = None
+    updated_at: str | None = None
+
+    artifact: ArtifactEntityResponse
+
+
+class ArtifactListResponse(BaseModel):
+    total: int
+    offset: int
+    limit: int
+    sort_by: str
+    results: list[ArtifactEntityResponse]
+
+
+class DocumentArtifactsResponse(BaseModel):
+    canonical_id: str
+    total: int
+    results: list[PaperArtifactLinkResponse]
