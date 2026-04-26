@@ -39,9 +39,15 @@ Current stable paper sources:
 - `semantic_scholar_alignment`
 - `crossref_alignment`
 
-Current operational source of truth:
+Current operational paper source of truth:
 
-- `data/analytics/reconciled/canonical_documents.jsonl`
+```text
+data/analytics/reconciled/canonical_documents.jsonl
+```
+
+Important principle:
+
+The canonical JSONL corpus remains the paper-level source of truth.
 
 ---
 
@@ -216,6 +222,138 @@ Current baseline:
 
 ---
 
+## 1.9 Artifact Layer v1
+
+Completed:
+
+- internal artifact URL extraction from existing canonical/source documents
+- URL normalization
+- artifact classification
+- `artifact_entities_latest.jsonl`
+- `artifact_links_latest.jsonl`
+- artifact quality report
+- separate SQL schema for artifact entities, observations and trusted paper-artifact links
+- Postgres artifact export
+- artifact DB smoke check
+- artifact checks in refresh Definition of Done
+- refresh pipeline artifact stages
+- DB-backed artifact API:
+  - `GET /artifacts`
+  - `GET /documents/{canonical_id}/artifacts`
+  - `GET /documents` trusted artifact filters
+- integration tests for artifact API and document artifact filters
+
+Status:
+
+- done
+
+Current artifact baseline:
+
+```text
+artifact_entities = 491
+artifact_observations = 1646
+paper_artifact_links = 492
+linked_canonical_documents = 451
+linked_artifact_entities = 482
+```
+
+Current provider distribution:
+
+```text
+generic   196
+figshare  113
+github    113
+zenodo     32
+youtube    28
+bitbucket   9
+```
+
+Important principle:
+
+Artifact Layer v1 is a separate evidence/materialization plane.
+
+It does not modify canonical paper truth.
+
+---
+
+## 1.10 GitHub Artifact Enrichment v1
+
+Completed:
+
+- snapshot enrichment over existing GitHub `artifact_entities`
+- default input from:
+
+```text
+data/enriched/artifact_links/artifact_entities_latest.jsonl
+```
+
+- GitHub REST API fetch for repository metadata
+- timestamped + latest enrichment outputs
+- enrichment report JSON/Markdown
+- optional GitHub metadata merge in artifact Postgres export
+- enriched GitHub metadata exposed through existing DB artifact API
+- soft integration test for GitHub enrichment API exposure
+
+Status:
+
+- done
+
+Current GitHub enrichment baseline:
+
+```text
+github_entities_total = 113
+requested_count = 113
+processed_count = 113
+found_count = 110
+not_found_count = 3
+forbidden_count = 0
+rate_limited_count = 0
+error_count = 0
+ok = true
+```
+
+Latest export baseline after GitHub metadata merge:
+
+```text
+artifact_entities_db_count = 491
+artifact_observations_db_count = 1646
+paper_artifact_links_db_count = 492
+github_metadata_rows_count = 113
+github_metadata_found_count = 110
+github_metadata_applied_count = 113
+github_metadata_found_applied_count = 110
+github_metadata_not_found_applied_count = 3
+github_metadata_missing_entity_count = 0
+```
+
+Enriched fields include:
+
+- `description`
+- `license`
+- `stars`
+- `forks`
+- `topics`
+- `fetched_at`
+- `created_at`
+- `updated_at`
+- `metadata.github.status`
+- `metadata.github.language`
+- `metadata.github.watchers`
+- `metadata.github.open_issues`
+- `metadata.github.default_branch`
+- `metadata.github.archived`
+- `metadata.github.pushed_at`
+
+Important principles:
+
+- GitHub is an artifact enrichment source, not a paper source.
+- GitHub enrichment does not alter canonical paper truth.
+- `not_found` repositories are preserved as historical artifact evidence.
+- archived repositories remain valid found artifacts.
+- GitHub enrichment is not required by base `--require-artifacts` DoD because GitHub API is a live external dependency.
+
+---
+
 ## 2. Current System State
 
 The project is currently at this point:
@@ -227,158 +365,62 @@ The project is currently at this point:
 - validation and DoD are operational
 - source viability gate exists
 - Papers with Code live source is blocked/archived
-- the next logical stage is a separate artifact/entity layer, not another paper-truth source
+- Artifact Layer v1 is operational
+- GitHub Artifact Enrichment v1 is operational
+- enriched GitHub repository metadata is visible through the DB artifact API
+- canonical paper truth remains isolated from artifact enrichment
+
+Current closed vertical slice:
+
+```text
+Artifact Layer v1
+→ GitHub Artifact Enrichment v1
+→ Postgres artifact materialization
+→ DB artifact API exposure
+→ integration tests
+→ DoD --require-artifacts green
+```
 
 ---
 
-## 3. Next Stage: Artifact Layer v1
+## 3. Next Stage: Artifact enrichment hardening / Hugging Face Hub enrichment
 
-## 3.1 Goal
+The next stage should remain within the artifact/enrichment plane.
 
-The next major goal is to add a second data plane for research artifacts:
-
-- repositories
-- code
-- models
-- datasets
-- demos
-- project pages
-- external artifact URLs
-
-This layer must be separate from the canonical paper corpus.
-
-The canonical paper corpus remains the source of truth for paper-level entities.
-
-Artifacts can be connected to papers, but they do not have to be.
+Do not jump immediately to new paper sources or RAG/full-text before closing the artifact enrichment line cleanly.
 
 ---
 
-## 3.2 Why this comes next
-
-The original source plan included GitHub because code and repositories are important product features.
-
-However, GitHub is not a paper source.
-
-After the Papers with Code live integration failed, the correct next step is not to force another artifact source into the paper reconcile layer.
-
-The correct next step is:
-
-1. build an artifact layer
-2. extract artifact URLs from existing paper/source metadata
-3. materialize artifact candidates separately
-4. validate coverage
-5. only then enrich artifact entities through GitHub / Hugging Face APIs
-
----
-
-## 3.3 Artifact Layer v1 scope
+## 3.1 Short-term hardening after GitHub enrichment
 
 Planned:
 
-- internal artifact URL extraction from existing canonical/source documents
-- URL normalization
-- artifact classification
-- candidate artifact link JSONL
-- artifact quality report
-- separate SQL schema for artifact entities and paper-artifact links
-
-Initial artifact types:
-
-- GitHub repository
-- GitLab repository
-- Bitbucket repository
-- Codeberg repository
-- Hugging Face model
-- Hugging Face dataset
-- Hugging Face Space
-- Kaggle dataset
-- Zenodo artifact
-- Figshare artifact
-- generic code URL
-- generic dataset URL
-- generic model URL
-- generic artifact URL
+- optionally add `--require-github-enrichment` to DoD
+- optionally add `--include-github-enrichment` to refresh pipeline
+- keep GitHub enrichment optional by default
+- improve export/report diagnostics if needed
+- preserve base Artifact Layer v1 operation without live GitHub API
 
 Status:
 
-- next
+- optional next
+
+Important principle:
+
+GitHub API is a live external dependency.
+
+Base artifact DoD should remain green without requiring a live GitHub request.
 
 ---
 
-## 3.4 Artifact Layer v1 non-goals
-
-Not part of v1:
-
-- GitHub API enrichment
-- Hugging Face API enrichment
-- automatic canonical paper updates
-- treating repositories as paper sources
-- merging artifact entities into canonical paper identity
-- ranking by stars/downloads
-- artifact search UI
-- artifact graph product layer
-
----
-
-## 3.5 Artifact Layer v1 expected outputs
-
-Expected files:
-
-- `docs/artifact_layer_v1.md`
-- `configs/artifact_extraction.yaml`
-- `store/sql/03_artifact_layer.sql`
-- `scripts/enrich/extract_artifact_links.py`
-- `scripts/validation/check_artifact_links_quality.py`
-
-Expected data artifacts:
-
-- `data/enriched/artifact_links/artifact_links.<timestamp>.jsonl`
-- `data/enriched/artifact_links/artifact_entities.<timestamp>.jsonl`
-- `artifacts/reports/validation/artifact_links_quality_latest.json`
-- `artifacts/reports/validation/artifact_links_quality_latest.md`
-
----
-
-## 4. After Artifact Layer v1
-
-## 4.1 GitHub enrichment
+## 3.2 Hugging Face Hub enrichment v1
 
 Planned:
 
-- enrich extracted GitHub repository URLs
-- fetch repository metadata through GitHub API
-- preserve repository entities separately
-- link repositories to papers only when evidence exists
-
-Possible fields:
-
-- owner
-- repository name
-- description
-- topics
-- stars
-- forks
-- license
-- default branch
-- created_at
-- updated_at
-- pushed_at
-- archived flag
-- disabled flag
-
-Status:
-
-- planned
-
----
-
-## 4.2 Hugging Face Hub enrichment
-
-Planned:
-
-- enrich extracted Hugging Face model/dataset/space URLs
+- enrich extracted Hugging Face model/dataset/space URLs when present
 - fetch Hub metadata through API or Python client
 - preserve models/datasets/spaces as artifact entities
+- do not treat Hugging Face Hub as a paper source
 
 Possible fields:
 
@@ -392,14 +434,41 @@ Possible fields:
 - license
 - library name
 - card metadata
+- created_at
+- last modified
 
 Status:
 
 - planned
 
+Note:
+
+The current extraction baseline did not produce Hugging Face entities, so this stage may require either future corpus expansion, source updates, or extraction-rule improvements before enrichment is meaningful.
+
 ---
 
-## 4.3 First new paper source: ACL Anthology
+## 4. New paper sources
+
+New paper sources should be integrated only after viability checks and candidate validation.
+
+The source onboarding order should remain:
+
+```text
+source viability
+→ real-data smoke
+→ source contract
+→ ingestor/alignment
+→ normalized snapshot
+→ source audit
+→ candidate reconcile impact check
+→ export
+→ validation
+→ stable integration only if safe
+```
+
+---
+
+## 4.1 First new paper source: ACL Anthology
 
 Planned:
 
@@ -425,7 +494,7 @@ Status:
 
 ---
 
-## 4.4 OpenReview candidate source
+## 4.2 OpenReview candidate source
 
 Planned:
 
@@ -441,7 +510,7 @@ Status:
 
 ---
 
-## 4.5 Biomedical/domain sources
+## 4.3 Biomedical/domain sources
 
 Planned later:
 
@@ -463,7 +532,7 @@ Status:
 
 ## 5. Medium-Scale Corpus Expansion
 
-Medium-scale corpus expansion remains important, but it should follow the artifact layer foundation.
+Medium-scale corpus expansion remains important, but it should follow the artifact layer foundation and artifact enrichment stabilization.
 
 Target direction:
 
@@ -494,9 +563,11 @@ Planned order:
 3. run aligned enrichment over DOI-covered subset
 4. rebuild canonical corpus
 5. export refreshed corpus to Postgres
-6. rebuild retrieval artifacts
-7. run audit / evaluation / performance checks
-8. compare retrieval quality against current baseline
+6. extract / validate artifacts
+7. optionally enrich artifacts
+8. rebuild retrieval artifacts
+9. run audit / evaluation / performance checks
+10. compare retrieval quality against current baseline
 
 Status:
 
@@ -566,7 +637,7 @@ Planned:
 - `/documents/{id}/references`
 - source drilldown
 - merge inspection utilities
-- paper-artifact link drilldown later
+- paper-artifact link drilldown
 
 Status:
 
@@ -638,8 +709,9 @@ Not part of the immediate next step:
 - automatic integration of all viable sources
 - GitHub/Hugging Face as paper sources
 - artifact evidence modifying canonical paper identity
+- ranking papers by GitHub stars as a canonical-quality signal
 
-The current next stage is artifact layer v1.
+The immediate next stage is artifact enrichment hardening and/or Hugging Face Hub enrichment, not another paper-truth source.
 
 ---
 

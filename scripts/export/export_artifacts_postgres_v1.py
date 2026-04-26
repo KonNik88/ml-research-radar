@@ -27,6 +27,7 @@ except ImportError:
 DEFAULT_ENTITIES_PATH = Path("data/enriched/artifact_links/artifact_entities_latest.jsonl")
 DEFAULT_LINKS_PATH = Path("data/enriched/artifact_links/artifact_links_latest.jsonl")
 DEFAULT_REPORT_DIR = Path("artifacts/reports/export")
+DEFAULT_GITHUB_METADATA_PATH = Path("data/enriched/github_artifacts/github_artifact_metadata_latest.jsonl")
 
 
 PROVIDER_SPECIFIC_TRUSTED_TYPES = {
@@ -183,6 +184,200 @@ def domain_matches(host: str, domains: set[str]) -> bool:
 
 def jsonb(value: Any) -> str:
     return json.dumps(value if value is not None else {}, ensure_ascii=False)
+
+def parse_optional_int(value: Any) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def json_object(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return dict(value)
+    return {}
+
+
+def load_github_metadata(path: Path | None) -> list[dict[str, Any]]:
+    if path is None:
+        return []
+    if not path.exists():
+        raise FileNotFoundError(f"GitHub metadata file not found: {path}")
+    return load_jsonl(path)
+
+
+def index_github_metadata(
+    rows: list[dict[str, Any]],
+) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
+    by_artifact_id: dict[str, dict[str, Any]] = {}
+    by_normalized_url: dict[str, dict[str, Any]] = {}
+
+    # Keep the last row for each key. The enrichment output should be unique,
+    # but this makes the merge robust to accidental duplicate metadata rows.
+    for row in rows:
+        if row.get("provider") != "github":
+            continue
+
+        artifact_id = row.get("artifact_id")
+        normalized_url = row.get("normalized_url")
+
+        if artifact_id:
+            by_artifact_id[str(artifact_id)] = row
+        if normalized_url:
+            by_normalized_url[str(normalized_url).rstrip("/").lower()] = row
+
+    return by_artifact_id, by_normalized_url
+
+
+def github_metadata_for_entity(
+    entity: dict[str, Any],
+    by_artifact_id: dict[str, dict[str, Any]],
+    by_normalized_url: dict[str, dict[str, Any]],
+) -> dict[str, Any] | None:
+    artifact_id = entity.get("artifact_id")
+    if artifact_id and str(artifact_id) in by_artifact_id:
+        return by_artifact_id[str(artifact_id)]
+
+    normalized_url = entity.get("normalized_url")
+    if normalized_url:
+        key = str(normalized_url).rstrip("/").lower()
+        return by_normalized_url.get(key)
+
+    return None
+
+
+def github_metadata_payload(row: dict[str, Any]) -> dict[str, Any]:
+    payload = {
+        "status": row.get("status"),
+        "http_status": row.get("http_status"),
+        "github_api_url": row.get("github_api_url"),
+        "fetched_at": row.get("fetched_at"),
+        "language": row.get("language"),
+        "watchers": row.get("watchers"),
+        "open_issues": row.get("open_issues"),
+        "default_branch": row.get("default_branch"),
+        "archived": row.get("archived"),
+        "disabled": row.get("disabled"),
+        "private": row.get("private"),
+        "pushed_at": row.get("pushed_at"),
+        "homepage": row.get("homepage"),
+        "html_url": row.get("html_url"),
+        "error": row.get("error"),
+    }
+
+    row_meta = row.get("metadata")
+    if isinstance(row_meta, dict):
+        payload["rate_limit_remaining"] = row_meta.get("rate_limit_remaining")
+        payload["rate_limit_limit"] = row_meta.get("rate_limit_limit")
+        payload["rate_limit_reset"] = row_meta.get("rate_limit_reset")
+        if row_meta.get("license_raw") is not None:
+            payload["license_raw"] = row_meta.get("license_raw")
+
+    return {k: v for k, v in payload.items() if v is not None}
+
+
+def merge_github_metadata_into_entities(
+    entities: list[dict[str, Any]],
+    github_rows: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    if not github_rows:
+        return entities, {
+            "github_metadata_loaded": False,
+            "github_metadata_rows_count": 0,
+            "github_metadata_found_count": 0,
+            "github_metadata_entities_matched": 0,
+            "github_metadata_entities_enriched": 0,
+            "github_metadata_applied_count": 0,
+            "github_metadata_found_applied_count": 0,
+            "github_metadata_not_found_applied_count": 0,
+            "github_metadata_missing_entity_count": 0,
+            "github_metadata_status_distribution": {},
+            "github_metadata_applied_status_distribution": {},
+            "github_metadata_missing_status_distribution": {},
+        }
+
+    by_artifact_id, by_normalized_url = index_github_metadata(github_rows)
+    status_counts = Counter(str(row.get("status") or "unknown") for row in github_rows)
+
+    out: list[dict[str, Any]] = []
+    matched = 0
+    enriched = 0
+    applied_status_counts: Counter[str] = Counter()
+    matched_metadata_keys: set[tuple[str, str]] = set()
+
+    for entity in entities:
+        entity = dict(entity)
+        row = github_metadata_for_entity(entity, by_artifact_id, by_normalized_url)
+
+        if entity.get("provider") != "github" or row is None:
+            out.append(entity)
+            continue
+
+        matched += 1
+        artifact_id = row.get("artifact_id")
+        normalized_url = row.get("normalized_url")
+        matched_metadata_keys.add(
+            (
+                str(artifact_id or ""),
+                str(normalized_url or "").rstrip("/").lower(),
+            )
+        )
+
+        status = str(row.get("status") or "unknown")
+        applied_status_counts[status] += 1
+
+        metadata = json_object(entity.get("metadata"))
+        metadata["github"] = {
+            **json_object(metadata.get("github")),
+            **github_metadata_payload(row),
+        }
+        metadata["github"]["enrichment_stage"] = "github_artifact_enrichment_v1"
+        entity["metadata"] = metadata
+
+        # Dedicated columns are populated only for successfully fetched repositories.
+        # not_found / forbidden / error rows remain represented in metadata.github.
+        if status == "found":
+            entity["description"] = row.get("description") or entity.get("description")
+            entity["license"] = row.get("license") or entity.get("license")
+            entity["stars"] = parse_optional_int(row.get("stars"))
+            entity["forks"] = parse_optional_int(row.get("forks"))
+            entity["topics"] = row.get("topics") or entity.get("topics") or []
+            entity["fetched_at"] = row.get("fetched_at") or entity.get("fetched_at")
+            entity["created_at"] = row.get("created_at") or entity.get("created_at")
+            entity["updated_at"] = row.get("updated_at") or entity.get("updated_at")
+            enriched += 1
+
+        out.append(entity)
+
+    missing_status_counts: Counter[str] = Counter()
+    for row in github_rows:
+        key = (
+            str(row.get("artifact_id") or ""),
+            str(row.get("normalized_url") or "").rstrip("/").lower(),
+        )
+        if key not in matched_metadata_keys:
+            missing_status_counts[str(row.get("status") or "unknown")] += 1
+
+    missing_count = len(github_rows) - matched
+
+    return out, {
+        "github_metadata_loaded": True,
+        "github_metadata_rows_count": len(github_rows),
+        "github_metadata_found_count": int(status_counts.get("found", 0)),
+        # Backward-compatible diagnostic names from the first GitHub metadata export version.
+        "github_metadata_entities_matched": matched,
+        "github_metadata_entities_enriched": enriched,
+        # Explicit operational names used by checks and console diagnostics.
+        "github_metadata_applied_count": matched,
+        "github_metadata_found_applied_count": int(applied_status_counts.get("found", 0)),
+        "github_metadata_not_found_applied_count": int(applied_status_counts.get("not_found", 0)),
+        "github_metadata_missing_entity_count": missing_count,
+        "github_metadata_status_distribution": dict(sorted(status_counts.items())),
+        "github_metadata_applied_status_distribution": dict(sorted(applied_status_counts.items())),
+        "github_metadata_missing_status_distribution": dict(sorted(missing_status_counts.items())),
+    }
 
 
 def get_db_config() -> dict[str, Any]:
@@ -680,6 +875,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--entities", type=Path, default=DEFAULT_ENTITIES_PATH)
     parser.add_argument("--links", type=Path, default=DEFAULT_LINKS_PATH)
     parser.add_argument("--report-dir", type=Path, default=DEFAULT_REPORT_DIR)
+    parser.add_argument(
+        "--github-metadata",
+        type=Path,
+        default=None,
+        help=(
+            "Optional GitHub enrichment JSONL. If omitted, the default latest "
+            "path is used when it exists. If neither exists, export remains "
+            "backward-compatible and skips GitHub metadata merge."
+        ),
+    )
+    parser.add_argument(
+        "--no-github-metadata",
+        action="store_true",
+        help="Force skipping GitHub metadata even if the default latest file exists.",
+    )
     parser.add_argument("--replace", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--require-canonical-docs", action="store_true", default=True)
@@ -702,7 +912,25 @@ def main() -> None:
     print(f"[INFO] Loading artifact observations: {args.links}")
     raw_observations = load_jsonl(args.links)
 
+    github_metadata_path: Path | None = None
+    if not args.no_github_metadata:
+        if args.github_metadata is not None:
+            github_metadata_path = args.github_metadata
+        elif DEFAULT_GITHUB_METADATA_PATH.exists():
+            github_metadata_path = DEFAULT_GITHUB_METADATA_PATH
+
+    github_metadata_rows: list[dict[str, Any]] = []
+    if github_metadata_path is not None:
+        print(f"[INFO] Loading GitHub metadata: {github_metadata_path}")
+        github_metadata_rows = load_github_metadata(github_metadata_path)
+    else:
+        print("[INFO] GitHub metadata merge skipped")
+
     db_entities, artifact_id_remap, normalized_url_collisions = dedupe_entities_for_db(raw_entities)
+    db_entities, github_metadata_report = merge_github_metadata_into_entities(
+        db_entities,
+        github_metadata_rows,
+    )
     entities_by_id = {
         entity["artifact_id"]: entity
         for entity in db_entities
@@ -726,6 +954,11 @@ def main() -> None:
     print(f"[INFO] observations={len(observations)}")
     print(f"[INFO] trusted_paper_artifact_links={len(trusted_links)}")
     print(f"[INFO] normalized_url_collisions={len(normalized_url_collisions)}")
+    if github_metadata_report.get("github_metadata_loaded"):
+        print(f"[INFO] github_metadata_rows={github_metadata_report.get('github_metadata_rows_count')}")
+        print(f"[INFO] github_metadata_found={github_metadata_report.get('github_metadata_found_count')}")
+        print(f"[INFO] github_metadata_applied={github_metadata_report.get('github_metadata_applied_count')}")
+        print(f"[INFO] github_metadata_missing_entities={github_metadata_report.get('github_metadata_missing_entity_count')}")
 
     report: dict[str, Any] = {
         "report_name": "export_artifacts_postgres_v1",
@@ -733,6 +966,12 @@ def main() -> None:
         "run_ts": run_ts,
         "entities_path": str(args.entities).replace("\\", "/"),
         "links_path": str(args.links).replace("\\", "/"),
+        "github_metadata_path": (
+            str(github_metadata_path).replace("\\", "/")
+            if github_metadata_path is not None
+            else None
+        ),
+        **github_metadata_report,
         "dry_run": args.dry_run,
         "replace": args.replace,
         "raw_entities_count": len(raw_entities),

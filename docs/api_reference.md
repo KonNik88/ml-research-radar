@@ -758,6 +758,51 @@ GET /artifacts?has_paper_links=true&limit=20
 }
 ```
 
+## GitHub artifact metadata in DB backend
+
+GitHub Artifact Enrichment v1 enriches GitHub repository artifacts and exposes the metadata through existing artifact endpoints.
+
+Relevant endpoints:
+
+```text
+GET /artifacts?provider=github
+GET /documents/{canonical_id}/artifacts
+```
+
+Example enriched fields on an artifact item:
+
+```text
+stars
+forks
+license
+topics
+fetched_at
+metadata.github.status
+metadata.github.language
+metadata.github.watchers
+metadata.github.open_issues
+metadata.github.default_branch
+metadata.github.archived
+metadata.github.pushed_at
+metadata.github.github_api_url
+```
+
+Current baseline:
+
+```text
+github artifacts = 113
+github enrichment found = 110
+github enrichment not_found = 3
+```
+
+Semantics:
+
+- GitHub metadata is artifact metadata, not paper truth.
+- `has_code_link` remains the legacy canonical/source-layer field.
+- `has_trusted_code_artifact` remains the trusted artifact-layer filter.
+- `not_found` GitHub repositories are preserved as historical artifact evidence.
+- GitHub enrichment is optional and not required for base artifact API operation.
+
 ---
 
 ## `GET /documents/{canonical_id}/artifacts`
@@ -1034,7 +1079,8 @@ Near-term:
 ```text
 document artifact filter hardening
 API docs and examples
-GitHub enrichment fields in artifact responses
+Hugging Face enrichment fields if/when HF artifacts appear
+artifact enrichment diagnostics endpoints
 ```
 
 Later:

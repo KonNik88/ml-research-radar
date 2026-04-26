@@ -255,9 +255,9 @@ publisher_supplementary
 
 ## Artifact extraction v1
 
-Artifact Layer v1 currently uses internal extraction only.
+Artifact extraction v1 uses internal extraction only.
 
-It does not yet call GitHub API or Hugging Face Hub API.
+The extraction step itself does not call external APIs. External metadata enrichment is handled by separate snapshot enrichment stages, such as GitHub Artifact Enrichment v1.
 
 Input layers:
 
@@ -455,7 +455,7 @@ created_at
 updated_at
 ```
 
-Some enrichment fields are currently empty and reserved for future GitHub/Hugging Face enrichment.
+GitHub enrichment now populates these fields for GitHub repository artifacts where metadata is available. Hugging Face and other provider-specific enrichment fields remain reserved for future enrichment stages.
 
 ### `artifact_observations`
 
@@ -875,49 +875,9 @@ Trusted generic URLs must remain filtered conservatively.
 
 ### External enrichment
 
-Artifact Layer v1 does not yet enrich GitHub/Hugging Face metadata through APIs.
+GitHub Artifact Enrichment v1 is now implemented as a snapshot enrichment layer over existing `artifact_entities`.
 
-Current GitHub fields such as stars, forks, topics, license and language are reserved but mostly empty.
-
----
-
-## Next stage: GitHub enrichment v1
-
-Next planned artifact-layer extension:
-
-```text
-scripts/enrich/enrich_github_artifacts.py
-```
-
-Input:
-
-```sql
-SELECT *
-FROM artifact_entities
-WHERE provider = 'github';
-```
-
-Potential GitHub fields:
-
-```text
-description
-stars
-forks
-watchers
-open_issues
-license
-topics
-language
-default_branch
-archived
-disabled
-created_at
-updated_at
-pushed_at
-homepage
-```
-
-Output:
+It enriches already extracted GitHub repository artifacts using the GitHub REST API and writes a separate metadata snapshot:
 
 ```text
 data/enriched/github_artifacts/github_artifact_metadata.<ts>.jsonl
@@ -926,9 +886,81 @@ artifacts/reports/validation/github_artifact_enrichment_latest.json
 artifacts/reports/validation/github_artifact_enrichment_latest.md
 ```
 
-GitHub enrichment must remain artifact enrichment.
+Default input is the extraction output:
 
-GitHub must not become a paper-source truth layer.
+```text
+data/enriched/artifact_links/artifact_entities_latest.jsonl
+```
+
+Postgres is not the default input. This keeps enrichment reproducible from artifact extraction output and independent of the materialized serving layer.
+
+GitHub enrichment remains artifact enrichment. It does not modify canonical paper truth and does not make GitHub a paper source.
+
+Current GitHub enrichment baseline:
+
+```text
+github_entities_total = 113
+requested_count = 113
+processed_count = 113
+found_count = 110
+not_found_count = 3
+forbidden_count = 0
+rate_limited_count = 0
+error_count = 0
+ok = true
+```
+
+The artifact export can optionally merge GitHub metadata into `artifact_entities`.
+
+Populated dedicated fields:
+
+```text
+description
+license
+stars
+forks
+topics
+fetched_at
+created_at
+updated_at
+```
+
+GitHub-specific fields are stored in `artifact_entities.metadata.github`:
+
+```text
+status
+http_status
+language
+watchers
+open_issues
+default_branch
+archived
+disabled
+private
+pushed_at
+homepage
+github_api_url
+```
+
+Latest export baseline after GitHub metadata merge:
+
+```text
+artifact_entities_db_count = 491
+artifact_observations_db_count = 1646
+paper_artifact_links_db_count = 492
+github_metadata_rows_count = 113
+github_metadata_found_count = 110
+github_metadata_applied_count = 113
+github_metadata_found_applied_count = 110
+github_metadata_not_found_applied_count = 3
+github_metadata_missing_entity_count = 0
+```
+
+`not_found` repositories are preserved as historical artifact evidence. They do not remove the artifact entity or trusted paper-artifact link.
+
+Archived repositories remain valid found artifacts. Archived status is stored as metadata and does not downgrade the trusted link.
+
+GitHub enrichment is not part of the base `--require-artifacts` DoD because GitHub API is a live external dependency. A future optional flag may be introduced for strict GitHub enrichment validation.
 
 ---
 
@@ -949,4 +981,4 @@ internal extraction
 → integration tests
 ```
 
-The current layer is ready to support future external artifact enrichment, starting with GitHub.
+The current layer now supports GitHub Artifact Enrichment v1 and exposes enriched repository metadata through the existing DB artifact API.
