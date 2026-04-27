@@ -22,6 +22,8 @@ STEP_ORDER = [
     "export_postgres",
     "extract_artifacts",
     "artifact_quality_check",
+    "github_artifact_enrichment",
+    "github_artifact_enrichment_check",
     "export_artifacts_postgres",
     "artifact_db_smoke",
     "rebuild_retrieval",
@@ -31,12 +33,16 @@ STEP_ORDER = [
     "dod_check",
 ]
 
-
 ARTIFACT_STEPS = {
     "extract_artifacts",
     "artifact_quality_check",
     "export_artifacts_postgres",
     "artifact_db_smoke",
+}
+
+GITHUB_ENRICHMENT_STEPS = {
+    "github_artifact_enrichment",
+    "github_artifact_enrichment_check",
 }
 
 
@@ -118,7 +124,6 @@ def summarize_canonical(path: Path) -> dict[str, Any] | None:
             line = line.strip()
             if not line:
                 continue
-
             payload = json.loads(line)
             doc_count += 1
 
@@ -253,9 +258,23 @@ def build_parser() -> argparse.ArgumentParser:
         "--require-artifacts",
         action="store_true",
         help=(
-            "Run artifact stages and forward --require-artifacts to DoD. "
-            "Without this flag, artifact stages are planned but disabled."
+            "Include artifact extraction/export/DB-smoke stages and forward "
+            "--require-artifacts to DoD."
         ),
+    )
+    parser.add_argument(
+        "--include-github-enrichment",
+        action="store_true",
+        help=(
+            "Include GitHub artifact enrichment and strict GitHub enrichment check stages. "
+            "This is intentionally separate from --require-artifacts because GitHub is "
+            "a live external dependency."
+        ),
+    )
+    parser.add_argument(
+        "--require-github-enrichment",
+        action="store_true",
+        help="Forward --require-github-enrichment to DoD check.",
     )
     parser.add_argument(
         "--execute",
@@ -265,33 +284,32 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def step_enabled(step_name: str, stop_after: str, include_artifacts: bool) -> bool:
-    if STEP_ORDER.index(step_name) > STEP_ORDER.index(stop_after):
-        return False
-
-    if step_name in ARTIFACT_STEPS and not include_artifacts:
-        return False
-
-    return True
+def step_before_or_at_stop(step_name: str, stop_after: str) -> bool:
+    return STEP_ORDER.index(step_name) <= STEP_ORDER.index(stop_after)
 
 
-def step_reason(step_name: str, stop_after: str, include_artifacts: bool, execute: bool) -> str:
-    if STEP_ORDER.index(step_name) > STEP_ORDER.index(stop_after):
-        return f"Excluded because stop-after={stop_after}"
+def artifact_stages_enabled(args: argparse.Namespace) -> bool:
+    # GitHub enrichment is an artifact-layer sub-stage, so asking for GitHub
+    # enrichment implies that the surrounding artifact stages should be planned.
+    return bool(args.require_artifacts or args.include_github_enrichment)
 
-    if step_name in ARTIFACT_STEPS and not include_artifacts:
-        return "Artifact stage disabled because --require-artifacts was not provided"
 
-    if not execute:
-        return "Dry-run mode only"
+def step_enabled(step_name: str, args: argparse.Namespace) -> tuple[bool, str]:
+    if not step_before_or_at_stop(step_name, args.stop_after):
+        return False, f"Excluded because stop-after={args.stop_after}"
 
-    return "Included in execute run"
+    if step_name in GITHUB_ENRICHMENT_STEPS and not args.include_github_enrichment:
+        return False, "GitHub enrichment stages require --include-github-enrichment"
+
+    if step_name in ARTIFACT_STEPS and not artifact_stages_enabled(args):
+        return False, "Artifact stages require --require-artifacts or --include-github-enrichment"
+
+    return True, "Included"
 
 
 def main() -> None:
     args = build_parser().parse_args()
     run_ts = utc_now_ts()
-    include_artifacts = bool(args.require_artifacts)
 
     candidate_path = (
         args.candidate_path
@@ -329,26 +347,30 @@ def main() -> None:
 
     export_cmd = [sys.executable, "-m", "scripts.export.export_postgres_v1"]
 
-    extract_artifacts_cmd = [
-        sys.executable,
-        "-m",
-        "scripts.enrich.extract_artifact_links",
-    ]
-
+    extract_artifacts_cmd = [sys.executable, "-m", "scripts.enrich.extract_artifact_links"]
     artifact_quality_cmd = [
         sys.executable,
         "-m",
         "scripts.validation.check_artifact_links_quality",
         "--strict",
     ]
-
+    github_enrichment_cmd = [
+        sys.executable,
+        "-m",
+        "scripts.enrich.enrich_github_artifacts",
+    ]
+    github_enrichment_check_cmd = [
+        sys.executable,
+        "-m",
+        "scripts.validation.check_github_artifact_enrichment",
+        "--strict",
+    ]
     export_artifacts_cmd = [
         sys.executable,
         "-m",
         "scripts.export.export_artifacts_postgres_v1",
         "--replace",
     ]
-
     artifact_db_smoke_cmd = [
         sys.executable,
         "-m",
@@ -365,6 +387,8 @@ def main() -> None:
         dod_cmd.append("--require-known-issues")
     if args.require_artifacts:
         dod_cmd.append("--require-artifacts")
+    if args.require_github_enrichment:
+        dod_cmd.append("--require-github-enrichment")
 
     step_cmds = {
         "reconcile_candidate": reconcile_cmd,
@@ -373,6 +397,8 @@ def main() -> None:
         "export_postgres": export_cmd,
         "extract_artifacts": extract_artifacts_cmd,
         "artifact_quality_check": artifact_quality_cmd,
+        "github_artifact_enrichment": github_enrichment_cmd,
+        "github_artifact_enrichment_check": github_enrichment_check_cmd,
         "export_artifacts_postgres": export_artifacts_cmd,
         "artifact_db_smoke": artifact_db_smoke_cmd,
         "rebuild_retrieval": rebuild_cmd,
@@ -384,23 +410,20 @@ def main() -> None:
 
     planned_steps = []
     for step_name in STEP_ORDER:
-        enabled = step_enabled(
-            step_name=step_name,
-            stop_after=args.stop_after,
-            include_artifacts=include_artifacts,
-        )
+        enabled, base_reason = step_enabled(step_name, args)
         will_run = bool(args.execute and enabled)
+        if enabled and not args.execute:
+            reason = "Dry-run mode only"
+        elif enabled and args.execute:
+            reason = "Included in execute run"
+        else:
+            reason = base_reason
         planned_steps.append(
             {
                 "name": step_name,
                 "enabled": enabled,
                 "will_run": will_run,
-                "reason": step_reason(
-                    step_name=step_name,
-                    stop_after=args.stop_after,
-                    include_artifacts=include_artifacts,
-                    execute=args.execute,
-                ),
+                "reason": reason,
                 "cmd": " ".join(step_cmds[step_name]),
             }
         )
@@ -410,11 +433,7 @@ def main() -> None:
 
     if args.execute:
         for step_name in STEP_ORDER:
-            enabled = step_enabled(
-                step_name=step_name,
-                stop_after=args.stop_after,
-                include_artifacts=include_artifacts,
-            )
+            enabled, _ = step_enabled(step_name, args)
             if not enabled:
                 continue
 
@@ -449,7 +468,9 @@ def main() -> None:
             "merge_reports": args.merge_report or [],
             "require_known_issues": bool(args.require_known_issues),
             "require_artifacts": bool(args.require_artifacts),
-            "include_artifact_stages": include_artifacts,
+            "include_github_enrichment": bool(args.include_github_enrichment),
+            "require_github_enrichment": bool(args.require_github_enrichment),
+            "artifact_stages_enabled": artifact_stages_enabled(args),
         },
         "candidate": {
             "path": normalize_path(candidate_path),
@@ -473,8 +494,9 @@ def main() -> None:
 
     print(f"[OK] mode={report['mode']}")
     print(f"[OK] stop_after={report['stop_after']}")
-    print(f"[OK] require_artifacts={report['inputs']['require_artifacts']}")
-    print(f"[OK] include_artifact_stages={report['inputs']['include_artifact_stages']}")
+    print(f"[OK] require_artifacts={bool(args.require_artifacts)}")
+    print(f"[OK] include_github_enrichment={bool(args.include_github_enrichment)}")
+    print(f"[OK] require_github_enrichment={bool(args.require_github_enrichment)}")
     print(f"[OK] candidate_path={normalize_path(candidate_path)}")
     if candidate_summary:
         print(f"[OK] candidate_doc_count={candidate_summary['doc_count']}")

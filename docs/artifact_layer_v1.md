@@ -685,6 +685,40 @@ artifact_quality_vs_export_observations_match
 artifact_quality_vs_export_links_match
 ```
 
+### Optional GitHub enrichment DoD
+
+GitHub Artifact Enrichment v1 has an optional strict DoD mode.
+
+Command:
+
+```bat
+python -m scripts.update.check_refresh_definition_of_done --require-artifacts --require-github-enrichment
+```
+
+This mode requires the latest GitHub enrichment validation report:
+
+```text
+artifacts/reports/validation/github_artifact_enrichment_check_latest.json
+```
+
+Required GitHub checks include:
+
+```text
+github_enrichment_check_exists
+github_enrichment_check_ok
+github_enrichment_rows_non_empty
+github_enrichment_found_non_empty
+github_enrichment_no_rate_limited
+github_enrichment_no_errors
+github_enrichment_metadata_vs_entities_match
+github_enrichment_no_unknown_artifact_ids
+github_enrichment_no_duplicate_artifact_ids
+```
+
+The base `--require-artifacts` mode does not require GitHub enrichment.
+
+Reason: GitHub enrichment depends on a live external API and should remain optional for the base artifact layer.
+
 ---
 
 ## Refresh pipeline integration
@@ -701,7 +735,7 @@ Artifact stages are included only when:
 --require-artifacts
 ```
 
-Artifact-aware pipeline order:
+Artifact-aware pipeline order with optional GitHub enrichment enabled:
 
 ```text
 reconcile_candidate
@@ -710,6 +744,8 @@ reconcile_candidate
 → export_postgres
 → extract_artifacts
 → artifact_quality_check
+→ github_artifact_enrichment
+→ github_artifact_enrichment_check
 → export_artifacts_postgres
 → artifact_db_smoke
 → rebuild_retrieval
@@ -719,16 +755,56 @@ reconcile_candidate
 → dod_check
 ```
 
-Dry run:
+GitHub stages are included only when:
+
+```bat
+--include-github-enrichment
+```
+
+Strict final DoD can require GitHub enrichment with:
+
+```bat
+--require-github-enrichment
+```
+
+The two flags are separate:
+
+```text
+--include-github-enrichment
+  includes live GitHub enrichment and validation stages
+
+--require-github-enrichment
+  makes the final DoD require the latest GitHub enrichment validation report
+```
+
+Dry run with artifact stages only:
 
 ```bat
 python -m scripts.update.run_refresh_pipeline_v1 --require-artifacts
+```
+
+Dry run with GitHub enrichment stages:
+
+```bat
+python -m scripts.update.run_refresh_pipeline_v1 --require-artifacts --include-github-enrichment
+```
+
+Dry run with GitHub enrichment stages and strict final DoD:
+
+```bat
+python -m scripts.update.run_refresh_pipeline_v1 --require-artifacts --include-github-enrichment --require-github-enrichment
 ```
 
 Dry run to artifact checkpoint:
 
 ```bat
 python -m scripts.update.run_refresh_pipeline_v1 --require-artifacts --stop-after artifact_db_smoke
+```
+
+Dry run to GitHub enrichment check checkpoint:
+
+```bat
+python -m scripts.update.run_refresh_pipeline_v1 --require-artifacts --include-github-enrichment --stop-after github_artifact_enrichment_check
 ```
 
 Do not run full execute mode unless intentionally performing a refresh cycle.
@@ -830,10 +906,34 @@ Document artifact filter tests:
 python -m pytest tests/integration/test_api_documents_artifact_filters_db.py -q
 ```
 
-Strict DoD:
+GitHub enrichment API tests:
+
+```bat
+python -m pytest tests/integration/test_api_github_enrichment_db.py -q
+```
+
+GitHub enrichment validation:
+
+```bat
+python -m scripts.validation.check_github_artifact_enrichment --strict
+```
+
+Strict artifact DoD:
 
 ```bat
 python -m scripts.update.check_refresh_definition_of_done --require-artifacts
+```
+
+Strict DoD with GitHub enrichment:
+
+```bat
+python -m scripts.update.check_refresh_definition_of_done --require-artifacts --require-github-enrichment
+```
+
+Pipeline dry-run with GitHub enrichment:
+
+```bat
+python -m scripts.update.run_refresh_pipeline_v1 --require-artifacts --include-github-enrichment
 ```
 
 Recommended regression check:
@@ -841,7 +941,11 @@ Recommended regression check:
 ```bat
 python -m pytest tests/integration/test_api_artifacts_db.py -q
 python -m pytest tests/integration/test_api_documents_artifact_filters_db.py -q
+python -m pytest tests/integration/test_api_github_enrichment_db.py -q
+python -m scripts.validation.check_github_artifact_enrichment --strict
 python -m scripts.update.check_refresh_definition_of_done --require-artifacts
+python -m scripts.update.check_refresh_definition_of_done --require-artifacts --require-github-enrichment
+python -m scripts.update.run_refresh_pipeline_v1 --require-artifacts --include-github-enrichment --require-github-enrichment
 ```
 
 ---
@@ -960,7 +1064,30 @@ github_metadata_missing_entity_count = 0
 
 Archived repositories remain valid found artifacts. Archived status is stored as metadata and does not downgrade the trusted link.
 
-GitHub enrichment is not part of the base `--require-artifacts` DoD because GitHub API is a live external dependency. A future optional flag may be introduced for strict GitHub enrichment validation.
+GitHub enrichment is not part of the base `--require-artifacts` DoD because GitHub API is a live external dependency. Strict GitHub validation can be required explicitly with `--require-github-enrichment`. The refresh pipeline can include live GitHub enrichment stages explicitly with `--include-github-enrichment`.
+
+GitHub enrichment validation report:
+
+```text
+artifacts/reports/validation/github_artifact_enrichment_check_latest.json
+artifacts/reports/validation/github_artifact_enrichment_check_latest.md
+```
+
+Current strict GitHub enrichment validation baseline:
+
+```text
+github_entities_count = 113
+metadata_rows_count = 113
+found_count = 110
+not_found_count = 3
+forbidden_count = 0
+rate_limited_count = 0
+error_count = 0
+duplicate_artifact_id_count = 0
+unknown_artifact_id_count = 0
+strict = true
+ok = true
+```
 
 ---
 

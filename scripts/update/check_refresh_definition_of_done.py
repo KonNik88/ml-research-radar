@@ -26,6 +26,10 @@ DEFAULT_ARTIFACT_DB_READ_PATH = Path(
     "artifacts/reports/export/test_artifact_db_read_latest.json"
 )
 
+DEFAULT_GITHUB_ENRICHMENT_CHECK_PATH = Path(
+    "artifacts/reports/validation/github_artifact_enrichment_check_latest.json"
+)
+
 DEFAULT_REPORTS_DIR = Path("artifacts/reports/update")
 
 
@@ -279,7 +283,6 @@ def extract_artifact_values(
     db_read = artifact_db_read or {}
 
     return {
-        # strict quality gate
         "artifact_quality_ok": report_ok(artifact_quality),
         "artifact_quality_required_failed_count": first_present(
             quality,
@@ -311,8 +314,6 @@ def extract_artifact_values(
                 ("summary", "trusted_paper_artifact_links_count"),
             ],
         ),
-
-        # artifact export report
         "artifact_export_ok": report_ok(artifact_export),
         "artifact_export_raw_entities_count": export.get("raw_entities_count"),
         "artifact_export_db_entities_count": export.get("db_entities_count"),
@@ -321,14 +322,75 @@ def extract_artifact_values(
         "artifact_export_entities_db_count": export.get("artifact_entities_db_count"),
         "artifact_export_observations_db_count": export.get("artifact_observations_db_count"),
         "artifact_export_links_db_count": export.get("paper_artifact_links_db_count"),
-
-        # artifact DB smoke report
         "artifact_db_read_ok": report_ok(artifact_db_read),
         "artifact_db_read_entities_count": db_read.get("artifact_entities_count"),
         "artifact_db_read_observations_count": db_read.get("artifact_observations_count"),
         "artifact_db_read_links_count": db_read.get("paper_artifact_links_count"),
         "artifact_db_read_join_links_count": db_read.get("join_canonical_artifact_entities_count"),
         "artifact_db_read_required_failed_count": db_read.get("required_failed_count"),
+    }
+
+
+def extract_github_enrichment_values(
+    github_enrichment_check: dict[str, Any] | None,
+) -> dict[str, Any]:
+    report = github_enrichment_check or {}
+    summary = report.get("summary") if isinstance(report.get("summary"), dict) else {}
+    checks = report.get("checks") if isinstance(report.get("checks"), dict) else {}
+
+    github_entities_count = first_present(
+        report,
+        [("summary", "github_entities_count"), ("github_entities_count",)],
+    )
+    metadata_rows_count = first_present(
+        report,
+        [("summary", "metadata_rows_count"), ("metadata_rows_count",)],
+    )
+    found_count = first_present(report, [("summary", "found_count"), ("found_count",)])
+    not_found_count = first_present(report, [("summary", "not_found_count"), ("not_found_count",)])
+    forbidden_count = first_present(report, [("summary", "forbidden_count"), ("forbidden_count",)])
+    rate_limited_count = first_present(
+        report,
+        [("summary", "rate_limited_count"), ("rate_limited_count",)],
+    )
+    error_count = first_present(report, [("summary", "error_count"), ("error_count",)])
+    duplicate_artifact_id_count = first_present(
+        report,
+        [("summary", "duplicate_artifact_id_count"), ("duplicate_artifact_id_count",)],
+    )
+    unknown_artifact_id_count = first_present(
+        report,
+        [("summary", "unknown_artifact_id_count"), ("unknown_artifact_id_count",)],
+    )
+
+    metadata_vs_entities_match = checks.get("metadata_vs_github_entities_count_match")
+    if metadata_vs_entities_match is None:
+        metadata_vs_entities_match = (
+            safe_int(metadata_rows_count) == safe_int(github_entities_count)
+            and safe_int(github_entities_count) > 0
+        )
+
+    return {
+        "github_enrichment_check_ok": report_ok(github_enrichment_check),
+        "github_enrichment_required_failed_count": first_present(
+            report,
+            [("required_failed_count",), ("verdict", "required_failed_count")],
+        ),
+        "github_enrichment_strict": first_present(
+            report,
+            [("strict",), ("verdict", "strict")],
+        ),
+        "github_enrichment_github_entities_count": github_entities_count,
+        "github_enrichment_metadata_rows_count": metadata_rows_count,
+        "github_enrichment_found_count": found_count,
+        "github_enrichment_not_found_count": not_found_count,
+        "github_enrichment_forbidden_count": forbidden_count,
+        "github_enrichment_rate_limited_count": rate_limited_count,
+        "github_enrichment_error_count": error_count,
+        "github_enrichment_duplicate_artifact_id_count": duplicate_artifact_id_count,
+        "github_enrichment_unknown_artifact_id_count": unknown_artifact_id_count,
+        "github_enrichment_metadata_vs_entities_match": metadata_vs_entities_match,
+        "github_enrichment_status_distribution": summary.get("status_distribution"),
     }
 
 
@@ -377,7 +439,7 @@ def build_markdown(report: dict[str, Any]) -> str:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Check refresh Definition of Done against canonical, DB, retrieval, validation, and optional artifact outputs."
+        description="Check refresh Definition of Done against canonical, DB, retrieval, validation, optional artifact outputs, and optional GitHub enrichment checks."
     )
     parser.add_argument("--canonical-path", type=Path, default=DEFAULT_CANONICAL_PATH)
     parser.add_argument("--manifest-path", type=Path, default=DEFAULT_MANIFEST_PATH)
@@ -388,6 +450,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--artifact-quality-path", type=Path, default=DEFAULT_ARTIFACT_QUALITY_PATH)
     parser.add_argument("--artifact-export-path", type=Path, default=DEFAULT_ARTIFACT_EXPORT_PATH)
     parser.add_argument("--artifact-db-read-path", type=Path, default=DEFAULT_ARTIFACT_DB_READ_PATH)
+
+    parser.add_argument(
+        "--github-enrichment-check-path",
+        type=Path,
+        default=DEFAULT_GITHUB_ENRICHMENT_CHECK_PATH,
+        help="GitHub artifact enrichment validation report path.",
+    )
 
     parser.add_argument("--reports-dir", type=Path, default=DEFAULT_REPORTS_DIR)
 
@@ -400,6 +469,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--require-artifacts",
         action="store_true",
         help="Treat artifact quality/export/DB smoke reports as required DoD conditions.",
+    )
+    parser.add_argument(
+        "--require-github-enrichment",
+        action="store_true",
+        help="Treat GitHub artifact enrichment validation as a required DoD condition. This is intentionally separate from --require-artifacts because GitHub is an optional external enrichment layer.",
     )
 
     return parser
@@ -433,6 +507,10 @@ def main() -> None:
         artifact_export=artifact_export,
         artifact_db_read=artifact_db_read,
     )
+
+    github_enrichment_check = load_json_if_exists(args.github_enrichment_check_path)
+    github_enrichment_check_exists = github_enrichment_check is not None
+    github_enrichment_values = extract_github_enrichment_values(github_enrichment_check)
 
     db_smoke = run_db_smoke()
 
@@ -529,6 +607,34 @@ def main() -> None:
             == safe_int(artifact_values["artifact_export_trusted_links_count"])
             and safe_int(artifact_values["artifact_export_trusted_links_count"]) > 0
         ),
+
+        # optional GitHub enrichment block
+        "github_enrichment_check_exists": github_enrichment_check_exists,
+        "github_enrichment_check_ok": github_enrichment_values["github_enrichment_check_ok"],
+        "github_enrichment_rows_non_empty": safe_int(
+            github_enrichment_values["github_enrichment_metadata_rows_count"]
+        ) > 0,
+        "github_enrichment_found_non_empty": safe_int(
+            github_enrichment_values["github_enrichment_found_count"]
+        ) > 0,
+        "github_enrichment_no_rate_limited": safe_int(
+            github_enrichment_values["github_enrichment_rate_limited_count"]
+        ) == 0,
+        "github_enrichment_no_errors": safe_int(
+            github_enrichment_values["github_enrichment_error_count"]
+        ) == 0,
+        "github_enrichment_metadata_vs_entities_match": bool(
+            github_enrichment_values["github_enrichment_metadata_vs_entities_match"]
+        ),
+        "github_enrichment_no_unknown_artifact_ids": safe_int(
+            github_enrichment_values["github_enrichment_unknown_artifact_id_count"]
+        ) == 0,
+        "github_enrichment_no_duplicate_artifact_ids": safe_int(
+            github_enrichment_values["github_enrichment_duplicate_artifact_id_count"]
+        ) == 0,
+        "github_enrichment_no_forbidden": safe_int(
+            github_enrichment_values["github_enrichment_forbidden_count"]
+        ) == 0,
     }
 
     required_check_names = [
@@ -577,6 +683,21 @@ def main() -> None:
             ]
         )
 
+    if args.require_github_enrichment:
+        required_check_names.extend(
+            [
+                "github_enrichment_check_exists",
+                "github_enrichment_check_ok",
+                "github_enrichment_rows_non_empty",
+                "github_enrichment_found_non_empty",
+                "github_enrichment_no_rate_limited",
+                "github_enrichment_no_errors",
+                "github_enrichment_metadata_vs_entities_match",
+                "github_enrichment_no_unknown_artifact_ids",
+                "github_enrichment_no_duplicate_artifact_ids",
+            ]
+        )
+
     required_failed = [name for name in required_check_names if not checks.get(name, False)]
 
     verdict = {
@@ -586,6 +707,7 @@ def main() -> None:
         "dod_passed": len(required_failed) == 0,
         "known_issues_required": bool(args.require_known_issues),
         "artifacts_required": bool(args.require_artifacts),
+        "github_enrichment_required": bool(args.require_github_enrichment),
     }
 
     report = {
@@ -601,6 +723,7 @@ def main() -> None:
             "artifact_quality_path": normalize_path(args.artifact_quality_path),
             "artifact_export_path": normalize_path(args.artifact_export_path),
             "artifact_db_read_path": normalize_path(args.artifact_db_read_path),
+            "github_enrichment_check_path": normalize_path(args.github_enrichment_check_path),
         },
         "canonical_summary": canonical_summary,
         "extracted_values": {
@@ -614,6 +737,7 @@ def main() -> None:
             "known_issues_doc_count": known_issues_doc_count,
             "known_issues_build_id": known_issues_build_id,
             **artifact_values,
+            **github_enrichment_values,
         },
         "checks": checks,
         "verdict": verdict,
@@ -639,6 +763,7 @@ def main() -> None:
     print(f"[OK] required_failed_checks={verdict['required_failed_checks']}")
     print(f"[OK] known_issues_required={verdict['known_issues_required']}")
     print(f"[OK] artifacts_required={verdict['artifacts_required']}")
+    print(f"[OK] github_enrichment_required={verdict['github_enrichment_required']}")
     print(f"[OK] latest JSON: {latest_json}")
     print(f"[OK] latest Markdown: {latest_md}")
     print(f"[OK] history JSON: {hist_json}")

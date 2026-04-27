@@ -279,7 +279,79 @@ No new endpoint is required for v1.
 
 ## Validation
 
-Successful checks:
+GitHub Artifact Enrichment v1 has two validation levels:
+
+1. enrichment execution report from `scripts/enrich/enrich_github_artifacts.py`
+2. standalone strict validation report from `scripts/validation/check_github_artifact_enrichment.py`
+
+Standalone validation script:
+
+```text
+scripts/validation/check_github_artifact_enrichment.py
+```
+
+Default command:
+
+```bat
+python -m scripts.validation.check_github_artifact_enrichment
+```
+
+Strict command:
+
+```bat
+python -m scripts.validation.check_github_artifact_enrichment --strict
+```
+
+Inputs:
+
+```text
+data/enriched/artifact_links/artifact_entities_latest.jsonl
+data/enriched/github_artifacts/github_artifact_metadata_latest.jsonl
+```
+
+Outputs:
+
+```text
+artifacts/reports/validation/github_artifact_enrichment_check_latest.json
+artifacts/reports/validation/github_artifact_enrichment_check_latest.md
+artifacts/reports/validation/history/github_artifact_enrichment_check_<ts>.json
+artifacts/reports/validation/history/github_artifact_enrichment_check_<ts>.md
+```
+
+The validation gate checks:
+
+```text
+metadata file exists
+artifact entities file exists
+GitHub entities are non-empty
+metadata rows are non-empty
+metadata rows reference known GitHub artifact ids
+duplicate artifact ids are absent
+found_count > 0
+rate_limited_count == 0
+error_count == 0
+metadata row count matches GitHub entity count in strict mode
+```
+
+Current strict validation baseline:
+
+```text
+github_entities_count = 113
+metadata_rows_count = 113
+found_count = 110
+not_found_count = 3
+forbidden_count = 0
+rate_limited_count = 0
+error_count = 0
+duplicate_artifact_id_count = 0
+unknown_artifact_id_count = 0
+strict = true
+ok = true
+```
+
+`not_found` rows are allowed. They preserve historical paper → repository evidence for links that may have been deleted, renamed, or made private.
+
+Successful regression checks:
 
 ```bash
 python -m scripts.export.export_artifacts_postgres_v1 --replace
@@ -287,7 +359,9 @@ python -m scripts.export.test_artifact_db_read
 python -m pytest tests/integration/test_api_artifacts_db.py -q
 python -m pytest tests/integration/test_api_documents_artifact_filters_db.py -q
 python -m pytest tests/integration/test_api_github_enrichment_db.py -q
+python -m scripts.validation.check_github_artifact_enrichment --strict
 python -m scripts.update.check_refresh_definition_of_done --require-artifacts
+python -m scripts.update.check_refresh_definition_of_done --require-artifacts --require-github-enrichment
 ```
 
 Observed passing tests:
@@ -296,7 +370,9 @@ Observed passing tests:
 test_api_artifacts_db.py: 8 passed
 test_api_documents_artifact_filters_db.py: 8 passed
 test_api_github_enrichment_db.py: 2 passed
+GitHub enrichment strict validation: ok=true, required_failed_count=0
 DoD --require-artifacts: dod_passed=True, required_failed_count=0
+DoD --require-artifacts --require-github-enrichment: dod_passed=True, required_failed_count=0
 ```
 
 ## Semantics for unavailable repositories
@@ -307,7 +383,7 @@ They are not removed from `artifact_entities` or `paper_artifact_links` because 
 
 `archived` repositories are valid found artifacts. The trusted paper-artifact link is not downgraded because archived status is an artifact state, not evidence invalidation.
 
-## DoD policy
+## DoD integration
 
 GitHub enrichment is **not** part of the base `--require-artifacts` DoD.
 
@@ -318,11 +394,95 @@ GitHub API is an external live dependency with rate limits and possible temporar
 The base artifact layer must remain green without live external enrichment.
 ```
 
-A future optional flag may be added:
+GitHub enrichment validation is integrated into the refresh Definition of Done as an optional strict layer.
+
+Base artifact DoD:
+
+```bat
+python -m scripts.update.check_refresh_definition_of_done --require-artifacts
+```
+
+Strict GitHub enrichment DoD:
+
+```bat
+python -m scripts.update.check_refresh_definition_of_done --require-artifacts --require-github-enrichment
+```
+
+The `--require-github-enrichment` flag makes the latest GitHub enrichment validation report required.
+
+Required GitHub checks include:
 
 ```text
---require-github-enrichment
+github_enrichment_check_exists
+github_enrichment_check_ok
+github_enrichment_rows_non_empty
+github_enrichment_found_non_empty
+github_enrichment_no_rate_limited
+github_enrichment_no_errors
+github_enrichment_metadata_vs_entities_match
+github_enrichment_no_unknown_artifact_ids
+github_enrichment_no_duplicate_artifact_ids
 ```
+
+`github_enrichment_no_forbidden` is reported diagnostically and is expected to be true in the current baseline, but the core strict gate focuses on coverage, absence of rate limits/errors, and ID consistency.
+
+## Refresh pipeline integration
+
+GitHub enrichment stages are available in the refresh pipeline as optional stages.
+
+Main wrapper:
+
+```text
+scripts/update/run_refresh_pipeline_v1.py
+```
+
+Dry-run with artifact stages only:
+
+```bat
+python -m scripts.update.run_refresh_pipeline_v1 --require-artifacts
+```
+
+Dry-run with GitHub enrichment stages:
+
+```bat
+python -m scripts.update.run_refresh_pipeline_v1 --require-artifacts --include-github-enrichment
+```
+
+Dry-run with GitHub enrichment and strict final DoD:
+
+```bat
+python -m scripts.update.run_refresh_pipeline_v1 --require-artifacts --include-github-enrichment --require-github-enrichment
+```
+
+GitHub-specific stages:
+
+```text
+github_artifact_enrichment
+github_artifact_enrichment_check
+```
+
+Pipeline order with GitHub enrichment enabled:
+
+```text
+extract_artifacts
+→ artifact_quality_check
+→ github_artifact_enrichment
+→ github_artifact_enrichment_check
+→ export_artifacts_postgres
+→ artifact_db_smoke
+```
+
+The flags are intentionally separate:
+
+```text
+--include-github-enrichment
+  includes live GitHub enrichment and validation stages
+
+--require-github-enrichment
+  makes the final DoD require the latest GitHub enrichment validation report
+```
+
+Full execute mode should not be used casually because it may run the full refresh/retrieval wrapper. Use dry-run planning first.
 
 ## Non-goals
 

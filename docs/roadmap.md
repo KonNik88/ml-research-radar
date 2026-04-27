@@ -354,6 +354,58 @@ Important principles:
 
 ---
 
+## 1.11 GitHub Artifact Enrichment operational hardening
+
+Completed:
+
+- standalone GitHub enrichment validation script
+- strict validation report for GitHub artifact metadata
+- optional GitHub enrichment checks in refresh DoD
+- optional GitHub enrichment stages in refresh pipeline dry-run
+- separation of `--include-github-enrichment` and `--require-github-enrichment`
+- preservation of base `--require-artifacts` behavior without requiring live GitHub API
+
+Status:
+
+- done
+
+Current validation baseline:
+
+```text
+github_entities_count = 113
+metadata_rows_count = 113
+found_count = 110
+not_found_count = 3
+forbidden_count = 0
+rate_limited_count = 0
+error_count = 0
+duplicate_artifact_id_count = 0
+unknown_artifact_id_count = 0
+strict = true
+ok = true
+```
+
+DoD modes:
+
+```bat
+python -m scripts.update.check_refresh_definition_of_done --require-artifacts
+python -m scripts.update.check_refresh_definition_of_done --require-artifacts --require-github-enrichment
+```
+
+Pipeline dry-run modes:
+
+```bat
+python -m scripts.update.run_refresh_pipeline_v1 --require-artifacts
+python -m scripts.update.run_refresh_pipeline_v1 --require-artifacts --include-github-enrichment
+python -m scripts.update.run_refresh_pipeline_v1 --require-artifacts --include-github-enrichment --require-github-enrichment
+```
+
+Important principle:
+
+GitHub enrichment is operationally validated but remains optional because GitHub API is an external live dependency.
+
+---
+
 ## 2. Current System State
 
 The project is currently at this point:
@@ -367,6 +419,9 @@ The project is currently at this point:
 - Papers with Code live source is blocked/archived
 - Artifact Layer v1 is operational
 - GitHub Artifact Enrichment v1 is operational
+- GitHub enrichment has standalone strict validation
+- GitHub enrichment can be required in DoD with an explicit optional flag
+- refresh pipeline can include GitHub enrichment stages in dry-run/planned mode
 - enriched GitHub repository metadata is visible through the DB artifact API
 - canonical paper truth remains isolated from artifact enrichment
 
@@ -375,41 +430,69 @@ Current closed vertical slice:
 ```text
 Artifact Layer v1
 → GitHub Artifact Enrichment v1
+→ GitHub enrichment validation
+→ optional GitHub DoD gate
+→ optional refresh pipeline GitHub stages
 → Postgres artifact materialization
 → DB artifact API exposure
 → integration tests
 → DoD --require-artifacts green
+→ DoD --require-artifacts --require-github-enrichment green
 ```
 
 ---
 
-## 3. Next Stage: Artifact enrichment hardening / Hugging Face Hub enrichment
+## 3. Next Stage: Artifact API enriched filters / next artifact source
 
-The next stage should remain within the artifact/enrichment plane.
+The next stage should still remain close to the artifact/enrichment plane unless there is a deliberate decision to start a new paper-source vertical slice.
 
-Do not jump immediately to new paper sources or RAG/full-text before closing the artifact enrichment line cleanly.
+Do not jump immediately to RAG/full-text or broad product layers before the artifact enrichment and serving line remains stable.
 
 ---
 
-## 3.1 Short-term hardening after GitHub enrichment
+## 3.1 Artifact API enriched filters
 
 Planned:
 
-- optionally add `--require-github-enrichment` to DoD
-- optionally add `--include-github-enrichment` to refresh pipeline
-- keep GitHub enrichment optional by default
-- improve export/report diagnostics if needed
-- preserve base Artifact Layer v1 operation without live GitHub API
+- add useful filters over enriched GitHub artifact metadata
+- expose repository state without changing canonical paper truth
+- keep artifact filters DB-backed and deterministic
+
+Candidate filters:
+
+```text
+min_stars
+language
+license
+archived
+github_status
+has_github_metadata
+```
+
+Candidate sort modes:
+
+```text
+stars_desc
+forks_desc
+updated_desc
+pushed_desc
+```
+
+Example target queries:
+
+```http
+GET /artifacts?provider=github&min_stars=100&language=Python&sort_by=stars_desc
+GET /artifacts?provider=github&github_status=not_found
+GET /artifacts?provider=github&archived=false
+```
 
 Status:
 
-- optional next
+- planned
 
 Important principle:
 
-GitHub API is a live external dependency.
-
-Base artifact DoD should remain green without requiring a live GitHub request.
+Repository popularity or activity metadata must remain artifact metadata. It must not become canonical paper quality or identity truth.
 
 ---
 
@@ -444,6 +527,20 @@ Status:
 Note:
 
 The current extraction baseline did not produce Hugging Face entities, so this stage may require either future corpus expansion, source updates, or extraction-rule improvements before enrichment is meaningful.
+
+---
+
+## 3.3 Figshare normalization hardening
+
+Planned:
+
+- normalize Figshare artifacts by numeric article id
+- reduce duplicate Figshare entities that share the same article id but differ by URL path
+- preserve evidence provenance while improving artifact entity deduplication
+
+Status:
+
+- planned
 
 ---
 
@@ -711,7 +808,7 @@ Not part of the immediate next step:
 - artifact evidence modifying canonical paper identity
 - ranking papers by GitHub stars as a canonical-quality signal
 
-The immediate next stage is artifact enrichment hardening and/or Hugging Face Hub enrichment, not another paper-truth source.
+The immediate next stage is artifact API enriched filtering and/or the next artifact-source hardening step, not another paper-truth source by default.
 
 ---
 

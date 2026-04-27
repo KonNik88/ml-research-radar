@@ -10,18 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
-
-
-try:
-    import psycopg2 as pg_driver  # type: ignore
-except ImportError:
-    try:
-        import psycopg as pg_driver  # type: ignore
-    except ImportError as exc:
-        raise RuntimeError(
-            "Neither psycopg2 nor psycopg is installed. "
-            "Install one of them in the ml_radar environment."
-        ) from exc
+import psycopg as pg_driver
 
 
 DEFAULT_ENTITIES_PATH = Path("data/enriched/artifact_links/artifact_entities_latest.jsonl")
