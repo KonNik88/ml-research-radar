@@ -277,6 +277,69 @@ metadata.github.pushed_at
 
 No new endpoint is required for v1.
 
+## Artifact API enriched filters v1
+
+The DB-backed `GET /artifacts` endpoint now supports deterministic filters and sorts over materialized GitHub metadata.
+
+Implemented filters:
+
+```text
+min_stars
+max_stars
+language
+license
+archived
+github_status
+has_github_metadata
+```
+
+Implemented sort modes:
+
+```text
+stars_desc
+forks_desc
+```
+
+Example queries:
+
+```http
+GET /artifacts?provider=github&min_stars=100&language=Python&sort_by=stars_desc
+GET /artifacts?provider=github&github_status=found
+GET /artifacts?provider=github&github_status=not_found
+GET /artifacts?provider=github&archived=false
+GET /artifacts?provider=github&has_github_metadata=true&sort_by=forks_desc
+```
+
+Current smoke baseline after implementation:
+
+```text
+provider=github&min_stars=100&language=python&sort_by=stars_desc  -> total = 13
+provider=github&github_status=found                              -> total = 110
+provider=github&github_status=not_found                          -> total = 3
+provider=github&archived=false                                   -> total = 104
+provider=github&has_github_metadata=true                         -> total = 113
+```
+
+Semantics:
+
+- filters are DB-backed and operate over `artifact_entities` only;
+- `language` and `license` matching is case-insensitive;
+- `archived=false` matches only rows with explicit `metadata.github.archived == false`;
+- non-GitHub artifacts are not treated as `archived=false`;
+- `has_github_metadata=false` means `metadata` does not contain a `github` object;
+- GitHub stars/forks/language/license/status remain artifact metadata, not paper-ranking or paper-identity signals.
+
+Date filters are intentionally postponed to a later small API slice:
+
+```text
+pushed_after
+pushed_before
+updated_after
+updated_before
+pushed_desc
+updated_desc
+```
+
 ## Validation
 
 GitHub Artifact Enrichment v1 has two validation levels:
@@ -300,6 +363,12 @@ Strict command:
 
 ```bat
 python -m scripts.validation.check_github_artifact_enrichment --strict
+```
+
+API enriched filter tests:
+
+```bat
+python -m pytest tests/integration/test_api_artifacts_github_filters_db.py -q
 ```
 
 Inputs:

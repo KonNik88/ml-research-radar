@@ -671,6 +671,13 @@ relation_type
 owner
 min_confidence
 has_paper_links
+min_stars
+max_stars
+language
+license
+archived
+github_status
+has_github_metadata
 limit
 offset
 sort_by
@@ -686,9 +693,16 @@ sort_by
 | `owner` | string | null | namespace/owner when available |
 | `min_confidence` | float | null | trusted link confidence threshold |
 | `has_paper_links` | bool | null | whether artifact participates in trusted links |
+| `min_stars` | int | null | minimum GitHub stars; applies to materialized artifact metadata |
+| `max_stars` | int | null | maximum GitHub stars; applies to materialized artifact metadata |
+| `language` | string | null | GitHub repository language, case-insensitive; uses `metadata.github.language` |
+| `license` | string | null | artifact/GitHub license, case-insensitive; uses `artifact_entities.license` |
+| `archived` | bool | null | GitHub archived flag; matches only explicit `metadata.github.archived` rows |
+| `github_status` | found / not_found / forbidden / rate_limited / error / skipped_invalid_external_id | null | GitHub enrichment status from `metadata.github.status` |
+| `has_github_metadata` | bool | null | whether `artifact_entities.metadata` contains a `github` object |
 | `limit` | int | 20 | max 100 |
 | `offset` | int | 0 | pagination offset |
-| `sort_by` | linked_papers_desc / provider_asc / type_asc / owner_asc / last_seen_desc | linked_papers_desc | deterministic ordering |
+| `sort_by` | linked_papers_desc / provider_asc / type_asc / owner_asc / last_seen_desc / stars_desc / forks_desc | linked_papers_desc | deterministic ordering |
 
 ### Examples
 
@@ -714,6 +728,31 @@ Artifacts with trusted paper links:
 
 ```http
 GET /artifacts?has_paper_links=true&limit=20
+```
+
+GitHub repositories with at least 100 stars, Python as primary language, sorted by stars:
+
+```http
+GET /artifacts?provider=github&min_stars=100&language=Python&sort_by=stars_desc&limit=20
+```
+
+GitHub repositories by enrichment status:
+
+```http
+GET /artifacts?provider=github&github_status=found&limit=20
+GET /artifacts?provider=github&github_status=not_found&limit=20
+```
+
+Non-archived GitHub repositories with explicit GitHub metadata:
+
+```http
+GET /artifacts?provider=github&archived=false&has_github_metadata=true&limit=20
+```
+
+GitHub artifacts sorted by forks:
+
+```http
+GET /artifacts?provider=github&has_github_metadata=true&sort_by=forks_desc&limit=20
 ```
 
 ### Response shape
@@ -795,12 +834,56 @@ github enrichment found = 110
 github enrichment not_found = 3
 ```
 
+Artifact API enriched filters v1 are implemented over this materialized GitHub metadata.
+
+Supported enriched filters on `GET /artifacts`:
+
+```text
+min_stars
+max_stars
+language
+license
+archived
+github_status
+has_github_metadata
+```
+
+Supported enriched sort modes:
+
+```text
+stars_desc
+forks_desc
+```
+
+Current smoke examples:
+
+```http
+GET /artifacts?provider=github&min_stars=100&language=python&sort_by=stars_desc&limit=5
+GET /artifacts?provider=github&github_status=found&limit=5
+GET /artifacts?provider=github&github_status=not_found&limit=5
+GET /artifacts?provider=github&archived=false&limit=5
+GET /artifacts?provider=github&has_github_metadata=true&sort_by=forks_desc&limit=5
+```
+
+Observed current results after implementation:
+
+```text
+provider=github&min_stars=100&language=python&sort_by=stars_desc  -> total = 13
+provider=github&github_status=found                              -> total = 110
+provider=github&github_status=not_found                          -> total = 3
+provider=github&archived=false                                   -> total = 104
+provider=github&has_github_metadata=true                         -> total = 113
+```
+
 Semantics:
 
 - GitHub metadata is artifact metadata, not paper truth.
+- GitHub stars/forks/language/license/status must not be used as canonical paper quality or identity signals.
 - `has_code_link` remains the legacy canonical/source-layer field.
 - `has_trusted_code_artifact` remains the trusted artifact-layer filter.
 - `not_found` GitHub repositories are preserved as historical artifact evidence.
+- `archived=false` matches only rows with explicit GitHub metadata; non-GitHub artifacts are not treated as non-archived.
+- `has_github_metadata=false` means `metadata` does not contain a `github` object; for diagnostics, prefer `provider=github&has_github_metadata=false`.
 - GitHub enrichment is optional and not required for base artifact API operation.
 
 ---
@@ -1041,6 +1124,18 @@ Artifact API:
 python -m pytest tests/integration/test_api_artifacts_db.py -q
 ```
 
+Artifact API enriched GitHub filters:
+
+```bat
+python -m pytest tests/integration/test_api_artifacts_github_filters_db.py -q
+```
+
+GitHub enrichment API exposure:
+
+```bat
+python -m pytest tests/integration/test_api_github_enrichment_db.py -q
+```
+
 Document artifact filters:
 
 ```bat
@@ -1051,8 +1146,12 @@ Recommended DB/API artifact regression:
 
 ```bat
 python -m pytest tests/integration/test_api_artifacts_db.py -q
+python -m pytest tests/integration/test_api_github_enrichment_db.py -q
+python -m pytest tests/integration/test_api_artifacts_github_filters_db.py -q
 python -m pytest tests/integration/test_api_documents_artifact_filters_db.py -q
+python -m scripts.validation.check_github_artifact_enrichment --strict
 python -m scripts.update.check_refresh_definition_of_done --require-artifacts
+python -m scripts.update.check_refresh_definition_of_done --require-artifacts --require-github-enrichment
 ```
 
 ---
@@ -1077,10 +1176,19 @@ The current API reflects the current architecture:
 Near-term:
 
 ```text
-document artifact filter hardening
-API docs and examples
-Hugging Face enrichment fields if/when HF artifacts appear
-artifact enrichment diagnostics endpoints
+Artifact API enriched filters v1.1:
+  pushed_after
+  pushed_before
+  updated_after
+  updated_before
+  pushed_desc
+  updated_desc
+
+artifact source hardening:
+  Figshare normalization by numeric article id
+  generic URL hardening
+  Hugging Face enrichment fields if/when HF artifacts appear
+  artifact enrichment diagnostics endpoints
 ```
 
 Later:

@@ -406,6 +406,83 @@ GitHub enrichment is operationally validated but remains optional because GitHub
 
 ---
 
+## 1.12 Artifact API enriched filters v1
+
+Completed:
+
+- enriched GitHub artifact filters in DB-backed `GET /artifacts`
+- deterministic sorting by GitHub repository popularity metadata
+- invariant-based integration tests for enriched artifact filters
+- preserved separation between artifact metadata and canonical paper truth
+
+Implemented filters:
+
+```text
+min_stars
+max_stars
+language
+license
+archived
+github_status
+has_github_metadata
+```
+
+Implemented sort modes:
+
+```text
+stars_desc
+forks_desc
+```
+
+Validated smoke examples:
+
+```http
+GET /artifacts?provider=github&min_stars=100&language=python&sort_by=stars_desc&limit=5
+GET /artifacts?provider=github&github_status=found&limit=5
+GET /artifacts?provider=github&github_status=not_found&limit=5
+GET /artifacts?provider=github&archived=false&limit=5
+GET /artifacts?provider=github&has_github_metadata=true&sort_by=forks_desc&limit=5
+```
+
+Current observed totals:
+
+```text
+provider=github&min_stars=100&language=python&sort_by=stars_desc  -> total = 13
+provider=github&github_status=found                              -> total = 110
+provider=github&github_status=not_found                          -> total = 3
+provider=github&archived=false                                   -> total = 104
+provider=github&has_github_metadata=true                         -> total = 113
+```
+
+Validation baseline:
+
+```text
+python -m py_compile services/api/app.py
+python -m py_compile services/api/db.py
+python -m py_compile services/api/schemas.py
+python -m py_compile tests/integration/test_api_artifacts_github_filters_db.py
+python -m pytest tests/integration/test_api_artifacts_db.py -q                         -> 8 passed
+python -m pytest tests/integration/test_api_github_enrichment_db.py -q                 -> 2 passed
+python -m pytest tests/integration/test_api_artifacts_github_filters_db.py -q          -> 13 passed
+python -m pytest tests/integration/test_api_documents_artifact_filters_db.py -q        -> 8 passed
+python -m scripts.validation.check_github_artifact_enrichment --strict                -> ok=True
+python -m scripts.update.check_refresh_definition_of_done --require-artifacts         -> dod_passed=True
+python -m scripts.update.check_refresh_definition_of_done --require-artifacts --require-github-enrichment -> dod_passed=True
+```
+
+Status:
+
+- done
+
+Important principles:
+
+- GitHub popularity/activity metadata is artifact metadata only.
+- GitHub metadata must not become canonical paper quality, paper identity, or retrieval-ranking truth.
+- `archived=false` matches only explicit GitHub metadata rows.
+- Date filters and timestamp sort modes are intentionally postponed to a later small API slice.
+
+---
+
 ## 2. Current System State
 
 The project is currently at this point:
@@ -423,6 +500,7 @@ The project is currently at this point:
 - GitHub enrichment can be required in DoD with an explicit optional flag
 - refresh pipeline can include GitHub enrichment stages in dry-run/planned mode
 - enriched GitHub repository metadata is visible through the DB artifact API
+- DB artifact API supports enriched GitHub metadata filters and `stars_desc` / `forks_desc` sorting
 - canonical paper truth remains isolated from artifact enrichment
 
 Current closed vertical slice:
@@ -435,6 +513,7 @@ Artifact Layer v1
 → optional refresh pipeline GitHub stages
 → Postgres artifact materialization
 → DB artifact API exposure
+→ Artifact API enriched filters v1
 → integration tests
 → DoD --require-artifacts green
 → DoD --require-artifacts --require-github-enrichment green
@@ -442,49 +521,60 @@ Artifact Layer v1
 
 ---
 
-## 3. Next Stage: Artifact API enriched filters / next artifact source
+## 3. Next Stage: storage migration, artifact hardening and controlled growth
 
-The next stage should still remain close to the artifact/enrichment plane unless there is a deliberate decision to start a new paper-source vertical slice.
+The next stage should strengthen the serving/infrastructure foundation before broad corpus expansion.
 
-Do not jump immediately to RAG/full-text or broad product layers before the artifact enrichment and serving line remains stable.
+Recommended near-term order:
+
+```text
+1. migrate Docker/Postgres/Qdrant storage off the OS disk
+2. add small follow-up artifact API timestamp filters if needed
+3. continue artifact hardening
+4. then start controlled medium-scale corpus expansion or a new paper-source vertical slice
+```
+
+Do not jump immediately to RAG/full-text or broad product layers before the artifact enrichment, serving and storage foundations remain stable.
 
 ---
 
-## 3.1 Artifact API enriched filters
+## 3.1 Infrastructure storage migration before corpus expansion
 
-Planned:
+Recommended next operational step:
 
-- add useful filters over enriched GitHub artifact metadata
-- expose repository state without changing canonical paper truth
-- keep artifact filters DB-backed and deterministic
+- move Docker Desktop disk image / Docker-managed volumes off the OS disk and onto the internal data disk before growing Postgres/Qdrant state;
+- keep Postgres and Qdrant as Docker-managed services unless there is a deliberate reason to switch to bind mounts;
+- keep external USB storage for backups, cold snapshots, archives and dataset releases rather than primary live DB storage.
 
-Candidate filters:
+Rationale:
+
+- the current DB/artifact state is still small enough to migrate safely;
+- storage migration is lower-risk before medium-scale corpus expansion;
+- future corpus growth, vector serving and artifact enrichment will increase DB/Qdrant volume size.
+
+Status:
+
+- next
+
+---
+
+## 3.2 Artifact API enriched filters v1.1
+
+Planned follow-up:
 
 ```text
-min_stars
-language
-license
-archived
-github_status
-has_github_metadata
-```
-
-Candidate sort modes:
-
-```text
-stars_desc
-forks_desc
-updated_desc
+pushed_after
+pushed_before
+updated_after
+updated_before
 pushed_desc
+updated_desc
 ```
 
-Example target queries:
+Rationale:
 
-```http
-GET /artifacts?provider=github&min_stars=100&language=Python&sort_by=stars_desc
-GET /artifacts?provider=github&github_status=not_found
-GET /artifacts?provider=github&archived=false
-```
+- v1 intentionally avoided timestamp filters because `pushed_at` is stored under `metadata.github` and needs careful timestamp casting/null handling;
+- v1.1 can add these filters as a small isolated API slice.
 
 Status:
 
@@ -496,7 +586,7 @@ Repository popularity or activity metadata must remain artifact metadata. It mus
 
 ---
 
-## 3.2 Hugging Face Hub enrichment v1
+## 3.3 Hugging Face Hub enrichment v1
 
 Planned:
 
@@ -530,7 +620,7 @@ The current extraction baseline did not produce Hugging Face entities, so this s
 
 ---
 
-## 3.3 Figshare normalization hardening
+## 3.4 Figshare normalization hardening
 
 Planned:
 

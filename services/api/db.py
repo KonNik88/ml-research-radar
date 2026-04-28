@@ -433,71 +433,32 @@ class PostgresDocumentStore:
         owner: str | None = None,
         min_confidence: float | None = None,
         has_paper_links: bool | None = None,
+        min_stars: int | None = None,
+        max_stars: int | None = None,
+        language: str | None = None,
+        license: str | None = None,
+        archived: bool | None = None,
+        github_status: str | None = None,
+        has_github_metadata: bool | None = None,
         limit: int = 20,
         offset: int = 0,
         sort_by: str = "linked_papers_desc",
     ) -> list[dict[str, Any]]:
-        where_clauses: list[str] = []
-        params: list[Any] = []
-
-        if provider:
-            where_clauses.append("ae.provider = %s")
-            params.append(provider)
-
-        if artifact_type:
-            where_clauses.append("ae.artifact_type = %s")
-            params.append(artifact_type)
-
-        if owner:
-            where_clauses.append("LOWER(COALESCE(ae.owner, '')) = LOWER(%s)")
-            params.append(owner)
-
-        if relation_type:
-            where_clauses.append(
-                """
-                EXISTS (
-                    SELECT 1
-                    FROM paper_artifact_links pal_filter
-                    WHERE pal_filter.artifact_id = ae.artifact_id
-                      AND pal_filter.relation_type = %s
-                )
-                """
-            )
-            params.append(relation_type)
-
-        if min_confidence is not None:
-            where_clauses.append(
-                """
-                EXISTS (
-                    SELECT 1
-                    FROM paper_artifact_links pal_filter
-                    WHERE pal_filter.artifact_id = ae.artifact_id
-                      AND pal_filter.confidence >= %s
-                )
-                """
-            )
-            params.append(float(min_confidence))
-
-        if has_paper_links is True:
-            where_clauses.append(
-                """
-                EXISTS (
-                    SELECT 1
-                    FROM paper_artifact_links pal_filter
-                    WHERE pal_filter.artifact_id = ae.artifact_id
-                )
-                """
-            )
-        elif has_paper_links is False:
-            where_clauses.append(
-                """
-                NOT EXISTS (
-                    SELECT 1
-                    FROM paper_artifact_links pal_filter
-                    WHERE pal_filter.artifact_id = ae.artifact_id
-                )
-                """
-            )
+        where_clauses, params = self._build_artifact_where(
+            provider=provider,
+            artifact_type=artifact_type,
+            relation_type=relation_type,
+            owner=owner,
+            min_confidence=min_confidence,
+            has_paper_links=has_paper_links,
+            min_stars=min_stars,
+            max_stars=max_stars,
+            language=language,
+            license=license,
+            archived=archived,
+            github_status=github_status,
+            has_github_metadata=has_github_metadata,
+        )
 
         where_sql = ""
         if where_clauses:
@@ -542,68 +503,29 @@ class PostgresDocumentStore:
         owner: str | None = None,
         min_confidence: float | None = None,
         has_paper_links: bool | None = None,
+        min_stars: int | None = None,
+        max_stars: int | None = None,
+        language: str | None = None,
+        license: str | None = None,
+        archived: bool | None = None,
+        github_status: str | None = None,
+        has_github_metadata: bool | None = None,
     ) -> int:
-        where_clauses: list[str] = []
-        params: list[Any] = []
-
-        if provider:
-            where_clauses.append("ae.provider = %s")
-            params.append(provider)
-
-        if artifact_type:
-            where_clauses.append("ae.artifact_type = %s")
-            params.append(artifact_type)
-
-        if owner:
-            where_clauses.append("LOWER(COALESCE(ae.owner, '')) = LOWER(%s)")
-            params.append(owner)
-
-        if relation_type:
-            where_clauses.append(
-                """
-                EXISTS (
-                    SELECT 1
-                    FROM paper_artifact_links pal_filter
-                    WHERE pal_filter.artifact_id = ae.artifact_id
-                      AND pal_filter.relation_type = %s
-                )
-                """
-            )
-            params.append(relation_type)
-
-        if min_confidence is not None:
-            where_clauses.append(
-                """
-                EXISTS (
-                    SELECT 1
-                    FROM paper_artifact_links pal_filter
-                    WHERE pal_filter.artifact_id = ae.artifact_id
-                      AND pal_filter.confidence >= %s
-                )
-                """
-            )
-            params.append(float(min_confidence))
-
-        if has_paper_links is True:
-            where_clauses.append(
-                """
-                EXISTS (
-                    SELECT 1
-                    FROM paper_artifact_links pal_filter
-                    WHERE pal_filter.artifact_id = ae.artifact_id
-                )
-                """
-            )
-        elif has_paper_links is False:
-            where_clauses.append(
-                """
-                NOT EXISTS (
-                    SELECT 1
-                    FROM paper_artifact_links pal_filter
-                    WHERE pal_filter.artifact_id = ae.artifact_id
-                )
-                """
-            )
+        where_clauses, params = self._build_artifact_where(
+            provider=provider,
+            artifact_type=artifact_type,
+            relation_type=relation_type,
+            owner=owner,
+            min_confidence=min_confidence,
+            has_paper_links=has_paper_links,
+            min_stars=min_stars,
+            max_stars=max_stars,
+            language=language,
+            license=license,
+            archived=archived,
+            github_status=github_status,
+            has_github_metadata=has_github_metadata,
+        )
 
         where_sql = ""
         if where_clauses:
@@ -958,6 +880,123 @@ class PostgresDocumentStore:
         return exists_sql, params
 
     @staticmethod
+    def _build_artifact_where(
+        *,
+        provider: str | None = None,
+        artifact_type: str | None = None,
+        relation_type: str | None = None,
+        owner: str | None = None,
+        min_confidence: float | None = None,
+        has_paper_links: bool | None = None,
+        min_stars: int | None = None,
+        max_stars: int | None = None,
+        language: str | None = None,
+        license: str | None = None,
+        archived: bool | None = None,
+        github_status: str | None = None,
+        has_github_metadata: bool | None = None,
+    ) -> tuple[list[str], list[Any]]:
+        where_clauses: list[str] = []
+        params: list[Any] = []
+
+        if provider:
+            where_clauses.append("ae.provider = %s")
+            params.append(provider)
+
+        if artifact_type:
+            where_clauses.append("ae.artifact_type = %s")
+            params.append(artifact_type)
+
+        if owner:
+            where_clauses.append("LOWER(COALESCE(ae.owner, '')) = LOWER(%s)")
+            params.append(owner)
+
+        if relation_type:
+            where_clauses.append(
+                """
+                EXISTS (
+                    SELECT 1
+                    FROM paper_artifact_links pal_filter
+                    WHERE pal_filter.artifact_id = ae.artifact_id
+                      AND pal_filter.relation_type = %s
+                )
+                """
+            )
+            params.append(relation_type)
+
+        if min_confidence is not None:
+            where_clauses.append(
+                """
+                EXISTS (
+                    SELECT 1
+                    FROM paper_artifact_links pal_filter
+                    WHERE pal_filter.artifact_id = ae.artifact_id
+                      AND pal_filter.confidence >= %s
+                )
+                """
+            )
+            params.append(float(min_confidence))
+
+        if has_paper_links is True:
+            where_clauses.append(
+                """
+                EXISTS (
+                    SELECT 1
+                    FROM paper_artifact_links pal_filter
+                    WHERE pal_filter.artifact_id = ae.artifact_id
+                )
+                """
+            )
+        elif has_paper_links is False:
+            where_clauses.append(
+                """
+                NOT EXISTS (
+                    SELECT 1
+                    FROM paper_artifact_links pal_filter
+                    WHERE pal_filter.artifact_id = ae.artifact_id
+                )
+                """
+            )
+
+        if min_stars is not None:
+            where_clauses.append("ae.stars >= %s")
+            params.append(int(min_stars))
+
+        if max_stars is not None:
+            where_clauses.append("ae.stars <= %s")
+            params.append(int(max_stars))
+
+        if language:
+            where_clauses.append(
+                "LOWER(COALESCE(ae.metadata->'github'->>'language', '')) = LOWER(%s)"
+            )
+            params.append(language)
+
+        if license:
+            where_clauses.append("LOWER(COALESCE(ae.license, '')) = LOWER(%s)")
+            params.append(license)
+
+        if archived is not None:
+            where_clauses.append(
+                """
+                (COALESCE(ae.metadata, '{}'::jsonb) ? 'github')
+                AND (ae.metadata->'github'->>'archived')::boolean = %s
+                """
+            )
+            params.append(bool(archived))
+
+        if github_status:
+            where_clauses.append("ae.metadata->'github'->>'status' = %s")
+            params.append(github_status)
+
+        if has_github_metadata is True:
+            where_clauses.append("COALESCE(ae.metadata, '{}'::jsonb) ? 'github'")
+        elif has_github_metadata is False:
+            where_clauses.append("NOT (COALESCE(ae.metadata, '{}'::jsonb) ? 'github')")
+
+        return where_clauses, params
+
+    @staticmethod
     def _build_order_by(sort_by: str) -> str:
         if sort_by == "year_asc":
             return "ORDER BY cd.year ASC NULLS LAST, cd.canonical_id ASC"
@@ -976,7 +1015,11 @@ class PostgresDocumentStore:
         if sort_by == "owner_asc":
             return "ORDER BY ae.owner ASC NULLS LAST, ae.provider ASC, ae.normalized_url ASC"
         if sort_by == "last_seen_desc":
-            return "ORDER BY ae.last_seen_at DESC NULLS LAST, ae.normalized_url ASC"
+            return "ORDER BY ae.last_seen_at DESC NULLS LAST, ae.provider ASC, ae.normalized_url ASC"
+        if sort_by == "stars_desc":
+            return "ORDER BY ae.stars DESC NULLS LAST, ae.provider ASC, ae.normalized_url ASC"
+        if sort_by == "forks_desc":
+            return "ORDER BY ae.forks DESC NULLS LAST, ae.provider ASC, ae.normalized_url ASC"
         if sort_by == "linked_papers_desc":
             return "ORDER BY COALESCE(stats.linked_papers_count, 0) DESC, ae.provider ASC, ae.normalized_url ASC"
         return "ORDER BY COALESCE(stats.linked_papers_count, 0) DESC, ae.provider ASC, ae.normalized_url ASC"

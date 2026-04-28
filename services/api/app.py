@@ -346,6 +346,26 @@ def list_artifacts(
     owner: str | None = Query(None, description="Artifact owner/namespace when available"),
     min_confidence: float | None = Query(None, ge=0.0, le=1.0),
     has_paper_links: bool | None = Query(None, description="Filter artifacts by trusted paper links presence"),
+    min_stars: int | None = Query(None, ge=0, description="Minimum GitHub stars. Rows with NULL stars do not match."),
+    max_stars: int | None = Query(None, ge=0, description="Maximum GitHub stars. Rows with NULL stars do not match."),
+    language: str | None = Query(None, description="GitHub repository language, case-insensitive, e.g. Python"),
+    license: str | None = Query(None, description="Artifact/GitHub license, case-insensitive, e.g. mit/gpl-3.0"),
+    archived: bool | None = Query(
+        None,
+        description="GitHub archived flag. Only rows with explicit metadata.github.archived match.",
+    ),
+    github_status: Literal[
+        "found",
+        "not_found",
+        "forbidden",
+        "rate_limited",
+        "error",
+        "skipped_invalid_external_id",
+    ] | None = Query(None, description="GitHub enrichment status filter"),
+    has_github_metadata: bool | None = Query(
+        None,
+        description="Filter by presence of metadata.github. Use with provider=github for diagnostics.",
+    ),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     sort_by: Literal[
@@ -354,6 +374,8 @@ def list_artifacts(
         "type_asc",
         "owner_asc",
         "last_seen_desc",
+        "stars_desc",
+        "forks_desc",
     ] = Query("linked_papers_desc"),
 ) -> ArtifactListResponse:
     runtime = get_runtime()
@@ -363,6 +385,9 @@ def list_artifacts(
     if runtime.db_store is None:
         raise RuntimeError("DB backend is not enabled")
 
+    if min_stars is not None and max_stars is not None and min_stars > max_stars:
+        raise ValueError("min_stars must be less than or equal to max_stars")
+
     rows = runtime.db_store.list_artifacts(
         provider=provider,
         artifact_type=artifact_type,
@@ -370,6 +395,13 @@ def list_artifacts(
         owner=owner,
         min_confidence=min_confidence,
         has_paper_links=has_paper_links,
+        min_stars=min_stars,
+        max_stars=max_stars,
+        language=language,
+        license=license,
+        archived=archived,
+        github_status=github_status,
+        has_github_metadata=has_github_metadata,
         limit=limit,
         offset=offset,
         sort_by=sort_by,
@@ -382,6 +414,13 @@ def list_artifacts(
         owner=owner,
         min_confidence=min_confidence,
         has_paper_links=has_paper_links,
+        min_stars=min_stars,
+        max_stars=max_stars,
+        language=language,
+        license=license,
+        archived=archived,
+        github_status=github_status,
+        has_github_metadata=has_github_metadata,
     )
 
     return ArtifactListResponse(
