@@ -29,6 +29,9 @@ DEFAULT_ARTIFACT_DB_READ_PATH = Path(
 DEFAULT_GITHUB_ENRICHMENT_CHECK_PATH = Path(
     "artifacts/reports/validation/github_artifact_enrichment_check_latest.json"
 )
+DEFAULT_HUGGINGFACE_ENRICHMENT_CHECK_PATH = Path(
+    "artifacts/reports/validation/huggingface_artifact_enrichment_check_latest.json"
+)
 
 DEFAULT_REPORTS_DIR = Path("artifacts/reports/update")
 
@@ -394,6 +397,84 @@ def extract_github_enrichment_values(
     }
 
 
+
+
+def extract_huggingface_enrichment_values(
+    huggingface_enrichment_check: dict[str, Any] | None,
+) -> dict[str, Any]:
+    report = huggingface_enrichment_check or {}
+    summary = report.get("summary") if isinstance(report.get("summary"), dict) else {}
+    checks = report.get("checks") if isinstance(report.get("checks"), dict) else {}
+
+    huggingface_entities_count = first_present(
+        report,
+        [
+            ("summary", "huggingface_entities_count"),
+            ("huggingface_entities_count",),
+        ],
+    )
+    metadata_rows_count = first_present(
+        report,
+        [
+            ("summary", "metadata_rows_count"),
+            ("metadata_rows_count",),
+        ],
+    )
+    found_count = first_present(report, [("summary", "found_count"), ("found_count",)])
+    not_found_count = first_present(report, [("summary", "not_found_count"), ("not_found_count",)])
+    forbidden_count = first_present(report, [("summary", "forbidden_count"), ("forbidden_count",)])
+    skipped_invalid_external_id_count = first_present(
+        report,
+        [
+            ("summary", "skipped_invalid_external_id_count"),
+            ("skipped_invalid_external_id_count",),
+        ],
+    )
+    rate_limited_count = first_present(
+        report,
+        [("summary", "rate_limited_count"), ("rate_limited_count",)],
+    )
+    error_count = first_present(report, [("summary", "error_count"), ("error_count",)])
+    duplicate_artifact_id_count = first_present(
+        report,
+        [("summary", "duplicate_artifact_id_count"), ("duplicate_artifact_id_count",)],
+    )
+    unknown_artifact_id_count = first_present(
+        report,
+        [("summary", "unknown_artifact_id_count"), ("unknown_artifact_id_count",)],
+    )
+
+    metadata_vs_entities_match = checks.get("metadata_rows_match_huggingface_entities")
+    if metadata_vs_entities_match is None:
+        metadata_vs_entities_match = (
+            safe_int(metadata_rows_count) == safe_int(huggingface_entities_count)
+            and safe_int(huggingface_entities_count) > 0
+        )
+
+    return {
+        "huggingface_enrichment_check_ok": report_ok(huggingface_enrichment_check),
+        "huggingface_enrichment_required_failed_count": first_present(
+            report,
+            [("required_failed_count",), ("verdict", "required_failed_count")],
+        ),
+        "huggingface_enrichment_strict": first_present(
+            report,
+            [("strict",), ("verdict", "strict")],
+        ),
+        "huggingface_enrichment_huggingface_entities_count": huggingface_entities_count,
+        "huggingface_enrichment_metadata_rows_count": metadata_rows_count,
+        "huggingface_enrichment_found_count": found_count,
+        "huggingface_enrichment_not_found_count": not_found_count,
+        "huggingface_enrichment_forbidden_count": forbidden_count,
+        "huggingface_enrichment_skipped_invalid_external_id_count": skipped_invalid_external_id_count,
+        "huggingface_enrichment_rate_limited_count": rate_limited_count,
+        "huggingface_enrichment_error_count": error_count,
+        "huggingface_enrichment_duplicate_artifact_id_count": duplicate_artifact_id_count,
+        "huggingface_enrichment_unknown_artifact_id_count": unknown_artifact_id_count,
+        "huggingface_enrichment_metadata_vs_entities_match": metadata_vs_entities_match,
+        "huggingface_enrichment_status_distribution": summary.get("status_distribution"),
+    }
+
 def build_markdown(report: dict[str, Any]) -> str:
     lines: list[str] = []
     lines.append("# Refresh Definition of Done check")
@@ -439,7 +520,7 @@ def build_markdown(report: dict[str, Any]) -> str:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Check refresh Definition of Done against canonical, DB, retrieval, validation, optional artifact outputs, and optional GitHub enrichment checks."
+        description="Check refresh Definition of Done against canonical, DB, retrieval, validation, optional artifact outputs, and optional GitHub/Hugging Face enrichment checks."
     )
     parser.add_argument("--canonical-path", type=Path, default=DEFAULT_CANONICAL_PATH)
     parser.add_argument("--manifest-path", type=Path, default=DEFAULT_MANIFEST_PATH)
@@ -456,6 +537,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=DEFAULT_GITHUB_ENRICHMENT_CHECK_PATH,
         help="GitHub artifact enrichment validation report path.",
+    )
+    parser.add_argument(
+        "--huggingface-enrichment-check-path",
+        type=Path,
+        default=DEFAULT_HUGGINGFACE_ENRICHMENT_CHECK_PATH,
+        help="Hugging Face artifact enrichment validation report path.",
     )
 
     parser.add_argument("--reports-dir", type=Path, default=DEFAULT_REPORTS_DIR)
@@ -474,6 +561,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--require-github-enrichment",
         action="store_true",
         help="Treat GitHub artifact enrichment validation as a required DoD condition. This is intentionally separate from --require-artifacts because GitHub is an optional external enrichment layer.",
+    )
+    parser.add_argument(
+        "--require-huggingface-enrichment",
+        action="store_true",
+        help="Treat Hugging Face artifact enrichment validation as a required DoD condition. This is intentionally separate from --require-artifacts because Hugging Face is an optional external enrichment layer.",
     )
 
     return parser
@@ -511,6 +603,12 @@ def main() -> None:
     github_enrichment_check = load_json_if_exists(args.github_enrichment_check_path)
     github_enrichment_check_exists = github_enrichment_check is not None
     github_enrichment_values = extract_github_enrichment_values(github_enrichment_check)
+
+    huggingface_enrichment_check = load_json_if_exists(args.huggingface_enrichment_check_path)
+    huggingface_enrichment_check_exists = huggingface_enrichment_check is not None
+    huggingface_enrichment_values = extract_huggingface_enrichment_values(
+        huggingface_enrichment_check
+    )
 
     db_smoke = run_db_smoke()
 
@@ -635,6 +733,48 @@ def main() -> None:
         "github_enrichment_no_forbidden": safe_int(
             github_enrichment_values["github_enrichment_forbidden_count"]
         ) == 0,
+
+        # optional Hugging Face enrichment block
+        "huggingface_enrichment_check_exists": huggingface_enrichment_check_exists,
+        "huggingface_enrichment_check_ok": huggingface_enrichment_values[
+            "huggingface_enrichment_check_ok"
+        ],
+        "huggingface_enrichment_rows_non_empty": safe_int(
+            huggingface_enrichment_values["huggingface_enrichment_metadata_rows_count"]
+        ) > 0,
+        "huggingface_enrichment_found_non_empty": safe_int(
+            huggingface_enrichment_values["huggingface_enrichment_found_count"]
+        ) > 0,
+        "huggingface_enrichment_no_rate_limited": safe_int(
+            huggingface_enrichment_values["huggingface_enrichment_rate_limited_count"]
+        ) == 0,
+        "huggingface_enrichment_no_errors": safe_int(
+            huggingface_enrichment_values["huggingface_enrichment_error_count"]
+        ) == 0,
+        "huggingface_enrichment_metadata_vs_entities_match": bool(
+            huggingface_enrichment_values[
+                "huggingface_enrichment_metadata_vs_entities_match"
+            ]
+        ),
+        "huggingface_enrichment_no_unknown_artifact_ids": safe_int(
+            huggingface_enrichment_values[
+                "huggingface_enrichment_unknown_artifact_id_count"
+            ]
+        ) == 0,
+        "huggingface_enrichment_no_duplicate_artifact_ids": safe_int(
+            huggingface_enrichment_values[
+                "huggingface_enrichment_duplicate_artifact_id_count"
+            ]
+        ) == 0,
+        # Diagnostic only: forbidden/skipped_invalid are allowed provider/extraction states.
+        "huggingface_enrichment_no_forbidden": safe_int(
+            huggingface_enrichment_values["huggingface_enrichment_forbidden_count"]
+        ) == 0,
+        "huggingface_enrichment_no_skipped_invalid_external_ids": safe_int(
+            huggingface_enrichment_values[
+                "huggingface_enrichment_skipped_invalid_external_id_count"
+            ]
+        ) == 0,
     }
 
     required_check_names = [
@@ -698,6 +838,21 @@ def main() -> None:
             ]
         )
 
+    if args.require_huggingface_enrichment:
+        required_check_names.extend(
+            [
+                "huggingface_enrichment_check_exists",
+                "huggingface_enrichment_check_ok",
+                "huggingface_enrichment_rows_non_empty",
+                "huggingface_enrichment_found_non_empty",
+                "huggingface_enrichment_no_rate_limited",
+                "huggingface_enrichment_no_errors",
+                "huggingface_enrichment_metadata_vs_entities_match",
+                "huggingface_enrichment_no_unknown_artifact_ids",
+                "huggingface_enrichment_no_duplicate_artifact_ids",
+            ]
+        )
+
     required_failed = [name for name in required_check_names if not checks.get(name, False)]
 
     verdict = {
@@ -708,6 +863,7 @@ def main() -> None:
         "known_issues_required": bool(args.require_known_issues),
         "artifacts_required": bool(args.require_artifacts),
         "github_enrichment_required": bool(args.require_github_enrichment),
+        "huggingface_enrichment_required": bool(args.require_huggingface_enrichment),
     }
 
     report = {
@@ -724,6 +880,9 @@ def main() -> None:
             "artifact_export_path": normalize_path(args.artifact_export_path),
             "artifact_db_read_path": normalize_path(args.artifact_db_read_path),
             "github_enrichment_check_path": normalize_path(args.github_enrichment_check_path),
+            "huggingface_enrichment_check_path": normalize_path(
+                args.huggingface_enrichment_check_path
+            ),
         },
         "canonical_summary": canonical_summary,
         "extracted_values": {
@@ -738,6 +897,7 @@ def main() -> None:
             "known_issues_build_id": known_issues_build_id,
             **artifact_values,
             **github_enrichment_values,
+            **huggingface_enrichment_values,
         },
         "checks": checks,
         "verdict": verdict,
@@ -764,6 +924,10 @@ def main() -> None:
     print(f"[OK] known_issues_required={verdict['known_issues_required']}")
     print(f"[OK] artifacts_required={verdict['artifacts_required']}")
     print(f"[OK] github_enrichment_required={verdict['github_enrichment_required']}")
+    print(
+        f"[OK] huggingface_enrichment_required="
+        f"{verdict['huggingface_enrichment_required']}"
+    )
     print(f"[OK] latest JSON: {latest_json}")
     print(f"[OK] latest Markdown: {latest_md}")
     print(f"[OK] history JSON: {hist_json}")

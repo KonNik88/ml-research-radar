@@ -10,15 +10,17 @@ inputs:
     - openalex_alignment
     - semantic_scholar_alignment
     - crossref_alignment
+    - acl_anthology
 
   # Explicit snapshots for reproducible artifact extraction.
   # This prevents accidental selection of derivative files like:
   # documents.*.updated.jsonl / documents.*.unchanged.jsonl
   source_files:
-    arxiv: "data/normalized/arxiv/documents.20260404T161108Z.jsonl"
-    openalex_alignment: "data/normalized/openalex_alignment/documents.20260412T162220Z.jsonl"
-    semantic_scholar_alignment: "data/normalized/semantic_scholar_alignment/documents.20260412T162234Z.jsonl"
-    crossref_alignment: "data/normalized/crossref_alignment/documents.20260412T162249Z.jsonl"
+    arxiv: "data/normalized/arxiv/documents.20260501T162704Z.jsonl"
+    openalex_alignment: "data/normalized/openalex_alignment/documents.20260501T102818Z.jsonl"
+    semantic_scholar_alignment: "data/normalized/semantic_scholar_alignment/documents.20260501T164707Z.jsonl"
+    crossref_alignment: "data/normalized/crossref_alignment/documents.20260430T155219Z.jsonl"
+    acl_anthology: "data/normalized/acl_anthology/documents.20260503T103242Z.jsonl"
 
 outputs:
   enriched_dir: "data/enriched/artifact_links"

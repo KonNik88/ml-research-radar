@@ -33,6 +33,45 @@ FALLBACK_CORE_ARXIV_CATEGORIES = [
     "cs.CL",
 ]
 
+DOI_RE = re.compile(r"10\.\d{4,9}/[^\s,;]+", re.IGNORECASE)
+
+
+def normalize_doi(value: Any) -> str | None:
+    if value is None:
+        return None
+
+    text = normalize_text(value)
+    if not text:
+        return None
+
+    lower = text.lower()
+    for prefix in (
+        "https://doi.org/",
+        "http://doi.org/",
+        "https://dx.doi.org/",
+        "http://dx.doi.org/",
+        "doi:",
+    ):
+        if lower.startswith(prefix):
+            text = text[len(prefix):].strip()
+            break
+
+    tokens = [
+        token.strip().strip(".,;()[]{}<>").lower().rstrip("/")
+        for token in DOI_RE.findall(text)
+    ]
+
+    tokens = [
+        token.strip().strip(".,;()[]{}<>").lower().rstrip("/")
+        for token in DOI_RE.findall(text)
+    ]
+    tokens = [token for token in tokens if token]
+
+    unique_tokens = list(dict.fromkeys(tokens))
+    if unique_tokens:
+        return unique_tokens[0]
+
+    return None
 
 def find_project_root(start: Path | None = None) -> Path:
     current = (start or Path(__file__).resolve()).resolve()
@@ -517,7 +556,7 @@ def map_kaggle_row_to_documents(
     abstract = normalize_text(row.get("abstract"))
     comment = normalize_text(row.get("comments"))
     journal_ref = normalize_text(row.get("journal-ref") or row.get("journal_ref"))
-    doi = normalize_text(row.get("doi"))
+    doi = normalize_doi(row.get("doi"))
     license_value = normalize_text(row.get("license"))
 
     categories = parse_categories(row.get("categories"))
@@ -714,7 +753,7 @@ def summarize_rows(
         total += 1
 
         abstract = normalize_text(row.get("abstract"))
-        doi = normalize_text(row.get("doi"))
+        doi = normalize_doi(row.get("doi"))
         cats = parse_categories(row.get("categories"))
         versions = parse_versions(row.get("versions"))
         published = first_version_created_at(versions) or parse_datetime(row.get("update_date"))

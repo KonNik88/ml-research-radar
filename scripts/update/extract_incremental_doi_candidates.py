@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -10,6 +11,7 @@ from typing import Any
 DEFAULT_REPORTS_ROOT = Path("artifacts/reports")
 DEFAULT_OUTPUT_DIR = Path("artifacts/reports/update")
 
+DOI_RE = re.compile(r"10\.\d{4,9}/[^\s,;]+", re.IGNORECASE)
 
 def utc_now_ts() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -65,7 +67,12 @@ def find_latest_incremental_merge_report(reports_root: Path) -> Path | None:
 def normalize_doi(value: Any) -> str | None:
     if value is None:
         return None
-    text = str(value).strip().lower()
+
+    text = str(value).strip()
+    if not text:
+        return None
+
+    lower = text.lower()
     prefixes = (
         "https://doi.org/",
         "http://doi.org/",
@@ -74,11 +81,21 @@ def normalize_doi(value: Any) -> str | None:
         "doi:",
     )
     for prefix in prefixes:
-        if text.startswith(prefix):
+        if lower.startswith(prefix):
             text = text[len(prefix):].strip()
             break
-    text = text.strip().strip("/")
-    return text or None
+
+    tokens = [
+        token.strip().strip(".,;()[]{}<>").lower().rstrip("/")
+        for token in DOI_RE.findall(text)
+    ]
+    tokens = [token for token in tokens if token]
+
+    unique_tokens = list(dict.fromkeys(tokens))
+    if unique_tokens:
+        return unique_tokens[0]
+
+    return None
 
 
 def collect_doi_rows(path: Path | None, source_label: str) -> tuple[list[dict[str, Any]], int]:

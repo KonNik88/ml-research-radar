@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import time
+import re
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -21,6 +22,7 @@ RAW_ALIGNMENT_ROOT = Path("data/raw/openalex_alignment")
 NORMALIZED_ALIGNMENT_DIR = Path("data/normalized/openalex_alignment")
 REPORTS_DIR = Path("artifacts/reports")
 
+DOI_RE = re.compile(r"10\.\d{4,9}/[^\s,;]+", re.IGNORECASE)
 
 def utc_now_ts() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -76,10 +78,15 @@ def latest_primary_jsonl(base_dir: Path) -> Path:
     return candidates[-1]
 
 
-def normalize_doi(value: Any) -> Optional[str]:
+def normalize_doi(value: Any) -> str | None:
     if value is None:
         return None
-    text = str(value).strip().lower()
+
+    text = str(value).strip()
+    if not text:
+        return None
+
+    lower = text.lower()
     prefixes = (
         "https://doi.org/",
         "http://doi.org/",
@@ -88,11 +95,21 @@ def normalize_doi(value: Any) -> Optional[str]:
         "doi:",
     )
     for prefix in prefixes:
-        if text.startswith(prefix):
+        if lower.startswith(prefix):
             text = text[len(prefix):].strip()
             break
-    text = text.strip().strip("/")
-    return text or None
+
+    tokens = [
+        token.strip().strip(".,;()[]{}<>").lower().rstrip("/")
+        for token in DOI_RE.findall(text)
+    ]
+    tokens = [token for token in tokens if token]
+
+    unique_tokens = list(dict.fromkeys(tokens))
+    if unique_tokens:
+        return unique_tokens[0]
+
+    return None
 
 
 def choose_unique_arxiv_rows_with_doi(rows: list[dict[str, Any]], limit: Optional[int]) -> list[dict[str, Any]]:

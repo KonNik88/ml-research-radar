@@ -4,15 +4,13 @@
 
 This roadmap describes the current implementation stage of ML Research Radar and the next planned stages.
 
-The roadmap is intentionally incremental.
-
-The project prefers closing stable vertical slices over expanding feature surface too early.
+The roadmap is intentionally incremental. The project prefers closing stable vertical slices over expanding feature surface too early.
 
 ---
 
 ## 1. Completed / Current Stage
 
-## 1.1 Canonical paper corpus foundation
+### 1.1 Canonical paper corpus foundation
 
 Completed:
 
@@ -20,17 +18,17 @@ Completed:
 - canonical reconciliation layer
 - paper-centric canonical corpus
 - provenance-preserving merge
-- arXiv backbone corpus
+- arXiv-backed medium-scale corpus
 - aligned enrichment from:
   - OpenAlex
   - Semantic Scholar
   - Crossref
 - conservative paper identity resolution
+- DOI normalization hardening
+- DOI conflict guard: DOI must not collapse different arXiv base IDs
 - source-level vs canonical-level identity separation
 
-Status:
-
-- done
+Status: done
 
 Current stable paper sources:
 
@@ -45,13 +43,19 @@ Current operational paper source of truth:
 data/analytics/reconciled/canonical_documents.jsonl
 ```
 
-Important principle:
+Current green 60k baseline:
 
-The canonical JSONL corpus remains the paper-level source of truth.
+```text
+canonical_doc_count = 60000
+canonical_multisource_docs = 9192
+DoD passed = true
+```
+
+Important principle: canonical JSONL remains the paper-level source of truth. Postgres, retrieval artifacts, artifact tables and APIs are materializations over that truth.
 
 ---
 
-## 1.2 Retrieval foundation
+### 1.2 Retrieval foundation
 
 Completed:
 
@@ -64,19 +68,21 @@ Completed:
 - retrieval validation checks
 - file-backend retrieval runtime
 
-Status:
-
-- done
+Status: done
 
 Current retrieval build:
 
-- corpus document count: 30008
-- embedding model: `sentence-transformers/all-MiniLM-L6-v2`
-- retrieval artifacts are derived from the canonical paper corpus
+```text
+build_id = 20260502T153402Z
+corpus_doc_count = 60000
+embedding_model = sentence-transformers/all-MiniLM-L6-v2
+```
+
+Retrieval artifacts are derived from the canonical paper corpus and are not source of truth.
 
 ---
 
-## 1.3 Audit / diagnostics / evaluation layer
+### 1.3 Audit / diagnostics / evaluation layer
 
 Completed:
 
@@ -92,13 +98,24 @@ Completed:
 - refresh Definition of Done
 - provenance consistency checks
 
-Status:
+Status: done
 
-- done
+Current strict DoD baseline:
+
+```bat
+python -m scripts.update.check_refresh_definition_of_done --require-artifacts --require-github-enrichment --require-huggingface-enrichment
+```
+
+Expected result:
+
+```text
+dod_passed = true
+required_failed_count = 0
+```
 
 ---
 
-## 1.4 Storage-backed core v1
+### 1.4 Storage-backed core v1
 
 Completed:
 
@@ -109,20 +126,25 @@ Completed:
 - Postgres document store
 - DB-backed `/documents`
 - dual-backend runtime foundation
+- `export_postgres_v1 --replace` hardening
+- source lookup index folded into `store/sql/02_indexes.sql`
 
-Status:
+Status: done
 
-- done
+Current Postgres paper DB baseline:
 
-Important principle:
+```text
+canonical_documents = 60000
+source_documents = 69214
+canonical_source_links = 87080
+document_references = 709662
+```
 
-Postgres is a materialized serving layer.
-
-The canonical JSONL corpus remains the operational source of truth.
+Important principle: Postgres is a materialized serving layer. The canonical JSONL corpus remains the operational source of truth.
 
 ---
 
-## 1.5 DB-backed `/search` v1
+### 1.5 DB-backed `/search` v1
 
 Completed:
 
@@ -132,38 +154,13 @@ Completed:
 - integration tests for DB search path
 - preservation of existing file retrieval path
 
-Status:
+Status: done
 
-- done
-
-Important principle:
-
-File backend is retrieval-first.
-
-DB backend is browse/filter + lexical search v1.
-
-Dense/hybrid parity in DB backend is not required at this stage.
+Important principle: file backend is retrieval-first; DB backend is browse/filter + lexical search v1. Dense/hybrid parity in DB backend is not required at this stage.
 
 ---
 
-## 1.6 Backend-aware cleanup
-
-Completed:
-
-- backend-aware runtime snapshot
-- backend-aware health semantics
-- backend-aware reload semantics
-- file-only vs db-only integration test split
-- API/runtime contract cleanup
-- documentation sync for current backend model
-
-Status:
-
-- done
-
----
-
-## 1.7 Papers with Code rollback and source viability gate
+### 1.6 Source viability gate
 
 Completed:
 
@@ -175,64 +172,36 @@ Completed:
 - source viability validation script introduced
 - candidate sources checked before integration work
 
-Status:
-
-- done
+Status: done
 
 Current viability outcome:
 
-- `github`: viable artifact source candidate
-- `huggingface_hub`: viable artifact source candidate
-- `acl_anthology`: viable paper source candidate
-- `openreview`: viable paper source candidate
-- `pubmed`: viable paper/domain source candidate
-- `biorxiv`: viable paper/domain source candidate
-- `medrxiv`: viable paper/domain source candidate
-- `paperswithcode`: blocked / archived live source
+```text
+github: operational artifact enrichment provider
+huggingface_hub: operational artifact enrichment provider
+acl_anthology: viable paper source candidate
+openreview: viable paper source candidate
+pubmed: viable domain paper source candidate
+biorxiv: viable domain paper source candidate
+medrxiv: viable domain paper source candidate
+paperswithcode: blocked / archived live source
+```
 
-Key lesson:
-
-Viability first, integration later.
-
----
-
-## 1.8 Green four-source baseline
-
-Completed:
-
-- reconcile after PWC rollback
-- retrieval checks
-- postpass audit
-- known issues snapshot
-- Postgres export
-- DB smoke
-- refresh Definition of Done
-
-Status:
-
-- done
-
-Current baseline:
-
-- canonical documents: 30008
-- multi-source canonical documents: 5893
-- active stable paper sources: 4
-- DB export validated
-- DoD passed
+Key lesson: viability first, integration later.
 
 ---
 
-## 1.9 Artifact Layer v1
+### 1.7 Artifact Layer v1
 
 Completed:
 
-- internal artifact URL extraction from existing canonical/source documents
+- internal artifact URL extraction from canonical/source documents
 - URL normalization
 - artifact classification
 - `artifact_entities_latest.jsonl`
 - `artifact_links_latest.jsonl`
 - artifact quality report
-- separate SQL schema for artifact entities, observations and trusted paper-artifact links
+- SQL schema for artifact entities, observations and trusted paper-artifact links
 - Postgres artifact export
 - artifact DB smoke check
 - artifact checks in refresh Definition of Done
@@ -243,140 +212,114 @@ Completed:
   - `GET /documents` trusted artifact filters
 - integration tests for artifact API and document artifact filters
 
-Status:
+Status: done
 
-- done
-
-Current artifact baseline:
+Current 60k artifact extraction baseline:
 
 ```text
-artifact_entities = 491
-artifact_observations = 1646
-paper_artifact_links = 492
-linked_canonical_documents = 451
-linked_artifact_entities = 482
+raw artifact_entities_latest = 7173
+artifact_observations = 37582
+trusted paper_artifact_links = 7262
+linked canonical docs = 6507
 ```
 
-Current provider distribution:
+Current artifact DB baseline:
 
 ```text
-generic   196
-figshare  113
-github    113
-zenodo     32
-youtube    28
-bitbucket   9
+artifact_entities = 7170
+artifact_observations = 37582
+paper_artifact_links = 7262
+normalized_url_collisions = 3
 ```
 
-Important principle:
-
-Artifact Layer v1 is a separate evidence/materialization plane.
-
-It does not modify canonical paper truth.
+Important principle: Artifact Layer v1 is a separate evidence/materialization plane. It does not modify canonical paper truth.
 
 ---
 
-## 1.10 GitHub Artifact Enrichment v1
+### 1.8 GitHub Artifact Enrichment v1
 
 Completed:
 
-- snapshot enrichment over existing GitHub `artifact_entities`
-- default input from:
-
-```text
-data/enriched/artifact_links/artifact_entities_latest.jsonl
-```
-
+- snapshot enrichment over extracted GitHub `artifact_entities`
 - GitHub REST API fetch for repository metadata
 - timestamped + latest enrichment outputs
-- enrichment report JSON/Markdown
+- standalone strict validation report
 - optional GitHub metadata merge in artifact Postgres export
+- optional GitHub enrichment checks in refresh DoD
+- optional GitHub enrichment stages in refresh pipeline
 - enriched GitHub metadata exposed through existing DB artifact API
-- soft integration test for GitHub enrichment API exposure
+- DB artifact API supports GitHub-specific enriched filters
 
-Status:
+Status: done
 
-- done
-
-Current GitHub enrichment baseline:
+Current 60k GitHub enrichment baseline:
 
 ```text
-github_entities_total = 113
-requested_count = 113
-processed_count = 113
-found_count = 110
-not_found_count = 3
+github_entities_count = 5796
+metadata_rows_count = 5796
+found_count = 5188
+not_found_count = 608
 forbidden_count = 0
 rate_limited_count = 0
 error_count = 0
+duplicate_artifact_id_count = 0
+unknown_artifact_id_count = 0
 ok = true
 ```
-
-Latest export baseline after GitHub metadata merge:
-
-```text
-artifact_entities_db_count = 491
-artifact_observations_db_count = 1646
-paper_artifact_links_db_count = 492
-github_metadata_rows_count = 113
-github_metadata_found_count = 110
-github_metadata_applied_count = 113
-github_metadata_found_applied_count = 110
-github_metadata_not_found_applied_count = 3
-github_metadata_missing_entity_count = 0
-```
-
-Enriched fields include:
-
-- `description`
-- `license`
-- `stars`
-- `forks`
-- `topics`
-- `fetched_at`
-- `created_at`
-- `updated_at`
-- `metadata.github.status`
-- `metadata.github.language`
-- `metadata.github.watchers`
-- `metadata.github.open_issues`
-- `metadata.github.default_branch`
-- `metadata.github.archived`
-- `metadata.github.pushed_at`
 
 Important principles:
 
 - GitHub is an artifact enrichment source, not a paper source.
 - GitHub enrichment does not alter canonical paper truth.
 - `not_found` repositories are preserved as historical artifact evidence.
-- archived repositories remain valid found artifacts.
-- GitHub enrichment is not required by base `--require-artifacts` DoD because GitHub API is a live external dependency.
+- GitHub enrichment remains optional because GitHub API is a live external dependency.
 
 ---
 
-## 1.11 GitHub Artifact Enrichment operational hardening
+### 1.9 Hugging Face Artifact Enrichment v1
 
 Completed:
 
-- standalone GitHub enrichment validation script
-- strict validation report for GitHub artifact metadata
-- optional GitHub enrichment checks in refresh DoD
-- optional GitHub enrichment stages in refresh pipeline dry-run
-- separation of `--include-github-enrichment` and `--require-github-enrichment`
-- preservation of base `--require-artifacts` behavior without requiring live GitHub API
-
-Status:
-
-- done
-
-Current validation baseline:
+- extracted Hugging Face model/dataset/space entities enriched through Hub API
+- provider-specific snapshot metadata written to:
 
 ```text
-github_entities_count = 113
-metadata_rows_count = 113
-found_count = 110
-not_found_count = 3
-forbidden_count = 0
+data/enriched/huggingface_artifacts/huggingface_artifact_metadata.<ts>.jsonl
+data/enriched/huggingface_artifacts/huggingface_artifact_metadata_latest.jsonl
+```
+
+- standalone strict validation report:
+
+```text
+artifacts/reports/validation/huggingface_artifact_enrichment_check_latest.json
+```
+
+- HF metadata merge in `export_artifacts_postgres_v1.py`
+- Postgres materialization into:
+  - `artifact_entities.metadata.huggingface`
+  - selected generic columns: `description`, `license`, `downloads`, `likes`, `tags`, `fetched_at`, `created_at`, `updated_at`
+- optional HF checks in refresh DoD:
+
+```bat
+python -m scripts.update.check_refresh_definition_of_done --require-artifacts --require-github-enrichment --require-huggingface-enrichment
+```
+
+- optional HF stages in refresh pipeline:
+
+```bat
+python -m scripts.update.run_refresh_pipeline_v1 --require-artifacts --include-huggingface-enrichment --require-huggingface-enrichment
+```
+
+Status: done
+
+Current 60k Hugging Face enrichment baseline:
+
+```text
+huggingface_entities_count = 96
+metadata_rows_count = 96
+found_count = 73
+forbidden_count = 2
+skipped_invalid_external_id_count = 21
 rate_limited_count = 0
 error_count = 0
 duplicate_artifact_id_count = 0
@@ -385,101 +328,22 @@ strict = true
 ok = true
 ```
 
-DoD modes:
-
-```bat
-python -m scripts.update.check_refresh_definition_of_done --require-artifacts
-python -m scripts.update.check_refresh_definition_of_done --require-artifacts --require-github-enrichment
-```
-
-Pipeline dry-run modes:
-
-```bat
-python -m scripts.update.run_refresh_pipeline_v1 --require-artifacts
-python -m scripts.update.run_refresh_pipeline_v1 --require-artifacts --include-github-enrichment
-python -m scripts.update.run_refresh_pipeline_v1 --require-artifacts --include-github-enrichment --require-github-enrichment
-```
-
-Important principle:
-
-GitHub enrichment is operationally validated but remains optional because GitHub API is an external live dependency.
-
----
-
-## 1.12 Artifact API enriched filters v1
-
-Completed:
-
-- enriched GitHub artifact filters in DB-backed `GET /artifacts`
-- deterministic sorting by GitHub repository popularity metadata
-- invariant-based integration tests for enriched artifact filters
-- preserved separation between artifact metadata and canonical paper truth
-
-Implemented filters:
+Current DB check:
 
 ```text
-min_stars
-max_stars
-language
-license
-archived
-github_status
-has_github_metadata
+hf_entities = 96
+hf_metadata = 96
+hf_found = 73
+hf_downloads = 64
 ```
-
-Implemented sort modes:
-
-```text
-stars_desc
-forks_desc
-```
-
-Validated smoke examples:
-
-```http
-GET /artifacts?provider=github&min_stars=100&language=python&sort_by=stars_desc&limit=5
-GET /artifacts?provider=github&github_status=found&limit=5
-GET /artifacts?provider=github&github_status=not_found&limit=5
-GET /artifacts?provider=github&archived=false&limit=5
-GET /artifacts?provider=github&has_github_metadata=true&sort_by=forks_desc&limit=5
-```
-
-Current observed totals:
-
-```text
-provider=github&min_stars=100&language=python&sort_by=stars_desc  -> total = 13
-provider=github&github_status=found                              -> total = 110
-provider=github&github_status=not_found                          -> total = 3
-provider=github&archived=false                                   -> total = 104
-provider=github&has_github_metadata=true                         -> total = 113
-```
-
-Validation baseline:
-
-```text
-python -m py_compile services/api/app.py
-python -m py_compile services/api/db.py
-python -m py_compile services/api/schemas.py
-python -m py_compile tests/integration/test_api_artifacts_github_filters_db.py
-python -m pytest tests/integration/test_api_artifacts_db.py -q                         -> 8 passed
-python -m pytest tests/integration/test_api_github_enrichment_db.py -q                 -> 2 passed
-python -m pytest tests/integration/test_api_artifacts_github_filters_db.py -q          -> 13 passed
-python -m pytest tests/integration/test_api_documents_artifact_filters_db.py -q        -> 8 passed
-python -m scripts.validation.check_github_artifact_enrichment --strict                -> ok=True
-python -m scripts.update.check_refresh_definition_of_done --require-artifacts         -> dod_passed=True
-python -m scripts.update.check_refresh_definition_of_done --require-artifacts --require-github-enrichment -> dod_passed=True
-```
-
-Status:
-
-- done
 
 Important principles:
 
-- GitHub popularity/activity metadata is artifact metadata only.
-- GitHub metadata must not become canonical paper quality, paper identity, or retrieval-ranking truth.
-- `archived=false` matches only explicit GitHub metadata rows.
-- Date filters and timestamp sort modes are intentionally postponed to a later small API slice.
+- Hugging Face is an artifact enrichment provider, not a paper source.
+- `forbidden` rows are provider/access states and remain diagnostic.
+- `skipped_invalid_external_id` rows are recognized extraction/noise states and remain diagnostic.
+- Neither state should fail the core strict gate unless it becomes policy-relevant later.
+- API-specific Hugging Face filters are postponed until after the next source/source-expansion slices.
 
 ---
 
@@ -487,175 +351,53 @@ Important principles:
 
 The project is currently at this point:
 
-- canonical paper corpus is stable enough for iterative growth
-- retrieval works in file backend
-- DB serving works for browse/filter and lexical search v1
-- tests are green in both backend modes
-- validation and DoD are operational
+- canonical 60k arXiv-backed paper corpus is green
+- four active paper/metadata sources are integrated: arXiv, OpenAlex, Semantic Scholar, Crossref
+- retrieval artifacts are built and validated on 60k docs
+- Postgres paper serving layer is green
+- artifact extraction is green
+- artifact DB materialization is green
+- GitHub artifact enrichment is green and optional in DoD/pipeline
+- Hugging Face artifact enrichment is green and optional in DoD/pipeline
+- API currently exposes generic artifact browse/filter and GitHub enriched filters
+- Hugging Face API-specific filters are intentionally postponed
 - source viability gate exists
-- Papers with Code live source is blocked/archived
-- Artifact Layer v1 is operational
-- GitHub Artifact Enrichment v1 is operational
-- GitHub enrichment has standalone strict validation
-- GitHub enrichment can be required in DoD with an explicit optional flag
-- refresh pipeline can include GitHub enrichment stages in dry-run/planned mode
-- enriched GitHub repository metadata is visible through the DB artifact API
-- DB artifact API supports enriched GitHub metadata filters and `stars_desc` / `forks_desc` sorting
+- Papers with Code live source remains blocked/archived
 - canonical paper truth remains isolated from artifact enrichment
 
 Current closed vertical slice:
 
 ```text
-Artifact Layer v1
+60k canonical corpus
+→ retrieval artifacts
+→ Postgres serving layer
+→ Artifact Layer v1
 → GitHub Artifact Enrichment v1
-→ GitHub enrichment validation
-→ optional GitHub DoD gate
-→ optional refresh pipeline GitHub stages
-→ Postgres artifact materialization
-→ DB artifact API exposure
-→ Artifact API enriched filters v1
-→ integration tests
-→ DoD --require-artifacts green
-→ DoD --require-artifacts --require-github-enrichment green
+→ Hugging Face Artifact Enrichment v1
+→ artifact export / DB materialization
+→ strict validation reports
+→ optional provider-specific DoD gates
+→ optional provider-specific refresh pipeline stages
 ```
 
 ---
 
-## 3. Next Stage: storage migration, artifact hardening and controlled growth
+## 3. Near-Term Roadmap
 
-The next stage should strengthen the serving/infrastructure foundation before broad corpus expansion.
-
-Recommended near-term order:
+Recommended next order:
 
 ```text
-1. migrate Docker/Postgres/Qdrant storage off the OS disk
-2. add small follow-up artifact API timestamp filters if needed
-3. continue artifact hardening
-4. then start controlled medium-scale corpus expansion or a new paper-source vertical slice
-```
-
-Do not jump immediately to RAG/full-text or broad product layers before the artifact enrichment, serving and storage foundations remain stable.
-
----
-
-## 3.1 Infrastructure storage migration before corpus expansion
-
-Recommended next operational step:
-
-- move Docker Desktop disk image / Docker-managed volumes off the OS disk and onto the internal data disk before growing Postgres/Qdrant state;
-- keep Postgres and Qdrant as Docker-managed services unless there is a deliberate reason to switch to bind mounts;
-- keep external USB storage for backups, cold snapshots, archives and dataset releases rather than primary live DB storage.
-
-Rationale:
-
-- the current DB/artifact state is still small enough to migrate safely;
-- storage migration is lower-risk before medium-scale corpus expansion;
-- future corpus growth, vector serving and artifact enrichment will increase DB/Qdrant volume size.
-
-Status:
-
-- next
-
----
-
-## 3.2 Artifact API enriched filters v1.1
-
-Planned follow-up:
-
-```text
-pushed_after
-pushed_before
-updated_after
-updated_before
-pushed_desc
-updated_desc
-```
-
-Rationale:
-
-- v1 intentionally avoided timestamp filters because `pushed_at` is stored under `metadata.github` and needs careful timestamp casting/null handling;
-- v1.1 can add these filters as a small isolated API slice.
-
-Status:
-
-- planned
-
-Important principle:
-
-Repository popularity or activity metadata must remain artifact metadata. It must not become canonical paper quality or identity truth.
-
----
-
-## 3.3 Hugging Face Hub enrichment v1
-
-Planned:
-
-- enrich extracted Hugging Face model/dataset/space URLs when present
-- fetch Hub metadata through API or Python client
-- preserve models/datasets/spaces as artifact entities
-- do not treat Hugging Face Hub as a paper source
-
-Possible fields:
-
-- model id
-- dataset id
-- space id
-- tags
-- downloads
-- likes
-- pipeline tag
-- license
-- library name
-- card metadata
-- created_at
-- last modified
-
-Status:
-
-- planned
-
-Note:
-
-The current extraction baseline did not produce Hugging Face entities, so this stage may require either future corpus expansion, source updates, or extraction-rule improvements before enrichment is meaningful.
-
----
-
-## 3.4 Figshare normalization hardening
-
-Planned:
-
-- normalize Figshare artifacts by numeric article id
-- reduce duplicate Figshare entities that share the same article id but differ by URL path
-- preserve evidence provenance while improving artifact entity deduplication
-
-Status:
-
-- planned
-
----
-
-## 4. New paper sources
-
-New paper sources should be integrated only after viability checks and candidate validation.
-
-The source onboarding order should remain:
-
-```text
-source viability
-→ real-data smoke
-→ source contract
-→ ingestor/alignment
-→ normalized snapshot
-→ source audit
-→ candidate reconcile impact check
-→ export
-→ validation
-→ stable integration only if safe
+1. Commit the current green 60k + artifact enrichment hardening slice.
+2. Start the first new paper-source candidate slice: ACL Anthology.
+3. Keep ACL candidate-only until source audit and candidate reconcile impact checks are green.
+4. Then consider OpenReview as the next paper source.
+5. Postpone PubMed/bioRxiv/medRxiv until a biomedical/domain expansion milestone is explicit.
+6. Postpone Hugging Face-specific API filters until after the next source/source-expansion work.
 ```
 
 ---
 
-## 4.1 First new paper source: ACL Anthology
+## 3.1 First new paper source: ACL Anthology
 
 Planned:
 
@@ -675,13 +417,11 @@ ACL Anthology is a good first new paper source because it is:
 - bulk-friendly
 - relatively low API risk
 
-Status:
-
-- planned
+Status: next
 
 ---
 
-## 4.2 OpenReview candidate source
+## 3.2 OpenReview candidate source
 
 Planned:
 
@@ -691,13 +431,11 @@ Planned:
 - preserve OpenReview identifiers
 - avoid mixing reviews/decisions into core paper truth prematurely
 
-Status:
-
-- planned
+Status: planned after ACL candidate slice
 
 ---
 
-## 4.3 Biomedical/domain sources
+## 3.3 Biomedical/domain sources
 
 Planned later:
 
@@ -711,87 +449,26 @@ Purpose:
 - possible ML-for-biology / ML-for-medicine coverage
 - separate domain-specific corpus slices
 
-Status:
-
-- later
+Status: later
 
 ---
 
-## 5. Medium-Scale Corpus Expansion
+## 4. Search / API / Product hardening
 
-Medium-scale corpus expansion remains important, but it should follow the artifact layer foundation and artifact enrichment stabilization.
-
-Target direction:
-
-- significantly larger but still manageable working corpus
-- approximately 50k+ canonical papers for the next growth stage
-- recent-balanced ML/AI slice
-- incremental growth, not immediate maximal crawl
-
-Possible target slice:
-
-- years: 2020–2026
-- categories:
-  - `cs.LG`
-  - `cs.AI`
-  - `cs.CL`
-  - `cs.CV`
-  - `stat.ML`
-  - `cs.IR`
-  - `cs.NE`
-  - `cs.RO`
-  - `eess.AS`
-  - `eess.IV`
-
-Planned order:
-
-1. define target corpus slice
-2. expand arXiv backbone
-3. run aligned enrichment over DOI-covered subset
-4. rebuild canonical corpus
-5. export refreshed corpus to Postgres
-6. extract / validate artifacts
-7. optionally enrich artifacts
-8. rebuild retrieval artifacts
-9. run audit / evaluation / performance checks
-10. compare retrieval quality against current baseline
-
-Status:
-
-- planned
-
----
-
-## 6. Search Hardening
-
-Planned:
+Planned after source/corpus hardening:
 
 - improve SQL search quality
 - improve retrieval validation queries
 - reduce gap between DB lexical search and file retrieval ergonomics
 - handle modern ML query failures
-- improve ambiguous query diagnostics
+- add richer artifact provider filters when provider metadata stabilizes
+- add document/source/reference drilldown endpoints
 
-Possible directions:
-
-- trigram improvements
-- `tsvector` / GIN
-- more explicit lexical scoring
-- query groups:
-  - modern ML
-  - ambiguous terms
-  - historical topics
-  - metadata-heavy queries
-  - regression guards
-- reranking experiments
-
-Status:
-
-- planned
+Hugging Face-specific API filters are intentionally postponed until after the next source/source-expansion slices to avoid repeatedly redesigning API contracts.
 
 ---
 
-## 7. Vector Serving Integration
+## 5. Vector Serving Integration
 
 Planned:
 
@@ -806,37 +483,17 @@ Possible directions:
 - serving-time dense search
 - DB metadata filters + vector candidates + ranker
 
-Status:
+Status: planned
 
-- planned
-
-Important principle:
-
-Dense/hybrid serving should likely be implemented through a vector-serving layer, not by forcing dense retrieval into the current Postgres DB backend.
+Important principle: dense/hybrid serving should likely be implemented through a vector-serving layer, not by forcing dense retrieval into the current Postgres DB backend.
 
 ---
 
-## 8. Reference / Provenance Endpoints
-
-Planned:
-
-- `/documents/{id}/sources`
-- `/documents/{id}/references`
-- source drilldown
-- merge inspection utilities
-- paper-artifact link drilldown
-
-Status:
-
-- planned
-
----
-
-## 9. Later Product Layers
+## 6. Later Product Layers
 
 These are intentionally postponed until corpus, artifact, and serving foundations are stronger.
 
-## 9.1 Full-text and chunking
+### 6.1 Full-text and chunking
 
 Planned:
 
@@ -844,7 +501,7 @@ Planned:
 - chunk storage
 - chunk-level retrieval
 
-## 9.2 Structured extraction
+### 6.2 Structured extraction
 
 Planned:
 
@@ -852,7 +509,7 @@ Planned:
 - richer paper metadata derivation
 - structured research signals
 
-## 9.3 LLM / RAG layer
+### 6.3 LLM / RAG layer
 
 Planned:
 
@@ -860,7 +517,7 @@ Planned:
 - retrieval-augmented question answering
 - citation-aware generation
 
-## 9.4 Graph / analytics layer
+### 6.4 Graph / analytics layer
 
 Planned:
 
@@ -870,20 +527,19 @@ Planned:
 - trend analytics
 - related-paper surfaces
 
-## 9.5 Product surfaces
+### 6.5 Dataset release track
 
 Planned:
 
-- search UI
-- topic dashboards
-- paper pages
-- artifact pages
-- repository/model/dataset pages
-- trend/radar views
+- clean metadata dataset
+- paper-artifact graph exports
+- topic/cluster exports
+- dataset cards
+- Kaggle / Hugging Face dataset release track if useful
 
 ---
 
-## 10. Explicit Non-Goals for the Current Stage
+## 7. Explicit Non-Goals for the Current Stage
 
 Not part of the immediate next step:
 
@@ -894,15 +550,14 @@ Not part of the immediate next step:
 - RAG serving
 - large-scale graph product layer
 - automatic integration of all viable sources
-- GitHub/Hugging Face as paper sources
+- GitHub or Hugging Face as paper sources
 - artifact evidence modifying canonical paper identity
-- ranking papers by GitHub stars as a canonical-quality signal
-
-The immediate next stage is artifact API enriched filtering and/or the next artifact-source hardening step, not another paper-truth source by default.
+- ranking papers by GitHub stars or Hugging Face downloads as canonical-quality signals
+- provider-specific API filter redesign after every new provider
 
 ---
 
-## 11. Guiding Principle
+## 8. Guiding Principle
 
 The roadmap is intentionally staged:
 
@@ -913,12 +568,12 @@ The roadmap is intentionally staged:
 5. enrich artifacts through APIs
 6. add new paper/domain sources carefully
 7. expand corpus
-8. harden search
+8. harden search/API
 9. add vector serving
 10. add richer product layers
 
-This ordering is deliberate and should be preserved.
-
 The key engineering rule is:
 
+```text
 Viability first, candidate integration second, stable integration last.
+```

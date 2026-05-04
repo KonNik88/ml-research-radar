@@ -17,6 +17,9 @@ DEFAULT_ENTITIES_PATH = Path("data/enriched/artifact_links/artifact_entities_lat
 DEFAULT_LINKS_PATH = Path("data/enriched/artifact_links/artifact_links_latest.jsonl")
 DEFAULT_REPORT_DIR = Path("artifacts/reports/export")
 DEFAULT_GITHUB_METADATA_PATH = Path("data/enriched/github_artifacts/github_artifact_metadata_latest.jsonl")
+DEFAULT_HUGGINGFACE_METADATA_PATH = Path(
+    "data/enriched/huggingface_artifacts/huggingface_artifact_metadata_latest.jsonl"
+)
 
 
 PROVIDER_SPECIFIC_TRUSTED_TYPES = {
@@ -366,6 +369,198 @@ def merge_github_metadata_into_entities(
         "github_metadata_status_distribution": dict(sorted(status_counts.items())),
         "github_metadata_applied_status_distribution": dict(sorted(applied_status_counts.items())),
         "github_metadata_missing_status_distribution": dict(sorted(missing_status_counts.items())),
+    }
+
+
+def load_huggingface_metadata(path: Path | None) -> list[dict[str, Any]]:
+    if path is None:
+        return []
+    if not path.exists():
+        raise FileNotFoundError(f"Hugging Face metadata file not found: {path}")
+    return load_jsonl(path)
+
+
+def index_huggingface_metadata(
+    rows: list[dict[str, Any]],
+) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
+    by_artifact_id: dict[str, dict[str, Any]] = {}
+    by_normalized_url: dict[str, dict[str, Any]] = {}
+
+    # Keep the last row for each key. The validation script checks duplicates by
+    # artifact_id, but this also makes export robust to accidental duplicates.
+    for row in rows:
+        if row.get("provider") != "huggingface":
+            continue
+
+        artifact_id = row.get("artifact_id")
+        normalized_url = row.get("normalized_url")
+
+        if artifact_id:
+            by_artifact_id[str(artifact_id)] = row
+        if normalized_url:
+            by_normalized_url[str(normalized_url).rstrip("/").lower()] = row
+
+    return by_artifact_id, by_normalized_url
+
+
+def huggingface_metadata_for_entity(
+    entity: dict[str, Any],
+    by_artifact_id: dict[str, dict[str, Any]],
+    by_normalized_url: dict[str, dict[str, Any]],
+) -> dict[str, Any] | None:
+    artifact_id = entity.get("artifact_id")
+    if artifact_id and str(artifact_id) in by_artifact_id:
+        return by_artifact_id[str(artifact_id)]
+
+    normalized_url = entity.get("normalized_url")
+    if normalized_url:
+        key = str(normalized_url).rstrip("/").lower()
+        return by_normalized_url.get(key)
+
+    return None
+
+
+def huggingface_metadata_payload(row: dict[str, Any]) -> dict[str, Any]:
+    payload = {
+        "status": row.get("status"),
+        "http_status": row.get("http_status"),
+        "repo_type": row.get("repo_type"),
+        "repo_id": row.get("repo_id"),
+        "huggingface_api_url": row.get("huggingface_api_url"),
+        "fetched_at": row.get("fetched_at"),
+        "description": row.get("description"),
+        "downloads": row.get("downloads"),
+        "likes": row.get("likes"),
+        "license": row.get("license"),
+        "pipeline_tag": row.get("pipeline_tag"),
+        "library_name": row.get("library_name"),
+        "private": row.get("private"),
+        "gated": row.get("gated"),
+        "disabled": row.get("disabled"),
+        "created_at": row.get("created_at"),
+        "updated_at": row.get("updated_at"),
+        "last_modified": row.get("last_modified"),
+        "input_normalized_url": row.get("input_normalized_url"),
+        "input_external_id": row.get("input_external_id"),
+        "error": row.get("error"),
+    }
+
+    row_meta = row.get("metadata")
+    if isinstance(row_meta, dict):
+        payload["rate_limit"] = row_meta.get("rate_limit")
+        payload["rate_limit_policy"] = row_meta.get("rate_limit_policy")
+        payload["x_request_id"] = row_meta.get("x_request_id")
+        if row_meta.get("card_data") is not None:
+            payload["card_data"] = row_meta.get("card_data")
+
+    return {k: v for k, v in payload.items() if v is not None}
+
+
+def merge_huggingface_metadata_into_entities(
+    entities: list[dict[str, Any]],
+    huggingface_rows: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    if not huggingface_rows:
+        return entities, {
+            "huggingface_metadata_loaded": False,
+            "huggingface_metadata_rows_count": 0,
+            "huggingface_metadata_found_count": 0,
+            "huggingface_metadata_entities_matched": 0,
+            "huggingface_metadata_entities_enriched": 0,
+            "huggingface_metadata_applied_count": 0,
+            "huggingface_metadata_found_applied_count": 0,
+            "huggingface_metadata_forbidden_applied_count": 0,
+            "huggingface_metadata_skipped_invalid_applied_count": 0,
+            "huggingface_metadata_missing_entity_count": 0,
+            "huggingface_metadata_status_distribution": {},
+            "huggingface_metadata_applied_status_distribution": {},
+            "huggingface_metadata_missing_status_distribution": {},
+        }
+
+    by_artifact_id, by_normalized_url = index_huggingface_metadata(huggingface_rows)
+    status_counts = Counter(str(row.get("status") or "unknown") for row in huggingface_rows)
+
+    out: list[dict[str, Any]] = []
+    matched = 0
+    enriched = 0
+    applied_status_counts: Counter[str] = Counter()
+    matched_metadata_keys: set[tuple[str, str]] = set()
+
+    for entity in entities:
+        entity = dict(entity)
+        row = huggingface_metadata_for_entity(entity, by_artifact_id, by_normalized_url)
+
+        if entity.get("provider") != "huggingface" or row is None:
+            out.append(entity)
+            continue
+
+        matched += 1
+        artifact_id = row.get("artifact_id")
+        normalized_url = row.get("normalized_url")
+        matched_metadata_keys.add(
+            (
+                str(artifact_id or ""),
+                str(normalized_url or "").rstrip("/").lower(),
+            )
+        )
+
+        status = str(row.get("status") or "unknown")
+        applied_status_counts[status] += 1
+
+        metadata = json_object(entity.get("metadata"))
+        metadata["huggingface"] = {
+            **json_object(metadata.get("huggingface")),
+            **huggingface_metadata_payload(row),
+        }
+        metadata["huggingface"]["enrichment_stage"] = "huggingface_artifact_enrichment_v1"
+        entity["metadata"] = metadata
+
+        # Dedicated columns are populated only for successfully fetched HF repos.
+        # forbidden / skipped_invalid / not_found rows stay represented in metadata.huggingface.
+        if status == "found":
+            entity["description"] = row.get("description") or entity.get("description")
+            entity["license"] = row.get("license") or entity.get("license")
+            downloads = parse_optional_int(row.get("downloads"))
+            likes = parse_optional_int(row.get("likes"))
+            if downloads is not None:
+                entity["downloads"] = downloads
+            if likes is not None:
+                entity["likes"] = likes
+            entity["tags"] = row.get("tags") or entity.get("tags") or []
+            entity["fetched_at"] = row.get("fetched_at") or entity.get("fetched_at")
+            entity["created_at"] = row.get("created_at") or entity.get("created_at")
+            entity["updated_at"] = row.get("updated_at") or entity.get("updated_at")
+            enriched += 1
+
+        out.append(entity)
+
+    missing_status_counts: Counter[str] = Counter()
+    for row in huggingface_rows:
+        key = (
+            str(row.get("artifact_id") or ""),
+            str(row.get("normalized_url") or "").rstrip("/").lower(),
+        )
+        if key not in matched_metadata_keys:
+            missing_status_counts[str(row.get("status") or "unknown")] += 1
+
+    missing_count = len(huggingface_rows) - matched
+
+    return out, {
+        "huggingface_metadata_loaded": True,
+        "huggingface_metadata_rows_count": len(huggingface_rows),
+        "huggingface_metadata_found_count": int(status_counts.get("found", 0)),
+        "huggingface_metadata_entities_matched": matched,
+        "huggingface_metadata_entities_enriched": enriched,
+        "huggingface_metadata_applied_count": matched,
+        "huggingface_metadata_found_applied_count": int(applied_status_counts.get("found", 0)),
+        "huggingface_metadata_forbidden_applied_count": int(applied_status_counts.get("forbidden", 0)),
+        "huggingface_metadata_skipped_invalid_applied_count": int(
+            applied_status_counts.get("skipped_invalid_external_id", 0)
+        ),
+        "huggingface_metadata_missing_entity_count": missing_count,
+        "huggingface_metadata_status_distribution": dict(sorted(status_counts.items())),
+        "huggingface_metadata_applied_status_distribution": dict(sorted(applied_status_counts.items())),
+        "huggingface_metadata_missing_status_distribution": dict(sorted(missing_status_counts.items())),
     }
 
 
@@ -879,6 +1074,21 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Force skipping GitHub metadata even if the default latest file exists.",
     )
+    parser.add_argument(
+        "--huggingface-metadata",
+        type=Path,
+        default=None,
+        help=(
+            "Optional Hugging Face enrichment JSONL. If omitted, the default latest "
+            "path is used when it exists. If neither exists, export remains "
+            "backward-compatible and skips Hugging Face metadata merge."
+        ),
+    )
+    parser.add_argument(
+        "--no-huggingface-metadata",
+        action="store_true",
+        help="Force skipping Hugging Face metadata even if the default latest file exists.",
+    )
     parser.add_argument("--replace", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--require-canonical-docs", action="store_true", default=True)
@@ -915,10 +1125,28 @@ def main() -> None:
     else:
         print("[INFO] GitHub metadata merge skipped")
 
+    huggingface_metadata_path: Path | None = None
+    if not args.no_huggingface_metadata:
+        if args.huggingface_metadata is not None:
+            huggingface_metadata_path = args.huggingface_metadata
+        elif DEFAULT_HUGGINGFACE_METADATA_PATH.exists():
+            huggingface_metadata_path = DEFAULT_HUGGINGFACE_METADATA_PATH
+
+    huggingface_metadata_rows: list[dict[str, Any]] = []
+    if huggingface_metadata_path is not None:
+        print(f"[INFO] Loading Hugging Face metadata: {huggingface_metadata_path}")
+        huggingface_metadata_rows = load_huggingface_metadata(huggingface_metadata_path)
+    else:
+        print("[INFO] Hugging Face metadata merge skipped")
+
     db_entities, artifact_id_remap, normalized_url_collisions = dedupe_entities_for_db(raw_entities)
     db_entities, github_metadata_report = merge_github_metadata_into_entities(
         db_entities,
         github_metadata_rows,
+    )
+    db_entities, huggingface_metadata_report = merge_huggingface_metadata_into_entities(
+        db_entities,
+        huggingface_metadata_rows,
     )
     entities_by_id = {
         entity["artifact_id"]: entity
@@ -948,6 +1176,11 @@ def main() -> None:
         print(f"[INFO] github_metadata_found={github_metadata_report.get('github_metadata_found_count')}")
         print(f"[INFO] github_metadata_applied={github_metadata_report.get('github_metadata_applied_count')}")
         print(f"[INFO] github_metadata_missing_entities={github_metadata_report.get('github_metadata_missing_entity_count')}")
+    if huggingface_metadata_report.get("huggingface_metadata_loaded"):
+        print(f"[INFO] huggingface_metadata_rows={huggingface_metadata_report.get('huggingface_metadata_rows_count')}")
+        print(f"[INFO] huggingface_metadata_found={huggingface_metadata_report.get('huggingface_metadata_found_count')}")
+        print(f"[INFO] huggingface_metadata_applied={huggingface_metadata_report.get('huggingface_metadata_applied_count')}")
+        print(f"[INFO] huggingface_metadata_missing_entities={huggingface_metadata_report.get('huggingface_metadata_missing_entity_count')}")
 
     report: dict[str, Any] = {
         "report_name": "export_artifacts_postgres_v1",
@@ -960,7 +1193,13 @@ def main() -> None:
             if github_metadata_path is not None
             else None
         ),
+        "huggingface_metadata_path": (
+            str(huggingface_metadata_path).replace("\\", "/")
+            if huggingface_metadata_path is not None
+            else None
+        ),
         **github_metadata_report,
+        **huggingface_metadata_report,
         "dry_run": args.dry_run,
         "replace": args.replace,
         "raw_entities_count": len(raw_entities),

@@ -1,23 +1,83 @@
-version: 1
+version: 2
+
+metadata:
+  purpose: "Viability checks for candidate paper, artifact, signal, and future full-text sources."
+  project: "ML Research Radar"
+  policy: "Viability first, integration later. A source may pass viability but still remain outside stable ingestion until candidate validation is complete."
+  current_baseline_note: "After the green 60k baseline, GitHub and Hugging Face Hub are operational artifact enrichment providers, not paper truth sources."
+
+# This config is intentionally conservative. Passing these checks does not mean
+# that a source may be added directly to stable reconcile/export/refresh paths.
+# It only means the source is reachable and worth implementing as a candidate slice
+# or provider enrichment slice.
 
 defaults:
   timeout_sec: 45
   retry_count: 2
   retry_sleep_sec: 2
-  user_agent: "ML-Research-Radar/0.2 source-viability-check"
+  user_agent: "ML-Research-Radar/0.3 source-viability-check"
   max_preview_chars: 500
+
+onboarding_states:
+  proposed: "Listed as possible future source; no integration yet."
+  viable_candidate: "Connectivity and real-data smoke are good enough for candidate implementation."
+  candidate_ingest: "Candidate ingestor/enricher exists, but source is not stable."
+  candidate_validated: "Candidate output passed audits/impact checks, pending stable decision or intentionally optional operational use."
+  stable: "Allowed in stable operational pipeline."
+  blocked: "Not viable in current form."
+  archived_only: "May be used only from offline/historical dumps; no live refresh."
+
+planes:
+  paper:
+    can_affect_canonical_paper_truth: true
+    stable_requires_candidate_reconcile: true
+  artifact:
+    can_affect_canonical_paper_truth: false
+    stable_requires_artifact_quality_gate: true
+  signal:
+    can_affect_canonical_paper_truth: false
+    stable_requires_signal_policy: true
+  fulltext:
+    can_affect_canonical_paper_truth: false
+    stable_requires_chunk_and_retrieval_eval: true
 
 sources:
   github:
     enabled: true
     source_type: artifact
-    status: candidate
+    plane: artifact
+    status: candidate_validated
+    onboarding_state: candidate_validated
+    priority: current_operational_artifact_source
     access_mode: rest_api
+    stable_integration_allowed: false
+    canonical_truth_policy: "Artifact enrichment only. Must not modify canonical paper title, authors, abstract, venue, publisher, publication_type, citations, references, or identity."
+    current_project_status: "GitHub Artifact Enrichment v1 is operational over extracted GitHub artifact_entities. Enrichment remains optional because GitHub API is a live external dependency."
+    current_60k_baseline:
+      artifact_entities_count: 5796
+      metadata_rows_count: 5796
+      found_count: 5188
+      not_found_count: 608
+      forbidden_count: 0
+      rate_limited_count: 0
+      error_count: 0
+      duplicate_artifact_id_count: 0
+      unknown_artifact_id_count: 0
+      strict_ok: true
+    next_action: "Keep operational; use as provider-enrichment template for future artifact providers."
+    output_contract:
+      metadata_snapshot: "data/enriched/github_artifacts/github_artifact_metadata.<ts>.jsonl"
+      latest_pointer: "data/enriched/github_artifacts/github_artifact_metadata_latest.jsonl"
+      validation_report: "artifacts/reports/validation/github_artifact_enrichment_check_latest.json"
+      postgres_target: "artifact_entities.metadata.github and selected artifact_entities columns"
+      dod_flag: "--require-github-enrichment"
+      pipeline_include_flag: "--include-github-enrichment"
+      pipeline_require_flag: "--require-github-enrichment"
     auth:
       token_env: GITHUB_TOKEN
       header: Authorization
       scheme: Bearer
-    notes: "Artifact source for repositories, code links, topics, stars, releases. Not a paper source."
+    notes: "Artifact source for repositories, code links, topics, stars, forks, licenses, archived status, and repository metadata. Not a paper source. not_found rows are preserved as historical artifact evidence."
     checks:
       - name: api_root
         required: true
@@ -48,13 +108,43 @@ sources:
   huggingface_hub:
     enabled: true
     source_type: artifact
-    status: candidate
+    plane: artifact
+    status: candidate_validated
+    onboarding_state: candidate_validated
+    priority: current_operational_artifact_source
     access_mode: rest_api_or_python_client
+    stable_integration_allowed: false
+    canonical_truth_policy: "Artifact enrichment only. Models, datasets and spaces are artifact entities, not paper truth."
+    current_project_status: "Hugging Face Artifact Enrichment v1 is operational over extracted Hugging Face artifact_entities. Enrichment remains optional because Hugging Face Hub is a live external dependency."
+    current_60k_baseline:
+      artifact_entities_count: 96
+      metadata_rows_count: 96
+      found_count: 73
+      forbidden_count: 2
+      skipped_invalid_external_id_count: 21
+      rate_limited_count: 0
+      error_count: 0
+      duplicate_artifact_id_count: 0
+      unknown_artifact_id_count: 0
+      strict_ok: true
+      db_hf_entities_count: 96
+      db_hf_metadata_count: 96
+      db_hf_found_count: 73
+      db_hf_downloads_count: 64
+    next_action: "Keep operational; postpone Hugging Face-specific API filters until after the next source/source-expansion slices. Improve upstream HF URL cleanup later if it becomes frequent on larger corpora."
+    output_contract:
+      metadata_snapshot: "data/enriched/huggingface_artifacts/huggingface_artifact_metadata.<ts>.jsonl"
+      latest_pointer: "data/enriched/huggingface_artifacts/huggingface_artifact_metadata_latest.jsonl"
+      validation_report: "artifacts/reports/validation/huggingface_artifact_enrichment_check_latest.json"
+      postgres_target: "artifact_entities.metadata.huggingface and selected artifact_entities columns where applicable"
+      dod_flag: "--require-huggingface-enrichment"
+      pipeline_include_flag: "--include-huggingface-enrichment"
+      pipeline_require_flag: "--require-huggingface-enrichment"
     auth:
       token_env: HF_TOKEN
       header: Authorization
       scheme: Bearer
-    notes: "Artifact ecosystem for models, datasets, spaces, model cards and dataset cards. Not paper truth."
+    notes: "Artifact ecosystem for models, datasets, spaces, model cards and dataset cards. Not paper truth. forbidden and skipped_invalid_external_id are diagnostic states and do not fail the core strict gate."
     checks:
       - name: models_search_smoke
         required: true
@@ -73,11 +163,74 @@ sources:
           status_code: 200
           root_type: list
 
+      - name: spaces_search_smoke
+        required: false
+        method: GET
+        url: "https://huggingface.co/api/spaces?search=machine%20learning&limit=5"
+        expect:
+          status_code: 200
+          root_type: list
+
+  acl_anthology:
+    enabled: true
+    source_type: paper
+    plane: paper
+    status: viable_candidate
+    onboarding_state: viable_candidate
+    priority: first_new_paper_source
+    access_mode: bulk_metadata
+    stable_integration_allowed: false
+    canonical_truth_policy: "Candidate paper source. May affect canonical truth only after normalized output, source audit, candidate reconcile impact check, and explicit promotion decision."
+    current_project_status: "Recommended first new paper source because it is structured, domain-relevant for NLP/ML, bulk-friendly, and relatively low API risk."
+    next_action: "Implement ACL Anthology candidate ingestion v1 with explicit small scope and normalized snapshot output."
+    candidate_scope:
+      initial: "small deterministic XML subset or selected recent ACL venues"
+      avoid_initially: "full historical import until parser/audit/reconcile impact are validated"
+    output_contract:
+      raw_dir: "data/raw/acl_anthology/<run_ts>/"
+      normalized_snapshot: "data/normalized/acl_anthology/documents.<run_ts>.jsonl"
+      ingest_report: "artifacts/reports/acl_anthology_ingest_latest.json"
+      integration_doc: "docs/acl_anthology_integration_v1.md"
+    auth: {}
+    notes: "NLP/domain paper source. Prefer bulk metadata from ACL Anthology repository or official bulk citation exports. Candidate-only until audit and reconcile impact checks pass."
+    checks:
+      - name: metadata_repository_xml_dir
+        required: true
+        method: GET
+        url: "https://api.github.com/repos/acl-org/acl-anthology/contents/data/xml"
+        expect:
+          status_code: 200
+          root_type: list
+          min_items: 1
+
+      - name: acl_xml_file_api_probe
+        required: false
+        method: GET
+        url: "https://api.github.com/repos/acl-org/acl-anthology/contents/data/xml/1998.coling.xml"
+        expect:
+          status_code: 200
+          json_path_exists: "download_url"
+
   openreview:
     enabled: true
     source_type: paper
-    status: candidate
+    plane: paper
+    status: viable_candidate
+    onboarding_state: viable_candidate
+    priority: after_acl_candidate
     access_mode: api_v2_or_python_client
+    stable_integration_allowed: false
+    canonical_truth_policy: "Candidate paper source. Reviews, decisions, ratings and comments are not part of basic paper truth in v1."
+    current_project_status: "Viable candidate; should start with explicit venue/year scope. API behavior may vary by venue/year."
+    next_action: "Implement only after ACL or after source onboarding framework is stable. Start with selected ICLR/NeurIPS-style venue/year scope."
+    candidate_scope:
+      initial: "selected venue/year submissions or accepted papers only"
+      avoid_initially: "reviews, decisions, comments, forum graph as core paper truth"
+    output_contract:
+      raw_dir: "data/raw/openreview/<run_ts>/"
+      normalized_snapshot: "data/normalized/openreview/documents.<run_ts>.jsonl"
+      ingest_report: "artifacts/reports/openreview_ingest_latest.json"
+      integration_doc: "docs/openreview_integration_v1.md"
     auth:
       token_env: OPENREVIEW_TOKEN
     notes: "Paper source for ML conferences. API v2 is preferred; old venues may need legacy API handling. If REST checks are flaky, use Python-client viability later."
@@ -97,36 +250,26 @@ sources:
           status_code: 200
           json_path_exists: "notes"
 
-  acl_anthology:
-    enabled: true
-    source_type: paper
-    status: candidate
-    access_mode: bulk_metadata
-    auth: {}
-    notes: "NLP/domain paper source. Prefer bulk metadata from ACL Anthology repository or official bulk citation exports."
-    checks:
-      - name: metadata_repository_xml_dir
-        required: true
-        method: GET
-        url: "https://api.github.com/repos/acl-org/acl-anthology/contents/data/xml"
-        expect:
-          status_code: 200
-          root_type: list
-          min_items: 1
-
-      - name: acl_xml_file_api_probe
-        required: false
-        method: GET
-        url: "https://api.github.com/repos/acl-org/acl-anthology/contents/data/xml/1998.coling.xml"
-        expect:
-          status_code: 200
-          json_path_exists: "download_url"
-
   pubmed:
     enabled: true
     source_type: paper
-    status: candidate
+    plane: paper
+    status: viable_candidate
+    onboarding_state: viable_candidate
+    priority: domain_expansion_later
     access_mode: ncbi_eutilities
+    stable_integration_allowed: false
+    canonical_truth_policy: "Domain paper source. PMID-first identity with DOI where available. Should be integrated as a separate biomedical/domain expansion milestone."
+    current_project_status: "Viable candidate, but not immediate ML core expansion."
+    next_action: "Postpone until biomedical/domain slice is explicitly chosen."
+    candidate_scope:
+      initial: "ML-for-biology / ML-for-medicine query slice"
+      avoid_initially: "general PubMed crawl"
+    output_contract:
+      raw_dir: "data/raw/pubmed/<run_ts>/"
+      normalized_snapshot: "data/normalized/pubmed/documents.<run_ts>.jsonl"
+      ingest_report: "artifacts/reports/pubmed_ingest_latest.json"
+      integration_doc: "docs/pubmed_integration_v1.md"
     auth:
       token_env: NCBI_API_KEY
       query_param: api_key
@@ -153,8 +296,23 @@ sources:
   biorxiv:
     enabled: true
     source_type: paper
-    status: candidate
+    plane: paper
+    status: viable_candidate
+    onboarding_state: viable_candidate
+    priority: domain_expansion_later
     access_mode: public_api
+    stable_integration_allowed: false
+    canonical_truth_policy: "Biomedical preprint source. Domain expansion only; not immediate ML core source."
+    current_project_status: "Viable candidate for future biomedical preprint slice."
+    next_action: "Postpone until biomedical/domain slice is explicitly chosen."
+    candidate_scope:
+      initial: "date-bounded ML/AI/biology query slice if supported"
+      avoid_initially: "full historical import"
+    output_contract:
+      raw_dir: "data/raw/biorxiv/<run_ts>/"
+      normalized_snapshot: "data/normalized/biorxiv/documents.<run_ts>.jsonl"
+      ingest_report: "artifacts/reports/biorxiv_ingest_latest.json"
+      integration_doc: "docs/biorxiv_integration_v1.md"
     auth: {}
     notes: "Biomedical preprint source. Domain expansion, not core ML source."
     checks:
@@ -171,8 +329,23 @@ sources:
   medrxiv:
     enabled: true
     source_type: paper
-    status: candidate
+    plane: paper
+    status: viable_candidate
+    onboarding_state: viable_candidate
+    priority: domain_expansion_later
     access_mode: public_api
+    stable_integration_allowed: false
+    canonical_truth_policy: "Medical preprint source. Domain expansion only; not immediate ML core source."
+    current_project_status: "Viable candidate for future medical preprint slice."
+    next_action: "Postpone until biomedical/domain slice is explicitly chosen."
+    candidate_scope:
+      initial: "date-bounded ML/AI/medicine query slice if supported"
+      avoid_initially: "full historical import"
+    output_contract:
+      raw_dir: "data/raw/medrxiv/<run_ts>/"
+      normalized_snapshot: "data/normalized/medrxiv/documents.<run_ts>.jsonl"
+      ingest_report: "artifacts/reports/medrxiv_ingest_latest.json"
+      integration_doc: "docs/medrxiv_integration_v1.md"
     auth: {}
     notes: "Medical preprint source. Domain expansion, not core ML source."
     checks:
@@ -189,8 +362,19 @@ sources:
   paperswithcode:
     enabled: false
     source_type: artifact
+    plane: artifact
     status: blocked
+    onboarding_state: blocked
+    priority: do_not_integrate_live
     access_mode: archived_only
+    stable_integration_allowed: false
+    canonical_truth_policy: "Blocked live artifact source. Must not be used as paper truth."
+    current_project_status: "Live integration blocked because upstream live path did not provide usable JSON."
+    next_action: "Do not use live. Reconsider only as offline historical backfill after separate viability check."
+    blocked_reason: "Live API/path did not return usable JSON for operational ingestion."
+    output_contract:
+      offline_backfill_only: true
+      candidate_output: "data/normalized/paperswithcode_alignment/documents.<ts>.jsonl only if offline backfill is explicitly approved"
     auth: {}
-    notes: "Live integration blocked. Upstream live path did not provide usable JSON. Future option: offline historical backfill only."
+    notes: "Live integration blocked. Future option: offline historical backfill only."
     checks: []

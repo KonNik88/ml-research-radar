@@ -10,7 +10,9 @@ import psycopg
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_CANONICAL_PATH = PROJECT_ROOT / "data" / "analytics" / "reconciled" / "canonical_documents.jsonl"
+DEFAULT_CANONICAL_PATH = (
+    PROJECT_ROOT / "data" / "analytics" / "reconciled" / "canonical_documents.jsonl"
+)
 DEFAULT_NORMALIZED_DIR = PROJECT_ROOT / "data" / "normalized"
 
 ALLOWED_SOURCE_DIRS = {
@@ -18,6 +20,7 @@ ALLOWED_SOURCE_DIRS = {
     "openalex_alignment",
     "semantic_scholar_alignment",
     "crossref_alignment",
+    "acl_anthology",
 }
 
 PRIMARY_SNAPSHOT_RE = re.compile(r"^documents\.\d{8}T\d{6}Z\.jsonl$")
@@ -39,6 +42,14 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_NORMALIZED_DIR,
         help="Root directory with normalized source subdirectories.",
     )
+    parser.add_argument(
+        "--replace",
+        action="store_true",
+        help=(
+            "Truncate paper materialized tables before export. "
+            "Use for full corpus materialization to avoid stale rows from previous baselines."
+        ),
+    )
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=15432)
     parser.add_argument("--dbname", default="ml_radar")
@@ -57,6 +68,34 @@ def read_jsonl(path: Path) -> Iterable[dict[str, Any]]:
 
 def json_dumps(value: Any) -> str:
     return json.dumps(value if value is not None else None, ensure_ascii=False)
+
+
+def truncate_paper_materialized_tables(cur: psycopg.Cursor) -> None:
+    """
+    Clear paper materialized serving tables before a full Postgres export.
+
+    This exporter owns the paper DB materialization layer only:
+    - source_documents
+    - canonical_documents
+    - canonical_source_links
+    - document_references
+
+    Artifact tables are owned by export_artifacts_postgres_v1.py.
+
+    Note:
+    TRUNCATE ... CASCADE may remove dependent artifact links through FK
+    constraints, so a full refresh must run artifact export afterwards.
+    """
+    cur.execute(
+        """
+        TRUNCATE TABLE
+            document_references,
+            canonical_source_links,
+            canonical_documents,
+            source_documents
+        RESTART IDENTITY CASCADE
+        """
+    )
 
 
 def canonical_row(doc: dict[str, Any]) -> dict[str, Any]:
@@ -286,26 +325,53 @@ def insert_source(cur: psycopg.Cursor, row: dict[str, Any]) -> None:
     )
 
 
+SOURCE_DOC_LOOKUP_FIELDS = (
+    "source_id",
+    "source_record_id",
+    "source_record_url",
+    "canonical_url",
+    "landing_page_url",
+)
+
+
+def resolve_source_doc_id(cur: psycopg.Cursor, link: dict[str, Any]) -> str | None:
+    """Resolve source_documents.doc_id for a canonical-source link.
+
+    This is intentionally source-agnostic. The source layer is a collection of
+    observations from arXiv, OpenAlex, Semantic Scholar, Crossref, ACL
+    Anthology, and future sources. canonical_source_links is the many-to-many
+    bridge between canonical paper entities and source-level observations.
+    """
+    source = link.get("source")
+    if not source:
+        return None
+
+    # Use a whitelist of SQL column names. Values remain parameterized below.
+    for field_name in SOURCE_DOC_LOOKUP_FIELDS:
+        value = link.get(field_name)
+        if not value:
+            continue
+
+        cur.execute(
+            f"""
+            SELECT doc_id
+            FROM source_documents
+            WHERE source = %s AND {field_name} = %s
+            LIMIT 1
+            """,
+            (source, value),
+        )
+        row = cur.fetchone()
+        if row:
+            return row[0]
+
+    return None
+
+
 def insert_link(cur: psycopg.Cursor, canonical_id: str, link: dict[str, Any]) -> None:
     source = link.get("source")
     source_id = link.get("source_id")
-
-    doc_id = None
-    if source == "arxiv":
-        source_record_url = link.get("source_record_url")
-        if source_record_url:
-            cur.execute(
-                """
-                SELECT doc_id
-                FROM source_documents
-                WHERE source = %s AND source_record_url = %s
-                LIMIT 1
-                """,
-                (source, source_record_url),
-            )
-            row = cur.fetchone()
-            if row:
-                doc_id = row[0]
+    doc_id = resolve_source_doc_id(cur, link)
 
     cur.execute(
         """
@@ -360,7 +426,8 @@ def iter_normalized_files(normalized_dir: Path) -> Iterable[Path]:
             continue
 
         candidates = sorted(
-            p for p in source_dir.glob("documents.*.jsonl")
+            p
+            for p in source_dir.glob("documents.*.jsonl")
             if PRIMARY_SNAPSHOT_RE.match(p.name)
         )
         if not candidates:
@@ -390,6 +457,10 @@ def main() -> None:
 
     with psycopg.connect(**db_config) as conn:
         with conn.cursor() as cur:
+            if args.replace:
+                print("[INFO] replace mode enabled: truncating paper materialized tables...")
+                truncate_paper_materialized_tables(cur)
+
             print("Loading source documents...")
             source_count = 0
             skipped_source_rows = 0
@@ -431,8 +502,14 @@ def main() -> None:
                 insert_canonical(cur, canonical_row(doc))
                 canonical_id = doc["canonical_id"]
 
-                cur.execute("DELETE FROM canonical_source_links WHERE canonical_id = %s", (canonical_id,))
-                cur.execute("DELETE FROM document_references WHERE canonical_id = %s", (canonical_id,))
+                cur.execute(
+                    "DELETE FROM canonical_source_links WHERE canonical_id = %s",
+                    (canonical_id,),
+                )
+                cur.execute(
+                    "DELETE FROM document_references WHERE canonical_id = %s",
+                    (canonical_id,),
+                )
 
                 for link in doc.get("sources", []):
                     insert_link(cur, canonical_id, link)
@@ -458,12 +535,14 @@ def main() -> None:
                     "SUCCESS",
                     json.dumps(
                         {
+                            "replace": bool(args.replace),
                             "source_documents": source_count,
                             "skipped_source_documents": skipped_source_rows,
                             "canonical_documents": canonical_count,
                             "canonical_source_links": link_count,
                             "document_references": ref_count,
                             "normalized_dir": str(normalized_dir),
+                            "allowed_source_dirs": sorted(ALLOWED_SOURCE_DIRS),
                         },
                         ensure_ascii=False,
                     ),
@@ -473,6 +552,7 @@ def main() -> None:
         conn.commit()
 
     print("Export completed successfully.")
+    print(f"replace: {bool(args.replace)}")
     print(f"canonical_path: {canonical_path}")
     print(f"normalized_dir: {normalized_dir}")
     print(f"db: {args.host}:{args.port}/{args.dbname}")

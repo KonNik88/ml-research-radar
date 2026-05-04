@@ -10,8 +10,13 @@ services:
     ports:
       - "15432:5432"
     volumes:
-      - ml_radar_postgres_data:/var/lib/postgresql/data
-      - ../../store/sql:/docker-entrypoint-initdb.d:ro
+      - type: bind
+        source: D:/ML/docker_data/ml_radar/postgres
+        target: /var/lib/postgresql/data
+      - type: bind
+        source: ../../store/sql
+        target: /docker-entrypoint-initdb.d
+        read_only: true
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ml_radar -d ml_radar"]
       interval: 10s
@@ -26,8 +31,6 @@ services:
       - "6333:6333"
       - "6334:6334"
     volumes:
-      - ml_radar_qdrant_data:/qdrant/storage
-
-volumes:
-  ml_radar_postgres_data:
-  ml_radar_qdrant_data:
+      - type: bind
+        source: D:/ML/docker_data/ml_radar/qdrant
+        target: /qdrant/storage

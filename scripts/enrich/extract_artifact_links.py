@@ -673,6 +673,19 @@ def extract_artifacts_from_doc(
                     config=config,
                 )
 
+                # Artifact observations are paper-linked evidence.
+                # If a source-level row cannot be mapped to the current
+                # canonical corpus, keep it out of strict extraction output.
+                if not canonical_id:
+                    continue
+
+                # Unknown relation observations are not useful for trusted
+                # paper-artifact materialization and fail strict quality checks.
+                if relation_type == "unknown":
+                    continue
+
+                dedup_key = (classified["normalized_url"], field)
+
                 dedup_key = (classified["normalized_url"], field)
                 if dedup_key in seen_doc_urls:
                     continue

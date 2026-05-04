@@ -24,6 +24,8 @@ STEP_ORDER = [
     "artifact_quality_check",
     "github_artifact_enrichment",
     "github_artifact_enrichment_check",
+    "huggingface_artifact_enrichment",
+    "huggingface_artifact_enrichment_check",
     "export_artifacts_postgres",
     "artifact_db_smoke",
     "rebuild_retrieval",
@@ -44,6 +46,14 @@ GITHUB_ENRICHMENT_STEPS = {
     "github_artifact_enrichment",
     "github_artifact_enrichment_check",
 }
+
+HUGGINGFACE_ENRICHMENT_STEPS = {
+    "huggingface_artifact_enrichment",
+    "huggingface_artifact_enrichment_check",
+}
+
+
+ENRICHMENT_STEPS = GITHUB_ENRICHMENT_STEPS | HUGGINGFACE_ENRICHMENT_STEPS
 
 
 def utc_now_ts() -> str:
@@ -72,13 +82,6 @@ def normalize_path(path: Path | str | None) -> str | None:
     if path is None:
         return None
     return str(path).replace("\\", "/")
-
-
-def load_json(path: Path) -> dict[str, Any]:
-    if not path.exists():
-        raise FileNotFoundError(f"JSON file not found: {path}")
-    with path.open("r", encoding="utf-8") as f:
-        return json.load(f)
 
 
 def run_step(name: str, cmd: list[str]) -> dict[str, Any]:
@@ -277,6 +280,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="Forward --require-github-enrichment to DoD check.",
     )
     parser.add_argument(
+        "--include-huggingface-enrichment",
+        action="store_true",
+        help=(
+            "Include Hugging Face artifact enrichment and strict Hugging Face enrichment "
+            "check stages. This is intentionally separate from --require-artifacts because "
+            "Hugging Face Hub is a live external dependency."
+        ),
+    )
+    parser.add_argument(
+        "--require-huggingface-enrichment",
+        action="store_true",
+        help="Forward --require-huggingface-enrichment to DoD check.",
+    )
+    parser.add_argument(
         "--execute",
         action="store_true",
         help="Actually execute the pipeline. Without this flag, dry-run only.",
@@ -289,9 +306,14 @@ def step_before_or_at_stop(step_name: str, stop_after: str) -> bool:
 
 
 def artifact_stages_enabled(args: argparse.Namespace) -> bool:
-    # GitHub enrichment is an artifact-layer sub-stage, so asking for GitHub
-    # enrichment implies that the surrounding artifact stages should be planned.
-    return bool(args.require_artifacts or args.include_github_enrichment)
+    # Provider enrichment is an artifact-layer sub-stage, so asking to run
+    # any enrichment provider implies that the surrounding artifact stages
+    # should be planned as well.
+    return bool(
+        args.require_artifacts
+        or args.include_github_enrichment
+        or args.include_huggingface_enrichment
+    )
 
 
 def step_enabled(step_name: str, args: argparse.Namespace) -> tuple[bool, str]:
@@ -301,8 +323,14 @@ def step_enabled(step_name: str, args: argparse.Namespace) -> tuple[bool, str]:
     if step_name in GITHUB_ENRICHMENT_STEPS and not args.include_github_enrichment:
         return False, "GitHub enrichment stages require --include-github-enrichment"
 
+    if step_name in HUGGINGFACE_ENRICHMENT_STEPS and not args.include_huggingface_enrichment:
+        return False, "Hugging Face enrichment stages require --include-huggingface-enrichment"
+
     if step_name in ARTIFACT_STEPS and not artifact_stages_enabled(args):
-        return False, "Artifact stages require --require-artifacts or --include-github-enrichment"
+        return False, (
+            "Artifact stages require --require-artifacts, --include-github-enrichment, "
+            "or --include-huggingface-enrichment"
+        )
 
     return True, "Included"
 
@@ -345,7 +373,12 @@ def main() -> None:
     if args.execute:
         promote_cmd.append("--execute")
 
-    export_cmd = [sys.executable, "-m", "scripts.export.export_postgres_v1"]
+    export_cmd = [
+        sys.executable,
+        "-m",
+        "scripts.export.export_postgres_v1",
+        "--replace",
+    ]
 
     extract_artifacts_cmd = [sys.executable, "-m", "scripts.enrich.extract_artifact_links"]
     artifact_quality_cmd = [
@@ -363,6 +396,17 @@ def main() -> None:
         sys.executable,
         "-m",
         "scripts.validation.check_github_artifact_enrichment",
+        "--strict",
+    ]
+    huggingface_enrichment_cmd = [
+        sys.executable,
+        "-m",
+        "scripts.enrich.enrich_huggingface_artifacts",
+    ]
+    huggingface_enrichment_check_cmd = [
+        sys.executable,
+        "-m",
+        "scripts.validation.check_huggingface_artifact_enrichment",
         "--strict",
     ]
     export_artifacts_cmd = [
@@ -389,6 +433,8 @@ def main() -> None:
         dod_cmd.append("--require-artifacts")
     if args.require_github_enrichment:
         dod_cmd.append("--require-github-enrichment")
+    if args.require_huggingface_enrichment:
+        dod_cmd.append("--require-huggingface-enrichment")
 
     step_cmds = {
         "reconcile_candidate": reconcile_cmd,
@@ -399,6 +445,8 @@ def main() -> None:
         "artifact_quality_check": artifact_quality_cmd,
         "github_artifact_enrichment": github_enrichment_cmd,
         "github_artifact_enrichment_check": github_enrichment_check_cmd,
+        "huggingface_artifact_enrichment": huggingface_enrichment_cmd,
+        "huggingface_artifact_enrichment_check": huggingface_enrichment_check_cmd,
         "export_artifacts_postgres": export_artifacts_cmd,
         "artifact_db_smoke": artifact_db_smoke_cmd,
         "rebuild_retrieval": rebuild_cmd,
@@ -470,6 +518,8 @@ def main() -> None:
             "require_artifacts": bool(args.require_artifacts),
             "include_github_enrichment": bool(args.include_github_enrichment),
             "require_github_enrichment": bool(args.require_github_enrichment),
+            "include_huggingface_enrichment": bool(args.include_huggingface_enrichment),
+            "require_huggingface_enrichment": bool(args.require_huggingface_enrichment),
             "artifact_stages_enabled": artifact_stages_enabled(args),
         },
         "candidate": {
@@ -497,6 +547,8 @@ def main() -> None:
     print(f"[OK] require_artifacts={bool(args.require_artifacts)}")
     print(f"[OK] include_github_enrichment={bool(args.include_github_enrichment)}")
     print(f"[OK] require_github_enrichment={bool(args.require_github_enrichment)}")
+    print(f"[OK] include_huggingface_enrichment={bool(args.include_huggingface_enrichment)}")
+    print(f"[OK] require_huggingface_enrichment={bool(args.require_huggingface_enrichment)}")
     print(f"[OK] candidate_path={normalize_path(candidate_path)}")
     if candidate_summary:
         print(f"[OK] candidate_doc_count={candidate_summary['doc_count']}")

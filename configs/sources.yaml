@@ -57,13 +57,62 @@ profiles:
       sort_by: "submittedDate"
       sort_order: "descending"
 
+  medium_scale_60k:
+    description: "Controlled 60k arXiv backbone expansion from local Kaggle arXiv snapshot."
+    safety_level: "candidate_first"
+    arxiv:
+      source_mode: "kaggle_snapshot"
+      target_size: 60000
+      limit: 60000
+      min_year: 2018
+      max_year: 2026
+      require_abstract: true
+      categories_mode: "explicit"
+      categories:
+        - cs.LG
+        - cs.AI
+        - cs.CV
+        - cs.CL
+        - stat.ML
+        - cs.IR
+        - cs.NE
+        - cs.RO
+        - eess.AS
+        - eess.IV
+      include_cross_listed_categories: true
+      report_every: 5000
+      persist_raw: true
+      output_semantics:
+        normalized_snapshot: "timestamped full arxiv normalized snapshot"
+        latest_policy: "do not treat as trusted canonical state until candidate reconcile + validation + promotion"
+
+    enrichment:
+      enabled_sources:
+        - openalex_alignment
+        - semantic_scholar_alignment
+        - crossref_alignment
+      policy: "run aligned enrichment after arxiv backbone expansion; use explicit full merged snapshots for reconcile"
+      notes:
+        - "Do not reconcile against selective/latest alignment batches directly."
+        - "Merge selective enrichment outputs into full alignment snapshots before downstream reconcile."
+
+    downstream:
+      reconcile: "candidate_only_first"
+      export_postgres: "after_promotion_only"
+      artifact_extraction: "after_promotion_only"
+      retrieval_rebuild: "after_promotion_only"
+      dod_required:
+        - artifacts
+        - github_enrichment
+
 defaults:
   profile: "dev"
   deduplicate_after_ingest: true
   run_reconcile: true
 
 limits:
-  hard_max_results_per_source: 5000
+  hard_max_results_per_source: 100000
   recommended_test_corpus_size: 100
   recommended_dev_corpus_size: 300
   recommended_full_corpus_size: 1000
+  recommended_medium_scale_corpus_size: 60000

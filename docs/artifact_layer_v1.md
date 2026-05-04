@@ -8,8 +8,6 @@ The artifact layer stores external software, dataset, model, demo, video, reposi
 
 It is a separate data plane from the canonical paper corpus.
 
-The canonical paper corpus remains the paper-level source of truth.
-
 The artifact layer does **not** override bibliographic paper truth.
 
 ---
@@ -31,9 +29,10 @@ artifact layer:
   → artifact entities
   → artifact observations
   → trusted paper-artifact links
+  → optional provider metadata enrichment
 ```
 
-The central paper entity is still:
+The central paper entity is:
 
 ```text
 CanonicalDocument
@@ -74,9 +73,20 @@ data/enriched/artifact_links/artifact_entities_latest.jsonl
 data/enriched/artifact_links/artifact_links_latest.jsonl
 ```
 
-These files are operational extraction artifacts derived from canonical/source metadata.
+These files are operational extraction artifacts derived from canonical/source metadata. They are not paper truth.
 
-They are not paper truth.
+### Provider enrichment outputs
+
+Provider enrichment snapshots are external metadata snapshots over extracted artifact entities.
+
+Current provider enrichment outputs:
+
+```text
+data/enriched/github_artifacts/github_artifact_metadata_latest.jsonl
+data/enriched/huggingface_artifacts/huggingface_artifact_metadata_latest.jsonl
+```
+
+These are not paper truth and do not modify canonical documents.
 
 ### Artifact DB materialization
 
@@ -157,9 +167,7 @@ This matches the export logic:
 one trusted link = one paper + one artifact + one relation type
 ```
 
-Do not create separate `paper_artifact_links` rows only because evidence came from a different field or source.
-
-Evidence multiplicity belongs in JSON metadata.
+Do not create separate `paper_artifact_links` rows only because evidence came from a different field or source. Evidence multiplicity belongs in JSON metadata.
 
 ---
 
@@ -183,22 +191,6 @@ generic_code_url
 generic_dataset_url
 generic_model_url
 generic_artifact_url
-```
-
-Not all types are present in the current corpus.
-
-Current v1 extraction found:
-
-```text
-bitbucket_repository
-figshare_artifact
-generic_artifact_url
-generic_code_url
-generic_dataset_url
-generic_model_url
-github_repository
-youtube_video
-zenodo_artifact
 ```
 
 ---
@@ -229,26 +221,26 @@ unknown
 
 ## Current providers
 
-Current artifact providers:
+Current artifact providers observed in the 60k baseline include:
 
 ```text
-bitbucket
-figshare
-generic
 github
+generic
 youtube
+huggingface
 zenodo
+figshare
+gitlab
+bitbucket
+kaggle
+codeberg
 ```
 
-Future providers:
+Current provider enrichment stages:
 
 ```text
-gitlab
-codeberg
-huggingface
-kaggle
-openreview
-publisher_supplementary
+github_artifact_enrichment_v1
+huggingface_artifact_enrichment_v1
 ```
 
 ---
@@ -257,7 +249,7 @@ publisher_supplementary
 
 Artifact extraction v1 uses internal extraction only.
 
-The extraction step itself does not call external APIs. External metadata enrichment is handled by separate snapshot enrichment stages, such as GitHub Artifact Enrichment v1.
+The extraction step itself does not call external APIs. External metadata enrichment is handled by separate snapshot enrichment stages, such as GitHub Artifact Enrichment v1 and Hugging Face Artifact Enrichment v1.
 
 Input layers:
 
@@ -300,19 +292,7 @@ Main config:
 configs/artifact_extraction.yaml
 ```
 
-The config fixes explicit source snapshots for reproducible extraction.
-
-Current explicit source snapshots:
-
-```yaml
-source_files:
-  arxiv: "data/normalized/arxiv/documents.20260404T161108Z.jsonl"
-  openalex_alignment: "data/normalized/openalex_alignment/documents.20260412T162220Z.jsonl"
-  semantic_scholar_alignment: "data/normalized/semantic_scholar_alignment/documents.20260412T162234Z.jsonl"
-  crossref_alignment: "data/normalized/crossref_alignment/documents.20260412T162249Z.jsonl"
-```
-
-This is important because source directories can contain derivative snapshots such as `.updated.jsonl` or `.unchanged.jsonl`, which are not full stable snapshots.
+The config fixes explicit source snapshots for reproducible extraction. Source directories can contain derivative snapshots such as `.updated.jsonl` or `.unchanged.jsonl`, which are not full stable snapshots.
 
 ---
 
@@ -385,9 +365,7 @@ bad generic domain observations counted
 untrusted observations counted
 ```
 
-The quality gate explicitly allows broad observations to include some untrusted rows.
-
-Trusted serving rows are produced later through export filtering.
+The quality gate explicitly allows broad observations to include some untrusted rows. Trusted serving rows are produced later through export filtering.
 
 ---
 
@@ -420,10 +398,16 @@ Normalized external artifact objects.
 Examples:
 
 - GitHub repository
+- GitLab repository
 - Bitbucket repository
+- Codeberg repository
+- Hugging Face model
+- Hugging Face dataset
+- Hugging Face Space
 - Figshare article/dataset
 - Zenodo record
 - YouTube video
+- Kaggle dataset
 - generic code URL
 - generic dataset URL
 
@@ -455,7 +439,12 @@ created_at
 updated_at
 ```
 
-GitHub enrichment now populates these fields for GitHub repository artifacts where metadata is available. Hugging Face and other provider-specific enrichment fields remain reserved for future enrichment stages.
+Provider-specific metadata is stored in:
+
+```text
+metadata.github
+metadata.huggingface
+```
 
 ### `artifact_observations`
 
@@ -542,6 +531,12 @@ artifact_links_latest.jsonl
 
 trusted filtered observations
   → paper_artifact_links
+
+GitHub metadata snapshot
+  → artifact_entities.metadata.github + selected columns
+
+Hugging Face metadata snapshot
+  → artifact_entities.metadata.huggingface + selected columns
 ```
 
 Important behavior:
@@ -552,6 +547,7 @@ Important behavior:
 - exports only trusted links to `paper_artifact_links`
 - aggregates multiple observations into one trusted link row
 - stores evidence list in `metadata.evidence`
+- merges provider enrichment metadata without modifying canonical paper truth
 
 ---
 
@@ -588,55 +584,191 @@ sample joined links readable
 
 ---
 
-## Current baseline
+## Current 60k baseline
 
-Current baseline after Artifact Layer v1 API/filter integration:
-
-```text
-canonical_documents_count = 30008
-artifact_entities_count = 491
-artifact_observations_count = 1646
-paper_artifact_links_count = 492
-linked_canonical_documents_count = 451
-linked_artifact_entities_count = 482
-```
-
-Current provider distribution:
+Artifact extraction:
 
 ```text
-generic   196
-figshare  113
-github    113
-zenodo     32
-youtube    28
-bitbucket   9
+raw artifact_entities_latest = 7173
+artifact_observations = 37582
+trusted_unique_paper_artifact_links = 7262
+linked_canonical_docs = 6507
 ```
 
-Current trusted link relation distribution:
+Artifact DB:
 
 ```text
-code     237
-dataset  158
-demo      90
-model      7
+canonical_documents_count = 60000
+artifact_entities_count = 7170
+artifact_observations_count = 37582
+paper_artifact_links_count = 7262
+join_canonical_artifact_entities_count = 7262
+join_canonical_documents_count = 6507
+join_artifact_entities_count = 7170
+ok = true
 ```
 
-Current document filter counts:
+Provider distribution from extraction:
 
 ```text
-documents with any trusted artifact       = 451
-documents with trusted code artifact      = 215
-documents with trusted dataset artifact   = 154
-documents with trusted GitHub artifact    = 111
-documents with trusted GitHub code        = 111
-documents without trusted artifacts       = 29557
+github = 5796
+generic = 897
+youtube = 233
+huggingface = 96
+zenodo = 65
+figshare = 63
+gitlab = 12
+bitbucket = 5
+kaggle = 4
+codeberg = 2
 ```
 
-Consistency check:
+Artifact type distribution includes:
 
 ```text
-451 + 29557 = 30008
+github_repository = 5796
+huggingface_model = 45
+huggingface_dataset = 42
+huggingface_space = 9
 ```
+
+---
+
+## GitHub Artifact Enrichment v1
+
+GitHub Artifact Enrichment v1 enriches already extracted GitHub repository artifacts.
+
+Input:
+
+```text
+data/enriched/artifact_links/artifact_entities_latest.jsonl
+```
+
+Outputs:
+
+```text
+data/enriched/github_artifacts/github_artifact_metadata.<ts>.jsonl
+data/enriched/github_artifacts/github_artifact_metadata_latest.jsonl
+artifacts/reports/validation/github_artifact_enrichment_latest.json
+artifacts/reports/validation/github_artifact_enrichment_latest.md
+artifacts/reports/validation/github_artifact_enrichment_check_latest.json
+artifacts/reports/validation/github_artifact_enrichment_check_latest.md
+```
+
+Current strict validation baseline:
+
+```text
+github_entities_count = 5796
+metadata_rows_count = 5796
+found_count = 5188
+not_found_count = 608
+forbidden_count = 0
+rate_limited_count = 0
+error_count = 0
+duplicate_artifact_id_count = 0
+unknown_artifact_id_count = 0
+strict = true
+ok = true
+```
+
+Populated dedicated fields for found repositories:
+
+```text
+description
+license
+stars
+forks
+topics
+fetched_at
+created_at
+updated_at
+```
+
+GitHub-specific fields are stored in `artifact_entities.metadata.github`.
+
+`not_found` repositories are preserved as historical artifact evidence.
+
+---
+
+## Hugging Face Artifact Enrichment v1
+
+Hugging Face Artifact Enrichment v1 enriches already extracted Hugging Face model/dataset/space artifacts.
+
+Input:
+
+```text
+data/enriched/artifact_links/artifact_entities_latest.jsonl
+```
+
+Outputs:
+
+```text
+data/enriched/huggingface_artifacts/huggingface_artifact_metadata.<ts>.jsonl
+data/enriched/huggingface_artifacts/huggingface_artifact_metadata_latest.jsonl
+artifacts/reports/validation/huggingface_artifact_enrichment_latest.json
+artifacts/reports/validation/huggingface_artifact_enrichment_latest.md
+artifacts/reports/validation/huggingface_artifact_enrichment_check_latest.json
+artifacts/reports/validation/huggingface_artifact_enrichment_check_latest.md
+```
+
+Current strict validation baseline:
+
+```text
+huggingface_entities_count = 96
+metadata_rows_count = 96
+found_count = 73
+forbidden_count = 2
+skipped_invalid_external_id_count = 21
+rate_limited_count = 0
+error_count = 0
+duplicate_artifact_id_count = 0
+unknown_artifact_id_count = 0
+strict = true
+ok = true
+```
+
+Current DB verification:
+
+```text
+hf_entities = 96
+hf_metadata = 96
+hf_found = 73
+hf_downloads = 64
+```
+
+Populated dedicated fields for found HF repos where available:
+
+```text
+description
+license
+downloads
+likes
+tags
+fetched_at
+created_at
+updated_at
+```
+
+Hugging Face-specific fields are stored in `artifact_entities.metadata.huggingface`:
+
+```text
+status
+http_status
+repo_type
+repo_id
+huggingface_api_url
+pipeline_tag
+library_name
+private
+gated
+disabled
+input_normalized_url
+input_external_id
+error
+card_data
+```
+
+`forbidden` and `skipped_invalid_external_id` rows are diagnostic provider/extraction states. They do not fail the core strict gate.
 
 ---
 
@@ -664,41 +796,12 @@ Strict artifact mode:
 python -m scripts.update.check_refresh_definition_of_done --require-artifacts
 ```
 
-In strict mode, the following checks are required:
-
-```text
-artifact_quality_exists
-artifact_quality_ok
-artifact_export_exists
-artifact_export_ok
-artifact_db_read_exists
-artifact_db_read_ok
-artifact_entities_db_non_empty
-artifact_observations_db_non_empty
-paper_artifact_links_db_non_empty
-artifact_links_join_all_rows
-artifact_export_vs_db_entities_match
-artifact_export_vs_db_observations_match
-artifact_export_vs_db_links_match
-artifact_quality_vs_export_entities_match
-artifact_quality_vs_export_observations_match
-artifact_quality_vs_export_links_match
-```
-
 ### Optional GitHub enrichment DoD
-
-GitHub Artifact Enrichment v1 has an optional strict DoD mode.
 
 Command:
 
 ```bat
 python -m scripts.update.check_refresh_definition_of_done --require-artifacts --require-github-enrichment
-```
-
-This mode requires the latest GitHub enrichment validation report:
-
-```text
-artifacts/reports/validation/github_artifact_enrichment_check_latest.json
 ```
 
 Required GitHub checks include:
@@ -715,9 +818,42 @@ github_enrichment_no_unknown_artifact_ids
 github_enrichment_no_duplicate_artifact_ids
 ```
 
-The base `--require-artifacts` mode does not require GitHub enrichment.
+### Optional Hugging Face enrichment DoD
 
-Reason: GitHub enrichment depends on a live external API and should remain optional for the base artifact layer.
+Command:
+
+```bat
+python -m scripts.update.check_refresh_definition_of_done --require-artifacts --require-huggingface-enrichment
+```
+
+Full provider-enriched strict mode:
+
+```bat
+python -m scripts.update.check_refresh_definition_of_done --require-artifacts --require-github-enrichment --require-huggingface-enrichment
+```
+
+Required Hugging Face checks include:
+
+```text
+huggingface_enrichment_check_exists
+huggingface_enrichment_check_ok
+huggingface_enrichment_rows_non_empty
+huggingface_enrichment_found_non_empty
+huggingface_enrichment_no_rate_limited
+huggingface_enrichment_no_errors
+huggingface_enrichment_metadata_vs_entities_match
+huggingface_enrichment_no_unknown_artifact_ids
+huggingface_enrichment_no_duplicate_artifact_ids
+```
+
+Diagnostic-only Hugging Face checks:
+
+```text
+huggingface_enrichment_no_forbidden
+huggingface_enrichment_no_skipped_invalid_external_ids
+```
+
+The base `--require-artifacts` mode does not require provider enrichment because provider APIs are live external dependencies.
 
 ---
 
@@ -729,13 +865,20 @@ Main wrapper:
 scripts/update/run_refresh_pipeline_v1.py
 ```
 
-Artifact stages are included only when:
+Artifact stages are included when:
 
 ```bat
 --require-artifacts
 ```
 
-Artifact-aware pipeline order with optional GitHub enrichment enabled:
+or when a provider enrichment stage is explicitly included:
+
+```bat
+--include-github-enrichment
+--include-huggingface-enrichment
+```
+
+Artifact-aware pipeline order with both provider enrichments enabled:
 
 ```text
 reconcile_candidate
@@ -746,6 +889,8 @@ reconcile_candidate
 → artifact_quality_check
 → github_artifact_enrichment
 → github_artifact_enrichment_check
+→ huggingface_artifact_enrichment
+→ huggingface_artifact_enrichment_check
 → export_artifacts_postgres
 → artifact_db_smoke
 → rebuild_retrieval
@@ -755,26 +900,28 @@ reconcile_candidate
 → dod_check
 ```
 
-GitHub stages are included only when:
+Provider stages are included only when explicitly requested:
 
 ```bat
 --include-github-enrichment
+--include-huggingface-enrichment
 ```
 
-Strict final DoD can require GitHub enrichment with:
+Strict final DoD can require provider enrichment reports with:
 
 ```bat
 --require-github-enrichment
+--require-huggingface-enrichment
 ```
 
-The two flags are separate:
+The include and require flags are separate:
 
 ```text
---include-github-enrichment
-  includes live GitHub enrichment and validation stages
+--include-*-enrichment
+  includes live provider enrichment and validation stages
 
---require-github-enrichment
-  makes the final DoD require the latest GitHub enrichment validation report
+--require-*-enrichment
+  makes final DoD require the latest provider validation report
 ```
 
 Dry run with artifact stages only:
@@ -783,28 +930,16 @@ Dry run with artifact stages only:
 python -m scripts.update.run_refresh_pipeline_v1 --require-artifacts
 ```
 
-Dry run with GitHub enrichment stages:
+Dry run with both provider enrichments and strict final DoD:
 
 ```bat
-python -m scripts.update.run_refresh_pipeline_v1 --require-artifacts --include-github-enrichment
+python -m scripts.update.run_refresh_pipeline_v1 --require-artifacts --include-github-enrichment --include-huggingface-enrichment --require-github-enrichment --require-huggingface-enrichment
 ```
 
-Dry run with GitHub enrichment stages and strict final DoD:
+Dry run to Hugging Face enrichment check checkpoint:
 
 ```bat
-python -m scripts.update.run_refresh_pipeline_v1 --require-artifacts --include-github-enrichment --require-github-enrichment
-```
-
-Dry run to artifact checkpoint:
-
-```bat
-python -m scripts.update.run_refresh_pipeline_v1 --require-artifacts --stop-after artifact_db_smoke
-```
-
-Dry run to GitHub enrichment check checkpoint:
-
-```bat
-python -m scripts.update.run_refresh_pipeline_v1 --require-artifacts --include-github-enrichment --stop-after github_artifact_enrichment_check
+python -m scripts.update.run_refresh_pipeline_v1 --require-artifacts --include-huggingface-enrichment --stop-after huggingface_artifact_enrichment_check
 ```
 
 Do not run full execute mode unless intentionally performing a refresh cycle.
@@ -823,9 +958,9 @@ GET /documents/{canonical_id}/artifacts
 GET /documents with trusted artifact filters
 ```
 
-The artifact API is DB-only.
+The artifact API is DB-only. The file backend does not load artifact tables and does not provide artifact browse/filter support.
 
-The file backend does not load artifact tables and does not provide artifact browse/filter support.
+Current provider-specific enriched API filters exist for GitHub. Hugging Face-specific API filters are intentionally postponed until after the next source/source-expansion slices, to avoid repeatedly redesigning API contracts.
 
 ---
 
@@ -886,66 +1021,40 @@ Rule:
 Do not silently redefine has_code_link.
 ```
 
-`has_code_link` remains a legacy canonical/source field.
-
-`has_trusted_code_artifact` is the new trusted artifact-layer signal.
+`has_code_link` remains a legacy canonical/source field. `has_trusted_code_artifact` is the new trusted artifact-layer signal.
 
 ---
 
-## Tests
+## Tests and validation
 
-Artifact API tests:
-
-```bat
-python -m pytest tests/integration/test_api_artifacts_db.py -q
-```
-
-Document artifact filter tests:
+Core artifact checks:
 
 ```bat
-python -m pytest tests/integration/test_api_documents_artifact_filters_db.py -q
+python -m scripts.validation.check_artifact_links_quality --strict
+python -m scripts.export.export_artifacts_postgres_v1 --dry-run
+python -m scripts.export.export_artifacts_postgres_v1 --replace
+python -m scripts.export.test_artifact_db_read
 ```
 
-GitHub enrichment API tests:
-
-```bat
-python -m pytest tests/integration/test_api_github_enrichment_db.py -q
-```
-
-GitHub enrichment validation:
+Provider checks:
 
 ```bat
 python -m scripts.validation.check_github_artifact_enrichment --strict
+python -m scripts.validation.check_huggingface_artifact_enrichment --strict
 ```
 
-Strict artifact DoD:
+Strict DoD modes:
 
 ```bat
 python -m scripts.update.check_refresh_definition_of_done --require-artifacts
-```
-
-Strict DoD with GitHub enrichment:
-
-```bat
 python -m scripts.update.check_refresh_definition_of_done --require-artifacts --require-github-enrichment
+python -m scripts.update.check_refresh_definition_of_done --require-artifacts --require-github-enrichment --require-huggingface-enrichment
 ```
 
-Pipeline dry-run with GitHub enrichment:
+Pipeline dry-run with provider enrichments:
 
 ```bat
-python -m scripts.update.run_refresh_pipeline_v1 --require-artifacts --include-github-enrichment
-```
-
-Recommended regression check:
-
-```bat
-python -m pytest tests/integration/test_api_artifacts_db.py -q
-python -m pytest tests/integration/test_api_documents_artifact_filters_db.py -q
-python -m pytest tests/integration/test_api_github_enrichment_db.py -q
-python -m scripts.validation.check_github_artifact_enrichment --strict
-python -m scripts.update.check_refresh_definition_of_done --require-artifacts
-python -m scripts.update.check_refresh_definition_of_done --require-artifacts --require-github-enrichment
-python -m scripts.update.run_refresh_pipeline_v1 --require-artifacts --include-github-enrichment --require-github-enrichment
+python -m scripts.update.run_refresh_pipeline_v1 --require-artifacts --include-github-enrichment --include-huggingface-enrichment --require-github-enrichment --require-huggingface-enrichment
 ```
 
 ---
@@ -955,13 +1064,6 @@ python -m scripts.update.run_refresh_pipeline_v1 --require-artifacts --include-g
 ### Figshare URL normalization
 
 Some Figshare artifacts currently appear as separate entities even when they share the same numeric article id.
-
-Example pattern:
-
-```text
-https://figshare.com/articles/.../6475511
-https://figshare.com/articles/journal_contribution/.../6475511
-```
 
 Future improvement:
 
@@ -977,117 +1079,18 @@ Generic artifact URLs are useful but less reliable than provider-specific URLs.
 
 Trusted generic URLs must remain filtered conservatively.
 
-### External enrichment
+### Hugging Face extraction cleanup
 
-GitHub Artifact Enrichment v1 is now implemented as a snapshot enrichment layer over existing `artifact_entities`.
+Current HF enrichment has identified some malformed extracted IDs and collection URLs. These are now classified as `skipped_invalid_external_id` rather than provider API errors.
 
-It enriches already extracted GitHub repository artifacts using the GitHub REST API and writes a separate metadata snapshot:
-
-```text
-data/enriched/github_artifacts/github_artifact_metadata.<ts>.jsonl
-data/enriched/github_artifacts/github_artifact_metadata_latest.jsonl
-artifacts/reports/validation/github_artifact_enrichment_latest.json
-artifacts/reports/validation/github_artifact_enrichment_latest.md
-```
-
-Default input is the extraction output:
+Future improvement:
 
 ```text
-data/enriched/artifact_links/artifact_entities_latest.jsonl
+Move more Hugging Face URL cleanup upstream into extract_artifact_links.py.
+Optionally model Hugging Face collections separately if they become useful.
 ```
 
-Postgres is not the default input. This keeps enrichment reproducible from artifact extraction output and independent of the materialized serving layer.
-
-GitHub enrichment remains artifact enrichment. It does not modify canonical paper truth and does not make GitHub a paper source.
-
-Current GitHub enrichment baseline:
-
-```text
-github_entities_total = 113
-requested_count = 113
-processed_count = 113
-found_count = 110
-not_found_count = 3
-forbidden_count = 0
-rate_limited_count = 0
-error_count = 0
-ok = true
-```
-
-The artifact export can optionally merge GitHub metadata into `artifact_entities`.
-
-Populated dedicated fields:
-
-```text
-description
-license
-stars
-forks
-topics
-fetched_at
-created_at
-updated_at
-```
-
-GitHub-specific fields are stored in `artifact_entities.metadata.github`:
-
-```text
-status
-http_status
-language
-watchers
-open_issues
-default_branch
-archived
-disabled
-private
-pushed_at
-homepage
-github_api_url
-```
-
-Latest export baseline after GitHub metadata merge:
-
-```text
-artifact_entities_db_count = 491
-artifact_observations_db_count = 1646
-paper_artifact_links_db_count = 492
-github_metadata_rows_count = 113
-github_metadata_found_count = 110
-github_metadata_applied_count = 113
-github_metadata_found_applied_count = 110
-github_metadata_not_found_applied_count = 3
-github_metadata_missing_entity_count = 0
-```
-
-`not_found` repositories are preserved as historical artifact evidence. They do not remove the artifact entity or trusted paper-artifact link.
-
-Archived repositories remain valid found artifacts. Archived status is stored as metadata and does not downgrade the trusted link.
-
-GitHub enrichment is not part of the base `--require-artifacts` DoD because GitHub API is a live external dependency. Strict GitHub validation can be required explicitly with `--require-github-enrichment`. The refresh pipeline can include live GitHub enrichment stages explicitly with `--include-github-enrichment`.
-
-GitHub enrichment validation report:
-
-```text
-artifacts/reports/validation/github_artifact_enrichment_check_latest.json
-artifacts/reports/validation/github_artifact_enrichment_check_latest.md
-```
-
-Current strict GitHub enrichment validation baseline:
-
-```text
-github_entities_count = 113
-metadata_rows_count = 113
-found_count = 110
-not_found_count = 3
-forbidden_count = 0
-rate_limited_count = 0
-error_count = 0
-duplicate_artifact_id_count = 0
-unknown_artifact_id_count = 0
-strict = true
-ok = true
-```
+This is not a blocker for Hugging Face Artifact Enrichment v1.
 
 ---
 
@@ -1099,6 +1102,7 @@ Artifact Layer v1 is now a working operational layer:
 internal extraction
 → quality gate
 → SQL schema
+→ provider enrichment snapshots
 → Postgres export
 → DB smoke
 → DoD integration
@@ -1108,4 +1112,8 @@ internal extraction
 → integration tests
 ```
 
-The current layer now supports GitHub Artifact Enrichment v1 and exposes enriched repository metadata through the existing DB artifact API.
+The current layer supports GitHub Artifact Enrichment v1 and Hugging Face Artifact Enrichment v1 while preserving the core invariant:
+
+```text
+artifact metadata does not modify canonical paper truth.
+```

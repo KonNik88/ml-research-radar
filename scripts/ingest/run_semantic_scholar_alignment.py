@@ -23,6 +23,7 @@ DEFAULT_RAW_ROOT = Path("data/raw/semantic_scholar_alignment")
 DEFAULT_OUTPUT_DIR = Path("data/normalized/semantic_scholar_alignment")
 DEFAULT_REPORTS_DIR = Path("artifacts/reports")
 
+DOI_RE = re.compile(r"10\.\d{4,9}/[^\s,;]+", re.IGNORECASE)
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -99,15 +100,15 @@ def find_latest_normalized_file(source_dir: Path) -> Path:
 
     return candidates[-1]
 
-
 def normalize_doi(value: Any) -> str | None:
     if value is None:
         return None
 
-    text = str(value).strip().lower()
+    text = str(value).strip()
     if not text:
         return None
 
+    lower = text.lower()
     prefixes = (
         "https://doi.org/",
         "http://doi.org/",
@@ -116,12 +117,21 @@ def normalize_doi(value: Any) -> str | None:
         "doi:",
     )
     for prefix in prefixes:
-        if text.startswith(prefix):
+        if lower.startswith(prefix):
             text = text[len(prefix):].strip()
             break
 
-    text = text.strip().strip("/")
-    return text or None
+    tokens = [
+        token.strip().strip(".,;()[]{}<>").lower().rstrip("/")
+        for token in DOI_RE.findall(text)
+    ]
+    tokens = [token for token in tokens if token]
+
+    unique_tokens = list(dict.fromkeys(tokens))
+    if unique_tokens:
+        return unique_tokens[0]
+
+    return None
 
 
 def extract_candidate_dois(rows: list[dict[str, Any]]) -> tuple[list[str], dict[str, dict[str, Any]]]:

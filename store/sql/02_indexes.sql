@@ -75,3 +75,7 @@ CREATE INDEX IF NOT EXISTS idx_document_references_canonical_id
 
 CREATE INDEX IF NOT EXISTS idx_document_references_type_value
     ON document_references (reference_type, reference_value);
+
+CREATE INDEX IF NOT EXISTS idx_source_documents_source_record_url
+    ON source_documents (source, source_record_url)
+    WHERE source_record_url IS NOT NULL;

@@ -188,31 +188,224 @@ def dedupe_preserve_order(values: list[str]) -> list[str]:
         result.append(value)
     return result
 
-def build_reconciliation_key(doc: NormalizedDocument) -> str:
+DOI_RE = re.compile(r"10\.\d{4,9}/[^\s\"<>]+", re.IGNORECASE)
+ARXIV_ID_RE = re.compile(
+    r"("
+    r"\d{4}\.\d{4,5}(?:v\d+)?"
+    r"|"
+    r"[a-z\-]+(?:\.[a-z]{2})?/\d{7}(?:v\d+)?"
+    r")",
+    re.IGNORECASE,
+)
+ARXIV_VERSION_RE = re.compile(r"v\d+$", re.IGNORECASE)
+TRAILING_DOI_PUNCTUATION = ".,;:)]}»”’'\""
+
+
+def get_mapping_value_case_insensitive(
+    mapping: dict[str, Any] | None,
+    key: str,
+) -> Any | None:
+    if not mapping:
+        return None
+
+    target = key.lower()
+    for k, value in mapping.items():
+        if str(k).lower() == target and value:
+            return value
+    return None
+
+
+def normalize_doi_for_key(value: Any | None) -> str | None:
     """
-    Priority of reconciliation keys:
-    1. DOI
-    2. external DOI
-    3. arXiv id
-    4. normalized title + year
+    Conservative DOI normalization for reconciliation keys.
+
+    Important:
+    - repeated identical DOI tokens collapse to one DOI;
+    - multiple different DOI tokens are treated as ambiguous and ignored;
+    - malformed values like 0.1109/... are ignored;
+    - trailing punctuation from external APIs is stripped.
     """
-    if doc.doi:
-        return f"doi::{doc.doi.lower().strip()}"
+    if value is None:
+        return None
 
-    ext_doi = doc.external_ids.get("doi")
-    if ext_doi:
-        return f"doi::{ext_doi.lower().strip()}"
+    text = str(value).strip()
+    if not text:
+        return None
 
-    if doc.arxiv_id:
-        return f"arxiv::{doc.arxiv_id.lower().strip()}"
+    text = re.sub(
+        r"^(?:doi:\s*|https?://(?:dx\.)?doi\.org/)",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    ).strip()
 
-    ext_arxiv = doc.external_ids.get("arxiv")
-    if ext_arxiv:
-        return f"arxiv::{ext_arxiv.lower().strip()}"
+    matches = DOI_RE.findall(text)
 
+    if not matches and text.lower().startswith("10."):
+        matches = [text]
+
+    normalized: list[str] = []
+    for token in matches:
+        token = str(token).strip().lower()
+        token = re.sub(
+            r"^(?:doi:\s*|https?://(?:dx\.)?doi\.org/)",
+            "",
+            token,
+            flags=re.IGNORECASE,
+        ).strip()
+        token = token.strip(TRAILING_DOI_PUNCTUATION).rstrip("/")
+
+        if token.startswith("10."):
+            normalized.append(token)
+
+    unique = dedupe_preserve_order(normalized)
+
+    if len(unique) == 1:
+        return unique[0]
+
+    # Different DOI tokens in one field are unsafe as identity keys.
+    return None
+
+
+def normalize_arxiv_id_for_key(value: Any | None) -> str | None:
+    if value is None:
+        return None
+
+    text = str(value).strip().lower()
+    if not text:
+        return None
+
+    text = text.replace("https://arxiv.org/abs/", "")
+    text = text.replace("http://arxiv.org/abs/", "")
+    text = text.replace("https://arxiv.org/pdf/", "")
+    text = text.replace("http://arxiv.org/pdf/", "")
+    text = text.replace("arxiv:", "")
+    text = text.strip().strip(" .,/")
+
+    match = ARXIV_ID_RE.search(text)
+    if not match:
+        return None
+
+    return match.group(1).lower()
+
+
+def normalize_arxiv_base_for_key(value: Any | None) -> str | None:
+    arxiv_id = normalize_arxiv_id_for_key(value)
+    if not arxiv_id:
+        return None
+
+    return ARXIV_VERSION_RE.sub("", arxiv_id)
+
+
+def get_doc_doi_for_key(doc: NormalizedDocument) -> str | None:
+    candidates = [
+        getattr(doc, "doi", None),
+        get_mapping_value_case_insensitive(getattr(doc, "external_ids", None), "doi"),
+        get_mapping_value_case_insensitive(getattr(doc, "source_ids", None), "doi"),
+    ]
+
+    for value in candidates:
+        doi = normalize_doi_for_key(value)
+        if doi:
+            return doi
+
+    return None
+
+
+def get_doc_arxiv_base_for_key(doc: NormalizedDocument) -> str | None:
+    candidates = [
+        getattr(doc, "arxiv_id", None),
+        get_mapping_value_case_insensitive(getattr(doc, "external_ids", None), "arxiv_base"),
+        get_mapping_value_case_insensitive(getattr(doc, "external_ids", None), "arxiv"),
+        get_mapping_value_case_insensitive(getattr(doc, "external_ids", None), "arxiv_id"),
+        get_mapping_value_case_insensitive(getattr(doc, "source_ids", None), "arxiv"),
+        get_mapping_value_case_insensitive(getattr(doc, "source_ids", None), "arxiv_id"),
+    ]
+
+    if (getattr(doc, "source", None) or "").lower() == "arxiv":
+        candidates.append(getattr(doc, "source_id", None))
+        candidates.append(getattr(doc, "source_record_id", None))
+
+    for value in candidates:
+        base = normalize_arxiv_base_for_key(value)
+        if base:
+            return base
+
+    return None
+
+
+def build_title_year_reconciliation_key(doc: NormalizedDocument) -> str:
     title = normalize_title_for_key(doc.title or "")
     year = str(doc.year) if doc.year is not None else "unknown"
     return f"title_year::{title}::{year}"
+
+
+def build_reconciliation_key(doc: NormalizedDocument) -> str:
+    """
+    Single-document fallback reconciliation key.
+
+    Multi-document reconciliation should use build_reconciliation_groups(),
+    because DOI may conflict with explicit arXiv base identities.
+    """
+    doi = get_doc_doi_for_key(doc)
+    if doi:
+        return f"doi::{doi}"
+
+    arxiv_base = get_doc_arxiv_base_for_key(doc)
+    if arxiv_base:
+        return f"arxiv::{arxiv_base}"
+
+    return build_title_year_reconciliation_key(doc)
+
+
+def build_reconciliation_groups(
+    documents: list[NormalizedDocument],
+) -> dict[str, list[NormalizedDocument]]:
+    """
+    Build conservative reconciliation groups.
+
+    Policy:
+    - DOI is strong when it does not conflict with explicit arXiv base identity.
+    - If one DOI is observed with multiple arXiv base IDs, do not merge those
+      arXiv papers into one canonical entity.
+    - DOI-only rows in a conflicting DOI bucket are isolated as doi_conflict::*.
+      This preserves evidence without corrupting arXiv backbone identity.
+    """
+    doc_identity: list[tuple[NormalizedDocument, str | None, str | None]] = []
+    doi_to_arxiv_bases: dict[str, set[str]] = defaultdict(set)
+
+    for doc in documents:
+        doi = get_doc_doi_for_key(doc)
+        arxiv_base = get_doc_arxiv_base_for_key(doc)
+
+        doc_identity.append((doc, doi, arxiv_base))
+
+        if doi and arxiv_base:
+            doi_to_arxiv_bases[doi].add(arxiv_base)
+
+    grouped: dict[str, list[NormalizedDocument]] = defaultdict(list)
+
+    for doc, doi, arxiv_base in doc_identity:
+        if doi:
+            arxiv_bases_for_doi = doi_to_arxiv_bases.get(doi, set())
+
+            if len(arxiv_bases_for_doi) > 1:
+                if arxiv_base:
+                    key = f"arxiv::{arxiv_base}"
+                else:
+                    key = f"doi_conflict::{doi}"
+            else:
+                key = f"doi::{doi}"
+
+        elif arxiv_base:
+            key = f"arxiv::{arxiv_base}"
+
+        else:
+            key = build_title_year_reconciliation_key(doc)
+
+        grouped[key].append(doc)
+
+    return grouped
 
 
 def build_canonical_id(reconciliation_key: str) -> str:
@@ -466,11 +659,21 @@ def choose_best_doi(documents: list[NormalizedDocument]) -> str | None:
 
 
 def choose_best_arxiv_id(documents: list[NormalizedDocument]) -> str | None:
+    # Prefer true arXiv source identity over external arXiv hints.
+    for d in documents:
+        if (d.source or "") == "arxiv" and d.arxiv_id:
+            return d.arxiv_id
+
     for d in documents:
         if d.arxiv_id:
             return d.arxiv_id
-    ext = choose_external_id(documents, "arxiv")
-    return ext
+
+    for key in ("arxiv", "ArXiv", "arxiv_id", "arxiv_base"):
+        ext = choose_external_id(documents, key)
+        if ext:
+            return ext
+
+    return None
 
 
 def choose_best_openalex_id(documents: list[NormalizedDocument]) -> str | None:
@@ -665,11 +868,7 @@ def compute_metadata_completeness_score(documents: list[NormalizedDocument]) -> 
 
 
 def reconcile_documents(documents: list[NormalizedDocument]) -> list[CanonicalDocument]:
-    grouped: dict[str, list[NormalizedDocument]] = defaultdict(list)
-
-    for doc in documents:
-        key = build_reconciliation_key(doc)
-        grouped[key].append(doc)
+    grouped = build_reconciliation_groups(documents)
 
     canonical_documents: list[CanonicalDocument] = []
 
