@@ -19,6 +19,7 @@ STEP_ORDER = [
     "reconcile_candidate",
     "candidate_provenance_audit",
     "promote_candidate",
+    "canonical_contract_check",
     "export_postgres",
     "extract_artifacts",
     "artifact_quality_check",
@@ -51,7 +52,6 @@ HUGGINGFACE_ENRICHMENT_STEPS = {
     "huggingface_artifact_enrichment",
     "huggingface_artifact_enrichment_check",
 }
-
 
 ENRICHMENT_STEPS = GITHUB_ENRICHMENT_STEPS | HUGGINGFACE_ENRICHMENT_STEPS
 
@@ -127,6 +127,7 @@ def summarize_canonical(path: Path) -> dict[str, Any] | None:
             line = line.strip()
             if not line:
                 continue
+
             payload = json.loads(line)
             doc_count += 1
 
@@ -345,7 +346,11 @@ def main() -> None:
         else args.canonical_dir / f"canonical_documents.pipeline_candidate.{run_ts}.jsonl"
     )
 
-    reconcile_cmd = [sys.executable, "-m", "scripts.update.run_incremental_reconcile_stage"]
+    reconcile_cmd = [
+        sys.executable,
+        "-m",
+        "scripts.update.run_incremental_reconcile_stage",
+    ]
     if args.arxiv_input is not None:
         reconcile_cmd.extend(["--arxiv-input", str(args.arxiv_input)])
     if args.merge_report:
@@ -373,6 +378,13 @@ def main() -> None:
     if args.execute:
         promote_cmd.append("--execute")
 
+    canonical_contract_cmd = [
+        sys.executable,
+        "-m",
+        "scripts.validation.check_canonical_contract",
+        "--strict",
+    ]
+
     export_cmd = [
         sys.executable,
         "-m",
@@ -380,7 +392,11 @@ def main() -> None:
         "--replace",
     ]
 
-    extract_artifacts_cmd = [sys.executable, "-m", "scripts.enrich.extract_artifact_links"]
+    extract_artifacts_cmd = [
+        sys.executable,
+        "-m",
+        "scripts.enrich.extract_artifact_links",
+    ]
     artifact_quality_cmd = [
         sys.executable,
         "-m",
@@ -440,6 +456,7 @@ def main() -> None:
         "reconcile_candidate": reconcile_cmd,
         "candidate_provenance_audit": candidate_provenance_cmd,
         "promote_candidate": promote_cmd,
+        "canonical_contract_check": canonical_contract_cmd,
         "export_postgres": export_cmd,
         "extract_artifacts": extract_artifacts_cmd,
         "artifact_quality_check": artifact_quality_cmd,

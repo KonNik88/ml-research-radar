@@ -12,9 +12,18 @@ from typing import Any
 
 DEFAULT_CANONICAL_PATH = Path("data/analytics/reconciled/canonical_documents.jsonl")
 DEFAULT_MANIFEST_PATH = Path("artifacts/retrieval/manifests/latest.json")
-DEFAULT_RETRIEVAL_CHECKS_PATH = Path("artifacts/reports/validation/retrieval_checks_latest.json")
-DEFAULT_POSTPASS_AUDIT_PATH = Path("artifacts/reports/validation/postpass_audit_summary_latest.json")
-DEFAULT_KNOWN_ISSUES_PATH = Path("artifacts/reports/validation/known_issues_snapshot_latest.json")
+DEFAULT_RETRIEVAL_CHECKS_PATH = Path(
+    "artifacts/reports/validation/retrieval_checks_latest.json"
+)
+DEFAULT_POSTPASS_AUDIT_PATH = Path(
+    "artifacts/reports/validation/postpass_audit_summary_latest.json"
+)
+DEFAULT_KNOWN_ISSUES_PATH = Path(
+    "artifacts/reports/validation/known_issues_snapshot_latest.json"
+)
+DEFAULT_CANONICAL_CONTRACT_PATH = Path(
+    "artifacts/reports/validation/canonical_contract_latest.json"
+)
 
 DEFAULT_ARTIFACT_QUALITY_PATH = Path(
     "artifacts/reports/validation/check_artifact_links_quality_latest.json"
@@ -276,6 +285,38 @@ def extract_known_issues_values(known_issues: dict[str, Any] | None) -> dict[str
     }
 
 
+def extract_canonical_contract_values(
+    canonical_contract: dict[str, Any] | None,
+) -> dict[str, Any]:
+    report = canonical_contract or {}
+    summary = report.get("summary") if isinstance(report.get("summary"), dict) else {}
+    verdict = report.get("verdict") if isinstance(report.get("verdict"), dict) else {}
+
+    return {
+        "canonical_contract_ok": report_ok(canonical_contract),
+        "canonical_contract_rows_count": summary.get("rows_count"),
+        "canonical_contract_valid_rows_count": summary.get("valid_rows_count"),
+        "canonical_contract_bad_rows_count": summary.get("bad_rows_count"),
+        "canonical_contract_extra_fields_count": summary.get("extra_fields_count"),
+        "canonical_contract_extra_field_rows_count": summary.get("extra_field_rows_count"),
+        "canonical_contract_missing_canonical_id_count": summary.get(
+            "missing_canonical_id_count"
+        ),
+        "canonical_contract_duplicate_canonical_id_count": summary.get(
+            "duplicate_canonical_id_count"
+        ),
+        "canonical_contract_duplicate_doc_id_values_across_canonical_count": summary.get(
+            "duplicate_doc_id_values_across_canonical_count"
+        ),
+        "canonical_contract_doc_ids_not_list_count": summary.get("doc_ids_not_list_count"),
+        "canonical_contract_duplicate_doc_ids_within_row_count": summary.get(
+            "duplicate_doc_ids_within_row_count"
+        ),
+        "canonical_contract_required_failed_count": verdict.get("required_failed_count"),
+        "canonical_contract_required_failed_checks": verdict.get("required_failed_checks"),
+    }
+
+
 def extract_artifact_values(
     artifact_quality: dict[str, Any] | None,
     artifact_export: dict[str, Any] | None,
@@ -321,15 +362,21 @@ def extract_artifact_values(
         "artifact_export_raw_entities_count": export.get("raw_entities_count"),
         "artifact_export_db_entities_count": export.get("db_entities_count"),
         "artifact_export_observations_count": export.get("observations_count"),
-        "artifact_export_trusted_links_count": export.get("trusted_paper_artifact_links_count"),
+        "artifact_export_trusted_links_count": export.get(
+            "trusted_paper_artifact_links_count"
+        ),
         "artifact_export_entities_db_count": export.get("artifact_entities_db_count"),
-        "artifact_export_observations_db_count": export.get("artifact_observations_db_count"),
+        "artifact_export_observations_db_count": export.get(
+            "artifact_observations_db_count"
+        ),
         "artifact_export_links_db_count": export.get("paper_artifact_links_db_count"),
         "artifact_db_read_ok": report_ok(artifact_db_read),
         "artifact_db_read_entities_count": db_read.get("artifact_entities_count"),
         "artifact_db_read_observations_count": db_read.get("artifact_observations_count"),
         "artifact_db_read_links_count": db_read.get("paper_artifact_links_count"),
-        "artifact_db_read_join_links_count": db_read.get("join_canonical_artifact_entities_count"),
+        "artifact_db_read_join_links_count": db_read.get(
+            "join_canonical_artifact_entities_count"
+        ),
         "artifact_db_read_required_failed_count": db_read.get("required_failed_count"),
     }
 
@@ -350,8 +397,12 @@ def extract_github_enrichment_values(
         [("summary", "metadata_rows_count"), ("metadata_rows_count",)],
     )
     found_count = first_present(report, [("summary", "found_count"), ("found_count",)])
-    not_found_count = first_present(report, [("summary", "not_found_count"), ("not_found_count",)])
-    forbidden_count = first_present(report, [("summary", "forbidden_count"), ("forbidden_count",)])
+    not_found_count = first_present(
+        report, [("summary", "not_found_count"), ("not_found_count",)]
+    )
+    forbidden_count = first_present(
+        report, [("summary", "forbidden_count"), ("forbidden_count",)]
+    )
     rate_limited_count = first_present(
         report,
         [("summary", "rate_limited_count"), ("rate_limited_count",)],
@@ -397,8 +448,6 @@ def extract_github_enrichment_values(
     }
 
 
-
-
 def extract_huggingface_enrichment_values(
     huggingface_enrichment_check: dict[str, Any] | None,
 ) -> dict[str, Any]:
@@ -421,8 +470,12 @@ def extract_huggingface_enrichment_values(
         ],
     )
     found_count = first_present(report, [("summary", "found_count"), ("found_count",)])
-    not_found_count = first_present(report, [("summary", "not_found_count"), ("not_found_count",)])
-    forbidden_count = first_present(report, [("summary", "forbidden_count"), ("forbidden_count",)])
+    not_found_count = first_present(
+        report, [("summary", "not_found_count"), ("not_found_count",)]
+    )
+    forbidden_count = first_present(
+        report, [("summary", "forbidden_count"), ("forbidden_count",)]
+    )
     skipped_invalid_external_id_count = first_present(
         report,
         [
@@ -466,7 +519,9 @@ def extract_huggingface_enrichment_values(
         "huggingface_enrichment_found_count": found_count,
         "huggingface_enrichment_not_found_count": not_found_count,
         "huggingface_enrichment_forbidden_count": forbidden_count,
-        "huggingface_enrichment_skipped_invalid_external_id_count": skipped_invalid_external_id_count,
+        "huggingface_enrichment_skipped_invalid_external_id_count": (
+            skipped_invalid_external_id_count
+        ),
         "huggingface_enrichment_rate_limited_count": rate_limited_count,
         "huggingface_enrichment_error_count": error_count,
         "huggingface_enrichment_duplicate_artifact_id_count": duplicate_artifact_id_count,
@@ -474,6 +529,7 @@ def extract_huggingface_enrichment_values(
         "huggingface_enrichment_metadata_vs_entities_match": metadata_vs_entities_match,
         "huggingface_enrichment_status_distribution": summary.get("status_distribution"),
     }
+
 
 def build_markdown(report: dict[str, Any]) -> str:
     lines: list[str] = []
@@ -520,17 +576,47 @@ def build_markdown(report: dict[str, Any]) -> str:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Check refresh Definition of Done against canonical, DB, retrieval, validation, optional artifact outputs, and optional GitHub/Hugging Face enrichment checks."
+        description=(
+            "Check refresh Definition of Done against canonical, canonical contract, "
+            "DB, retrieval, validation, optional artifact outputs, and optional "
+            "GitHub/Hugging Face enrichment checks."
+        )
     )
     parser.add_argument("--canonical-path", type=Path, default=DEFAULT_CANONICAL_PATH)
     parser.add_argument("--manifest-path", type=Path, default=DEFAULT_MANIFEST_PATH)
-    parser.add_argument("--retrieval-checks-path", type=Path, default=DEFAULT_RETRIEVAL_CHECKS_PATH)
-    parser.add_argument("--postpass-audit-path", type=Path, default=DEFAULT_POSTPASS_AUDIT_PATH)
+    parser.add_argument(
+        "--retrieval-checks-path",
+        type=Path,
+        default=DEFAULT_RETRIEVAL_CHECKS_PATH,
+    )
+    parser.add_argument(
+        "--postpass-audit-path",
+        type=Path,
+        default=DEFAULT_POSTPASS_AUDIT_PATH,
+    )
     parser.add_argument("--known-issues-path", type=Path, default=DEFAULT_KNOWN_ISSUES_PATH)
+    parser.add_argument(
+        "--canonical-contract-path",
+        type=Path,
+        default=DEFAULT_CANONICAL_CONTRACT_PATH,
+        help="CanonicalDocument contract validation report path.",
+    )
 
-    parser.add_argument("--artifact-quality-path", type=Path, default=DEFAULT_ARTIFACT_QUALITY_PATH)
-    parser.add_argument("--artifact-export-path", type=Path, default=DEFAULT_ARTIFACT_EXPORT_PATH)
-    parser.add_argument("--artifact-db-read-path", type=Path, default=DEFAULT_ARTIFACT_DB_READ_PATH)
+    parser.add_argument(
+        "--artifact-quality-path",
+        type=Path,
+        default=DEFAULT_ARTIFACT_QUALITY_PATH,
+    )
+    parser.add_argument(
+        "--artifact-export-path",
+        type=Path,
+        default=DEFAULT_ARTIFACT_EXPORT_PATH,
+    )
+    parser.add_argument(
+        "--artifact-db-read-path",
+        type=Path,
+        default=DEFAULT_ARTIFACT_DB_READ_PATH,
+    )
 
     parser.add_argument(
         "--github-enrichment-check-path",
@@ -550,7 +636,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--require-known-issues",
         action="store_true",
-        help="Treat known_issues_snapshot presence and consistency as a required DoD condition.",
+        help=(
+            "Treat known_issues_snapshot presence and consistency as a required "
+            "DoD condition."
+        ),
     )
     parser.add_argument(
         "--require-artifacts",
@@ -560,12 +649,20 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--require-github-enrichment",
         action="store_true",
-        help="Treat GitHub artifact enrichment validation as a required DoD condition. This is intentionally separate from --require-artifacts because GitHub is an optional external enrichment layer.",
+        help=(
+            "Treat GitHub artifact enrichment validation as a required DoD condition. "
+            "This is intentionally separate from --require-artifacts because GitHub "
+            "is an optional external enrichment layer."
+        ),
     )
     parser.add_argument(
         "--require-huggingface-enrichment",
         action="store_true",
-        help="Treat Hugging Face artifact enrichment validation as a required DoD condition. This is intentionally separate from --require-artifacts because Hugging Face is an optional external enrichment layer.",
+        help=(
+            "Treat Hugging Face artifact enrichment validation as a required DoD "
+            "condition. This is intentionally separate from --require-artifacts "
+            "because Hugging Face is an optional external enrichment layer."
+        ),
     )
 
     return parser
@@ -581,10 +678,12 @@ def main() -> None:
     retrieval_checks = load_json(args.retrieval_checks_path)
     postpass_audit = load_json(args.postpass_audit_path)
 
-    known_issues = None
-    known_issues_exists = args.known_issues_path.exists()
-    if known_issues_exists:
-        known_issues = load_json(args.known_issues_path)
+    known_issues = load_json_if_exists(args.known_issues_path)
+    known_issues_exists = known_issues is not None
+
+    canonical_contract = load_json_if_exists(args.canonical_contract_path)
+    canonical_contract_exists = canonical_contract is not None
+    canonical_contract_values = extract_canonical_contract_values(canonical_contract)
 
     artifact_quality = load_json_if_exists(args.artifact_quality_path)
     artifact_export = load_json_if_exists(args.artifact_export_path)
@@ -604,7 +703,9 @@ def main() -> None:
     github_enrichment_check_exists = github_enrichment_check is not None
     github_enrichment_values = extract_github_enrichment_values(github_enrichment_check)
 
-    huggingface_enrichment_check = load_json_if_exists(args.huggingface_enrichment_check_path)
+    huggingface_enrichment_check = load_json_if_exists(
+        args.huggingface_enrichment_check_path
+    )
     huggingface_enrichment_check_exists = huggingface_enrichment_check is not None
     huggingface_enrichment_values = extract_huggingface_enrichment_values(
         huggingface_enrichment_check
@@ -626,6 +727,35 @@ def main() -> None:
     known_issues_doc_count = known_issues_values["canonical_corpus_doc_count"]
     known_issues_build_id = known_issues_values["retrieval_build_id"]
 
+    canonical_contract_rows_count = safe_int(
+        canonical_contract_values["canonical_contract_rows_count"],
+        default=-1,
+    )
+    canonical_contract_bad_rows_count = safe_int(
+        canonical_contract_values["canonical_contract_bad_rows_count"],
+        default=999999,
+    )
+    canonical_contract_extra_fields_count = safe_int(
+        canonical_contract_values["canonical_contract_extra_fields_count"],
+        default=999999,
+    )
+    canonical_contract_missing_canonical_id_count = safe_int(
+        canonical_contract_values["canonical_contract_missing_canonical_id_count"],
+        default=999999,
+    )
+    canonical_contract_duplicate_canonical_id_count = safe_int(
+        canonical_contract_values["canonical_contract_duplicate_canonical_id_count"],
+        default=999999,
+    )
+    canonical_contract_doc_ids_not_list_count = safe_int(
+        canonical_contract_values["canonical_contract_doc_ids_not_list_count"],
+        default=999999,
+    )
+    canonical_contract_duplicate_doc_ids_within_row_count = safe_int(
+        canonical_contract_values["canonical_contract_duplicate_doc_ids_within_row_count"],
+        default=999999,
+    )
+
     checks = {
         # canonical / retrieval / DB baseline
         "canonical_exists": args.canonical_path.exists(),
@@ -634,12 +764,45 @@ def main() -> None:
         "postpass_audit_exists": args.postpass_audit_path.exists(),
         "db_smoke_ok": db_smoke["ok"],
         "db_ping_true": db_smoke["ping"] is True,
-        "canonical_vs_manifest_doc_count_match": canonical_summary["doc_count"] == manifest_doc_count,
-        "canonical_vs_retrieval_checks_doc_count_match": canonical_summary["doc_count"] == retrieval_checks_doc_count,
-        "canonical_vs_postpass_doc_count_match": canonical_summary["doc_count"] == postpass_total_docs,
-        "canonical_vs_postpass_multisource_match": canonical_summary["multisource_docs"] == postpass_multisource_docs,
-        "manifest_vs_retrieval_checks_build_id_match": manifest_build_id == retrieval_checks_build_id,
-        "canonical_vs_db_doc_count_match": canonical_summary["doc_count"] == db_smoke["total_docs"],
+        "canonical_vs_manifest_doc_count_match": (
+            canonical_summary["doc_count"] == manifest_doc_count
+        ),
+        "canonical_vs_retrieval_checks_doc_count_match": (
+            canonical_summary["doc_count"] == retrieval_checks_doc_count
+        ),
+        "canonical_vs_postpass_doc_count_match": (
+            canonical_summary["doc_count"] == postpass_total_docs
+        ),
+        "canonical_vs_postpass_multisource_match": (
+            canonical_summary["multisource_docs"] == postpass_multisource_docs
+        ),
+        "manifest_vs_retrieval_checks_build_id_match": (
+            manifest_build_id == retrieval_checks_build_id
+        ),
+        "canonical_vs_db_doc_count_match": (
+            canonical_summary["doc_count"] == db_smoke["total_docs"]
+        ),
+
+        # required canonical contract block
+        "canonical_contract_exists": canonical_contract_exists,
+        "canonical_contract_ok": canonical_contract_values["canonical_contract_ok"],
+        "canonical_contract_rows_count_match": (
+            canonical_contract_rows_count == canonical_summary["doc_count"]
+        ),
+        "canonical_contract_no_bad_rows": canonical_contract_bad_rows_count == 0,
+        "canonical_contract_no_extra_fields": canonical_contract_extra_fields_count == 0,
+        "canonical_contract_no_missing_canonical_id": (
+            canonical_contract_missing_canonical_id_count == 0
+        ),
+        "canonical_contract_no_duplicate_canonical_id": (
+            canonical_contract_duplicate_canonical_id_count == 0
+        ),
+        "canonical_contract_doc_ids_shape_ok": (
+            canonical_contract_doc_ids_not_list_count == 0
+        ),
+        "canonical_contract_no_duplicate_doc_ids_within_row": (
+            canonical_contract_duplicate_doc_ids_within_row_count == 0
+        ),
 
         # optional known issues block
         "known_issues_exists": known_issues_exists,
@@ -661,15 +824,15 @@ def main() -> None:
         "artifact_export_ok": artifact_values["artifact_export_ok"],
         "artifact_db_read_exists": artifact_db_read_exists,
         "artifact_db_read_ok": artifact_values["artifact_db_read_ok"],
-        "artifact_entities_db_non_empty": safe_int(
-            artifact_values["artifact_db_read_entities_count"]
-        ) > 0,
-        "artifact_observations_db_non_empty": safe_int(
-            artifact_values["artifact_db_read_observations_count"]
-        ) > 0,
-        "paper_artifact_links_db_non_empty": safe_int(
-            artifact_values["artifact_db_read_links_count"]
-        ) > 0,
+        "artifact_entities_db_non_empty": (
+            safe_int(artifact_values["artifact_db_read_entities_count"]) > 0
+        ),
+        "artifact_observations_db_non_empty": (
+            safe_int(artifact_values["artifact_db_read_observations_count"]) > 0
+        ),
+        "paper_artifact_links_db_non_empty": (
+            safe_int(artifact_values["artifact_db_read_links_count"]) > 0
+        ),
         "artifact_links_join_all_rows": (
             safe_int(artifact_values["artifact_db_read_join_links_count"])
             == safe_int(artifact_values["artifact_db_read_links_count"])
@@ -708,73 +871,104 @@ def main() -> None:
 
         # optional GitHub enrichment block
         "github_enrichment_check_exists": github_enrichment_check_exists,
-        "github_enrichment_check_ok": github_enrichment_values["github_enrichment_check_ok"],
-        "github_enrichment_rows_non_empty": safe_int(
-            github_enrichment_values["github_enrichment_metadata_rows_count"]
-        ) > 0,
-        "github_enrichment_found_non_empty": safe_int(
-            github_enrichment_values["github_enrichment_found_count"]
-        ) > 0,
-        "github_enrichment_no_rate_limited": safe_int(
-            github_enrichment_values["github_enrichment_rate_limited_count"]
-        ) == 0,
-        "github_enrichment_no_errors": safe_int(
-            github_enrichment_values["github_enrichment_error_count"]
-        ) == 0,
+        "github_enrichment_check_ok": github_enrichment_values[
+            "github_enrichment_check_ok"
+        ],
+        "github_enrichment_rows_non_empty": (
+            safe_int(github_enrichment_values["github_enrichment_metadata_rows_count"])
+            > 0
+        ),
+        "github_enrichment_found_non_empty": (
+            safe_int(github_enrichment_values["github_enrichment_found_count"]) > 0
+        ),
+        "github_enrichment_no_rate_limited": (
+            safe_int(github_enrichment_values["github_enrichment_rate_limited_count"])
+            == 0
+        ),
+        "github_enrichment_no_errors": (
+            safe_int(github_enrichment_values["github_enrichment_error_count"]) == 0
+        ),
         "github_enrichment_metadata_vs_entities_match": bool(
             github_enrichment_values["github_enrichment_metadata_vs_entities_match"]
         ),
-        "github_enrichment_no_unknown_artifact_ids": safe_int(
-            github_enrichment_values["github_enrichment_unknown_artifact_id_count"]
-        ) == 0,
-        "github_enrichment_no_duplicate_artifact_ids": safe_int(
-            github_enrichment_values["github_enrichment_duplicate_artifact_id_count"]
-        ) == 0,
-        "github_enrichment_no_forbidden": safe_int(
-            github_enrichment_values["github_enrichment_forbidden_count"]
-        ) == 0,
+        "github_enrichment_no_unknown_artifact_ids": (
+            safe_int(github_enrichment_values["github_enrichment_unknown_artifact_id_count"])
+            == 0
+        ),
+        "github_enrichment_no_duplicate_artifact_ids": (
+            safe_int(
+                github_enrichment_values["github_enrichment_duplicate_artifact_id_count"]
+            )
+            == 0
+        ),
+        # Diagnostic only for current policy. Not required below.
+        "github_enrichment_no_forbidden": (
+            safe_int(github_enrichment_values["github_enrichment_forbidden_count"]) == 0
+        ),
 
         # optional Hugging Face enrichment block
         "huggingface_enrichment_check_exists": huggingface_enrichment_check_exists,
         "huggingface_enrichment_check_ok": huggingface_enrichment_values[
             "huggingface_enrichment_check_ok"
         ],
-        "huggingface_enrichment_rows_non_empty": safe_int(
-            huggingface_enrichment_values["huggingface_enrichment_metadata_rows_count"]
-        ) > 0,
-        "huggingface_enrichment_found_non_empty": safe_int(
-            huggingface_enrichment_values["huggingface_enrichment_found_count"]
-        ) > 0,
-        "huggingface_enrichment_no_rate_limited": safe_int(
-            huggingface_enrichment_values["huggingface_enrichment_rate_limited_count"]
-        ) == 0,
-        "huggingface_enrichment_no_errors": safe_int(
-            huggingface_enrichment_values["huggingface_enrichment_error_count"]
-        ) == 0,
+        "huggingface_enrichment_rows_non_empty": (
+            safe_int(
+                huggingface_enrichment_values[
+                    "huggingface_enrichment_metadata_rows_count"
+                ]
+            )
+            > 0
+        ),
+        "huggingface_enrichment_found_non_empty": (
+            safe_int(huggingface_enrichment_values["huggingface_enrichment_found_count"])
+            > 0
+        ),
+        "huggingface_enrichment_no_rate_limited": (
+            safe_int(
+                huggingface_enrichment_values[
+                    "huggingface_enrichment_rate_limited_count"
+                ]
+            )
+            == 0
+        ),
+        "huggingface_enrichment_no_errors": (
+            safe_int(huggingface_enrichment_values["huggingface_enrichment_error_count"])
+            == 0
+        ),
         "huggingface_enrichment_metadata_vs_entities_match": bool(
             huggingface_enrichment_values[
                 "huggingface_enrichment_metadata_vs_entities_match"
             ]
         ),
-        "huggingface_enrichment_no_unknown_artifact_ids": safe_int(
-            huggingface_enrichment_values[
-                "huggingface_enrichment_unknown_artifact_id_count"
-            ]
-        ) == 0,
-        "huggingface_enrichment_no_duplicate_artifact_ids": safe_int(
-            huggingface_enrichment_values[
-                "huggingface_enrichment_duplicate_artifact_id_count"
-            ]
-        ) == 0,
+        "huggingface_enrichment_no_unknown_artifact_ids": (
+            safe_int(
+                huggingface_enrichment_values[
+                    "huggingface_enrichment_unknown_artifact_id_count"
+                ]
+            )
+            == 0
+        ),
+        "huggingface_enrichment_no_duplicate_artifact_ids": (
+            safe_int(
+                huggingface_enrichment_values[
+                    "huggingface_enrichment_duplicate_artifact_id_count"
+                ]
+            )
+            == 0
+        ),
         # Diagnostic only: forbidden/skipped_invalid are allowed provider/extraction states.
-        "huggingface_enrichment_no_forbidden": safe_int(
-            huggingface_enrichment_values["huggingface_enrichment_forbidden_count"]
-        ) == 0,
-        "huggingface_enrichment_no_skipped_invalid_external_ids": safe_int(
-            huggingface_enrichment_values[
-                "huggingface_enrichment_skipped_invalid_external_id_count"
-            ]
-        ) == 0,
+        "huggingface_enrichment_no_forbidden": (
+            safe_int(huggingface_enrichment_values["huggingface_enrichment_forbidden_count"])
+            == 0
+        ),
+        "huggingface_enrichment_no_skipped_invalid_external_ids": (
+            safe_int(
+                huggingface_enrichment_values[
+                    "huggingface_enrichment_skipped_invalid_external_id_count"
+                ]
+            )
+            == 0
+        ),
     }
 
     required_check_names = [
@@ -790,6 +984,17 @@ def main() -> None:
         "canonical_vs_postpass_multisource_match",
         "manifest_vs_retrieval_checks_build_id_match",
         "canonical_vs_db_doc_count_match",
+
+        # Canonical contract is now a required DoD gate.
+        "canonical_contract_exists",
+        "canonical_contract_ok",
+        "canonical_contract_rows_count_match",
+        "canonical_contract_no_bad_rows",
+        "canonical_contract_no_extra_fields",
+        "canonical_contract_no_missing_canonical_id",
+        "canonical_contract_no_duplicate_canonical_id",
+        "canonical_contract_doc_ids_shape_ok",
+        "canonical_contract_no_duplicate_doc_ids_within_row",
     ]
 
     if args.require_known_issues:
@@ -876,10 +1081,13 @@ def main() -> None:
             "retrieval_checks_path": normalize_path(args.retrieval_checks_path),
             "postpass_audit_path": normalize_path(args.postpass_audit_path),
             "known_issues_path": normalize_path(args.known_issues_path),
+            "canonical_contract_path": normalize_path(args.canonical_contract_path),
             "artifact_quality_path": normalize_path(args.artifact_quality_path),
             "artifact_export_path": normalize_path(args.artifact_export_path),
             "artifact_db_read_path": normalize_path(args.artifact_db_read_path),
-            "github_enrichment_check_path": normalize_path(args.github_enrichment_check_path),
+            "github_enrichment_check_path": normalize_path(
+                args.github_enrichment_check_path
+            ),
             "huggingface_enrichment_check_path": normalize_path(
                 args.huggingface_enrichment_check_path
             ),
@@ -895,6 +1103,7 @@ def main() -> None:
             "db_total_docs": db_smoke["total_docs"],
             "known_issues_doc_count": known_issues_doc_count,
             "known_issues_build_id": known_issues_build_id,
+            **canonical_contract_values,
             **artifact_values,
             **github_enrichment_values,
             **huggingface_enrichment_values,
@@ -906,8 +1115,12 @@ def main() -> None:
 
     latest_json = args.reports_dir / "check_refresh_definition_of_done_latest.json"
     latest_md = args.reports_dir / "check_refresh_definition_of_done_latest.md"
-    hist_json = args.reports_dir / "history" / f"check_refresh_definition_of_done_{run_ts}.json"
-    hist_md = args.reports_dir / "history" / f"check_refresh_definition_of_done_{run_ts}.md"
+    hist_json = (
+        args.reports_dir / "history" / f"check_refresh_definition_of_done_{run_ts}.json"
+    )
+    hist_md = (
+        args.reports_dir / "history" / f"check_refresh_definition_of_done_{run_ts}.md"
+    )
 
     dump_json(latest_json, report)
     dump_text(latest_md, build_markdown(report))
