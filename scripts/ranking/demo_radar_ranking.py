@@ -14,6 +14,12 @@ from radar_core.ranking.feature_ranking import (
     explain_paper_from_features,
     rank_papers_from_features,
 )
+from radar_core.ranking.profiles import (
+    DEFAULT_RANKING_PROFILES_PATH,
+    RankingProfileError,
+    get_ranking_profile,
+    load_ranking_profiles,
+)
 
 
 DEFAULT_REPORTS_DIR = Path("artifacts/reports/ranking")
@@ -140,6 +146,153 @@ def write_results_csv(path: Path, report: dict[str, Any]) -> None:
             writer.writerow(payload)
 
 
+def resolve_profile(args: argparse.Namespace) -> dict[str, Any] | None:
+    if not args.profile:
+        return None
+
+    profiles_payload = load_ranking_profiles(args.profiles_path)
+    return get_ranking_profile(profiles_payload, args.profile)
+
+
+def bool_arg_or_profile(
+    *,
+    cli_value: bool | None,
+    profile_filters: dict[str, Any],
+    key: str,
+) -> bool:
+    if cli_value is not None:
+        return bool(cli_value)
+    return bool(profile_filters.get(key, False))
+
+
+def value_arg_or_profile(
+    *,
+    cli_value: Any,
+    profile_filters: dict[str, Any],
+    key: str,
+    default: Any = None,
+) -> Any:
+    if cli_value is not None:
+        return cli_value
+    return profile_filters.get(key, default)
+
+
+def build_effective_ranking_options(
+    args: argparse.Namespace,
+    profile: dict[str, Any] | None,
+) -> dict[str, Any]:
+    profile_filters = (profile or {}).get("filters") or {}
+
+    sort_by = args.sort_by or (profile or {}).get("sort_by") or "radar_score"
+    top_k = args.top_k if args.top_k is not None else (profile or {}).get("top_k", 20)
+
+    if args.ascending is not None:
+        descending = not bool(args.ascending)
+    else:
+        descending = bool((profile or {}).get("descending", True))
+
+    filters = RankingFilters(
+        query_title=value_arg_or_profile(
+            cli_value=args.query_title,
+            profile_filters=profile_filters,
+            key="query_title",
+            default=None,
+        ),
+        source_family=value_arg_or_profile(
+            cli_value=args.source_family,
+            profile_filters=profile_filters,
+            key="source_family",
+            default=None,
+        ),
+        min_year=value_arg_or_profile(
+            cli_value=args.min_year,
+            profile_filters=profile_filters,
+            key="min_year",
+            default=None,
+        ),
+        max_year=value_arg_or_profile(
+            cli_value=args.max_year,
+            profile_filters=profile_filters,
+            key="max_year",
+            default=None,
+        ),
+        has_code=bool_arg_or_profile(
+            cli_value=args.has_code,
+            profile_filters=profile_filters,
+            key="has_code",
+        ),
+        has_dataset=bool_arg_or_profile(
+            cli_value=args.has_dataset,
+            profile_filters=profile_filters,
+            key="has_dataset",
+        ),
+        has_model=bool_arg_or_profile(
+            cli_value=args.has_model,
+            profile_filters=profile_filters,
+            key="has_model",
+        ),
+        has_demo=bool_arg_or_profile(
+            cli_value=args.has_demo,
+            profile_filters=profile_filters,
+            key="has_demo",
+        ),
+        has_github=bool_arg_or_profile(
+            cli_value=args.has_github,
+            profile_filters=profile_filters,
+            key="has_github",
+        ),
+        has_hf=bool_arg_or_profile(
+            cli_value=args.has_hf,
+            profile_filters=profile_filters,
+            key="has_hf",
+        ),
+        has_acl=bool_arg_or_profile(
+            cli_value=args.has_acl,
+            profile_filters=profile_filters,
+            key="has_acl",
+        ),
+        has_doi=bool_arg_or_profile(
+            cli_value=args.has_doi,
+            profile_filters=profile_filters,
+            key="has_doi",
+        ),
+    )
+
+    return {
+        "sort_by": sort_by,
+        "top_k": int(top_k),
+        "descending": descending,
+        "filters": filters,
+    }
+
+
+def profile_report_metadata(
+    *,
+    args: argparse.Namespace,
+    profile: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    if not args.profile:
+        return None
+
+    if profile is None:
+        return {
+            "name": args.profile,
+            "profiles_path": normalize_path(args.profiles_path),
+            "loaded": False,
+        }
+
+    return {
+        "name": args.profile,
+        "description": profile.get("description"),
+        "profiles_path": normalize_path(args.profiles_path),
+        "loaded": True,
+        "sort_by": profile.get("sort_by"),
+        "top_k": profile.get("top_k"),
+        "descending": profile.get("descending"),
+        "filters": profile.get("filters") or {},
+    }
+
+
 def build_explain_markdown(report: dict[str, Any]) -> str:
     lines: list[str] = []
     lines.append("# Radar paper explanation")
@@ -217,6 +370,12 @@ def build_ranking_markdown(report: dict[str, Any]) -> str:
     lines.append(f"- Generated at: `{report['generated_at_utc']}`")
     lines.append(f"- Run ts: `{report['run_ts']}`")
     lines.append(f"- Features path: `{report['features_path']}`")
+
+    profile = report.get("profile")
+    if profile:
+        lines.append(f"- Profile: `{profile.get('name')}`")
+        lines.append(f"- Profile description: `{profile.get('description')}`")
+
     lines.append(f"- Sort by: `{report['sort_by']}`")
     lines.append(f"- Descending: `{report['descending']}`")
     lines.append(f"- Top K: `{report['top_k']}`")
@@ -324,6 +483,14 @@ def print_console_results(report: dict[str, Any]) -> None:
 
     print("[OK] mode=ranking")
     print(f"[OK] features_path={report['features_path']}")
+
+    profile = report.get("profile")
+    if profile:
+        print(f"[OK] profile={profile.get('name')}")
+        print(f"[OK] profile_loaded={profile.get('loaded')}")
+        if profile.get("description"):
+            print(f"[OK] profile_description={profile.get('description')}")
+
     print(f"[OK] sort_by={report['sort_by']}")
     print(f"[OK] descending={report['descending']}")
     print(f"[OK] input_rows_count={report['input_rows_count']}")
@@ -366,27 +533,30 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--features-path", type=Path, default=DEFAULT_FEATURES_PATH)
     parser.add_argument("--reports-dir", type=Path, default=DEFAULT_REPORTS_DIR)
+    parser.add_argument("--profiles-path", type=Path, default=DEFAULT_RANKING_PROFILES_PATH)
+    parser.add_argument("--profile", type=str, default=None)
+
     parser.add_argument(
         "--sort-by",
         choices=sorted(ALLOWED_SORT_FIELDS),
-        default="radar_score",
+        default=None,
     )
-    parser.add_argument("--top-k", type=int, default=20)
-    parser.add_argument("--ascending", action="store_true")
+    parser.add_argument("--top-k", type=int, default=None)
+    parser.add_argument("--ascending", action="store_true", default=None)
 
     parser.add_argument("--query-title", type=str, default=None)
     parser.add_argument("--source-family", type=str, default=None)
     parser.add_argument("--min-year", type=int, default=None)
     parser.add_argument("--max-year", type=int, default=None)
 
-    parser.add_argument("--has-code", action="store_true")
-    parser.add_argument("--has-dataset", action="store_true")
-    parser.add_argument("--has-model", action="store_true")
-    parser.add_argument("--has-demo", action="store_true")
-    parser.add_argument("--has-github", action="store_true")
-    parser.add_argument("--has-hf", action="store_true")
-    parser.add_argument("--has-acl", action="store_true")
-    parser.add_argument("--has-doi", action="store_true")
+    parser.add_argument("--has-code", action="store_true", default=None)
+    parser.add_argument("--has-dataset", action="store_true", default=None)
+    parser.add_argument("--has-model", action="store_true", default=None)
+    parser.add_argument("--has-demo", action="store_true", default=None)
+    parser.add_argument("--has-github", action="store_true", default=None)
+    parser.add_argument("--has-hf", action="store_true", default=None)
+    parser.add_argument("--has-acl", action="store_true", default=None)
+    parser.add_argument("--has-doi", action="store_true", default=None)
 
     parser.add_argument(
         "--show-components",
@@ -417,28 +587,21 @@ def main() -> None:
             features_path=args.features_path,
             canonical_id=args.explain_canonical_id,
         )
+        profile = None
     else:
-        filters = RankingFilters(
-            query_title=args.query_title,
-            source_family=args.source_family,
-            min_year=args.min_year,
-            max_year=args.max_year,
-            has_code=args.has_code,
-            has_dataset=args.has_dataset,
-            has_model=args.has_model,
-            has_demo=args.has_demo,
-            has_github=args.has_github,
-            has_hf=args.has_hf,
-            has_acl=args.has_acl,
-            has_doi=args.has_doi,
-        )
+        try:
+            profile = resolve_profile(args)
+        except RankingProfileError as exc:
+            raise SystemExit(str(exc)) from exc
+
+        effective = build_effective_ranking_options(args, profile)
 
         report = rank_papers_from_features(
             features_path=args.features_path,
-            filters=filters,
-            sort_by=args.sort_by,
-            top_k=args.top_k,
-            descending=not args.ascending,
+            filters=effective["filters"],
+            sort_by=effective["sort_by"],
+            top_k=effective["top_k"],
+            descending=effective["descending"],
             include_explanations=args.show_components,
         )
 
@@ -446,6 +609,7 @@ def main() -> None:
         "report_name": "demo_radar_ranking",
         "generated_at_utc": utc_now_iso(),
         "run_ts": run_ts,
+        "profile": profile_report_metadata(args=args, profile=profile),
         **report,
     }
 

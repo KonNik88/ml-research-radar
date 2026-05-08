@@ -1,0 +1,82 @@
+schema_version: ranking_profiles_v1
+
+default_profile: recent_artifact_ready
+
+profiles:
+  recent_artifact_ready:
+    description: "Recent papers with code/artifact signals, ranked by implementation readiness."
+    sort_by: implementation_readiness_score
+    top_k: 50
+    descending: true
+    filters:
+      min_year: 2024
+      has_code: true
+
+  huggingface_ready:
+    description: "Papers with Hugging Face artifacts, ranked by implementation readiness."
+    sort_by: implementation_readiness_score
+    top_k: 50
+    descending: true
+    filters:
+      has_hf: true
+
+  acl_radar:
+    description: "ACL Anthology papers ranked by radar score."
+    sort_by: radar_score
+    top_k: 50
+    descending: true
+    filters:
+      has_acl: true
+
+  recent_code_radar:
+    description: "Recent papers with code artifacts, ranked by radar score."
+    sort_by: radar_score
+    top_k: 50
+    descending: true
+    filters:
+      min_year: 2024
+      has_code: true
+
+  recent_transformer_radar:
+    description: "Recent transformer-related papers ranked by radar score."
+    sort_by: radar_score
+    top_k: 50
+    descending: true
+    filters:
+      min_year: 2024
+      query_title: transformer
+
+  recent_dataset_ready:
+    description: "Recent papers with dataset artifacts, ranked by implementation readiness."
+    sort_by: implementation_readiness_score
+    top_k: 50
+    descending: true
+    filters:
+      min_year: 2024
+      has_dataset: true
+
+  recent_model_ready:
+    description: "Recent papers with model artifacts, ranked by implementation readiness."
+    sort_by: implementation_readiness_score
+    top_k: 50
+    descending: true
+    filters:
+      min_year: 2024
+      has_model: true
+
+  high_confidence_radar:
+    description: "Papers with DOI and stronger source evidence, ranked by radar score."
+    sort_by: radar_score
+    top_k: 50
+    descending: true
+    filters:
+      has_doi: true
+
+  acl_artifact_ready:
+    description: "ACL papers with code artifacts, ranked by implementation readiness."
+    sort_by: implementation_readiness_score
+    top_k: 50
+    descending: true
+    filters:
+      has_acl: true
+      has_code: true
