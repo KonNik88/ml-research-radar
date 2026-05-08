@@ -50,6 +50,23 @@ def normalize_path(path: Path | str | None) -> str | None:
     return str(path).replace("\\", "/")
 
 
+def safe_int(value: Any, default: int = 0) -> int:
+    try:
+        if value is None:
+            return default
+        return int(value)
+    except Exception:
+        return default
+
+
+def hf_artifact_count(row: dict[str, Any]) -> int:
+    return (
+        safe_int(row.get("hf_model_count"))
+        + safe_int(row.get("hf_dataset_count"))
+        + safe_int(row.get("hf_space_count"))
+    )
+
+
 def fmt_score(value: Any) -> str:
     try:
         return f"{float(value):.4f}"
@@ -91,6 +108,7 @@ def write_results_csv(path: Path, report: dict[str, Any]) -> None:
         "github_found_repo_count",
         "github_stars_max",
         "github_forks_max",
+        "hf_artifact_count",
         "hf_found_count",
         "hf_model_count",
         "hf_dataset_count",
@@ -109,10 +127,16 @@ def write_results_csv(path: Path, report: dict[str, Any]) -> None:
 
         for rank, row in enumerate(report.get("results") or [], start=1):
             payload = {"rank": rank}
+
             for field in fieldnames:
                 if field == "rank":
                     continue
-                payload[field] = csv_value(row.get(field))
+
+                if field == "hf_artifact_count":
+                    payload[field] = hf_artifact_count(row)
+                else:
+                    payload[field] = csv_value(row.get(field))
+
             writer.writerow(payload)
 
 
@@ -216,9 +240,9 @@ def build_ranking_markdown(report: dict[str, Any]) -> str:
         return "\n".join(lines)
 
     lines.append(
-        "| rank | year | radar | impl | src | cite | artifacts | github | hf | title | canonical_id |"
+        "| rank | year | radar | impl | src | cite | artifacts | github | hf_art | hf_found | title | canonical_id |"
     )
-    lines.append("|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|")
+    lines.append("|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|")
 
     for rank, row in enumerate(report["results"], start=1):
         title = str(row.get("title") or "").replace("|", "\\|")
@@ -232,6 +256,7 @@ def build_ranking_markdown(report: dict[str, Any]) -> str:
             f"{fmt_score(row.get('citation_signal_score'))} | "
             f"{row.get('trusted_artifact_links_count')} | "
             f"{row.get('github_found_repo_count')} | "
+            f"{hf_artifact_count(row)} | "
             f"{row.get('hf_found_count')} | "
             f"{title} | "
             f"`{row.get('canonical_id')}` |"
@@ -241,24 +266,29 @@ def build_ranking_markdown(report: dict[str, Any]) -> str:
 
     if report.get("include_explanations"):
         lines.append("## Score explanations")
+
         for rank, row in enumerate(report["results"], start=1):
             explanation = row.get("score_explanation") or {}
             lines.append(f"### {rank}. {row.get('title')}")
             lines.append("")
             lines.append(f"- Canonical ID: `{row.get('canonical_id')}`")
             lines.append("")
+
             lines.append("#### Scores")
             for key, value in (explanation.get("scores") or {}).items():
                 lines.append(f"- {key}: `{value}`")
             lines.append("")
+
             lines.append("#### Radar components")
             for key, value in (explanation.get("radar_components") or {}).items():
                 lines.append(f"- {key}: `{value}`")
             lines.append("")
+
             lines.append("#### Implementation components")
             for key, value in (explanation.get("implementation_components") or {}).items():
                 lines.append(f"- {key}: `{value}`")
             lines.append("")
+
             lines.append("#### Source confidence components")
             for key, value in (explanation.get("source_confidence_components") or {}).items():
                 lines.append(f"- {key}: `{value}`")
@@ -275,7 +305,7 @@ def build_markdown(report: dict[str, Any]) -> str:
 
 def print_console_results(report: dict[str, Any]) -> None:
     if report.get("mode") == "explain":
-        print(f"[OK] mode=explain")
+        print("[OK] mode=explain")
         print(f"[OK] features_path={report['features_path']}")
         print(f"[OK] canonical_id={report['canonical_id']}")
         print(f"[OK] found={report['found']}")
@@ -292,7 +322,7 @@ def print_console_results(report: dict[str, Any]) -> None:
             print(f"citation_signal_score={scores.get('citation_signal_score')}")
         return
 
-    print(f"[OK] mode=ranking")
+    print("[OK] mode=ranking")
     print(f"[OK] features_path={report['features_path']}")
     print(f"[OK] sort_by={report['sort_by']}")
     print(f"[OK] descending={report['descending']}")
@@ -309,8 +339,10 @@ def print_console_results(report: dict[str, Any]) -> None:
         return
 
     print("")
-    print("rank | year | radar  | impl   | src    | cite   | art | gh | hf | title")
-    print("-" * 120)
+    print(
+        "rank | year | radar  | impl   | src    | cite   | art | gh | hf_art | hf_found | title"
+    )
+    print("-" * 138)
 
     for rank, row in enumerate(report["results"], start=1):
         print(
@@ -322,7 +354,8 @@ def print_console_results(report: dict[str, Any]) -> None:
             f"{fmt_score(row.get('citation_signal_score')):>6} | "
             f"{str(row.get('trusted_artifact_links_count')):>3} | "
             f"{str(row.get('github_found_repo_count')):>2} | "
-            f"{str(row.get('hf_found_count')):>2} | "
+            f"{str(hf_artifact_count(row)):>6} | "
+            f"{str(row.get('hf_found_count')):>8} | "
             f"{truncate(row.get('title'), 70)}"
         )
 
