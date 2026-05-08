@@ -1,0 +1,107 @@
+schema_version: "paper_features_v1"
+
+description: >
+  File-first derived feature layer over canonical_documents.jsonl,
+  artifact extraction outputs, and GitHub/Hugging Face enrichment snapshots.
+  This layer is not paper truth and does not modify canonical documents.
+
+inputs:
+  canonical_path: "data/analytics/reconciled/canonical_documents.jsonl"
+  artifact_entities_path: "data/enriched/artifact_links/artifact_entities_latest.jsonl"
+  artifact_links_path: "data/enriched/artifact_links/artifact_links_latest.jsonl"
+  github_metadata_path: "data/enriched/github_artifacts/github_artifact_metadata_latest.jsonl"
+  huggingface_metadata_path: "data/enriched/huggingface_artifacts/huggingface_artifact_metadata_latest.jsonl"
+
+outputs:
+  features_dir: "data/features"
+  reports_dir: "artifacts/reports/features"
+  latest_features_name: "paper_features_latest.jsonl"
+  latest_report_name: "paper_features_latest.json"
+  latest_markdown_name: "paper_features_latest.md"
+
+artifact_policy:
+  relation_types:
+    - code
+    - dataset
+    - model
+    - demo
+
+  provider_specific_trusted_types:
+    - github_repository
+    - gitlab_repository
+    - bitbucket_repository
+    - codeberg_repository
+    - huggingface_model
+    - huggingface_dataset
+    - huggingface_space
+    - figshare_artifact
+    - zenodo_artifact
+    - youtube_video
+    - kaggle_dataset
+
+  trusted_generic_fields:
+    - comment
+    - code_links
+    - dataset_links
+    - model_links
+    - repo_url
+
+  provider_specific_min_confidence: 0.65
+  generic_min_confidence: 0.90
+
+score_params:
+  current_year: 2026
+  recency_window_years: 5
+  source_count_cap: 5
+  github_stars_log_cap: 10000
+  github_forks_log_cap: 2000
+  huggingface_downloads_log_cap: 100000
+  huggingface_likes_log_cap: 5000
+  citation_count_log_cap: 1000
+
+implementation_readiness_score:
+  has_code_artifact: 0.22
+  github_found_repo: 0.22
+  github_stars_log: 0.14
+  github_forks_log: 0.06
+  has_dataset_artifact: 0.10
+  has_model_artifact: 0.10
+  has_demo_artifact: 0.06
+  huggingface_found: 0.10
+
+source_confidence_score:
+  has_doi: 0.25
+  source_count_norm: 0.25
+  has_arxiv: 0.20
+  has_acl: 0.10
+  has_abstract: 0.10
+  has_pdf: 0.10
+
+radar_score:
+  recency_score: 0.30
+  implementation_readiness_score: 0.35
+  source_confidence_score: 0.20
+  citation_signal_score: 0.15
+
+required_feature_fields:
+  - canonical_id
+  - title
+  - year
+  - source_count
+  - has_arxiv
+  - has_acl
+  - has_doi
+  - has_abstract
+  - has_pdf
+  - has_code_artifact
+  - has_dataset_artifact
+  - has_model_artifact
+  - has_demo_artifact
+  - github_repo_count
+  - github_found_repo_count
+  - hf_found_count
+  - recency_score
+  - source_confidence_score
+  - implementation_readiness_score
+  - citation_signal_score
+  - radar_score

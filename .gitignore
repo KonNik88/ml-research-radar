@@ -23,6 +23,7 @@ data/normalized/
 data/enriched
 data/state/
 data/analytics/
+data/features/
 
 .ipynb_checkpoints/
 

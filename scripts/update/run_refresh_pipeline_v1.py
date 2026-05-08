@@ -29,6 +29,8 @@ STEP_ORDER = [
     "huggingface_artifact_enrichment_check",
     "export_artifacts_postgres",
     "artifact_db_smoke",
+    "build_paper_features",
+    "paper_features_quality_check",
     "rebuild_retrieval",
     "retrieval_checks",
     "postpass_audit",
@@ -41,6 +43,11 @@ ARTIFACT_STEPS = {
     "artifact_quality_check",
     "export_artifacts_postgres",
     "artifact_db_smoke",
+}
+
+PAPER_FEATURE_STEPS = {
+    "build_paper_features",
+    "paper_features_quality_check",
 }
 
 GITHUB_ENRICHMENT_STEPS = {
@@ -295,6 +302,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Forward --require-huggingface-enrichment to DoD check.",
     )
     parser.add_argument(
+        "--require-paper-features",
+        action="store_true",
+        help=(
+            "Include paper_features build/quality stages and forward "
+            "--require-paper-features to DoD."
+        ),
+    )
+    parser.add_argument(
         "--execute",
         action="store_true",
         help="Actually execute the pipeline. Without this flag, dry-run only.",
@@ -317,6 +332,10 @@ def artifact_stages_enabled(args: argparse.Namespace) -> bool:
     )
 
 
+def paper_feature_stages_enabled(args: argparse.Namespace) -> bool:
+    return bool(args.require_paper_features)
+
+
 def step_enabled(step_name: str, args: argparse.Namespace) -> tuple[bool, str]:
     if not step_before_or_at_stop(step_name, args.stop_after):
         return False, f"Excluded because stop-after={args.stop_after}"
@@ -332,6 +351,9 @@ def step_enabled(step_name: str, args: argparse.Namespace) -> tuple[bool, str]:
             "Artifact stages require --require-artifacts, --include-github-enrichment, "
             "or --include-huggingface-enrichment"
         )
+
+    if step_name in PAPER_FEATURE_STEPS and not paper_feature_stages_enabled(args):
+        return False, "paper_features stages require --require-paper-features"
 
     return True, "Included"
 
@@ -437,6 +459,18 @@ def main() -> None:
         "scripts.export.test_artifact_db_read",
     ]
 
+    build_paper_features_cmd = [
+        sys.executable,
+        "-m",
+        "scripts.features.build_paper_features",
+    ]
+    paper_features_quality_cmd = [
+        sys.executable,
+        "-m",
+        "scripts.validation.check_paper_features",
+        "--strict",
+    ]
+
     rebuild_cmd = [sys.executable, "-m", "scripts.retrieval.build_indexes"]
     retrieval_checks_cmd = [sys.executable, "-m", "scripts.validation.run_retrieval_checks"]
     postpass_audit_cmd = [sys.executable, "-m", "scripts.validation.run_postpass_audit"]
@@ -451,6 +485,8 @@ def main() -> None:
         dod_cmd.append("--require-github-enrichment")
     if args.require_huggingface_enrichment:
         dod_cmd.append("--require-huggingface-enrichment")
+    if args.require_paper_features:
+        dod_cmd.append("--require-paper-features")
 
     step_cmds = {
         "reconcile_candidate": reconcile_cmd,
@@ -466,6 +502,8 @@ def main() -> None:
         "huggingface_artifact_enrichment_check": huggingface_enrichment_check_cmd,
         "export_artifacts_postgres": export_artifacts_cmd,
         "artifact_db_smoke": artifact_db_smoke_cmd,
+        "build_paper_features": build_paper_features_cmd,
+        "paper_features_quality_check": paper_features_quality_cmd,
         "rebuild_retrieval": rebuild_cmd,
         "retrieval_checks": retrieval_checks_cmd,
         "postpass_audit": postpass_audit_cmd,
@@ -537,7 +575,9 @@ def main() -> None:
             "require_github_enrichment": bool(args.require_github_enrichment),
             "include_huggingface_enrichment": bool(args.include_huggingface_enrichment),
             "require_huggingface_enrichment": bool(args.require_huggingface_enrichment),
+            "require_paper_features": bool(args.require_paper_features),
             "artifact_stages_enabled": artifact_stages_enabled(args),
+            "paper_feature_stages_enabled": paper_feature_stages_enabled(args),
         },
         "candidate": {
             "path": normalize_path(candidate_path),
@@ -566,6 +606,9 @@ def main() -> None:
     print(f"[OK] require_github_enrichment={bool(args.require_github_enrichment)}")
     print(f"[OK] include_huggingface_enrichment={bool(args.include_huggingface_enrichment)}")
     print(f"[OK] require_huggingface_enrichment={bool(args.require_huggingface_enrichment)}")
+    print(f"[OK] require_paper_features={bool(args.require_paper_features)}")
+    print(f"[OK] artifact_stages_enabled={artifact_stages_enabled(args)}")
+    print(f"[OK] paper_feature_stages_enabled={paper_feature_stages_enabled(args)}")
     print(f"[OK] candidate_path={normalize_path(candidate_path)}")
     if candidate_summary:
         print(f"[OK] candidate_doc_count={candidate_summary['doc_count']}")

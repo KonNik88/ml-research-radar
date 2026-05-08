@@ -42,6 +42,11 @@ DEFAULT_HUGGINGFACE_ENRICHMENT_CHECK_PATH = Path(
     "artifacts/reports/validation/huggingface_artifact_enrichment_check_latest.json"
 )
 
+DEFAULT_PAPER_FEATURES_PATH = Path("data/features/paper_features_latest.jsonl")
+DEFAULT_PAPER_FEATURES_QUALITY_PATH = Path(
+    "artifacts/reports/features/paper_features_quality_latest.json"
+)
+
 DEFAULT_REPORTS_DIR = Path("artifacts/reports/update")
 
 
@@ -531,6 +536,75 @@ def extract_huggingface_enrichment_values(
     }
 
 
+def extract_paper_features_values(
+    paper_features_quality: dict[str, Any] | None,
+) -> dict[str, Any]:
+    report = paper_features_quality or {}
+
+    summary = report.get("summary") if isinstance(report.get("summary"), dict) else {}
+    checks = report.get("checks") if isinstance(report.get("checks"), dict) else {}
+    verdict = report.get("verdict") if isinstance(report.get("verdict"), dict) else {}
+
+    return {
+        "paper_features_quality_ok": report_ok(paper_features_quality),
+        "paper_features_required_failed_count": verdict.get("required_failed_count"),
+        "paper_features_required_failed_checks": verdict.get("required_failed_checks"),
+        "paper_features_canonical_rows_count": summary.get("canonical_rows_count"),
+        "paper_features_rows_count": summary.get("features_rows_count"),
+        "paper_features_build_report_exists": summary.get("build_report_exists"),
+        "paper_features_build_report_ok": summary.get("build_report_ok"),
+        "paper_features_build_report_rows_written": summary.get("build_report_rows_written"),
+        "paper_features_missing_canonical_id_count": summary.get(
+            "missing_canonical_id_count"
+        ),
+        "paper_features_duplicate_canonical_id_count": summary.get(
+            "duplicate_canonical_id_count"
+        ),
+        "paper_features_missing_required_fields_total": summary.get(
+            "missing_required_fields_total"
+        ),
+        "paper_features_score_range_violations_count": summary.get(
+            "score_range_violations_count"
+        ),
+        "paper_features_non_negative_count_violations_count": summary.get(
+            "non_negative_count_violations_count"
+        ),
+        "paper_features_source_family_pollution_count": summary.get(
+            "source_family_pollution_count"
+        ),
+        "paper_features_malformed_source_families_count": summary.get(
+            "malformed_source_families_count"
+        ),
+        "paper_features_malformed_provider_counts_count": summary.get(
+            "malformed_provider_counts_count"
+        ),
+        "paper_features_malformed_type_counts_count": summary.get(
+            "malformed_type_counts_count"
+        ),
+        "paper_features_features_vs_canonical_rows_match": checks.get(
+            "features_vs_canonical_rows_match"
+        ),
+        "paper_features_build_report_rows_match_features": checks.get(
+            "build_report_rows_match_features"
+        ),
+        "paper_features_canonical_ids_present": checks.get("canonical_ids_present"),
+        "paper_features_canonical_ids_unique": checks.get("canonical_ids_unique"),
+        "paper_features_required_fields_present": checks.get("required_fields_present"),
+        "paper_features_scores_in_range": checks.get("scores_in_range"),
+        "paper_features_counts_non_negative": checks.get("counts_non_negative"),
+        "paper_features_source_families_shape_ok": checks.get("source_families_shape_ok"),
+        "paper_features_source_families_not_polluted": checks.get(
+            "source_families_not_polluted"
+        ),
+        "paper_features_artifact_provider_counts_shape_ok": checks.get(
+            "artifact_provider_counts_shape_ok"
+        ),
+        "paper_features_artifact_type_counts_shape_ok": checks.get(
+            "artifact_type_counts_shape_ok"
+        ),
+    }
+
+
 def build_markdown(report: dict[str, Any]) -> str:
     lines: list[str] = []
     lines.append("# Refresh Definition of Done check")
@@ -578,8 +652,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
             "Check refresh Definition of Done against canonical, canonical contract, "
-            "DB, retrieval, validation, optional artifact outputs, and optional "
-            "GitHub/Hugging Face enrichment checks."
+            "DB, retrieval, validation, optional artifact outputs, optional "
+            "GitHub/Hugging Face enrichment checks, and optional paper_features "
+            "derived layer quality."
         )
     )
     parser.add_argument("--canonical-path", type=Path, default=DEFAULT_CANONICAL_PATH)
@@ -631,6 +706,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="Hugging Face artifact enrichment validation report path.",
     )
 
+    parser.add_argument(
+        "--paper-features-path",
+        type=Path,
+        default=DEFAULT_PAPER_FEATURES_PATH,
+        help="paper_features latest JSONL path.",
+    )
+    parser.add_argument(
+        "--paper-features-quality-path",
+        type=Path,
+        default=DEFAULT_PAPER_FEATURES_QUALITY_PATH,
+        help="paper_features quality validation report path.",
+    )
+
     parser.add_argument("--reports-dir", type=Path, default=DEFAULT_REPORTS_DIR)
 
     parser.add_argument(
@@ -663,6 +751,11 @@ def build_parser() -> argparse.ArgumentParser:
             "condition. This is intentionally separate from --require-artifacts "
             "because Hugging Face is an optional external enrichment layer."
         ),
+    )
+    parser.add_argument(
+        "--require-paper-features",
+        action="store_true",
+        help="Treat paper_features derived layer quality as a required DoD condition.",
     )
 
     return parser
@@ -711,6 +804,11 @@ def main() -> None:
         huggingface_enrichment_check
     )
 
+    paper_features_exists = args.paper_features_path.exists()
+    paper_features_quality = load_json_if_exists(args.paper_features_quality_path)
+    paper_features_quality_exists = paper_features_quality is not None
+    paper_features_values = extract_paper_features_values(paper_features_quality)
+
     db_smoke = run_db_smoke()
 
     manifest_doc_count = manifest.get("corpus_doc_count")
@@ -754,6 +852,15 @@ def main() -> None:
     canonical_contract_duplicate_doc_ids_within_row_count = safe_int(
         canonical_contract_values["canonical_contract_duplicate_doc_ids_within_row_count"],
         default=999999,
+    )
+
+    paper_features_rows_count = safe_int(
+        paper_features_values["paper_features_rows_count"],
+        default=-1,
+    )
+    paper_features_canonical_rows_count = safe_int(
+        paper_features_values["paper_features_canonical_rows_count"],
+        default=-1,
     )
 
     checks = {
@@ -969,6 +1076,61 @@ def main() -> None:
             )
             == 0
         ),
+
+        # optional paper_features derived layer block
+        "paper_features_exists": paper_features_exists,
+        "paper_features_quality_exists": paper_features_quality_exists,
+        "paper_features_quality_ok": paper_features_values["paper_features_quality_ok"],
+        "paper_features_rows_match_canonical": (
+            paper_features_rows_count == canonical_summary["doc_count"]
+        ),
+        "paper_features_quality_canonical_rows_match": (
+            paper_features_canonical_rows_count == canonical_summary["doc_count"]
+        ),
+        "paper_features_build_report_exists": bool(
+            paper_features_values["paper_features_build_report_exists"]
+        ),
+        "paper_features_build_report_ok": bool(
+            paper_features_values["paper_features_build_report_ok"]
+        ),
+        "paper_features_build_report_rows_match": bool(
+            paper_features_values["paper_features_build_report_rows_match_features"]
+        ),
+        "paper_features_no_missing_canonical_id": (
+            safe_int(
+                paper_features_values["paper_features_missing_canonical_id_count"],
+                default=999999,
+            )
+            == 0
+        ),
+        "paper_features_no_duplicate_canonical_id": (
+            safe_int(
+                paper_features_values["paper_features_duplicate_canonical_id_count"],
+                default=999999,
+            )
+            == 0
+        ),
+        "paper_features_required_fields_present": bool(
+            paper_features_values["paper_features_required_fields_present"]
+        ),
+        "paper_features_scores_in_range": bool(
+            paper_features_values["paper_features_scores_in_range"]
+        ),
+        "paper_features_counts_non_negative": bool(
+            paper_features_values["paper_features_counts_non_negative"]
+        ),
+        "paper_features_source_families_shape_ok": bool(
+            paper_features_values["paper_features_source_families_shape_ok"]
+        ),
+        "paper_features_source_families_not_polluted": bool(
+            paper_features_values["paper_features_source_families_not_polluted"]
+        ),
+        "paper_features_artifact_provider_counts_shape_ok": bool(
+            paper_features_values["paper_features_artifact_provider_counts_shape_ok"]
+        ),
+        "paper_features_artifact_type_counts_shape_ok": bool(
+            paper_features_values["paper_features_artifact_type_counts_shape_ok"]
+        ),
     }
 
     required_check_names = [
@@ -1058,6 +1220,29 @@ def main() -> None:
             ]
         )
 
+    if args.require_paper_features:
+        required_check_names.extend(
+            [
+                "paper_features_exists",
+                "paper_features_quality_exists",
+                "paper_features_quality_ok",
+                "paper_features_rows_match_canonical",
+                "paper_features_quality_canonical_rows_match",
+                "paper_features_build_report_exists",
+                "paper_features_build_report_ok",
+                "paper_features_build_report_rows_match",
+                "paper_features_no_missing_canonical_id",
+                "paper_features_no_duplicate_canonical_id",
+                "paper_features_required_fields_present",
+                "paper_features_scores_in_range",
+                "paper_features_counts_non_negative",
+                "paper_features_source_families_shape_ok",
+                "paper_features_source_families_not_polluted",
+                "paper_features_artifact_provider_counts_shape_ok",
+                "paper_features_artifact_type_counts_shape_ok",
+            ]
+        )
+
     required_failed = [name for name in required_check_names if not checks.get(name, False)]
 
     verdict = {
@@ -1069,6 +1254,7 @@ def main() -> None:
         "artifacts_required": bool(args.require_artifacts),
         "github_enrichment_required": bool(args.require_github_enrichment),
         "huggingface_enrichment_required": bool(args.require_huggingface_enrichment),
+        "paper_features_required": bool(args.require_paper_features),
     }
 
     report = {
@@ -1091,6 +1277,8 @@ def main() -> None:
             "huggingface_enrichment_check_path": normalize_path(
                 args.huggingface_enrichment_check_path
             ),
+            "paper_features_path": normalize_path(args.paper_features_path),
+            "paper_features_quality_path": normalize_path(args.paper_features_quality_path),
         },
         "canonical_summary": canonical_summary,
         "extracted_values": {
@@ -1107,6 +1295,7 @@ def main() -> None:
             **artifact_values,
             **github_enrichment_values,
             **huggingface_enrichment_values,
+            **paper_features_values,
         },
         "checks": checks,
         "verdict": verdict,
@@ -1141,6 +1330,7 @@ def main() -> None:
         f"[OK] huggingface_enrichment_required="
         f"{verdict['huggingface_enrichment_required']}"
     )
+    print(f"[OK] paper_features_required={verdict['paper_features_required']}")
     print(f"[OK] latest JSON: {latest_json}")
     print(f"[OK] latest Markdown: {latest_md}")
     print(f"[OK] history JSON: {hist_json}")
