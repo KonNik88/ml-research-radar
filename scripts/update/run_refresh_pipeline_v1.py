@@ -314,6 +314,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Actually execute the pipeline. Without this flag, dry-run only.",
     )
+    parser.add_argument(
+        "--require-similar-papers",
+        action="store_true",
+        help="Forward --require-similar-papers to final DoD check.",
+    )
+
     return parser
 
 
@@ -487,6 +493,8 @@ def main() -> None:
         dod_cmd.append("--require-huggingface-enrichment")
     if args.require_paper_features:
         dod_cmd.append("--require-paper-features")
+    if args.require_similar_papers:
+        dod_cmd.append("--require-similar-papers")
 
     step_cmds = {
         "reconcile_candidate": reconcile_cmd,
@@ -578,6 +586,7 @@ def main() -> None:
             "require_paper_features": bool(args.require_paper_features),
             "artifact_stages_enabled": artifact_stages_enabled(args),
             "paper_feature_stages_enabled": paper_feature_stages_enabled(args),
+            "require_similar_papers": bool(args.require_similar_papers),
         },
         "candidate": {
             "path": normalize_path(candidate_path),
@@ -607,6 +616,7 @@ def main() -> None:
     print(f"[OK] include_huggingface_enrichment={bool(args.include_huggingface_enrichment)}")
     print(f"[OK] require_huggingface_enrichment={bool(args.require_huggingface_enrichment)}")
     print(f"[OK] require_paper_features={bool(args.require_paper_features)}")
+    print(f"[OK] require_similar_papers={bool(args.require_similar_papers)}")
     print(f"[OK] artifact_stages_enabled={artifact_stages_enabled(args)}")
     print(f"[OK] paper_feature_stages_enabled={paper_feature_stages_enabled(args)}")
     print(f"[OK] candidate_path={normalize_path(candidate_path)}")

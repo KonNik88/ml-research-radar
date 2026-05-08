@@ -15,6 +15,9 @@ DEFAULT_MANIFEST_PATH = Path("artifacts/retrieval/manifests/latest.json")
 DEFAULT_RETRIEVAL_CHECKS_PATH = Path(
     "artifacts/reports/validation/retrieval_checks_latest.json"
 )
+DEFAULT_SIMILAR_PAPERS_QUALITY_PATH = Path(
+    "artifacts/reports/retrieval/similar_papers_quality_latest.json"
+)
 DEFAULT_POSTPASS_AUDIT_PATH = Path(
     "artifacts/reports/validation/postpass_audit_summary_latest.json"
 )
@@ -253,6 +256,45 @@ def extract_postpass_values(postpass_audit: dict[str, Any]) -> dict[str, Any]:
         "multi_source_docs": multi_source_docs,
     }
 
+def extract_similar_papers_values(
+    similar_papers_quality: dict[str, Any] | None,
+) -> dict[str, Any]:
+    report = similar_papers_quality or {}
+    summary = report.get("summary") if isinstance(report.get("summary"), dict) else {}
+    checks = report.get("checks") if isinstance(report.get("checks"), dict) else {}
+    verdict = report.get("verdict") if isinstance(report.get("verdict"), dict) else {}
+
+    return {
+        "similar_papers_quality_ok": report_ok(similar_papers_quality),
+        "similar_papers_required_failed_count": first_present(
+            report,
+            [
+                ("required_failed_count",),
+                ("verdict", "required_failed_count"),
+            ],
+        ),
+        "similar_papers_target_canonical_id": summary.get("target_canonical_id"),
+        "similar_papers_target_title": summary.get("target_title"),
+        "similar_papers_rank_by": summary.get("rank_by"),
+        "similar_papers_top_k": summary.get("top_k"),
+        "similar_papers_input_rows_count": summary.get("input_rows_count"),
+        "similar_papers_returned_rows_count": summary.get("returned_rows_count"),
+        "similar_papers_results_count": summary.get("results_count"),
+        "similar_papers_target_found": checks.get("target_found"),
+        "similar_papers_results_non_empty": checks.get("results_non_empty"),
+        "similar_papers_self_not_in_results": checks.get("self_not_in_results"),
+        "similar_papers_canonical_ids_unique": checks.get("canonical_ids_unique"),
+        "similar_papers_scores_in_range": bool(
+            checks.get("semantic_similarity_in_range")
+            and checks.get("semantic_similarity_norm_in_range")
+            and checks.get("radar_adjusted_similarity_in_range")
+        ),
+        "similar_papers_sorted_correctly": checks.get("sorted_correctly"),
+        "similar_papers_ids_count_matches_input_rows": checks.get(
+            "ids_count_matches_input_rows"
+        ),
+        "similar_papers_verdict": verdict,
+    }
 
 def extract_known_issues_values(known_issues: dict[str, Any] | None) -> dict[str, Any]:
     if known_issues is None:
@@ -757,6 +799,17 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Treat paper_features derived layer quality as a required DoD condition.",
     )
+    parser.add_argument(
+        "--similar-papers-quality-path",
+        type=Path,
+        default=DEFAULT_SIMILAR_PAPERS_QUALITY_PATH,
+        help="Similar papers quality report path.",
+    )
+    parser.add_argument(
+        "--require-similar-papers",
+        action="store_true",
+        help="Treat latest similar papers quality report as a required DoD condition.",
+    )
 
     return parser
 
@@ -795,6 +848,9 @@ def main() -> None:
     github_enrichment_check = load_json_if_exists(args.github_enrichment_check_path)
     github_enrichment_check_exists = github_enrichment_check is not None
     github_enrichment_values = extract_github_enrichment_values(github_enrichment_check)
+
+    similar_papers_quality = load_json_if_exists(args.similar_papers_quality_path)
+    similar_papers_values = extract_similar_papers_values(similar_papers_quality)
 
     huggingface_enrichment_check = load_json_if_exists(
         args.huggingface_enrichment_check_path
@@ -1131,6 +1187,30 @@ def main() -> None:
         "paper_features_artifact_type_counts_shape_ok": bool(
             paper_features_values["paper_features_artifact_type_counts_shape_ok"]
         ),
+
+        "similar_papers_quality_exists": args.similar_papers_quality_path.exists(),
+        "similar_papers_quality_ok": similar_papers_values["similar_papers_quality_ok"],
+        "similar_papers_target_found": bool(
+            similar_papers_values["similar_papers_target_found"]
+        ),
+        "similar_papers_results_non_empty": bool(
+            similar_papers_values["similar_papers_results_non_empty"]
+        ),
+        "similar_papers_self_not_in_results": bool(
+            similar_papers_values["similar_papers_self_not_in_results"]
+        ),
+        "similar_papers_canonical_ids_unique": bool(
+            similar_papers_values["similar_papers_canonical_ids_unique"]
+        ),
+        "similar_papers_scores_in_range": bool(
+            similar_papers_values["similar_papers_scores_in_range"]
+        ),
+        "similar_papers_sorted_correctly": bool(
+            similar_papers_values["similar_papers_sorted_correctly"]
+        ),
+        "similar_papers_ids_count_matches_input_rows": bool(
+            similar_papers_values["similar_papers_ids_count_matches_input_rows"]
+        ),
     }
 
     required_check_names = [
@@ -1243,6 +1323,21 @@ def main() -> None:
             ]
         )
 
+    if args.require_similar_papers:
+        required_check_names.extend(
+            [
+                "similar_papers_quality_exists",
+                "similar_papers_quality_ok",
+                "similar_papers_target_found",
+                "similar_papers_results_non_empty",
+                "similar_papers_self_not_in_results",
+                "similar_papers_canonical_ids_unique",
+                "similar_papers_scores_in_range",
+                "similar_papers_sorted_correctly",
+                "similar_papers_ids_count_matches_input_rows",
+            ]
+        )
+
     required_failed = [name for name in required_check_names if not checks.get(name, False)]
 
     verdict = {
@@ -1255,6 +1350,7 @@ def main() -> None:
         "github_enrichment_required": bool(args.require_github_enrichment),
         "huggingface_enrichment_required": bool(args.require_huggingface_enrichment),
         "paper_features_required": bool(args.require_paper_features),
+        "similar_papers_required": bool(args.require_similar_papers),
     }
 
     report = {
@@ -1279,6 +1375,7 @@ def main() -> None:
             ),
             "paper_features_path": normalize_path(args.paper_features_path),
             "paper_features_quality_path": normalize_path(args.paper_features_quality_path),
+            "similar_papers_quality_path": normalize_path(args.similar_papers_quality_path),
         },
         "canonical_summary": canonical_summary,
         "extracted_values": {
@@ -1296,6 +1393,7 @@ def main() -> None:
             **github_enrichment_values,
             **huggingface_enrichment_values,
             **paper_features_values,
+            **similar_papers_values,
         },
         "checks": checks,
         "verdict": verdict,
@@ -1331,6 +1429,7 @@ def main() -> None:
         f"{verdict['huggingface_enrichment_required']}"
     )
     print(f"[OK] paper_features_required={verdict['paper_features_required']}")
+    print(f"[OK] similar_papers_required={verdict['similar_papers_required']}")
     print(f"[OK] latest JSON: {latest_json}")
     print(f"[OK] latest Markdown: {latest_md}")
     print(f"[OK] history JSON: {hist_json}")
