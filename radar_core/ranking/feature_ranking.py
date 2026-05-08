@@ -21,6 +21,9 @@ ALLOWED_SORT_FIELDS = {
     "github_forks_sum",
     "trusted_artifact_links_count",
     "trusted_code_links_count",
+    "trusted_dataset_links_count",
+    "trusted_model_links_count",
+    "trusted_demo_links_count",
     "hf_downloads_max",
     "hf_likes_max",
 }
@@ -110,8 +113,7 @@ def matches_filters(row: dict[str, Any], filters: RankingFilters) -> bool:
         if wanted not in normalized_sources:
             return False
 
-    year = row.get("year")
-    year_int = safe_int(year, default=-1)
+    year_int = safe_int(row.get("year"), default=-1)
 
     if filters.min_year is not None and year_int < filters.min_year:
         return False
@@ -146,7 +148,7 @@ def matches_filters(row: dict[str, Any], filters: RankingFilters) -> bool:
     return True
 
 
-def sort_key(row: dict[str, Any], sort_by: str) -> tuple[float, float, str]:
+def sort_key(row: dict[str, Any], sort_by: str) -> tuple[float, float, float, str]:
     primary = safe_float(row.get(sort_by), default=0.0)
 
     # Stable tie-breakers: prefer more implementation-ready and newer papers.
@@ -157,12 +159,90 @@ def sort_key(row: dict[str, Any], sort_by: str) -> tuple[float, float, str]:
     return primary, implementation, year, canonical_id
 
 
-def compact_result(row: dict[str, Any]) -> dict[str, Any]:
+def explain_result(row: dict[str, Any]) -> dict[str, Any]:
+    score_components = row.get("score_components") or {}
+
+    implementation_components = score_components.get("implementation_readiness") or {}
+    source_confidence_components = score_components.get("source_confidence") or {}
+    radar_components = score_components.get("radar") or {}
+
     return {
         "canonical_id": row.get("canonical_id"),
         "title": row.get("title"),
         "year": row.get("year"),
+        "scores": {
+            "radar_score": row.get("radar_score"),
+            "implementation_readiness_score": row.get("implementation_readiness_score"),
+            "source_confidence_score": row.get("source_confidence_score"),
+            "citation_signal_score": row.get("citation_signal_score"),
+            "recency_score": row.get("recency_score"),
+        },
+        "radar_components": radar_components,
+        "implementation_components": implementation_components,
+        "source_confidence_components": source_confidence_components,
+        "artifact_evidence": {
+            "has_code_artifact": row.get("has_code_artifact"),
+            "has_dataset_artifact": row.get("has_dataset_artifact"),
+            "has_model_artifact": row.get("has_model_artifact"),
+            "has_demo_artifact": row.get("has_demo_artifact"),
+            "trusted_artifact_links_count": row.get("trusted_artifact_links_count"),
+            "trusted_code_links_count": row.get("trusted_code_links_count"),
+            "trusted_dataset_links_count": row.get("trusted_dataset_links_count"),
+            "trusted_model_links_count": row.get("trusted_model_links_count"),
+            "trusted_demo_links_count": row.get("trusted_demo_links_count"),
+            "artifact_provider_counts": row.get("artifact_provider_counts") or {},
+            "artifact_type_counts": row.get("artifact_type_counts") or {},
+        },
+        "github_evidence": {
+            "github_repo_count": row.get("github_repo_count"),
+            "github_found_repo_count": row.get("github_found_repo_count"),
+            "github_not_found_repo_count": row.get("github_not_found_repo_count"),
+            "github_stars_max": row.get("github_stars_max"),
+            "github_stars_sum": row.get("github_stars_sum"),
+            "github_forks_max": row.get("github_forks_max"),
+            "github_forks_sum": row.get("github_forks_sum"),
+            "github_language_top": row.get("github_language_top"),
+            "github_license_any": row.get("github_license_any"),
+            "github_archived_any": row.get("github_archived_any"),
+        },
+        "huggingface_evidence": {
+            "hf_found_count": row.get("hf_found_count"),
+            "hf_model_count": row.get("hf_model_count"),
+            "hf_dataset_count": row.get("hf_dataset_count"),
+            "hf_space_count": row.get("hf_space_count"),
+            "hf_downloads_max": row.get("hf_downloads_max"),
+            "hf_likes_max": row.get("hf_likes_max"),
+        },
+        "source_evidence": {
+            "source_count": row.get("source_count"),
+            "source_family_count": row.get("source_family_count"),
+            "source_families": row.get("source_families") or [],
+            "has_arxiv": row.get("has_arxiv"),
+            "has_acl": row.get("has_acl"),
+            "has_doi": row.get("has_doi"),
+            "has_abstract": row.get("has_abstract"),
+            "has_pdf": row.get("has_pdf"),
+        },
+        "citation_evidence": {
+            "citation_count": row.get("citation_count"),
+            "concepts_count": row.get("concepts_count"),
+        },
+    }
+
+
+def compact_result(
+    row: dict[str, Any],
+    *,
+    include_explanation: bool = False,
+) -> dict[str, Any]:
+    result = {
+        "canonical_id": row.get("canonical_id"),
+        "title": row.get("title"),
+        "year": row.get("year"),
+        "publication_date": row.get("publication_date"),
+        "published_at": row.get("published_at"),
         "source_families": row.get("source_families", []),
+        "source_family_count": row.get("source_family_count"),
         "radar_score": row.get("radar_score"),
         "implementation_readiness_score": row.get("implementation_readiness_score"),
         "source_confidence_score": row.get("source_confidence_score"),
@@ -173,10 +253,19 @@ def compact_result(row: dict[str, Any]) -> dict[str, Any]:
         "has_model_artifact": row.get("has_model_artifact"),
         "has_demo_artifact": row.get("has_demo_artifact"),
         "trusted_artifact_links_count": row.get("trusted_artifact_links_count"),
+        "trusted_code_links_count": row.get("trusted_code_links_count"),
+        "trusted_dataset_links_count": row.get("trusted_dataset_links_count"),
+        "trusted_model_links_count": row.get("trusted_model_links_count"),
+        "trusted_demo_links_count": row.get("trusted_demo_links_count"),
+        "artifact_provider_counts": row.get("artifact_provider_counts") or {},
+        "artifact_type_counts": row.get("artifact_type_counts") or {},
         "github_found_repo_count": row.get("github_found_repo_count"),
         "github_stars_max": row.get("github_stars_max"),
+        "github_stars_sum": row.get("github_stars_sum"),
         "github_forks_max": row.get("github_forks_max"),
+        "github_forks_sum": row.get("github_forks_sum"),
         "github_language_top": row.get("github_language_top"),
+        "github_license_any": row.get("github_license_any"),
         "hf_found_count": row.get("hf_found_count"),
         "hf_model_count": row.get("hf_model_count"),
         "hf_dataset_count": row.get("hf_dataset_count"),
@@ -184,7 +273,13 @@ def compact_result(row: dict[str, Any]) -> dict[str, Any]:
         "hf_downloads_max": row.get("hf_downloads_max"),
         "hf_likes_max": row.get("hf_likes_max"),
         "citation_count": row.get("citation_count"),
+        "concepts_count": row.get("concepts_count"),
     }
+
+    if include_explanation:
+        result["score_explanation"] = explain_result(row)
+
+    return result
 
 
 def rank_feature_rows(
@@ -194,6 +289,7 @@ def rank_feature_rows(
     sort_by: str = "radar_score",
     top_k: int = 20,
     descending: bool = True,
+    include_explanations: bool = False,
 ) -> dict[str, Any]:
     if sort_by not in ALLOWED_SORT_FIELDS:
         allowed = ", ".join(sorted(ALLOWED_SORT_FIELDS))
@@ -211,12 +307,14 @@ def rank_feature_rows(
     top_rows = ranked[:top_k]
 
     return {
+        "mode": "ranking",
         "sort_by": sort_by,
         "descending": descending,
         "top_k": top_k,
         "input_rows_count": len(rows),
         "filtered_rows_count": len(filtered),
         "returned_rows_count": len(top_rows),
+        "include_explanations": bool(include_explanations),
         "filters": {
             "query_title": filters.query_title,
             "source_family": filters.source_family,
@@ -231,7 +329,10 @@ def rank_feature_rows(
             "has_acl": filters.has_acl,
             "has_doi": filters.has_doi,
         },
-        "results": [compact_result(row) for row in top_rows],
+        "results": [
+            compact_result(row, include_explanation=include_explanations)
+            for row in top_rows
+        ],
     }
 
 
@@ -242,6 +343,7 @@ def rank_papers_from_features(
     sort_by: str = "radar_score",
     top_k: int = 20,
     descending: bool = True,
+    include_explanations: bool = False,
 ) -> dict[str, Any]:
     rows = load_feature_rows(features_path)
     report = rank_feature_rows(
@@ -250,6 +352,36 @@ def rank_papers_from_features(
         sort_by=sort_by,
         top_k=top_k,
         descending=descending,
+        include_explanations=include_explanations,
     )
     report["features_path"] = str(features_path).replace("\\", "/")
     return report
+
+
+def find_feature_row_by_canonical_id(
+    rows: list[dict[str, Any]],
+    canonical_id: str,
+) -> dict[str, Any] | None:
+    wanted = str(canonical_id).strip()
+    for row in rows:
+        if str(row.get("canonical_id") or "").strip() == wanted:
+            return row
+    return None
+
+
+def explain_paper_from_features(
+    *,
+    features_path: Path = DEFAULT_FEATURES_PATH,
+    canonical_id: str,
+) -> dict[str, Any]:
+    rows = load_feature_rows(features_path)
+    row = find_feature_row_by_canonical_id(rows, canonical_id)
+
+    return {
+        "mode": "explain",
+        "features_path": str(features_path).replace("\\", "/"),
+        "canonical_id": canonical_id,
+        "input_rows_count": len(rows),
+        "found": row is not None,
+        "explanation": explain_result(row) if row is not None else None,
+    }
