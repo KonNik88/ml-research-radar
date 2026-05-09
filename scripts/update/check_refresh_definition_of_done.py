@@ -49,6 +49,9 @@ DEFAULT_PAPER_FEATURES_PATH = Path("data/features/paper_features_latest.jsonl")
 DEFAULT_PAPER_FEATURES_QUALITY_PATH = Path(
     "artifacts/reports/features/paper_features_quality_latest.json"
 )
+DEFAULT_DISCOVERY_API_QUALITY_PATH = Path(
+    "artifacts/reports/api/discovery_api_quality_latest.json"
+)
 
 DEFAULT_REPORTS_DIR = Path("artifacts/reports/update")
 
@@ -294,6 +297,62 @@ def extract_similar_papers_values(
             "ids_count_matches_input_rows"
         ),
         "similar_papers_verdict": verdict,
+    }
+
+def extract_discovery_api_values(
+    discovery_api_quality: dict[str, Any] | None,
+) -> dict[str, Any]:
+    report = discovery_api_quality or {}
+    summary = report.get("summary") if isinstance(report.get("summary"), dict) else {}
+    checks = report.get("checks") if isinstance(report.get("checks"), dict) else {}
+    verdict = report.get("verdict") if isinstance(report.get("verdict"), dict) else {}
+
+    return {
+        "discovery_api_quality_ok": report_ok(discovery_api_quality),
+        "discovery_api_required_failed_count": verdict.get("required_failed_count"),
+        "discovery_api_required_failed_checks": verdict.get("required_failed_checks"),
+        "discovery_api_profile_count": summary.get("profile_count"),
+        "discovery_api_profile_names": summary.get("profile_names"),
+        "discovery_api_ranking_profile": summary.get("ranking_profile"),
+        "discovery_api_ranking_results_count": summary.get("ranking_results_count"),
+        "discovery_api_canonical_id": summary.get("canonical_id"),
+        "discovery_api_detail_title": summary.get("detail_title"),
+        "discovery_api_similar_semantic_results_count": summary.get(
+            "similar_semantic_results_count"
+        ),
+        "discovery_api_similar_radar_adjusted_results_count": summary.get(
+            "similar_radar_adjusted_results_count"
+        ),
+        "discovery_api_profiles_endpoint_ok": checks.get("profiles_endpoint_ok"),
+        "discovery_api_profiles_non_empty": checks.get("profiles_non_empty"),
+        "discovery_api_required_profiles_present": checks.get(
+            "required_profiles_present"
+        ),
+        "discovery_api_ranking_endpoint_ok": checks.get("ranking_endpoint_ok"),
+        "discovery_api_ranking_results_non_empty": checks.get(
+            "ranking_results_non_empty"
+        ),
+        "discovery_api_detail_endpoint_ok": checks.get("detail_endpoint_ok"),
+        "discovery_api_detail_found": checks.get("detail_found"),
+        "discovery_api_detail_features_found": checks.get("detail_features_found"),
+        "discovery_api_similar_semantic_endpoint_ok": checks.get(
+            "similar_semantic_endpoint_ok"
+        ),
+        "discovery_api_similar_semantic_results_non_empty": checks.get(
+            "similar_semantic_results_non_empty"
+        ),
+        "discovery_api_similar_semantic_self_not_in_results": checks.get(
+            "similar_semantic_self_not_in_results"
+        ),
+        "discovery_api_similar_radar_adjusted_endpoint_ok": checks.get(
+            "similar_radar_adjusted_endpoint_ok"
+        ),
+        "discovery_api_similar_radar_adjusted_results_non_empty": checks.get(
+            "similar_radar_adjusted_results_non_empty"
+        ),
+        "discovery_api_similar_radar_adjusted_sorted": checks.get(
+            "similar_radar_adjusted_sorted"
+        ),
     }
 
 def extract_known_issues_values(known_issues: dict[str, Any] | None) -> dict[str, Any]:
@@ -810,6 +869,17 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Treat latest similar papers quality report as a required DoD condition.",
     )
+    parser.add_argument(
+        "--discovery-api-quality-path",
+        type=Path,
+        default=DEFAULT_DISCOVERY_API_QUALITY_PATH,
+        help="Discovery API quality report path.",
+    )
+    parser.add_argument(
+        "--require-discovery-api",
+        action="store_true",
+        help="Treat Discovery API quality report as a required DoD condition.",
+    )
 
     return parser
 
@@ -851,6 +921,9 @@ def main() -> None:
 
     similar_papers_quality = load_json_if_exists(args.similar_papers_quality_path)
     similar_papers_values = extract_similar_papers_values(similar_papers_quality)
+
+    discovery_api_quality = load_json_if_exists(args.discovery_api_quality_path)
+    discovery_api_values = extract_discovery_api_values(discovery_api_quality)
 
     huggingface_enrichment_check = load_json_if_exists(
         args.huggingface_enrichment_check_path
@@ -1211,6 +1284,50 @@ def main() -> None:
         "similar_papers_ids_count_matches_input_rows": bool(
             similar_papers_values["similar_papers_ids_count_matches_input_rows"]
         ),
+        "discovery_api_quality_exists": args.discovery_api_quality_path.exists(),
+        "discovery_api_quality_ok": discovery_api_values["discovery_api_quality_ok"],
+        "discovery_api_profiles_endpoint_ok": bool(
+            discovery_api_values["discovery_api_profiles_endpoint_ok"]
+        ),
+        "discovery_api_profiles_non_empty": bool(
+            discovery_api_values["discovery_api_profiles_non_empty"]
+        ),
+        "discovery_api_required_profiles_present": bool(
+            discovery_api_values["discovery_api_required_profiles_present"]
+        ),
+        "discovery_api_ranking_endpoint_ok": bool(
+            discovery_api_values["discovery_api_ranking_endpoint_ok"]
+        ),
+        "discovery_api_ranking_results_non_empty": bool(
+            discovery_api_values["discovery_api_ranking_results_non_empty"]
+        ),
+        "discovery_api_detail_endpoint_ok": bool(
+            discovery_api_values["discovery_api_detail_endpoint_ok"]
+        ),
+        "discovery_api_detail_found": bool(
+            discovery_api_values["discovery_api_detail_found"]
+        ),
+        "discovery_api_detail_features_found": bool(
+            discovery_api_values["discovery_api_detail_features_found"]
+        ),
+        "discovery_api_similar_semantic_endpoint_ok": bool(
+            discovery_api_values["discovery_api_similar_semantic_endpoint_ok"]
+        ),
+        "discovery_api_similar_semantic_results_non_empty": bool(
+            discovery_api_values["discovery_api_similar_semantic_results_non_empty"]
+        ),
+        "discovery_api_similar_semantic_self_not_in_results": bool(
+            discovery_api_values["discovery_api_similar_semantic_self_not_in_results"]
+        ),
+        "discovery_api_similar_radar_adjusted_endpoint_ok": bool(
+            discovery_api_values["discovery_api_similar_radar_adjusted_endpoint_ok"]
+        ),
+        "discovery_api_similar_radar_adjusted_results_non_empty": bool(
+            discovery_api_values["discovery_api_similar_radar_adjusted_results_non_empty"]
+        ),
+        "discovery_api_similar_radar_adjusted_sorted": bool(
+            discovery_api_values["discovery_api_similar_radar_adjusted_sorted"]
+        ),
     }
 
     required_check_names = [
@@ -1338,6 +1455,28 @@ def main() -> None:
             ]
         )
 
+    if args.require_discovery_api:
+        required_check_names.extend(
+            [
+                "discovery_api_quality_exists",
+                "discovery_api_quality_ok",
+                "discovery_api_profiles_endpoint_ok",
+                "discovery_api_profiles_non_empty",
+                "discovery_api_required_profiles_present",
+                "discovery_api_ranking_endpoint_ok",
+                "discovery_api_ranking_results_non_empty",
+                "discovery_api_detail_endpoint_ok",
+                "discovery_api_detail_found",
+                "discovery_api_detail_features_found",
+                "discovery_api_similar_semantic_endpoint_ok",
+                "discovery_api_similar_semantic_results_non_empty",
+                "discovery_api_similar_semantic_self_not_in_results",
+                "discovery_api_similar_radar_adjusted_endpoint_ok",
+                "discovery_api_similar_radar_adjusted_results_non_empty",
+                "discovery_api_similar_radar_adjusted_sorted",
+            ]
+        )
+
     required_failed = [name for name in required_check_names if not checks.get(name, False)]
 
     verdict = {
@@ -1351,6 +1490,7 @@ def main() -> None:
         "huggingface_enrichment_required": bool(args.require_huggingface_enrichment),
         "paper_features_required": bool(args.require_paper_features),
         "similar_papers_required": bool(args.require_similar_papers),
+        "discovery_api_required": bool(args.require_discovery_api),
     }
 
     report = {
@@ -1376,6 +1516,7 @@ def main() -> None:
             "paper_features_path": normalize_path(args.paper_features_path),
             "paper_features_quality_path": normalize_path(args.paper_features_quality_path),
             "similar_papers_quality_path": normalize_path(args.similar_papers_quality_path),
+            "discovery_api_quality_path": normalize_path(args.discovery_api_quality_path),
         },
         "canonical_summary": canonical_summary,
         "extracted_values": {
@@ -1394,6 +1535,7 @@ def main() -> None:
             **huggingface_enrichment_values,
             **paper_features_values,
             **similar_papers_values,
+            **discovery_api_values,
         },
         "checks": checks,
         "verdict": verdict,
@@ -1434,7 +1576,7 @@ def main() -> None:
     print(f"[OK] latest Markdown: {latest_md}")
     print(f"[OK] history JSON: {hist_json}")
     print(f"[OK] history Markdown: {hist_md}")
-
+    print(f"[OK] discovery_api_required={verdict['discovery_api_required']}")
 
 if __name__ == "__main__":
     main()

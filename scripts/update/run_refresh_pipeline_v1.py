@@ -319,6 +319,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Forward --require-similar-papers to final DoD check.",
     )
+    parser.add_argument(
+        "--require-discovery-api",
+        action="store_true",
+        help="Forward --require-discovery-api to final DoD check.",
+    )
 
     return parser
 
@@ -495,6 +500,8 @@ def main() -> None:
         dod_cmd.append("--require-paper-features")
     if args.require_similar_papers:
         dod_cmd.append("--require-similar-papers")
+    if args.require_discovery_api:
+        dod_cmd.append("--require-discovery-api")
 
     step_cmds = {
         "reconcile_candidate": reconcile_cmd,
@@ -587,6 +594,7 @@ def main() -> None:
             "artifact_stages_enabled": artifact_stages_enabled(args),
             "paper_feature_stages_enabled": paper_feature_stages_enabled(args),
             "require_similar_papers": bool(args.require_similar_papers),
+            "require_discovery_api": bool(args.require_discovery_api),
         },
         "candidate": {
             "path": normalize_path(candidate_path),
@@ -630,6 +638,7 @@ def main() -> None:
     print(f"[OK] latest Markdown: {latest_md}")
     print(f"[OK] history JSON: {hist_json}")
     print(f"[OK] history Markdown: {hist_md}")
+    print(f"[OK] require_discovery_api={bool(args.require_discovery_api)}")
 
 
 if __name__ == "__main__":
