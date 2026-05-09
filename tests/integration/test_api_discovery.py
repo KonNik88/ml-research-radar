@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 
 from services.api.app import app
@@ -8,9 +9,14 @@ from services.api.app import app
 KNOWN_DISCOVERY_CANONICAL_ID = "bd3c9332f17370fa801e6ac9542f125a"
 
 
-def test_discovery_profiles_smoke():
-    with TestClient(app) as client:
-        response = client.get("/discovery/profiles")
+@pytest.fixture(scope="module")
+def client() -> TestClient:
+    with TestClient(app) as test_client:
+        yield test_client
+
+
+def test_discovery_profiles_smoke(client: TestClient) -> None:
+    response = client.get("/discovery/profiles")
 
     assert response.status_code == 200
     payload = response.json()
@@ -25,12 +31,11 @@ def test_discovery_profiles_smoke():
     assert "acl_radar" in names
 
 
-def test_discovery_ranking_profile_smoke():
-    with TestClient(app) as client:
-        response = client.get(
-            "/discovery/ranking/huggingface_ready",
-            params={"top_k": 5},
-        )
+def test_discovery_ranking_profile_smoke(client: TestClient) -> None:
+    response = client.get(
+        "/discovery/ranking/huggingface_ready",
+        params={"top_k": 5},
+    )
 
     assert response.status_code == 200
     payload = response.json()
@@ -49,16 +54,14 @@ def test_discovery_ranking_profile_smoke():
     assert "implementation_readiness_score" in first
 
 
-def test_discovery_unknown_profile_returns_404():
-    with TestClient(app) as client:
-        response = client.get("/discovery/ranking/not_a_real_profile")
+def test_discovery_unknown_profile_returns_404(client: TestClient) -> None:
+    response = client.get("/discovery/ranking/not_a_real_profile")
 
     assert response.status_code == 404
 
 
-def test_discovery_paper_detail_smoke():
-    with TestClient(app) as client:
-        response = client.get(f"/discovery/papers/{KNOWN_DISCOVERY_CANONICAL_ID}")
+def test_discovery_paper_detail_smoke(client: TestClient) -> None:
+    response = client.get(f"/discovery/papers/{KNOWN_DISCOVERY_CANONICAL_ID}")
 
     assert response.status_code == 200
     payload = response.json()
@@ -76,19 +79,17 @@ def test_discovery_paper_detail_smoke():
     assert "artifacts" in detail
 
 
-def test_discovery_paper_detail_missing_returns_404():
-    with TestClient(app) as client:
-        response = client.get("/discovery/papers/not-a-real-canonical-id")
+def test_discovery_paper_detail_missing_returns_404(client: TestClient) -> None:
+    response = client.get("/discovery/papers/not-a-real-canonical-id")
 
     assert response.status_code == 404
 
 
-def test_discovery_similar_smoke():
-    with TestClient(app) as client:
-        response = client.get(
-            f"/discovery/papers/{KNOWN_DISCOVERY_CANONICAL_ID}/similar",
-            params={"top_k": 5},
-        )
+def test_discovery_similar_smoke(client: TestClient) -> None:
+    response = client.get(
+        f"/discovery/papers/{KNOWN_DISCOVERY_CANONICAL_ID}/similar",
+        params={"top_k": 5},
+    )
 
     assert response.status_code == 200
     payload = response.json()
@@ -105,12 +106,11 @@ def test_discovery_similar_smoke():
     assert KNOWN_DISCOVERY_CANONICAL_ID not in result_ids
 
 
-def test_discovery_similar_radar_adjusted_smoke():
-    with TestClient(app) as client:
-        response = client.get(
-            f"/discovery/papers/{KNOWN_DISCOVERY_CANONICAL_ID}/similar",
-            params={"top_k": 5, "rank_by": "radar_adjusted"},
-        )
+def test_discovery_similar_radar_adjusted_smoke(client: TestClient) -> None:
+    response = client.get(
+        f"/discovery/papers/{KNOWN_DISCOVERY_CANONICAL_ID}/similar",
+        params={"top_k": 5, "rank_by": "radar_adjusted"},
+    )
 
     assert response.status_code == 200
     payload = response.json()

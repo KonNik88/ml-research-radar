@@ -673,15 +673,43 @@ def top_indices(scores: np.ndarray, *, top_k: int) -> list[int]:
 
     return [int(valid_indices[i]) for i in candidate_local]
 
-
-def find_similar_papers(
+def resolve_ids_for_lookup(
     *,
     canonical_id: str,
+    bundle: DenseBundle,
+    id_to_index: dict[str, int] | None = None,
+) -> tuple[list[str], dict[str, int], int]:
+    if id_to_index is None:
+        id_to_index = {doc_id: idx for idx, doc_id in enumerate(bundle.ids)}
+
+    if canonical_id not in id_to_index:
+        meta_ids = extract_ids_from_meta_rows(bundle.meta_rows)
+        if len(meta_ids) == len(bundle.ids) and canonical_id in meta_ids:
+            ids_for_lookup = meta_ids
+            id_to_index = {doc_id: idx for idx, doc_id in enumerate(ids_for_lookup)}
+        else:
+            available_hint = bundle.ids[:5]
+            raise ValueError(
+                f"canonical_id={canonical_id!r} not found in dense ids. "
+                f"First ids: {available_hint}. "
+                "If dense ids use another field, pass explicit --ids-path/--meta-path."
+            )
+    else:
+        ids_for_lookup = bundle.ids
+
+    return ids_for_lookup, id_to_index, id_to_index[canonical_id]
+
+
+def find_similar_papers_from_loaded(
+    *,
+    canonical_id: str,
+    bundle: DenseBundle,
+    normalized_embeddings: np.ndarray,
+    id_to_index: dict[str, int],
+    features_by_id: dict[str, dict[str, Any]],
+    canonical_by_id: dict[str, dict[str, Any]],
     dense_dir: Path = DEFAULT_DENSE_DIR,
     manifest_path: Path = DEFAULT_RETRIEVAL_MANIFEST_PATH,
-    embedding_path: Path | None = None,
-    ids_path: Path | None = None,
-    meta_path: Path | None = None,
     features_path: Path = DEFAULT_FEATURES_PATH,
     canonical_path: Path = DEFAULT_CANONICAL_PATH,
     top_k: int = 20,
@@ -695,40 +723,24 @@ def find_similar_papers(
     if rank_by not in {"semantic", "radar_adjusted"}:
         raise ValueError("rank_by must be one of: semantic, radar_adjusted")
 
-    bundle = load_dense_bundle(
-        dense_dir=dense_dir,
-        manifest_path=manifest_path,
-        embedding_path=embedding_path,
-        ids_path=ids_path,
-        meta_path=meta_path,
+    ids_for_lookup, id_to_index, target_index = resolve_ids_for_lookup(
+        canonical_id=canonical_id,
+        bundle=bundle,
+        id_to_index=id_to_index,
     )
 
-    id_to_index = {doc_id: idx for idx, doc_id in enumerate(bundle.ids)}
+    if normalized_embeddings.shape[0] != len(ids_for_lookup):
+        raise ValueError(
+            "Normalized embedding shape mismatch: "
+            f"rows={normalized_embeddings.shape[0]}, ids_count={len(ids_for_lookup)}"
+        )
 
-    if canonical_id not in id_to_index:
-        meta_ids = extract_ids_from_meta_rows(bundle.meta_rows)
-        if len(meta_ids) == len(bundle.ids) and canonical_id in meta_ids:
-            id_to_index = {doc_id: idx for idx, doc_id in enumerate(meta_ids)}
-            ids_for_lookup = meta_ids
-        else:
-            available_hint = bundle.ids[:5]
-            raise ValueError(
-                f"canonical_id={canonical_id!r} not found in dense ids. "
-                f"First ids: {available_hint}. "
-                "If dense ids use another field, pass explicit --ids-path/--meta-path."
-            )
-    else:
-        ids_for_lookup = bundle.ids
-
-    target_index = id_to_index[canonical_id]
-
-    normalized = normalize_embeddings(bundle.embeddings)
-    target_vector = normalized[target_index]
+    target_vector = normalized_embeddings[target_index]
 
     if not np.isfinite(target_vector).all() or np.linalg.norm(target_vector) <= 0.0:
         raise ValueError(f"Target embedding is invalid for canonical_id={canonical_id}")
 
-    semantic_scores = normalized @ target_vector
+    semantic_scores = normalized_embeddings @ target_vector
     semantic_scores = np.asarray(semantic_scores, dtype=np.float32)
     semantic_scores[target_index] = -np.inf
 
@@ -739,13 +751,14 @@ def find_similar_papers(
             -np.inf,
         )
 
-    features_by_id = load_jsonl_by_canonical_id(features_path, optional=True)
-    canonical_by_id = load_jsonl_by_canonical_id(canonical_path, optional=True)
-
     if rank_by == "semantic":
         ranking_scores = semantic_scores
     else:
-        adjusted_scores = np.full_like(semantic_scores, fill_value=-np.inf, dtype=np.float32)
+        adjusted_scores = np.full_like(
+            semantic_scores,
+            fill_value=-np.inf,
+            dtype=np.float32,
+        )
 
         for idx, semantic_similarity in enumerate(semantic_scores):
             if not np.isfinite(semantic_similarity):
@@ -755,7 +768,10 @@ def find_similar_papers(
             features = features_by_id.get(doc_id)
             adjusted_scores[idx] = radar_adjusted_score(
                 semantic_similarity=float(semantic_similarity),
-                radar_score=safe_float(feature_or_default(features, "radar_score"), default=0.0),
+                radar_score=safe_float(
+                    feature_or_default(features, "radar_score"),
+                    default=0.0,
+                ),
                 implementation_readiness_score=safe_float(
                     feature_or_default(features, "implementation_readiness_score"),
                     default=0.0,
@@ -813,3 +829,54 @@ def find_similar_papers(
         },
         "results": results,
     }
+
+def find_similar_papers(
+    *,
+    canonical_id: str,
+    dense_dir: Path = DEFAULT_DENSE_DIR,
+    manifest_path: Path = DEFAULT_RETRIEVAL_MANIFEST_PATH,
+    embedding_path: Path | None = None,
+    ids_path: Path | None = None,
+    meta_path: Path | None = None,
+    features_path: Path = DEFAULT_FEATURES_PATH,
+    canonical_path: Path = DEFAULT_CANONICAL_PATH,
+    top_k: int = 20,
+    rank_by: str = "semantic",
+    min_similarity: float | None = None,
+) -> dict[str, Any]:
+    canonical_id = str(canonical_id).strip()
+    if not canonical_id:
+        raise ValueError("canonical_id must be non-empty")
+
+    if rank_by not in {"semantic", "radar_adjusted"}:
+        raise ValueError("rank_by must be one of: semantic, radar_adjusted")
+
+    bundle = load_dense_bundle(
+        dense_dir=dense_dir,
+        manifest_path=manifest_path,
+        embedding_path=embedding_path,
+        ids_path=ids_path,
+        meta_path=meta_path,
+    )
+
+    id_to_index = {doc_id: idx for idx, doc_id in enumerate(bundle.ids)}
+    normalized = normalize_embeddings(bundle.embeddings)
+
+    features_by_id = load_jsonl_by_canonical_id(features_path, optional=True)
+    canonical_by_id = load_jsonl_by_canonical_id(canonical_path, optional=True)
+
+    return find_similar_papers_from_loaded(
+        canonical_id=canonical_id,
+        bundle=bundle,
+        normalized_embeddings=normalized,
+        id_to_index=id_to_index,
+        features_by_id=features_by_id,
+        canonical_by_id=canonical_by_id,
+        dense_dir=dense_dir,
+        manifest_path=manifest_path,
+        features_path=features_path,
+        canonical_path=canonical_path,
+        top_k=top_k,
+        rank_by=rank_by,
+        min_similarity=min_similarity,
+    )

@@ -23,7 +23,11 @@ from radar_core.retrieval.similar import (
     DEFAULT_CANONICAL_PATH,
     DEFAULT_DENSE_DIR,
     DEFAULT_RETRIEVAL_MANIFEST_PATH,
-    find_similar_papers,
+    DenseBundle,
+    find_similar_papers_from_loaded,
+    load_dense_bundle,
+    load_jsonl_by_canonical_id,
+    normalize_embeddings,
     normalize_path,
 )
 
@@ -39,10 +43,20 @@ class DiscoveryService:
 
     _profiles_payload: dict[str, Any] | None = field(default=None, init=False)
     _feature_rows: list[dict[str, Any]] | None = field(default=None, init=False)
+    _features_by_id: dict[str, dict[str, Any]] | None = field(default=None, init=False)
+    _canonical_by_id: dict[str, dict[str, Any]] | None = field(default=None, init=False)
+    _dense_bundle: DenseBundle | None = field(default=None, init=False)
+    _normalized_embeddings: Any | None = field(default=None, init=False)
+    _dense_id_to_index: dict[str, int] | None = field(default=None, init=False)
 
     def reload(self) -> None:
         self._profiles_payload = None
         self._feature_rows = None
+        self._features_by_id = None
+        self._canonical_by_id = None
+        self._dense_bundle = None
+        self._normalized_embeddings = None
+        self._dense_id_to_index = None
 
     def _load_profiles_payload(self) -> dict[str, Any]:
         if self._profiles_payload is None:
@@ -120,15 +134,22 @@ class DiscoveryService:
         }
 
     def get_similar_papers(
-        self,
-        *,
-        canonical_id: str,
-        top_k: int = 20,
-        rank_by: str = "semantic",
-        min_similarity: float | None = None,
+            self,
+            *,
+            canonical_id: str,
+            top_k: int = 20,
+            rank_by: str = "semantic",
+            min_similarity: float | None = None,
     ) -> dict[str, Any]:
-        return find_similar_papers(
+        bundle, normalized_embeddings, id_to_index = self._load_dense_runtime()
+
+        return find_similar_papers_from_loaded(
             canonical_id=canonical_id,
+            bundle=bundle,
+            normalized_embeddings=normalized_embeddings,
+            id_to_index=id_to_index,
+            features_by_id=self._load_features_by_id(),
+            canonical_by_id=self._load_canonical_by_id(),
             dense_dir=self.dense_dir,
             manifest_path=self.retrieval_manifest_path,
             features_path=self.features_path,
@@ -136,6 +157,47 @@ class DiscoveryService:
             top_k=top_k,
             rank_by=rank_by,
             min_similarity=min_similarity,
+        )
+
+    def _load_features_by_id(self) -> dict[str, dict[str, Any]]:
+        if self._features_by_id is None:
+            rows = self._load_feature_rows()
+            self._features_by_id = {
+                str(row["canonical_id"]): row
+                for row in rows
+                if row.get("canonical_id")
+            }
+        return self._features_by_id
+
+    def _load_canonical_by_id(self) -> dict[str, dict[str, Any]]:
+        if self._canonical_by_id is None:
+            self._canonical_by_id = load_jsonl_by_canonical_id(
+                self.canonical_path,
+                optional=True,
+            )
+        return self._canonical_by_id
+
+    def _load_dense_runtime(self) -> tuple[DenseBundle, Any, dict[str, int]]:
+        if (
+            self._dense_bundle is None
+            or self._normalized_embeddings is None
+            or self._dense_id_to_index is None
+        ):
+            bundle = load_dense_bundle(
+                dense_dir=self.dense_dir,
+                manifest_path=self.retrieval_manifest_path,
+            )
+            self._dense_bundle = bundle
+            self._normalized_embeddings = normalize_embeddings(bundle.embeddings)
+            self._dense_id_to_index = {
+                doc_id: idx
+                for idx, doc_id in enumerate(bundle.ids)
+            }
+
+        return (
+            self._dense_bundle,
+            self._normalized_embeddings,
+            self._dense_id_to_index,
         )
 
 
