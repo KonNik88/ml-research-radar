@@ -22,9 +22,22 @@ get_settings.cache_clear()
 
 from services.api.app import app  # noqa: E402
 
+def _get_canonical_with_dataset_artifact(client: TestClient) -> str:
+    response = client.get(
+        "/documents",
+        params={
+            "has_trusted_dataset_artifact": "true",
+            "limit": 1,
+        },
+    )
 
-KNOWN_CANONICAL_WITH_ARTIFACTS = "0205aa895017eb983683114d12938f11"
+    assert response.status_code == 200
+    payload = response.json()
 
+    if payload["total"] <= 0 or not payload["results"]:
+        pytest.skip("No documents with trusted dataset artifacts in current DB snapshot")
+
+    return payload["results"][0]["canonical_id"]
 
 @pytest.fixture
 def client() -> TestClient:
@@ -131,17 +144,19 @@ def test_artifacts_has_paper_links_filter(client: TestClient) -> None:
 
 
 def test_document_artifacts_known_paper(client: TestClient) -> None:
-    response = client.get(f"/documents/{KNOWN_CANONICAL_WITH_ARTIFACTS}/artifacts")
+    canonical_id = _get_canonical_with_dataset_artifact(client)
+
+    response = client.get(f"/documents/{canonical_id}/artifacts")
 
     assert response.status_code == 200
     payload = response.json()
 
-    assert payload["canonical_id"] == KNOWN_CANONICAL_WITH_ARTIFACTS
+    assert payload["canonical_id"] == canonical_id
     assert payload["total"] > 0
     assert len(payload["results"]) > 0
 
     first = payload["results"][0]
-    assert first["canonical_id"] == KNOWN_CANONICAL_WITH_ARTIFACTS
+    assert first["canonical_id"] == canonical_id
     assert first["relation_type"] in {"code", "dataset", "model", "demo"}
     assert first["confidence"] >= 0.0
 
@@ -159,15 +174,17 @@ def test_document_artifacts_known_paper(client: TestClient) -> None:
 
 
 def test_document_artifacts_relation_filter_dataset(client: TestClient) -> None:
+    canonical_id = _get_canonical_with_dataset_artifact(client)
+
     response = client.get(
-        f"/documents/{KNOWN_CANONICAL_WITH_ARTIFACTS}/artifacts",
+        f"/documents/{canonical_id}/artifacts",
         params={"relation_type": "dataset"},
     )
 
     assert response.status_code == 200
     payload = response.json()
 
-    assert payload["canonical_id"] == KNOWN_CANONICAL_WITH_ARTIFACTS
+    assert payload["canonical_id"] == canonical_id
     assert payload["total"] > 0
 
     for item in payload["results"]:

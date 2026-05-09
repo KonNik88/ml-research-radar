@@ -19,9 +19,15 @@ from services.api.schemas import (
     ReloadResponse,
     RuntimeSnapshotResponse,
     SearchResponse,
+    DiscoveryProfilesResponse,
+    DiscoveryRankingResponse,
+    DiscoveryPaperDetailResponse,
+    DiscoverySimilarPapersResponse
 )
 from services.api.search_service import db_row_to_schema, run_search
 from services.api.settings import get_settings
+from services.api.discovery_service import get_discovery_service
+from radar_core.ranking.profiles import RankingProfileError
 
 
 logger = get_logger(__name__)
@@ -476,3 +482,81 @@ def get_document_artifacts(
         total=total,
         results=rows,
     )
+
+@app.get("/discovery/profiles", response_model=DiscoveryProfilesResponse)
+def discovery_profiles() -> DiscoveryProfilesResponse:
+    service = get_discovery_service()
+    return DiscoveryProfilesResponse(**service.list_profiles())
+
+
+@app.get("/discovery/ranking/{profile_name}", response_model=DiscoveryRankingResponse)
+def discovery_ranking(
+    profile_name: str,
+    top_k: int | None = Query(None, ge=1),
+) -> DiscoveryRankingResponse:
+    resolved_top_k = top_k if top_k is not None else None
+
+    if resolved_top_k is not None and resolved_top_k > settings.max_top_k:
+        raise ValueError(
+            f"top_k={resolved_top_k} exceeds max_top_k={settings.max_top_k}"
+        )
+
+    service = get_discovery_service()
+
+    try:
+        payload = service.get_ranking(
+            profile_name=profile_name,
+            top_k=resolved_top_k,
+        )
+    except RankingProfileError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    return DiscoveryRankingResponse(**payload)
+
+
+@app.get("/discovery/papers/{canonical_id}", response_model=DiscoveryPaperDetailResponse)
+def discovery_paper_detail(
+    canonical_id: str,
+    view: Literal["full"] = Query("full"),
+) -> DiscoveryPaperDetailResponse:
+    service = get_discovery_service()
+    payload = service.get_paper_detail(canonical_id=canonical_id, view=view)
+
+    if not payload["found"]:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Paper not found: {canonical_id}",
+        )
+
+    return DiscoveryPaperDetailResponse(**payload)
+
+
+@app.get(
+    "/discovery/papers/{canonical_id}/similar",
+    response_model=DiscoverySimilarPapersResponse,
+)
+def discovery_similar_papers(
+    canonical_id: str,
+    top_k: int = Query(20, ge=1),
+    rank_by: Literal["semantic", "radar_adjusted"] = Query("semantic"),
+    min_similarity: float | None = Query(None, ge=-1.0, le=1.0),
+) -> DiscoverySimilarPapersResponse:
+    if top_k > settings.max_top_k:
+        raise ValueError(f"top_k={top_k} exceeds max_top_k={settings.max_top_k}")
+
+    service = get_discovery_service()
+
+    try:
+        payload = service.get_similar_papers(
+            canonical_id=canonical_id,
+            top_k=top_k,
+            rank_by=rank_by,
+            min_similarity=min_similarity,
+        )
+    except ValueError as exc:
+        message = str(exc)
+        if "not found" in message.lower():
+            raise HTTPException(status_code=404, detail=message) from exc
+        raise
+
+    return DiscoverySimilarPapersResponse(**payload)

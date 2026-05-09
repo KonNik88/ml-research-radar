@@ -233,3 +233,54 @@ class DocumentArtifactsResponse(BaseModel):
     canonical_id: str
     total: int
     results: list[PaperArtifactLinkResponse]
+
+class DiscoveryProfile(BaseModel):
+    name: str
+    description: str
+    sort_by: str
+    top_k: int
+    descending: bool = True
+    filters: dict[str, Any] = Field(default_factory=dict)
+
+
+class DiscoveryProfilesResponse(BaseModel):
+    schema_version: str
+    default_profile: str | None = None
+    profile_count: int
+    profiles: list[DiscoveryProfile]
+
+
+class DiscoveryRankingResponse(BaseModel):
+    mode: str
+    profile: dict[str, Any]
+    sort_by: str
+    descending: bool
+    top_k: int
+    input_rows_count: int
+    filtered_rows_count: int
+    returned_rows_count: int
+    filters: dict[str, Any] = Field(default_factory=dict)
+    features_path: str | None = None
+    results: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class DiscoveryPaperDetailResponse(BaseModel):
+    canonical_id: str
+    found: bool
+    detail: dict[str, Any]
+    inputs: dict[str, Any] = Field(default_factory=dict)
+
+
+class DiscoverySimilarPapersResponse(BaseModel):
+    mode: str
+    target_canonical_id: str
+    target_found: bool
+    target: dict[str, Any]
+    rank_by: str
+    top_k: int
+    min_similarity: float | None = None
+    input_rows_count: int
+    returned_rows_count: int
+    dense_artifacts: dict[str, Any] = Field(default_factory=dict)
+    inputs: dict[str, Any] = Field(default_factory=dict)
+    results: list[dict[str, Any]] = Field(default_factory=list)
