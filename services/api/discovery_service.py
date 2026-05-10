@@ -81,25 +81,66 @@ class DiscoveryService:
         }
 
     def get_ranking(
-        self,
-        *,
-        profile_name: str,
-        top_k: int | None = None,
+            self,
+            *,
+            profile_name: str,
+            top_k: int | None = None,
+            query_title: str | None = None,
+            source_family: str | None = None,
+            min_year: int | None = None,
+            max_year: int | None = None,
+            has_code: bool | None = None,
+            has_dataset: bool | None = None,
+            has_model: bool | None = None,
+            has_demo: bool | None = None,
+            has_github: bool | None = None,
+            has_hf: bool | None = None,
+            has_acl: bool | None = None,
+            has_doi: bool | None = None,
+            sort_by: str | None = None,
+            descending: bool | None = None,
     ) -> dict[str, Any]:
         profiles_payload = self._load_profiles_payload()
         profile = get_ranking_profile(profiles_payload, profile_name)
 
-        resolved_top_k = int(top_k or profile["top_k"])
+        resolved_top_k = int(top_k if top_k is not None else profile["top_k"])
+        resolved_sort_by = str(sort_by or profile["sort_by"])
+        resolved_descending = (
+            bool(profile.get("descending", True))
+            if descending is None
+            else bool(descending)
+        )
 
-        filters = RankingFilters(**(profile.get("filters") or {}))
+        filter_values: dict[str, Any] = dict(profile.get("filters") or {})
+
+        filter_overrides = {
+            "query_title": query_title,
+            "source_family": source_family,
+            "min_year": min_year,
+            "max_year": max_year,
+            "has_code": has_code,
+            "has_dataset": has_dataset,
+            "has_model": has_model,
+            "has_demo": has_demo,
+            "has_github": has_github,
+            "has_hf": has_hf,
+            "has_acl": has_acl,
+            "has_doi": has_doi,
+        }
+
+        for key, value in filter_overrides.items():
+            if value is not None:
+                filter_values[key] = value
+
+        filters = RankingFilters(**filter_values)
         rows = self._load_feature_rows()
 
         report = rank_feature_rows(
             rows,
             filters=filters,
-            sort_by=profile["sort_by"],
+            sort_by=resolved_sort_by,
             top_k=resolved_top_k,
-            descending=bool(profile.get("descending", True)),
+            descending=resolved_descending,
             include_explanations=False,
         )
 

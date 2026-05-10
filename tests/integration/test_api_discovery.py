@@ -120,3 +120,109 @@ def test_discovery_similar_radar_adjusted_smoke(client: TestClient) -> None:
 
     scores = [row["radar_adjusted_similarity"] for row in payload["results"]]
     assert scores == sorted(scores, reverse=True)
+
+def test_discovery_ranking_combined_overrides(client: TestClient) -> None:
+    response = client.get(
+        "/discovery/ranking/recent_artifact_ready",
+        params={
+            "top_k": 5,
+            "min_year": 2025,
+            "has_code": "true",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    assert payload["mode"] == "ranking"
+    assert payload["profile"]["name"] == "recent_artifact_ready"
+    assert payload["top_k"] == 5
+    assert payload["filters"]["min_year"] == 2025
+    assert payload["filters"]["has_code"] is True
+    assert payload["results"]
+    assert 1 <= payload["returned_rows_count"] <= 5
+
+    for row in payload["results"]:
+        assert row["year"] is not None
+        assert row["year"] >= 2025
+        assert row["has_code_artifact"] is True
+
+
+def test_discovery_ranking_false_boolean_override(client: TestClient) -> None:
+    response = client.get(
+        "/discovery/ranking/huggingface_ready",
+        params={
+            "top_k": 5,
+            "has_hf": "false",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    assert payload["profile"]["name"] == "huggingface_ready"
+    assert payload["profile"]["filters"]["has_hf"] is True
+    assert payload["filters"]["has_hf"] is False
+    assert payload["results"]
+
+
+def test_discovery_ranking_sort_by_override(client: TestClient) -> None:
+    response = client.get(
+        "/discovery/ranking/recent_artifact_ready",
+        params={
+            "top_k": 5,
+            "has_github": "true",
+            "sort_by": "github_stars_max",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    assert payload["sort_by"] == "github_stars_max"
+    assert payload["filters"]["has_github"] is True
+    assert payload["results"]
+
+    stars = [int(row.get("github_stars_max") or 0) for row in payload["results"]]
+    assert stars == sorted(stars, reverse=True)
+
+
+def test_discovery_ranking_invalid_year_range_returns_400(client: TestClient) -> None:
+    response = client.get(
+        "/discovery/ranking/recent_artifact_ready",
+        params={
+            "min_year": 2026,
+            "max_year": 2025,
+        },
+    )
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["error_code"] == "bad_request"
+    assert "min_year" in payload["message"]
+
+
+def test_discovery_ranking_invalid_sort_by_returns_422(client: TestClient) -> None:
+    response = client.get(
+        "/discovery/ranking/recent_artifact_ready",
+        params={
+            "sort_by": "not_a_sort_field",
+        },
+    )
+
+    assert response.status_code == 422
+    payload = response.json()
+    assert payload["error_code"] == "validation_error"
+
+
+def test_discovery_ranking_top_k_too_large_returns_422(client: TestClient) -> None:
+    response = client.get(
+        "/discovery/ranking/recent_artifact_ready",
+        params={
+            "top_k": 101,
+        },
+    )
+
+    assert response.status_code == 422
+    payload = response.json()
+    assert payload["error_code"] == "validation_error"

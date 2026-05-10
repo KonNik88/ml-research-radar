@@ -315,6 +315,12 @@ def extract_discovery_api_values(
         "discovery_api_profile_names": summary.get("profile_names"),
         "discovery_api_ranking_profile": summary.get("ranking_profile"),
         "discovery_api_ranking_results_count": summary.get("ranking_results_count"),
+        "discovery_api_ranking_overrides_profile": summary.get(
+            "ranking_overrides_profile"
+        ),
+        "discovery_api_ranking_overrides_results_count": summary.get(
+            "ranking_overrides_results_count"
+        ),
         "discovery_api_canonical_id": summary.get("canonical_id"),
         "discovery_api_detail_title": summary.get("detail_title"),
         "discovery_api_similar_semantic_results_count": summary.get(
@@ -331,6 +337,21 @@ def extract_discovery_api_values(
         "discovery_api_ranking_endpoint_ok": checks.get("ranking_endpoint_ok"),
         "discovery_api_ranking_results_non_empty": checks.get(
             "ranking_results_non_empty"
+        ),
+        "discovery_api_ranking_overrides_endpoint_ok": checks.get(
+            "ranking_overrides_endpoint_ok"
+        ),
+        "discovery_api_ranking_overrides_results_non_empty": checks.get(
+            "ranking_overrides_results_non_empty"
+        ),
+        "discovery_api_ranking_overrides_min_year_filter_echoed": checks.get(
+            "ranking_overrides_min_year_filter_echoed"
+        ),
+        "discovery_api_ranking_overrides_has_code_filter_echoed": checks.get(
+            "ranking_overrides_has_code_filter_echoed"
+        ),
+        "discovery_api_ranking_overrides_results_match_filters": checks.get(
+            "ranking_overrides_results_match_filters"
         ),
         "discovery_api_detail_endpoint_ok": checks.get("detail_endpoint_ok"),
         "discovery_api_detail_found": checks.get("detail_found"),
@@ -1301,6 +1322,27 @@ def main() -> None:
         "discovery_api_ranking_results_non_empty": bool(
             discovery_api_values["discovery_api_ranking_results_non_empty"]
         ),
+        "discovery_api_ranking_overrides_endpoint_ok": bool(
+            discovery_api_values["discovery_api_ranking_overrides_endpoint_ok"]
+        ),
+        "discovery_api_ranking_overrides_results_non_empty": bool(
+            discovery_api_values["discovery_api_ranking_overrides_results_non_empty"]
+        ),
+        "discovery_api_ranking_overrides_min_year_filter_echoed": bool(
+            discovery_api_values[
+                "discovery_api_ranking_overrides_min_year_filter_echoed"
+            ]
+        ),
+        "discovery_api_ranking_overrides_has_code_filter_echoed": bool(
+            discovery_api_values[
+                "discovery_api_ranking_overrides_has_code_filter_echoed"
+            ]
+        ),
+        "discovery_api_ranking_overrides_results_match_filters": bool(
+            discovery_api_values[
+                "discovery_api_ranking_overrides_results_match_filters"
+            ]
+        ),
         "discovery_api_detail_endpoint_ok": bool(
             discovery_api_values["discovery_api_detail_endpoint_ok"]
         ),
@@ -1465,6 +1507,11 @@ def main() -> None:
                 "discovery_api_required_profiles_present",
                 "discovery_api_ranking_endpoint_ok",
                 "discovery_api_ranking_results_non_empty",
+                "discovery_api_ranking_overrides_endpoint_ok",
+                "discovery_api_ranking_overrides_results_non_empty",
+                "discovery_api_ranking_overrides_min_year_filter_echoed",
+                "discovery_api_ranking_overrides_has_code_filter_echoed",
+                "discovery_api_ranking_overrides_results_match_filters",
                 "discovery_api_detail_endpoint_ok",
                 "discovery_api_detail_found",
                 "discovery_api_detail_features_found",

@@ -14,6 +14,9 @@ DEFAULT_REPORTS_DIR = Path("artifacts/reports/api")
 DEFAULT_PROFILE_NAME = "huggingface_ready"
 DEFAULT_TOP_K = 5
 DEFAULT_BACKEND_MODE = "file"
+OVERRIDE_RANKING_PROFILE = "recent_artifact_ready"
+OVERRIDE_MIN_YEAR = 2025
+OVERRIDE_HAS_CODE = True
 
 REQUIRED_PROFILE_NAMES = {
     "recent_artifact_ready",
@@ -178,6 +181,18 @@ def main() -> None:
 
         ranking_payload = ranking.get("json") if isinstance(ranking.get("json"), dict) else {}
         ranking_results = ranking_payload.get("results") or []
+        ranking_overrides = request_json(
+            client,
+            f"/discovery/ranking/{OVERRIDE_RANKING_PROFILE}",
+            params={
+                "top_k": args.top_k,
+                "min_year": OVERRIDE_MIN_YEAR,
+                "has_code": str(OVERRIDE_HAS_CODE).lower(),
+            },
+        )
+        endpoints["ranking_overrides"] = {
+            key: value for key, value in ranking_overrides.items() if key != "json"
+        }
 
         canonical_id = args.canonical_id
         if not canonical_id and ranking_results:
@@ -214,6 +229,17 @@ def main() -> None:
             }
 
     detail_payload = detail.get("json") if isinstance(detail.get("json"), dict) else {}
+    ranking_overrides_payload = (
+        ranking_overrides.get("json")
+        if isinstance(ranking_overrides.get("json"), dict)
+        else {}
+    )
+    ranking_overrides_results = ranking_overrides_payload.get("results") or []
+    ranking_overrides_filters = (
+        ranking_overrides_payload.get("filters")
+        if isinstance(ranking_overrides_payload.get("filters"), dict)
+        else {}
+    )
     detail_body = detail_payload.get("detail") if isinstance(detail_payload.get("detail"), dict) else {}
 
     similar_payload = (
@@ -247,12 +273,31 @@ def main() -> None:
 
     missing_required_profiles = sorted(REQUIRED_PROFILE_NAMES - profile_names)
 
+    ranking_overrides_results_match_filters = (
+        len(ranking_overrides_results) > 0
+        and all(
+            isinstance(row, dict)
+            and int(row.get("year") or 0) >= OVERRIDE_MIN_YEAR
+            and bool(row.get("has_code_artifact")) is True
+            for row in ranking_overrides_results
+        )
+    )
+
     checks = {
         "profiles_endpoint_ok": bool(profiles.get("ok")),
         "profiles_non_empty": int(profiles_payload.get("profile_count") or 0) > 0,
         "required_profiles_present": len(missing_required_profiles) == 0,
         "ranking_endpoint_ok": bool(ranking.get("ok")),
         "ranking_results_non_empty": len(ranking_results) > 0,
+        "ranking_overrides_endpoint_ok": bool(ranking_overrides.get("ok")),
+        "ranking_overrides_results_non_empty": len(ranking_overrides_results) > 0,
+        "ranking_overrides_min_year_filter_echoed": (
+                ranking_overrides_filters.get("min_year") == OVERRIDE_MIN_YEAR
+        ),
+        "ranking_overrides_has_code_filter_echoed": (
+                ranking_overrides_filters.get("has_code") is True
+        ),
+        "ranking_overrides_results_match_filters": ranking_overrides_results_match_filters,
         "canonical_id_resolved": bool(canonical_id),
         "detail_endpoint_ok": bool(detail.get("ok")),
         "detail_found": bool(detail_payload.get("found")),
@@ -294,6 +339,10 @@ def main() -> None:
             "missing_required_profiles": missing_required_profiles,
             "ranking_profile": args.profile,
             "ranking_results_count": len(ranking_results),
+            "ranking_overrides_profile": OVERRIDE_RANKING_PROFILE,
+            "ranking_overrides_min_year": OVERRIDE_MIN_YEAR,
+            "ranking_overrides_has_code": OVERRIDE_HAS_CODE,
+            "ranking_overrides_results_count": len(ranking_overrides_results),
             "canonical_id": canonical_id,
             "detail_title": detail_body.get("title"),
             "similar_semantic_results_count": len(similar_results),

@@ -29,6 +29,25 @@ from services.api.settings import get_settings
 from services.api.discovery_service import get_discovery_service
 from radar_core.ranking.profiles import RankingProfileError
 
+DiscoveryRankingSortBy = Literal[
+    "radar_score",
+    "implementation_readiness_score",
+    "source_confidence_score",
+    "citation_signal_score",
+    "recency_score",
+    "year",
+    "github_stars_max",
+    "github_stars_sum",
+    "github_forks_max",
+    "github_forks_sum",
+    "trusted_artifact_links_count",
+    "trusted_code_links_count",
+    "trusted_dataset_links_count",
+    "trusted_model_links_count",
+    "trusted_demo_links_count",
+    "hf_downloads_max",
+    "hf_likes_max",
+]
 
 logger = get_logger(__name__)
 
@@ -492,21 +511,45 @@ def discovery_profiles() -> DiscoveryProfilesResponse:
 @app.get("/discovery/ranking/{profile_name}", response_model=DiscoveryRankingResponse)
 def discovery_ranking(
     profile_name: str,
-    top_k: int | None = Query(None, ge=1),
+    top_k: int | None = Query(None, ge=1, le=settings.max_top_k),
+    query_title: str | None = Query(None, min_length=1, max_length=settings.max_query_length),
+    source_family: str | None = Query(None, min_length=1, max_length=100),
+    min_year: int | None = Query(None, ge=1900, le=2100),
+    max_year: int | None = Query(None, ge=1900, le=2100),
+    has_code: bool | None = Query(None),
+    has_dataset: bool | None = Query(None),
+    has_model: bool | None = Query(None),
+    has_demo: bool | None = Query(None),
+    has_github: bool | None = Query(None),
+    has_hf: bool | None = Query(None),
+    has_acl: bool | None = Query(None),
+    has_doi: bool | None = Query(None),
+    sort_by: DiscoveryRankingSortBy | None = Query(None),
+    descending: bool | None = Query(None),
 ) -> DiscoveryRankingResponse:
-    resolved_top_k = top_k if top_k is not None else None
-
-    if resolved_top_k is not None and resolved_top_k > settings.max_top_k:
-        raise ValueError(
-            f"top_k={resolved_top_k} exceeds max_top_k={settings.max_top_k}"
-        )
+    if min_year is not None and max_year is not None and min_year > max_year:
+        raise ValueError("min_year must be less than or equal to max_year")
 
     service = get_discovery_service()
 
     try:
         payload = service.get_ranking(
             profile_name=profile_name,
-            top_k=resolved_top_k,
+            top_k=top_k,
+            query_title=query_title,
+            source_family=source_family,
+            min_year=min_year,
+            max_year=max_year,
+            has_code=has_code,
+            has_dataset=has_dataset,
+            has_model=has_model,
+            has_demo=has_demo,
+            has_github=has_github,
+            has_hf=has_hf,
+            has_acl=has_acl,
+            has_doi=has_doi,
+            sort_by=sort_by,
+            descending=descending,
         )
     except RankingProfileError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

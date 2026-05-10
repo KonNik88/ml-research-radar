@@ -77,7 +77,7 @@ artifact export DB = green
 Current product/discovery chain:
 
 ```text
-ranking profile
+ranking profile + query overrides
 → paper detail/card
 → similar papers
 → Discovery API
@@ -135,14 +135,14 @@ retrieval-oriented runtime
 
 Current characteristics:
 
-- loads retrieval manifest
-- loads canonical documents from JSONL
-- loads lexical retrieval artifacts
-- loads dense retrieval artifacts
-- loads embedding model
-- supports lexical search
-- supports dense search
-- supports hybrid search
+- loads retrieval manifest;
+- loads canonical documents from JSONL;
+- loads lexical retrieval artifacts;
+- loads dense retrieval artifacts;
+- loads embedding model;
+- supports lexical search;
+- supports dense search;
+- supports hybrid search.
 
 Primary endpoint:
 
@@ -162,7 +162,7 @@ Notes:
 
 - file backend is the current full retrieval path;
 - dense and hybrid search are not mirrored in Postgres DB backend v1;
-- Discovery API v1 is file-first, but it is implemented as a separate product service rather than as a direct extension of `/search`.
+- Discovery API is file-first, but it is implemented as a separate product service rather than as a direct extension of `/search`.
 
 ---
 
@@ -176,12 +176,12 @@ materialized serving runtime over Postgres
 
 Current characteristics:
 
-- loads Postgres-backed runtime
-- checks DB connectivity
-- serves canonical documents from Postgres
-- serves artifact entities and paper-artifact links from Postgres
-- supports browse/filter access
-- supports DB lexical search v1
+- loads Postgres-backed runtime;
+- checks DB connectivity;
+- serves canonical documents from Postgres;
+- serves artifact entities and paper-artifact links from Postgres;
+- supports browse/filter access;
+- supports DB lexical search v1.
 
 DB-backed endpoints:
 
@@ -205,7 +205,7 @@ Unsupported DB modes return a structured `400 Bad Request` error.
 
 ## Discovery API runtime semantics
 
-Discovery API v1 is exposed under:
+Discovery API is exposed under:
 
 ```text
 /discovery/*
@@ -280,6 +280,8 @@ Examples:
 unknown ranking profile -> 404
 unknown canonical_id in detail endpoint -> 404
 invalid top_k / invalid query params -> 400 or 422 depending on validation path
+invalid discovery ranking sort_by -> 422
+invalid discovery ranking year range -> 400
 unsupported DB search mode -> 400
 ```
 
@@ -603,10 +605,10 @@ GET /search?query=graph%20neural%20networks&mode=lexical&top_k=5
 
 # Discovery API
 
-Discovery API v1 exposes the current product workflow:
+Discovery API exposes the current product workflow:
 
 ```text
-ranking profile
+ranking profile + query overrides
 → paper detail/card
 → similar papers
 ```
@@ -693,9 +695,9 @@ GET /discovery/profiles
   "profiles": [
     {
       "name": "huggingface_ready",
-      "description": "...",
+      "description": "Papers with Hugging Face artifacts, ranked by implementation readiness.",
       "sort_by": "implementation_readiness_score",
-      "top_k": 20,
+      "top_k": 50,
       "descending": true,
       "filters": {
         "has_hf": true
@@ -709,13 +711,13 @@ GET /discovery/profiles
 
 ## `GET /discovery/ranking/{profile_name}`
 
-Returns ranked papers for a configured discovery profile.
+Returns ranked papers for a configured discovery profile, optionally refined with query-level overrides.
 
 ### Purpose
 
 Provides a product-ready ranked feed over `paper_features_latest.jsonl`.
 
-This is not free-form retrieval. It is profile-based radar ranking.
+This is not free-form retrieval. It is profile-based radar ranking with controlled query overrides.
 
 ### Path parameters
 
@@ -727,14 +729,107 @@ profile_name
 
 | parameter | type | default | notes |
 |---|---:|---:|---|
-| `top_k` | int | profile default | capped by API settings |
+| `top_k` | int | profile default | capped by API settings, currently `max_top_k = 100` |
+| `min_year` | int | profile/default null | lower year bound |
+| `max_year` | int | profile/default null | upper year bound |
+| `query_title` | string | profile/default null | case-insensitive substring match over title |
+| `source_family` | string | profile/default null | source family filter, e.g. `arxiv`, `acl_anthology` |
+| `has_code` | bool | profile/default false | requires code artifact signal |
+| `has_dataset` | bool | profile/default false | requires dataset artifact signal |
+| `has_model` | bool | profile/default false | requires model artifact signal |
+| `has_demo` | bool | profile/default false | requires demo artifact signal |
+| `has_github` | bool | profile/default false | requires found GitHub repository signal |
+| `has_hf` | bool | profile/default false | requires Hugging Face signal |
+| `has_acl` | bool | profile/default false | requires ACL source signal |
+| `has_doi` | bool | profile/default false | requires DOI signal |
+| `sort_by` | ranking sort field | profile default | overrides profile sorting |
+| `descending` | bool | profile default | overrides sort direction |
 
-Manual filters such as `min_year`, `query_title`, `has_code`, `has_hf` are intentionally postponed to Discovery API v1.1.
+Supported `sort_by` values:
 
-### Example
+```text
+radar_score
+implementation_readiness_score
+source_confidence_score
+citation_signal_score
+recency_score
+year
+github_stars_max
+github_stars_sum
+github_forks_max
+github_forks_sum
+trusted_artifact_links_count
+trusted_code_links_count
+trusted_dataset_links_count
+trusted_model_links_count
+trusted_demo_links_count
+hf_downloads_max
+hf_likes_max
+```
+
+### Override semantics
+
+Profile filters are used as the base preset. Query parameters are explicit overrides or additions.
+
+```text
+profile.filters = base profile filters
+query params = explicit overrides/additions
+response.filters = effective filters after overrides
+response.sort_by = effective sort field
+response.descending = effective sort direction
+```
+
+Boolean override policy:
+
+```text
+not provided = keep profile default
+true = explicit true override
+false = explicit false override
+```
+
+This means that even an override that weakens a profile constraint is allowed:
 
 ```http
-GET /discovery/ranking/huggingface_ready?top_k=5
+GET /discovery/ranking/huggingface_ready?top_k=5&has_hf=false
+```
+
+In that case:
+
+```text
+profile.filters.has_hf = true
+filters.has_hf = false
+```
+
+### Examples
+
+Recent artifact-ready papers from 2025 onward:
+
+```http
+GET /discovery/ranking/recent_artifact_ready?top_k=20&min_year=2025
+```
+
+Hugging Face-ready papers with title containing `speech`:
+
+```http
+GET /discovery/ranking/huggingface_ready?top_k=20&query_title=speech
+```
+
+Recent artifact-ready code papers from 2025 onward:
+
+```http
+GET /discovery/ranking/recent_artifact_ready?top_k=5&min_year=2025&has_code=true
+```
+
+Override a base profile filter:
+
+```http
+GET /discovery/ranking/huggingface_ready?top_k=5&has_hf=false
+```
+
+Override sorting:
+
+```http
+GET /discovery/ranking/recent_code_radar?top_k=20&sort_by=implementation_readiness_score
 ```
 
 ### Response shape
@@ -744,6 +839,13 @@ GET /discovery/ranking/huggingface_ready?top_k=5
   "mode": "ranking",
   "profile": {
     "name": "huggingface_ready",
+    "description": "Papers with Hugging Face artifacts, ranked by implementation readiness.",
+    "sort_by": "implementation_readiness_score",
+    "top_k": 50,
+    "descending": true,
+    "filters": {
+      "has_hf": true
+    },
     "loaded": true,
     "profiles_path": "configs/ranking_profiles_v1.yaml"
   },
@@ -755,7 +857,11 @@ GET /discovery/ranking/huggingface_ready?top_k=5
   "returned_rows_count": 5,
   "features_path": "data/features/paper_features_latest.jsonl",
   "filters": {
-    "has_hf": true
+    "has_hf": true,
+    "min_year": null,
+    "max_year": null,
+    "query_title": null,
+    "source_family": null
   },
   "results": [
     {
@@ -763,9 +869,9 @@ GET /discovery/ranking/huggingface_ready?top_k=5
       "canonical_id": "bd3c9332f17370fa801e6ac9542f125a",
       "title": "FlashLabs Chroma 1.0: A Real-Time End-to-End Spoken Dialogue Model with Personalized Voice Cloning",
       "year": 2026,
-      "radar_score": 0.704431,
+      "radar_score": 0.658838,
       "implementation_readiness_score": 0.768109,
-      "source_confidence_score": 0.65,
+      "source_confidence_score": 0.45,
       "citation_signal_score": 0.0,
       "trusted_artifact_links_count": 2,
       "has_code_artifact": true,
@@ -782,6 +888,26 @@ Unknown profile names return:
 
 ```text
 404
+```
+
+### Invalid parameters
+
+Invalid `sort_by` values return FastAPI validation error:
+
+```text
+422
+```
+
+Invalid cross-field year range returns bad request:
+
+```text
+400
+```
+
+Example invalid year range:
+
+```http
+GET /discovery/ranking/recent_artifact_ready?min_year=2026&max_year=2025
 ```
 
 ---
@@ -844,9 +970,9 @@ GET /discovery/papers/bd3c9332f17370fa801e6ac9542f125a
     "title": "FlashLabs Chroma 1.0: A Real-Time End-to-End Spoken Dialogue Model with Personalized Voice Cloning",
     "year": 2026,
     "scores": {
-      "radar_score": 0.704431,
+      "radar_score": 0.658838,
       "implementation_readiness_score": 0.768109,
-      "source_confidence_score": 0.65,
+      "source_confidence_score": 0.45,
       "citation_signal_score": 0.0
     },
     "artifacts": [
@@ -956,7 +1082,7 @@ GET /discovery/papers/bd3c9332f17370fa801e6ac9542f125a/similar?top_k=20&rank_by=
     "canonical_id": "bd3c9332f17370fa801e6ac9542f125a",
     "title": "FlashLabs Chroma 1.0: A Real-Time End-to-End Spoken Dialogue Model with Personalized Voice Cloning",
     "year": 2026,
-    "radar_score": 0.704431,
+    "radar_score": 0.658838,
     "implementation_readiness_score": 0.768109
   },
   "rank_by": "semantic",
@@ -992,7 +1118,7 @@ GET /discovery/papers/bd3c9332f17370fa801e6ac9542f125a/similar?top_k=20&rank_by=
 
 ### Runtime/cache note
 
-Discovery API v1 caches the dense runtime in process:
+Discovery API caches the dense runtime in process:
 
 ```text
 dense bundle
@@ -1392,7 +1518,7 @@ with status:
 | `GET /artifacts` | no | yes | artifact DB layer |
 | `GET /documents/{canonical_id}/artifacts` | no | yes | artifact DB layer |
 | `GET /discovery/profiles` | yes | yes* | file-first DiscoveryService; app startup still follows backend mode |
-| `GET /discovery/ranking/{profile_name}` | yes | yes* | file-first DiscoveryService |
+| `GET /discovery/ranking/{profile_name}` | yes | yes* | file-first DiscoveryService; supports profile + query overrides |
 | `GET /discovery/papers/{canonical_id}` | yes | yes* | file-first DiscoveryService |
 | `GET /discovery/papers/{canonical_id}/similar` | yes | yes* | file-first DiscoveryService with dense runtime cache |
 
@@ -1408,6 +1534,22 @@ with status:
 set ML_RADAR_SEARCH_BACKEND=file
 python -m pytest tests/integration/test_api_discovery.py -q
 python -m scripts.validation.check_discovery_api --strict
+```
+
+The Discovery API quality gate checks both the base ranking endpoint and the v1.1 ranking override smoke:
+
+```http
+GET /discovery/ranking/recent_artifact_ready?top_k=5&min_year=2025&has_code=true
+```
+
+Required v1.1 checks include:
+
+```text
+discovery_api_ranking_overrides_endpoint_ok
+discovery_api_ranking_overrides_results_non_empty
+discovery_api_ranking_overrides_min_year_filter_echoed
+discovery_api_ranking_overrides_has_code_filter_echoed
+discovery_api_ranking_overrides_results_match_filters
 ```
 
 ## Similar papers checks
@@ -1429,6 +1571,19 @@ python -m pytest tests/integration/test_api_artifacts_db.py -q
 python -m pytest tests/integration/test_api_documents_artifact_filters_db.py -q
 python -m pytest tests/integration/test_api_artifacts_github_filters_db.py -q
 python -m pytest tests/integration/test_api_github_enrichment_db.py -q
+```
+
+## Discovery API regression
+
+```bat
+set ML_RADAR_SEARCH_BACKEND=file
+python -m scripts.validation.run_discovery_api_regression
+```
+
+Full variant with DB smoke and strict DoD:
+
+```bat
+python -m scripts.validation.run_discovery_api_regression --include-db-smoke --include-dod
 ```
 
 ## Full strict DoD
@@ -1457,7 +1612,8 @@ The current API reflects the project architecture:
 - feature/ranking/detail/similar layers are derived discovery/product layers;
 - file and DB backends are intentionally asymmetric;
 - artifact API is DB-only in v1;
-- Discovery API is file-first in v1;
+- Discovery API is file-first;
+- Discovery ranking uses profiles as base presets and query parameters as explicit overrides;
 - `has_code_link` remains a legacy canonical/source field;
 - trusted artifact filters operate through `paper_artifact_links`;
 - GitHub/HF enrichment is artifact metadata, not paper truth;
@@ -1470,25 +1626,24 @@ The current API reflects the project architecture:
 Near-term:
 
 ```text
-Discovery API v1.1:
-  manual ranking query params:
-    min_year
-    max_year
-    query_title
-    has_code
-    has_hf
-    has_acl
-    sort_by
+Discovery UI v0.1:
+  thin Streamlit client over /discovery/*
+  profile selector
+  ranking query overrides
+  paper cards
+  paper detail
+  similar papers panel
+```
 
-Discovery API response ergonomics:
-  compact paper detail view
-  smaller artifact metadata view
-  endpoint examples for UI
+Possible follow-up Discovery API ergonomics:
 
-API quality hardening:
-  better latency diagnostics
-  explicit DiscoveryService cache stats
-  lighter discovery validator startup path if needed
+```text
+compact paper detail view
+smaller artifact metadata view
+endpoint examples for UI
+better latency diagnostics
+explicit DiscoveryService cache stats
+lighter discovery validator startup path if needed
 ```
 
 Later:
