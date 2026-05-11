@@ -1,0 +1,71 @@
+schema_version: topic_clusters_v1
+
+# Topic Map v1 is a file-first derived analytics layer.
+
+inputs:
+  retrieval_manifest_path: artifacts/retrieval/manifests/latest.json
+  dense_dir: artifacts/retrieval/dense
+  paper_features_path: data/features/paper_features_latest.jsonl
+  canonical_path: data/analytics/reconciled/canonical_documents.jsonl
+
+outputs:
+  output_dir: artifacts/clusters/topic
+  reports_dir: artifacts/reports/clusters
+  write_latest: true
+
+scope:
+  # v1 implements only global scope.
+  # Future values: filtered, sample, query_result.
+  type: global
+  filters: {}
+
+method:
+  # v1 implements only minibatch_kmeans.
+  # Future values may include hdbscan, gaussian_mixture_diag, faiss_kmeans.
+  algorithm: minibatch_kmeans
+  params:
+    n_clusters: 80
+    random_state: 42
+    batch_size: 4096
+    max_iter: 100
+    n_init: 3
+    reassignment_ratio: 0.01
+
+embeddings:
+  normalize: true
+  dtype: float32
+
+summary:
+  representative_papers_per_cluster: 10
+  top_terms_per_cluster: 20
+  top_years_per_cluster: 10
+  top_source_families_per_cluster: 10
+  top_categories_per_cluster: 15
+  top_concepts_per_cluster: 15
+  top_keywords_per_cluster: 15
+
+labels:
+  enabled: true
+  method: heuristic_terms_v1
+  use_llm_labels: false
+  max_docs_per_cluster: 1000
+  top_title_terms: 20
+  top_abstract_terms: 20
+  top_categories: 20
+  top_concepts: 20
+  top_keywords: 20
+  label_candidates_per_cluster: 5
+
+projection:
+  # Projection is intentionally disabled in v1.
+  # Future: build PCA/UMAP projection artifacts for representatives/sample/all.
+  enabled: false
+  method: umap
+  scope: representatives
+  max_points: 10000
+
+validation:
+  allow_empty_clusters: false
+  max_largest_cluster_ratio_warning: 0.10
+  min_label_candidates_per_cluster: 1
+  min_representative_papers_per_cluster: 1
