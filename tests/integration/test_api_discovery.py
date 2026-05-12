@@ -15,6 +15,16 @@ def client() -> TestClient:
         yield test_client
 
 
+def _first_cluster_id(client: TestClient) -> int:
+    response = client.get("/discovery/clusters", params={"limit": 1})
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["results"]
+    cluster_id = payload["results"][0]["cluster_id"]
+    assert isinstance(cluster_id, int)
+    return cluster_id
+
+
 def test_discovery_profiles_smoke(client: TestClient) -> None:
     response = client.get("/discovery/profiles")
 
@@ -121,6 +131,7 @@ def test_discovery_similar_radar_adjusted_smoke(client: TestClient) -> None:
     scores = [row["radar_adjusted_similarity"] for row in payload["results"]]
     assert scores == sorted(scores, reverse=True)
 
+
 def test_discovery_ranking_combined_overrides(client: TestClient) -> None:
     response = client.get(
         "/discovery/ranking/recent_artifact_ready",
@@ -221,6 +232,133 @@ def test_discovery_ranking_top_k_too_large_returns_422(client: TestClient) -> No
         params={
             "top_k": 101,
         },
+    )
+
+    assert response.status_code == 422
+    payload = response.json()
+    assert payload["error_code"] == "validation_error"
+
+
+def test_discovery_topic_clusters_smoke(client: TestClient) -> None:
+    response = client.get("/discovery/clusters", params={"limit": 3})
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    assert payload["mode"] == "topic_clusters"
+    cluster_count = payload.get("cluster_count") or payload.get("total_cluster_count")
+    assert cluster_count > 0
+    assert payload["returned_count"] == 3
+    assert len(payload["results"]) == 3
+
+    first = payload["results"][0]
+    assert isinstance(first["cluster_id"], int)
+    assert first["size"] > 0
+    assert first["label_candidates"]
+    assert "mean_radar_score" in first
+    assert "artifact_ready_count" in first
+    assert "code_artifact_count" in first
+
+
+def test_discovery_topic_clusters_limit_smoke(client: TestClient) -> None:
+    response = client.get(
+        "/discovery/clusters",
+        params={"limit": 5},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    assert payload["mode"] == "topic_clusters"
+    assert payload["returned_count"] == 5
+    assert len(payload["results"]) == 5
+
+    sizes = [cluster["size"] for cluster in payload["results"]]
+    assert all(size > 0 for size in sizes)
+
+
+def test_discovery_topic_cluster_detail_smoke(client: TestClient) -> None:
+    cluster_id = _first_cluster_id(client)
+
+    response = client.get(
+        f"/discovery/clusters/{cluster_id}",
+        params={"top_k": 5},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    assert payload["mode"] == "topic_cluster_detail"
+    assert payload["found"] is True
+    assert payload["cluster_id"] == cluster_id
+    assert payload["total_papers"] > 0
+    assert 1 <= payload["returned_papers_count"] <= 5
+    assert payload["summary"]["label_candidates"]
+    assert payload["papers"]
+
+    first_paper = payload["papers"][0]
+    assert first_paper["cluster_id"] == cluster_id
+    assert first_paper["canonical_id"]
+    assert first_paper["title"]
+    assert first_paper["rank_within_cluster"] >= 1
+
+
+def test_discovery_topic_cluster_detail_sort_by_radar_smoke(client: TestClient) -> None:
+    cluster_id = _first_cluster_id(client)
+
+    response = client.get(
+        f"/discovery/clusters/{cluster_id}",
+        params={"top_k": 5, "sort_by": "radar_score"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    assert payload["sort_by"] == "radar_score"
+    assert payload["papers"]
+
+    scores = [float(row.get("radar_score") or 0.0) for row in payload["papers"]]
+    assert scores == sorted(scores, reverse=True)
+
+
+def test_discovery_topic_cluster_detail_missing_returns_404(client: TestClient) -> None:
+    response = client.get("/discovery/clusters/999999")
+
+    assert response.status_code == 404
+
+
+def test_discovery_paper_topic_cluster_smoke(client: TestClient) -> None:
+    response = client.get(
+        f"/discovery/papers/{KNOWN_DISCOVERY_CANONICAL_ID}/cluster"
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    assert payload["mode"] == "paper_topic_cluster"
+    assert payload["canonical_id"] == KNOWN_DISCOVERY_CANONICAL_ID
+    assert payload["found"] is True
+    assert payload["assignment"]
+    assert payload["cluster"]
+
+    assignment = payload["assignment"]
+    cluster = payload["cluster"]
+    assert assignment["canonical_id"] == KNOWN_DISCOVERY_CANONICAL_ID
+    assert isinstance(assignment["cluster_id"], int)
+    assert assignment["cluster_id"] == cluster["cluster_id"]
+    assert cluster["label_candidates"]
+
+
+def test_discovery_paper_topic_cluster_missing_returns_404(client: TestClient) -> None:
+    response = client.get("/discovery/papers/not-a-real-canonical-id/cluster")
+
+    assert response.status_code == 404
+
+
+def test_discovery_topic_clusters_invalid_sort_by_returns_422(client: TestClient) -> None:
+    response = client.get(
+        "/discovery/clusters",
+        params={"sort_by": "not_a_sort_field"},
     )
 
     assert response.status_code == 422

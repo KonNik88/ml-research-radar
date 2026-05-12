@@ -234,6 +234,7 @@ class DocumentArtifactsResponse(BaseModel):
     total: int
     results: list[PaperArtifactLinkResponse]
 
+
 class DiscoveryProfile(BaseModel):
     name: str
     description: str
@@ -284,3 +285,89 @@ class DiscoverySimilarPapersResponse(BaseModel):
     dense_artifacts: dict[str, Any] = Field(default_factory=dict)
     inputs: dict[str, Any] = Field(default_factory=dict)
     results: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class DiscoveryTopicClusterSummary(BaseModel):
+    cluster_id: int
+    size: int
+    label_candidates: list[str] = Field(default_factory=list)
+
+    artifact_ready_count: int = 0
+    code_artifact_count: int = 0
+    dataset_artifact_count: int = 0
+    model_artifact_count: int = 0
+    demo_artifact_count: int = 0
+    github_found_paper_count: int = 0
+    hf_found_paper_count: int = 0
+
+    mean_radar_score: float | None = None
+    mean_implementation_readiness_score: float | None = None
+    mean_source_confidence_score: float | None = None
+    mean_citation_signal_score: float | None = None
+
+    top_title_terms: list[list[Any]] = Field(default_factory=list)
+    top_title_trigrams: list[list[Any]] = Field(default_factory=list)
+    top_abstract_bigrams: list[list[Any]] = Field(default_factory=list)
+    top_abstract_trigrams: list[list[Any]] = Field(default_factory=list)
+    top_categories: list[list[Any]] = Field(default_factory=list)
+    top_concepts: list[list[Any]] = Field(default_factory=list)
+    top_keywords: list[list[Any]] = Field(default_factory=list)
+    top_source_families: list[list[Any]] = Field(default_factory=list)
+
+    representative_papers: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class DiscoveryTopicClustersResponse(BaseModel):
+    mode: str
+    cluster_build_id: str
+    retrieval_build_id: str
+    cluster_config_hash: str | None = None
+
+    algorithm: str | None = None
+    params: dict[str, Any] = Field(default_factory=dict)
+    embedding_model: str | None = None
+    embedding_shape: list[int] = Field(default_factory=list)
+
+    cluster_count: int
+    total: int
+    offset: int
+    limit: int
+    returned_count: int
+    sort_by: str
+
+    inputs: dict[str, Any] = Field(default_factory=dict)
+    results: list[DiscoveryTopicClusterSummary] = Field(default_factory=list)
+
+
+class DiscoveryTopicClusterDetailResponse(BaseModel):
+    mode: str
+    cluster_id: int
+    found: bool
+
+    cluster_build_id: str | None = None
+    retrieval_build_id: str | None = None
+    cluster_config_hash: str | None = None
+
+    summary: dict[str, Any] = Field(default_factory=dict)
+    total_papers: int = 0
+    returned_papers_count: int = 0
+    top_k: int
+    sort_by: str
+
+    inputs: dict[str, Any] = Field(default_factory=dict)
+    papers: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class DiscoveryPaperTopicClusterResponse(BaseModel):
+    mode: str
+    canonical_id: str
+    found: bool
+
+    cluster_build_id: str | None = None
+    retrieval_build_id: str | None = None
+    cluster_config_hash: str | None = None
+
+    assignment: dict[str, Any] | None = None
+    cluster: dict[str, Any] | None = None
+
+    inputs: dict[str, Any] = Field(default_factory=dict)

@@ -596,6 +596,8 @@ python -m scripts.validation.check_discovery_api --strict
 
 Status: done
 
+Note: topic-cluster endpoints are documented separately as Discovery API v1.2 because they expose the already-built topic cluster layer through the product API surface.
+
 ---
 
 ## 2.13 Discovery API v1.1 — ranking query overrides
@@ -909,9 +911,98 @@ Current limitation:
 
 ```text
 No projection/UMAP artifact in v1.
-No cluster API endpoints yet.
+Cluster API endpoints are exposed through Discovery API v1.2.
 No Streamlit topic-map tab yet.
 No LLM-generated labels in v1.
+```
+
+---
+
+## 2.16 Discovery API v1.2 — topic cluster endpoints
+
+Completed:
+
+- exposed topic cluster artifacts through `/discovery/*`;
+- kept topic cluster API file-first;
+- reused `artifacts/clusters/topic/latest.json` as the cluster latest pointer;
+- added cluster list endpoint;
+- added cluster detail endpoint;
+- added paper-to-cluster endpoint;
+- kept clustering fully offline/build-time;
+- added integration tests for cluster endpoints in `tests/integration/test_api_discovery.py`;
+- extended Discovery API quality validator with topic-cluster checks.
+
+Status: done / green
+
+Current endpoints:
+
+```text
+GET /discovery/clusters
+GET /discovery/clusters/{cluster_id}
+GET /discovery/papers/{canonical_id}/cluster
+```
+
+Current endpoint semantics:
+
+```text
+/discovery/clusters = list existing topic clusters from latest cluster artifact
+/discovery/clusters/{cluster_id} = inspect one existing cluster and return representative/top papers
+/discovery/papers/{canonical_id}/cluster = resolve one paper to its latest topic cluster assignment
+```
+
+Current implementation principle:
+
+```text
+API serves existing cluster artifacts.
+API does not trigger clustering.
+API does not recompute labels.
+API does not mutate canonical truth.
+```
+
+Current verified smoke examples:
+
+```bat
+python -c "from fastapi.testclient import TestClient; from services.api.app import app; c=TestClient(app); r=c.get('/discovery/clusters?limit=3'); print(r.status_code); print(r.json()['returned_count'])"
+python -c "from fastapi.testclient import TestClient; from services.api.app import app; c=TestClient(app); r=c.get('/discovery/clusters/41?top_k=5'); print(r.status_code); j=r.json(); print(j['cluster_id'], j['total_papers'], j['returned_papers_count'])"
+python -c "from fastapi.testclient import TestClient; from services.api.app import app; c=TestClient(app); r=c.get('/discovery/papers/bd3c9332f17370fa801e6ac9542f125a/cluster'); print(r.status_code); j=r.json(); print(j['canonical_id']); print(j['assignment']['cluster_id'])"
+```
+
+Current green validation result:
+
+```text
+python -m pytest tests/integration/test_api_discovery.py -q
+21 passed
+
+python -m scripts.validation.check_discovery_api --strict
+ok = true
+required_failed_count = 0
+```
+
+Discovery API quality gate now checks:
+
+```text
+topic_clusters_endpoint_ok
+topic_clusters_results_non_empty
+topic_clusters_returned_count_matches
+topic_clusters_cluster_ids_present
+topic_clusters_label_candidates_present
+topic_cluster_detail_endpoint_ok
+topic_cluster_detail_found
+topic_cluster_detail_label_candidates_present
+topic_cluster_detail_papers_non_empty
+paper_topic_cluster_endpoint_ok
+paper_topic_cluster_found
+paper_topic_cluster_assignment_present
+paper_topic_cluster_cluster_present
+paper_topic_cluster_id_match
+```
+
+Important semantics:
+
+```text
+cluster_id is stable only inside cluster_build_id/config/input corpus
+label_candidates are heuristic hints, not curated taxonomy
+topic cluster endpoints expose a corpus-level navigation layer, not nearest-neighbor search
 ```
 
 ---
@@ -936,6 +1027,7 @@ The project is currently at this point:
 - similar papers are green;
 - Discovery API v1 is green and DoD-gated;
 - Discovery API v1.1 ranking query overrides are green and DoD-gated;
+- Discovery API v1.2 topic cluster endpoints are green and covered by the Discovery API validator;
 - Streamlit Discovery UI v0.2 is green;
 - Streamlit UI smoke check is green;
 - topic clusters v1 are green as file-first derived analytics artifacts;
@@ -959,6 +1051,7 @@ Current closed vertical slice:
 → Discovery API
 → Streamlit Discovery UI
 → topic clusters v1
+→ Discovery API topic cluster endpoints
 → strict validation reports
 → optional DoD gates
 ```
@@ -970,32 +1063,32 @@ Current closed vertical slice:
 Recommended next order:
 
 ```text
-1. Expose topic clusters through Discovery API.
-2. Add a Streamlit topic/cluster tab over the new cluster API endpoints.
-3. Add optional topic-clusters gate to refresh DoD.
-4. Consider UMAP/PCA projection artifact for UI after cluster API is stable.
-5. Consider stronger scientific embeddings / retrieval profiles.
-6. Consider vector serving / Qdrant for serving-time dense retrieval.
-7. Consider the next paper-source candidate, likely OpenReview.
+1. Add a Streamlit topic/cluster tab over the new cluster API endpoints.
+2. Add optional topic-clusters gate to refresh DoD.
+3. Consider UMAP/PCA projection artifact for UI after cluster API/UI are stable.
+4. Consider stronger scientific embeddings / retrieval profiles.
+5. Consider vector serving / Qdrant for serving-time dense retrieval.
+6. Consider the next paper-source candidate, likely OpenReview.
 ```
 
 Rationale:
 
-The project has already closed the ingestion/reconcile/artifact/features/ranking/detail/similar/API/UI/topic-cluster vertical slices. The next value comes from making the topic landscape usable through existing product surfaces rather than continuing offline label tuning.
+The project has already closed the ingestion/reconcile/artifact/features/ranking/detail/similar/API/UI/topic-cluster vertical slices and has now exposed topic clusters through Discovery API. The next value is to make the topic landscape usable in the existing Streamlit product surface rather than continuing offline label tuning.
 
 ---
 
 ## 4.1 Discovery API cluster endpoints v1
 
-Planned:
+Completed:
 
-- expose topic cluster artifacts through `/discovery/*`;
-- keep API file-first for cluster v1;
-- do not read clusters from Postgres in v1;
-- do not compute clustering at request time;
-- use `artifacts/clusters/topic/latest.json` as cluster latest pointer.
+- exposed topic cluster artifacts through `/discovery/*`;
+- kept API file-first for cluster v1;
+- did not read clusters from Postgres in v1;
+- did not compute clustering at request time;
+- used `artifacts/clusters/topic/latest.json` as cluster latest pointer;
+- integrated cluster endpoint checks into Discovery API tests and strict validator.
 
-Candidate endpoints:
+Endpoints:
 
 ```text
 GET /discovery/clusters
@@ -1003,34 +1096,41 @@ GET /discovery/clusters/{cluster_id}
 GET /discovery/papers/{canonical_id}/cluster
 ```
 
-Possible `GET /discovery/clusters` response content:
+`GET /discovery/clusters` response content:
 
 ```text
 cluster_id
 size
 label_candidates
 artifact_ready_count
+code_artifact_count
+dataset_artifact_count
+model_artifact_count
+demo_artifact_count
 mean_radar_score
-top_years
+mean_implementation_readiness_score
+mean_source_confidence_score
+mean_citation_signal_score
 top_source_families
 representative_papers
 ```
 
-Possible `GET /discovery/clusters/{cluster_id}` response content:
+`GET /discovery/clusters/{cluster_id}` response content:
 
 ```text
 cluster summary
 label candidates
 representative papers
-top papers by radar_score
-top papers by implementation_readiness_score
-optional sample papers
+returned papers from the cluster
+cluster/build metadata
 ```
 
-Possible `GET /discovery/papers/{canonical_id}/cluster` response content:
+`GET /discovery/papers/{canonical_id}/cluster` response content:
 
 ```text
 canonical_id
+assignment
+cluster
 cluster_id
 cluster_build_id
 retrieval_build_id
@@ -1038,10 +1138,9 @@ rank_within_cluster
 distance_to_centroid
 similarity_to_centroid
 cluster label candidates
-cluster summary link/payload
 ```
 
-Status: next
+Status: done / green
 
 Important principle:
 
@@ -1054,7 +1153,7 @@ API does not trigger clustering.
 
 ## 4.2 Streamlit Topic/Cluster Tab v0.1
 
-Planned after cluster API endpoints:
+Planned next:
 
 - add topic/cluster tab to existing Streamlit Discovery UI;
 - cluster list/table;

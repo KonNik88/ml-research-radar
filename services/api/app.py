@@ -7,11 +7,20 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from radar_core.ranking.profiles import RankingProfileError
+from services.api.discovery_service import get_discovery_service
 from services.api.logging import get_logger
 from services.api.runtime import get_runtime
 from services.api.schemas import (
     ApiInfoResponse,
     ArtifactListResponse,
+    DiscoveryPaperDetailResponse,
+    DiscoveryPaperTopicClusterResponse,
+    DiscoveryProfilesResponse,
+    DiscoveryRankingResponse,
+    DiscoverySimilarPapersResponse,
+    DiscoveryTopicClusterDetailResponse,
+    DiscoveryTopicClustersResponse,
     DocumentArtifactsResponse,
     DocumentListResponse,
     ErrorResponse,
@@ -19,15 +28,9 @@ from services.api.schemas import (
     ReloadResponse,
     RuntimeSnapshotResponse,
     SearchResponse,
-    DiscoveryProfilesResponse,
-    DiscoveryRankingResponse,
-    DiscoveryPaperDetailResponse,
-    DiscoverySimilarPapersResponse
 )
 from services.api.search_service import db_row_to_schema, run_search
 from services.api.settings import get_settings
-from services.api.discovery_service import get_discovery_service
-from radar_core.ranking.profiles import RankingProfileError
 
 DiscoveryRankingSortBy = Literal[
     "radar_score",
@@ -47,6 +50,21 @@ DiscoveryRankingSortBy = Literal[
     "trusted_demo_links_count",
     "hf_downloads_max",
     "hf_likes_max",
+]
+
+DiscoveryClusterSortBy = Literal[
+    "size_desc",
+    "cluster_id_asc",
+    "mean_radar_desc",
+    "artifact_ready_desc",
+]
+
+DiscoveryClusterPaperSortBy = Literal[
+    "rank",
+    "similarity_desc",
+    "radar_score",
+    "implementation_readiness_score",
+    "year_desc",
 ]
 
 logger = get_logger(__name__)
@@ -188,12 +206,16 @@ def reload_runtime() -> ReloadResponse:
 
     runtime = get_runtime()
     runtime.reload()
+
+    discovery_service = get_discovery_service()
+    discovery_service.reload()
+
     snapshot = runtime.runtime_snapshot()
 
     message = (
-        "DB backend runtime reloaded successfully"
+        "DB backend runtime and Discovery caches reloaded successfully"
         if snapshot["backend_mode"] == "db"
-        else "File backend runtime reloaded successfully"
+        else "File backend runtime and Discovery caches reloaded successfully"
     )
 
     return ReloadResponse(
@@ -502,6 +524,7 @@ def get_document_artifacts(
         results=rows,
     )
 
+
 @app.get("/discovery/profiles", response_model=DiscoveryProfilesResponse)
 def discovery_profiles() -> DiscoveryProfilesResponse:
     service = get_discovery_service()
@@ -557,6 +580,42 @@ def discovery_ranking(
     return DiscoveryRankingResponse(**payload)
 
 
+@app.get("/discovery/clusters", response_model=DiscoveryTopicClustersResponse)
+def discovery_topic_clusters(
+    limit: int = Query(20, ge=1, le=settings.max_top_k),
+    offset: int = Query(0, ge=0),
+    sort_by: DiscoveryClusterSortBy = Query("size_desc"),
+    include_representatives: bool = Query(True),
+) -> DiscoveryTopicClustersResponse:
+    service = get_discovery_service()
+    payload = service.get_topic_clusters(
+        limit=limit,
+        offset=offset,
+        sort_by=sort_by,
+        include_representatives=include_representatives,
+    )
+    return DiscoveryTopicClustersResponse(**payload)
+
+
+@app.get("/discovery/clusters/{cluster_id}", response_model=DiscoveryTopicClusterDetailResponse)
+def discovery_topic_cluster_detail(
+    cluster_id: int,
+    top_k: int = Query(20, ge=1, le=settings.max_top_k),
+    sort_by: DiscoveryClusterPaperSortBy = Query("rank"),
+) -> DiscoveryTopicClusterDetailResponse:
+    service = get_discovery_service()
+    payload = service.get_topic_cluster(
+        cluster_id=cluster_id,
+        top_k=top_k,
+        sort_by=sort_by,
+    )
+
+    if not payload["found"]:
+        raise HTTPException(status_code=404, detail=f"Topic cluster not found: {cluster_id}")
+
+    return DiscoveryTopicClusterDetailResponse(**payload)
+
+
 @app.get("/discovery/papers/{canonical_id}", response_model=DiscoveryPaperDetailResponse)
 def discovery_paper_detail(
     canonical_id: str,
@@ -603,3 +662,22 @@ def discovery_similar_papers(
         raise
 
     return DiscoverySimilarPapersResponse(**payload)
+
+
+@app.get(
+    "/discovery/papers/{canonical_id}/cluster",
+    response_model=DiscoveryPaperTopicClusterResponse,
+)
+def discovery_paper_topic_cluster(
+    canonical_id: str,
+) -> DiscoveryPaperTopicClusterResponse:
+    service = get_discovery_service()
+    payload = service.get_paper_topic_cluster(canonical_id=canonical_id)
+
+    if not payload["found"]:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Topic cluster assignment not found for paper: {canonical_id}",
+        )
+
+    return DiscoveryPaperTopicClusterResponse(**payload)

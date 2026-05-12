@@ -22,7 +22,7 @@ canonical_documents.jsonl = paper-level truth
 Postgres = materialized serving layer
 retrieval artifacts = derived retrieval layer
 artifact DB = derived evidence/materialization layer
-paper_features / ranking / detail / similar = derived discovery layer
+paper_features / ranking / detail / similar / topic clusters = derived discovery layer
 ```
 
 ---
@@ -80,6 +80,7 @@ Current product/discovery chain:
 ranking profile + query overrides
 → paper detail/card
 → similar papers
+→ topic cluster navigation
 → Discovery API
 → validators
 → strict DoD
@@ -222,6 +223,8 @@ data/enriched/github_artifacts/*
 data/enriched/huggingface_artifacts/*
 artifacts/retrieval/manifests/latest.json
 artifacts/retrieval/dense/*
+artifacts/clusters/topic/latest.json
+artifacts/clusters/topic/runs/<cluster_build_id>/*
 ```
 
 Discovery API does **not** redefine canonical truth. It materializes user-facing discovery workflows over already validated derived layers.
@@ -239,6 +242,7 @@ Current DiscoveryService cache behavior:
 - paper feature rows are cached process-locally;
 - feature/canonical lookup maps are cached process-locally;
 - dense bundle, normalized embeddings and dense id index are cached process-locally for similar-paper API calls;
+- topic cluster latest pointer, summaries, labels and assignments may be loaded/cached process-locally for topic-cluster API calls;
 - cache is runtime-only and is not a truth layer;
 - `POST /reload` reloads the main API runtime; DiscoveryService exposes its own internal reload behavior where used by API code.
 
@@ -611,6 +615,7 @@ Discovery API exposes the current product workflow:
 ranking profile + query overrides
 → paper detail/card
 → similar papers
+→ topic cluster navigation
 ```
 
 It is intentionally separated from `/search`, `/documents`, and `/artifacts`:
@@ -629,6 +634,9 @@ GET /discovery/profiles
 GET /discovery/ranking/{profile_name}
 GET /discovery/papers/{canonical_id}
 GET /discovery/papers/{canonical_id}/similar
+GET /discovery/clusters
+GET /discovery/clusters/{cluster_id}
+GET /discovery/papers/{canonical_id}/cluster
 ```
 
 Current quality gate:
@@ -1132,6 +1140,230 @@ This accelerates repeated `/similar` calls within the same API process. It does 
 
 ---
 
+
+## `GET /discovery/clusters`
+
+Lists the current topic clusters from the latest topic-cluster artifact.
+
+### Purpose
+
+Provides a corpus-level topic/navigation surface over the validated file-first topic clustering layer.
+
+This endpoint reads existing artifacts. It does not run clustering, recompute labels or mutate canonical paper truth.
+
+### Inputs used by the service
+
+```text
+artifacts/clusters/topic/latest.json
+artifacts/clusters/topic/runs/<cluster_build_id>/summary.json
+artifacts/clusters/topic/runs/<cluster_build_id>/label_candidates.json
+```
+
+### Query parameters
+
+| parameter | type | default | notes |
+|---|---:|---:|---|
+| `limit` | int | service default | number of clusters to return; used for lightweight UI/API smoke calls |
+
+No public sort/filter contract is required for v1.2. The current stable smoke path only requires `limit`.
+
+### Example
+
+```http
+GET /discovery/clusters?limit=5
+```
+
+### Response shape
+
+```json
+{
+  "mode": "topic_clusters",
+  "cluster_build_id": "20260511T151842Z",
+  "retrieval_build_id": "20260504T164021Z",
+  "cluster_count": 80,
+  "returned_count": 5,
+  "results": [
+    {
+      "cluster_id": 41,
+      "size": 1493,
+      "label_candidates": [
+        "object detection",
+        "convolutional neural networks",
+        "deep convolutional",
+        "transfer learning",
+        "data augmentation"
+      ],
+      "artifact_ready_count": 277,
+      "code_artifact_count": 274,
+      "dataset_artifact_count": 2,
+      "model_artifact_count": 0,
+      "demo_artifact_count": 1,
+      "mean_radar_score": 0.198332,
+      "mean_implementation_readiness_score": 0.090706,
+      "mean_source_confidence_score": 0.501072,
+      "mean_citation_signal_score": 0.060151,
+      "top_source_families": [
+        ["arxiv", 1493],
+        ["openalex", 191]
+      ],
+      "representative_papers": [
+        {
+          "canonical_id": "b5db7b3c32a99cb303a7a5bd814c1ce0",
+          "title": "Training Vision Transformers with Only 2040 Images",
+          "year": 2022,
+          "distance_to_centroid": 0.581252,
+          "similarity_to_centroid": 0.826748
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Semantics
+
+```text
+cluster_id is stable only inside a specific cluster_build_id/config/input corpus
+label_candidates are heuristic hints, not curated taxonomy
+representative_papers are inspection/navigation aids, not canonical labels
+```
+
+---
+
+## `GET /discovery/clusters/{cluster_id}`
+
+Returns detail for one topic cluster.
+
+### Purpose
+
+Provides a cluster-level view for UI and API clients: summary, label candidates, representative papers and a limited set of papers from the cluster.
+
+### Path parameters
+
+```text
+cluster_id
+```
+
+### Query parameters
+
+| parameter | type | default | notes |
+|---|---:|---:|---|
+| `top_k` | int | service default | number of papers to return from the cluster |
+
+### Example
+
+```http
+GET /discovery/clusters/41?top_k=5
+```
+
+### Response shape
+
+```json
+{
+  "mode": "topic_cluster_detail",
+  "cluster_id": 41,
+  "cluster_build_id": "20260511T151842Z",
+  "retrieval_build_id": "20260504T164021Z",
+  "found": true,
+  "total_papers": 1493,
+  "returned_papers_count": 5,
+  "summary": {
+    "cluster_id": 41,
+    "size": 1493,
+    "label_candidates": [
+      "object detection",
+      "convolutional neural networks",
+      "deep convolutional",
+      "transfer learning",
+      "data augmentation"
+    ],
+    "mean_radar_score": 0.198332,
+    "artifact_ready_count": 277
+  },
+  "papers": [
+    {
+      "canonical_id": "b5db7b3c32a99cb303a7a5bd814c1ce0",
+      "title": "Training Vision Transformers with Only 2040 Images",
+      "year": 2022,
+      "rank_within_cluster": 1,
+      "distance_to_centroid": 0.581252,
+      "similarity_to_centroid": 0.826748,
+      "radar_score": 0.15,
+      "implementation_readiness_score": 0.0,
+      "has_code_artifact": false
+    }
+  ]
+}
+```
+
+### Missing cluster
+
+Unknown cluster IDs return an error response, typically:
+
+```text
+404
+```
+
+---
+
+## `GET /discovery/papers/{canonical_id}/cluster`
+
+Returns the latest topic-cluster assignment for one paper.
+
+### Purpose
+
+Connects paper detail/similar-paper workflows to the corpus-level topic landscape.
+
+This endpoint is useful for linking from a paper card to its broader topic cluster.
+
+### Path parameters
+
+```text
+canonical_id
+```
+
+### Example
+
+```http
+GET /discovery/papers/bd3c9332f17370fa801e6ac9542f125a/cluster
+```
+
+### Response shape
+
+```json
+{
+  "mode": "paper_topic_cluster",
+  "canonical_id": "bd3c9332f17370fa801e6ac9542f125a",
+  "found": true,
+  "assignment": {
+    "canonical_id": "bd3c9332f17370fa801e6ac9542f125a",
+    "cluster_id": 22,
+    "cluster_build_id": "20260511T151842Z",
+    "retrieval_build_id": "20260504T164021Z",
+    "rank_within_cluster": 1,
+    "distance_to_centroid": 0.548,
+    "similarity_to_centroid": 0.82
+  },
+  "cluster": {
+    "cluster_id": 22,
+    "size": 936,
+    "label_candidates": [
+      "automatic speech recognition",
+      "large language models",
+      "natural language processing",
+      "word error rate",
+      "speaker verification"
+    ]
+  }
+}
+```
+
+### Missing paper / assignment
+
+If the paper does not exist or has no assignment in the current topic-cluster artifact, the endpoint returns an error response.
+
+---
+
 # Documents API
 
 ## `GET /documents`
@@ -1521,6 +1753,9 @@ with status:
 | `GET /discovery/ranking/{profile_name}` | yes | yes* | file-first DiscoveryService; supports profile + query overrides |
 | `GET /discovery/papers/{canonical_id}` | yes | yes* | file-first DiscoveryService |
 | `GET /discovery/papers/{canonical_id}/similar` | yes | yes* | file-first DiscoveryService with dense runtime cache |
+| `GET /discovery/clusters` | yes | yes* | file-first DiscoveryService over topic cluster artifacts |
+| `GET /discovery/clusters/{cluster_id}` | yes | yes* | file-first DiscoveryService over topic cluster artifacts |
+| `GET /discovery/papers/{canonical_id}/cluster` | yes | yes* | file-first DiscoveryService over topic cluster artifacts |
 
 `yes*` means the endpoint itself is served by file-first DiscoveryService. The enclosing app runtime still starts according to `ML_RADAR_SEARCH_BACKEND`.
 
@@ -1536,13 +1771,13 @@ python -m pytest tests/integration/test_api_discovery.py -q
 python -m scripts.validation.check_discovery_api --strict
 ```
 
-The Discovery API quality gate checks both the base ranking endpoint and the v1.1 ranking override smoke:
+The Discovery API quality gate checks the base ranking endpoint, the v1.1 ranking override smoke and the v1.2 topic-cluster endpoint smoke:
 
 ```http
 GET /discovery/ranking/recent_artifact_ready?top_k=5&min_year=2025&has_code=true
 ```
 
-Required v1.1 checks include:
+Required v1.1 ranking override checks include:
 
 ```text
 discovery_api_ranking_overrides_endpoint_ok
@@ -1550,6 +1785,39 @@ discovery_api_ranking_overrides_results_non_empty
 discovery_api_ranking_overrides_min_year_filter_echoed
 discovery_api_ranking_overrides_has_code_filter_echoed
 discovery_api_ranking_overrides_results_match_filters
+```
+
+Required v1.2 topic-cluster checks include:
+
+```text
+topic_clusters_endpoint_ok
+topic_clusters_results_non_empty
+topic_clusters_returned_count_matches
+topic_clusters_cluster_ids_present
+topic_clusters_label_candidates_present
+topic_cluster_detail_endpoint_ok
+topic_cluster_detail_found
+topic_cluster_detail_label_candidates_present
+topic_cluster_detail_papers_non_empty
+paper_topic_cluster_endpoint_ok
+paper_topic_cluster_found
+paper_topic_cluster_assignment_present
+paper_topic_cluster_cluster_present
+paper_topic_cluster_id_match
+```
+
+## Topic cluster checks
+
+```bat
+python -m scripts.validation.check_topic_clusters --strict
+```
+
+Topic-cluster API endpoint checks are included in:
+
+```bat
+set ML_RADAR_SEARCH_BACKEND=file
+python -m pytest tests/integration/test_api_discovery.py -q
+python -m scripts.validation.check_discovery_api --strict
 ```
 
 ## Similar papers checks
@@ -1609,11 +1877,12 @@ The current API reflects the project architecture:
 - Postgres is a materialized serving layer;
 - retrieval artifacts remain file-based derived artifacts;
 - artifact layer is a separate DB-backed evidence/materialization plane;
-- feature/ranking/detail/similar layers are derived discovery/product layers;
+- feature/ranking/detail/similar/topic-cluster layers are derived discovery/product layers;
 - file and DB backends are intentionally asymmetric;
 - artifact API is DB-only in v1;
 - Discovery API is file-first;
 - Discovery ranking uses profiles as base presets and query parameters as explicit overrides;
+- Discovery topic-cluster endpoints serve existing validated cluster artifacts and do not compute clustering at request time;
 - `has_code_link` remains a legacy canonical/source field;
 - trusted artifact filters operate through `paper_artifact_links`;
 - GitHub/HF enrichment is artifact metadata, not paper truth;
@@ -1626,13 +1895,14 @@ The current API reflects the project architecture:
 Near-term:
 
 ```text
-Discovery UI v0.1:
-  thin Streamlit client over /discovery/*
-  profile selector
-  ranking query overrides
-  paper cards
-  paper detail
-  similar papers panel
+Streamlit Topic/Cluster Tab v0.1:
+  thin Streamlit client over /discovery/clusters*
+  cluster list/table
+  label candidates
+  cluster size and artifact-ready signals
+  selected cluster detail
+  representative/top papers in cluster
+  link from paper detail to its topic cluster
 ```
 
 Possible follow-up Discovery API ergonomics:
@@ -1640,7 +1910,8 @@ Possible follow-up Discovery API ergonomics:
 ```text
 compact paper detail view
 smaller artifact metadata view
-endpoint examples for UI
+cluster endpoint examples for UI
+cluster API latency/cache diagnostics
 better latency diagnostics
 explicit DiscoveryService cache stats
 lighter discovery validator startup path if needed

@@ -17,6 +17,7 @@ DEFAULT_BACKEND_MODE = "file"
 OVERRIDE_RANKING_PROFILE = "recent_artifact_ready"
 OVERRIDE_MIN_YEAR = 2025
 OVERRIDE_HAS_CODE = True
+CLUSTER_LIST_LIMIT = 5
 
 REQUIRED_PROFILE_NAMES = {
     "recent_artifact_ready",
@@ -84,6 +85,7 @@ def build_markdown(report: dict[str, Any]) -> str:
     for name, payload in report["endpoints"].items():
         lines.append(f"### {name}")
         lines.append(f"- path: `{payload.get('path')}`")
+        lines.append(f"- params: `{payload.get('params')}`")
         lines.append(f"- status_code: `{payload.get('status_code')}`")
         lines.append(f"- ok: `{payload.get('ok')}`")
         if payload.get("error"):
@@ -119,6 +121,18 @@ def request_json(
         "ok": 200 <= response.status_code < 300,
         "json": payload,
     }
+
+
+def endpoint_meta(result: dict[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in result.items() if key != "json"}
+
+
+def is_non_empty_dict(value: Any) -> bool:
+    return isinstance(value, dict) and bool(value)
+
+
+def is_non_empty_list(value: Any) -> bool:
+    return isinstance(value, list) and bool(value)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -159,11 +173,11 @@ def main() -> None:
 
     with TestClient(app) as client:
         profiles = request_json(client, "/discovery/profiles")
-        endpoints["profiles"] = {
-            key: value for key, value in profiles.items() if key != "json"
-        }
+        endpoints["profiles"] = endpoint_meta(profiles)
 
-        profiles_payload = profiles.get("json") if isinstance(profiles.get("json"), dict) else {}
+        profiles_payload = (
+            profiles.get("json") if isinstance(profiles.get("json"), dict) else {}
+        )
         profile_names = {
             item.get("name")
             for item in profiles_payload.get("profiles", [])
@@ -175,12 +189,13 @@ def main() -> None:
             f"/discovery/ranking/{args.profile}",
             params={"top_k": args.top_k},
         )
-        endpoints["ranking"] = {
-            key: value for key, value in ranking.items() if key != "json"
-        }
+        endpoints["ranking"] = endpoint_meta(ranking)
 
-        ranking_payload = ranking.get("json") if isinstance(ranking.get("json"), dict) else {}
+        ranking_payload = (
+            ranking.get("json") if isinstance(ranking.get("json"), dict) else {}
+        )
         ranking_results = ranking_payload.get("results") or []
+
         ranking_overrides = request_json(
             client,
             f"/discovery/ranking/{OVERRIDE_RANKING_PROFILE}",
@@ -190,43 +205,66 @@ def main() -> None:
                 "has_code": str(OVERRIDE_HAS_CODE).lower(),
             },
         )
-        endpoints["ranking_overrides"] = {
-            key: value for key, value in ranking_overrides.items() if key != "json"
-        }
+        endpoints["ranking_overrides"] = endpoint_meta(ranking_overrides)
+
+        topic_clusters = request_json(
+            client,
+            "/discovery/clusters",
+            params={"limit": CLUSTER_LIST_LIMIT},
+        )
+        endpoints["topic_clusters"] = endpoint_meta(topic_clusters)
+
+        topic_clusters_payload = (
+            topic_clusters.get("json")
+            if isinstance(topic_clusters.get("json"), dict)
+            else {}
+        )
+        topic_cluster_results = topic_clusters_payload.get("results") or []
+        topic_cluster_id = None
+        if topic_cluster_results and isinstance(topic_cluster_results[0], dict):
+            topic_cluster_id = topic_cluster_results[0].get("cluster_id")
+
+        topic_cluster_detail: dict[str, Any] = {}
+        if topic_cluster_id is not None:
+            topic_cluster_detail = request_json(
+                client,
+                f"/discovery/clusters/{topic_cluster_id}",
+                params={"top_k": args.top_k},
+            )
+            endpoints["topic_cluster_detail"] = endpoint_meta(topic_cluster_detail)
 
         canonical_id = args.canonical_id
         if not canonical_id and ranking_results:
             canonical_id = ranking_results[0].get("canonical_id")
 
-        detail = {}
-        similar_semantic = {}
-        similar_radar_adjusted = {}
+        detail: dict[str, Any] = {}
+        similar_semantic: dict[str, Any] = {}
+        similar_radar_adjusted: dict[str, Any] = {}
+        paper_topic_cluster: dict[str, Any] = {}
 
         if canonical_id:
             detail = request_json(client, f"/discovery/papers/{canonical_id}")
-            endpoints["paper_detail"] = {
-                key: value for key, value in detail.items() if key != "json"
-            }
+            endpoints["paper_detail"] = endpoint_meta(detail)
 
             similar_semantic = request_json(
                 client,
                 f"/discovery/papers/{canonical_id}/similar",
                 params={"top_k": args.top_k, "rank_by": "semantic"},
             )
-            endpoints["similar_semantic"] = {
-                key: value for key, value in similar_semantic.items() if key != "json"
-            }
+            endpoints["similar_semantic"] = endpoint_meta(similar_semantic)
 
             similar_radar_adjusted = request_json(
                 client,
                 f"/discovery/papers/{canonical_id}/similar",
                 params={"top_k": args.top_k, "rank_by": "radar_adjusted"},
             )
-            endpoints["similar_radar_adjusted"] = {
-                key: value
-                for key, value in similar_radar_adjusted.items()
-                if key != "json"
-            }
+            endpoints["similar_radar_adjusted"] = endpoint_meta(similar_radar_adjusted)
+
+            paper_topic_cluster = request_json(
+                client,
+                f"/discovery/papers/{canonical_id}/cluster",
+            )
+            endpoints["paper_topic_cluster"] = endpoint_meta(paper_topic_cluster)
 
     detail_payload = detail.get("json") if isinstance(detail.get("json"), dict) else {}
     ranking_overrides_payload = (
@@ -240,7 +278,11 @@ def main() -> None:
         if isinstance(ranking_overrides_payload.get("filters"), dict)
         else {}
     )
-    detail_body = detail_payload.get("detail") if isinstance(detail_payload.get("detail"), dict) else {}
+    detail_body = (
+        detail_payload.get("detail")
+        if isinstance(detail_payload.get("detail"), dict)
+        else {}
+    )
 
     similar_payload = (
         similar_semantic.get("json")
@@ -271,6 +313,26 @@ def main() -> None:
         if isinstance(value, int | float)
     ]
 
+    topic_cluster_detail_payload = (
+        topic_cluster_detail.get("json")
+        if isinstance(topic_cluster_detail.get("json"), dict)
+        else {}
+    )
+    topic_cluster_detail_summary = (
+        topic_cluster_detail_payload.get("summary")
+        if isinstance(topic_cluster_detail_payload.get("summary"), dict)
+        else {}
+    )
+    topic_cluster_detail_papers = topic_cluster_detail_payload.get("papers") or []
+
+    paper_topic_cluster_payload = (
+        paper_topic_cluster.get("json")
+        if isinstance(paper_topic_cluster.get("json"), dict)
+        else {}
+    )
+    paper_topic_cluster_assignment = paper_topic_cluster_payload.get("assignment")
+    paper_topic_cluster_cluster = paper_topic_cluster_payload.get("cluster")
+
     missing_required_profiles = sorted(REQUIRED_PROFILE_NAMES - profile_names)
 
     ranking_overrides_results_match_filters = (
@@ -283,6 +345,40 @@ def main() -> None:
         )
     )
 
+    topic_clusters_label_candidates_present = (
+        len(topic_cluster_results) > 0
+        and all(
+            isinstance(row, dict)
+            and is_non_empty_list(row.get("label_candidates"))
+            for row in topic_cluster_results
+        )
+    )
+    topic_clusters_cluster_ids_present = (
+        len(topic_cluster_results) > 0
+        and all(
+            isinstance(row, dict) and isinstance(row.get("cluster_id"), int)
+            for row in topic_cluster_results
+        )
+    )
+    topic_clusters_returned_count_matches = (
+        topic_clusters_payload.get("returned_count") == len(topic_cluster_results)
+        and len(topic_cluster_results) > 0
+    )
+    topic_cluster_detail_found = (
+        topic_cluster_detail_payload.get("found") is True
+        and topic_cluster_detail_payload.get("cluster_id") == topic_cluster_id
+    )
+    paper_topic_cluster_found = (
+        paper_topic_cluster_payload.get("found") is True
+        and paper_topic_cluster_payload.get("canonical_id") == canonical_id
+    )
+    paper_topic_cluster_id_match = (
+        is_non_empty_dict(paper_topic_cluster_assignment)
+        and is_non_empty_dict(paper_topic_cluster_cluster)
+        and paper_topic_cluster_assignment.get("cluster_id")
+        == paper_topic_cluster_cluster.get("cluster_id")
+    )
+
     checks = {
         "profiles_endpoint_ok": bool(profiles.get("ok")),
         "profiles_non_empty": int(profiles_payload.get("profile_count") or 0) > 0,
@@ -292,12 +388,24 @@ def main() -> None:
         "ranking_overrides_endpoint_ok": bool(ranking_overrides.get("ok")),
         "ranking_overrides_results_non_empty": len(ranking_overrides_results) > 0,
         "ranking_overrides_min_year_filter_echoed": (
-                ranking_overrides_filters.get("min_year") == OVERRIDE_MIN_YEAR
+            ranking_overrides_filters.get("min_year") == OVERRIDE_MIN_YEAR
         ),
         "ranking_overrides_has_code_filter_echoed": (
-                ranking_overrides_filters.get("has_code") is True
+            ranking_overrides_filters.get("has_code") is True
         ),
         "ranking_overrides_results_match_filters": ranking_overrides_results_match_filters,
+        "topic_clusters_endpoint_ok": bool(topic_clusters.get("ok")),
+        "topic_clusters_results_non_empty": len(topic_cluster_results) > 0,
+        "topic_clusters_returned_count_matches": topic_clusters_returned_count_matches,
+        "topic_clusters_cluster_ids_present": topic_clusters_cluster_ids_present,
+        "topic_clusters_label_candidates_present": topic_clusters_label_candidates_present,
+        "topic_cluster_id_resolved": topic_cluster_id is not None,
+        "topic_cluster_detail_endpoint_ok": bool(topic_cluster_detail.get("ok")),
+        "topic_cluster_detail_found": topic_cluster_detail_found,
+        "topic_cluster_detail_label_candidates_present": is_non_empty_list(
+            topic_cluster_detail_summary.get("label_candidates")
+        ),
+        "topic_cluster_detail_papers_non_empty": len(topic_cluster_detail_papers) > 0,
         "canonical_id_resolved": bool(canonical_id),
         "detail_endpoint_ok": bool(detail.get("ok")),
         "detail_found": bool(detail_payload.get("found")),
@@ -316,6 +424,15 @@ def main() -> None:
             adjusted_scores_numeric == sorted(adjusted_scores_numeric, reverse=True)
             and len(adjusted_scores_numeric) == len(adjusted_results)
         ),
+        "paper_topic_cluster_endpoint_ok": bool(paper_topic_cluster.get("ok")),
+        "paper_topic_cluster_found": paper_topic_cluster_found,
+        "paper_topic_cluster_assignment_present": is_non_empty_dict(
+            paper_topic_cluster_assignment
+        ),
+        "paper_topic_cluster_cluster_present": is_non_empty_dict(
+            paper_topic_cluster_cluster
+        ),
+        "paper_topic_cluster_id_match": paper_topic_cluster_id_match,
     }
 
     required_failed_checks = [name for name, ok in checks.items() if not ok]
@@ -331,6 +448,7 @@ def main() -> None:
             "profile": args.profile,
             "top_k": args.top_k,
             "canonical_id_arg": args.canonical_id,
+            "cluster_list_limit": CLUSTER_LIST_LIMIT,
             "required_profile_names": sorted(REQUIRED_PROFILE_NAMES),
         },
         "summary": {
@@ -343,10 +461,27 @@ def main() -> None:
             "ranking_overrides_min_year": OVERRIDE_MIN_YEAR,
             "ranking_overrides_has_code": OVERRIDE_HAS_CODE,
             "ranking_overrides_results_count": len(ranking_overrides_results),
+            "topic_cluster_count": (
+                topic_clusters_payload.get("cluster_count")
+                or topic_clusters_payload.get("total_cluster_count")
+            ),
+            "topic_clusters_returned_count": len(topic_cluster_results),
+            "topic_cluster_id": topic_cluster_id,
+            "topic_cluster_detail_total_papers": topic_cluster_detail_payload.get(
+                "total_papers"
+            ),
+            "topic_cluster_detail_returned_papers_count": len(
+                topic_cluster_detail_papers
+            ),
             "canonical_id": canonical_id,
             "detail_title": detail_body.get("title"),
             "similar_semantic_results_count": len(similar_results),
             "similar_radar_adjusted_results_count": len(adjusted_results),
+            "paper_topic_cluster_cluster_id": (
+                paper_topic_cluster_assignment.get("cluster_id")
+                if isinstance(paper_topic_cluster_assignment, dict)
+                else None
+            ),
         },
         "checks": checks,
         "endpoints": endpoints,
