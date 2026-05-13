@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Iterable
+from typing import Any
 
 import pandas as pd
 import requests
@@ -145,6 +145,24 @@ def fetch_similar_papers(
         params={"top_k": top_k, "rank_by": rank_by},
     )
 
+def fetch_topic_clusters(base_url: str, params: dict[str, Any]) -> dict[str, Any]:
+    return api_get(base_url, "/discovery/clusters", params=params)
+
+
+def fetch_topic_cluster_detail(
+    base_url: str,
+    cluster_id: int,
+    *,
+    top_k: int,
+) -> dict[str, Any]:
+    return api_get(
+        base_url,
+        f"/discovery/clusters/{cluster_id}",
+        params={"top_k": top_k},
+    )
+
+def fetch_paper_topic_cluster(base_url: str, canonical_id: str) -> dict[str, Any]:
+    return api_get(base_url, f"/discovery/papers/{canonical_id}/cluster")
 
 def clear_api_caches() -> None:
     api_get.clear()
@@ -292,12 +310,20 @@ def init_ui_state() -> None:
         "similar_rank_by": "semantic",
         "ranking_payload": None,
         "selected_canonical_id": None,
+        "cluster_limit": 10,
+        "cluster_min_size": 1,
+        "cluster_sort_by": "size_desc",
+        "cluster_payload": None,
+        "selected_cluster_id": None,
+        "cluster_detail_top_k": 10,
     }
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
 
     for key in BOOL_FILTER_KEYS:
         st.session_state.setdefault(key, "Profile default")
+        if st.session_state.get("cluster_sort_by") not in CLUSTER_SORT_OPTIONS:
+            st.session_state["cluster_sort_by"] = "size_desc"
 
 
 def reset_discovery_filters(default_profile: str | None = None) -> None:
@@ -901,6 +927,272 @@ def render_similar_papers(base_url: str, canonical_id: str) -> None:
 
 
 # --------------------------------------------------------------------------------------
+# Topic clusters
+# --------------------------------------------------------------------------------------
+
+
+CLUSTER_SORT_OPTIONS = [
+    "size_desc",
+    "cluster_id_asc",
+    "mean_radar_desc",
+    "artifact_ready_desc",
+]
+
+CLUSTER_SORT_LABELS = {
+    "size_desc": "Size ↓",
+    "cluster_id_asc": "Cluster ID ↑",
+    "mean_radar_desc": "Mean radar score ↓",
+    "artifact_ready_desc": "Artifact-ready papers ↓",
+}
+
+
+def cluster_summary_row(row: dict[str, Any]) -> dict[str, Any]:
+    labels = row.get("label_candidates") or []
+    representative_title = row.get("representative_title")
+
+    if not representative_title:
+        representative_papers = row.get("representative_papers") or []
+        if representative_papers and isinstance(representative_papers[0], dict):
+            representative_title = representative_papers[0].get("title")
+
+    return {
+        "cluster_id": row.get("cluster_id"),
+        "size": row.get("size"),
+        "labels": ", ".join(str(x) for x in labels[:5]),
+        "artifact_ready": row.get("artifact_ready_count"),
+        "code": row.get("code_artifact_count"),
+        "dataset": row.get("dataset_artifact_count"),
+        "model": row.get("model_artifact_count"),
+        "demo": row.get("demo_artifact_count"),
+        "mean_radar": row.get("mean_radar_score"),
+        "mean_impl": row.get("mean_implementation_readiness_score"),
+        "representative_title": representative_title,
+    }
+
+
+def cluster_paper_row(row: dict[str, Any], rank: int) -> dict[str, Any]:
+    return {
+        "rank": row.get("rank") or row.get("rank_within_cluster") or rank,
+        "year": row.get("year"),
+        "title": row.get("title"),
+        "radar": row.get("radar_score"),
+        "impl": row.get("implementation_readiness_score"),
+        "distance": row.get("distance_to_centroid"),
+        "similarity": row.get("similarity_to_centroid"),
+        "code": row.get("has_code_artifact"),
+        "dataset": row.get("has_dataset_artifact"),
+        "model": row.get("has_model_artifact"),
+        "demo": row.get("has_demo_artifact"),
+        "canonical_id": row.get("canonical_id"),
+    }
+
+
+def render_topic_cluster_metrics(payload: dict[str, Any]) -> None:
+    cols = st.columns(5)
+    cols[0].metric("Clusters", payload.get("cluster_count") or payload.get("total_cluster_count", "—"))
+    cols[1].metric("Returned", payload.get("returned_count", "—"))
+    cols[2].metric("Build", compact_id(payload.get("cluster_build_id"), n=6))
+    cols[3].metric("Retrieval", compact_id(payload.get("retrieval_build_id"), n=6))
+    cols[4].metric("Mode", payload.get("mode", "topic_clusters"))
+
+
+def render_topic_cluster_detail(base_url: str, cluster_id: int) -> None:
+    try:
+        with st.spinner(f"Loading topic cluster {cluster_id}..."):
+            payload = fetch_topic_cluster_detail(
+                base_url,
+                cluster_id,
+                top_k=int(st.session_state["cluster_detail_top_k"]),
+            )
+    except Exception as exc:
+        st.error(str(exc))
+        return
+
+    summary = payload.get("summary") or payload.get("cluster") or {}
+    papers = payload.get("papers") or payload.get("results") or []
+
+    st.markdown(f"### Cluster {cluster_id}")
+
+    labels = summary.get("label_candidates") or payload.get("label_candidates") or []
+    if labels:
+        st.caption(" · ".join(f"`{label}`" for label in labels[:8]))
+
+    cols = st.columns(6)
+    cols[0].metric("Total papers", payload.get("total_papers") or summary.get("size", "—"))
+    cols[1].metric("Returned", payload.get("returned_papers_count") or len(papers))
+    cols[2].metric("Artifact-ready", summary.get("artifact_ready_count", "—"))
+    cols[3].metric("Code", summary.get("code_artifact_count", "—"))
+    cols[4].metric("Mean radar", fmt_score(summary.get("mean_radar_score")))
+    cols[5].metric("Mean impl", fmt_score(summary.get("mean_implementation_readiness_score")))
+
+    with st.expander("Cluster summary JSON", expanded=False):
+        st.json(summary)
+
+    if papers:
+        st.markdown("#### Papers in cluster")
+        st.dataframe(
+            pd.DataFrame([cluster_paper_row(row, idx) for idx, row in enumerate(papers, start=1)]),
+            hide_index=True,
+            width="stretch",
+        )
+
+        for idx, row in enumerate(papers, start=1):
+            with st.container(border=True):
+                st.markdown(f"### {idx}. {row.get('title', 'Untitled')}")
+                render_badges(row)
+
+                paper_cols = st.columns(5)
+                paper_cols[0].metric("Year", dash(row.get("year")))
+                paper_cols[1].metric("Radar", fmt_score(row.get("radar_score")))
+                paper_cols[2].metric("Impl", fmt_score(row.get("implementation_readiness_score")))
+                paper_cols[3].metric("Distance", fmt_score(row.get("distance_to_centroid"), 4))
+                paper_cols[4].metric("Similarity", fmt_score(row.get("similarity_to_centroid"), 4))
+
+                st.caption(
+                    f"Sources: {summarize_sources(row.get('source_families'))} · "
+                    f"ID: `{compact_id(row.get('canonical_id'))}`"
+                )
+    else:
+        st.warning("No papers returned for this cluster.")
+
+    with st.expander("Raw cluster detail response", expanded=False):
+        st.json(payload)
+
+
+def render_topic_clusters(base_url: str) -> None:
+    st.subheader("Topic clusters")
+    st.caption(
+        "Corpus-level topic navigation over precomputed cluster artifacts. "
+        "The UI calls `/discovery/clusters`; it does not run clustering locally."
+    )
+
+    control_cols = st.columns([1, 1, 1, 2])
+    with control_cols[0]:
+        st.number_input(
+            "Cluster limit",
+            min_value=1,
+            max_value=100,
+            step=1,
+            key="cluster_limit",
+        )
+    with control_cols[1]:
+        st.number_input(
+            "Min cluster size",
+            min_value=1,
+            max_value=100000,
+            step=1,
+            key="cluster_min_size",
+        )
+    with control_cols[2]:
+        st.selectbox(
+            "Cluster sort by",
+            CLUSTER_SORT_OPTIONS,
+            key="cluster_sort_by",
+            format_func=lambda value: CLUSTER_SORT_LABELS.get(value, value),
+        )
+    with control_cols[3]:
+        st.number_input(
+            "Cluster detail top K",
+            min_value=1,
+            max_value=100,
+            step=1,
+            key="cluster_detail_top_k",
+        )
+
+    if st.button("Load topic clusters", type="primary", width="stretch"):
+        try:
+            params = {
+                "limit": int(st.session_state["cluster_limit"]),
+                "min_size": int(st.session_state["cluster_min_size"]),
+                "sort_by": st.session_state["cluster_sort_by"],
+            }
+            with st.spinner("Loading topic clusters..."):
+                payload = fetch_topic_clusters(base_url, params)
+            st.session_state["cluster_payload"] = payload
+
+            results = payload.get("results") or []
+            if results and isinstance(results[0], dict):
+                st.session_state["selected_cluster_id"] = int(results[0]["cluster_id"])
+        except Exception as exc:
+            st.error(str(exc))
+            return
+
+    payload = st.session_state.get("cluster_payload")
+    if not payload:
+        st.info("Click **Load topic clusters** to browse the topic landscape.")
+        return
+
+    render_topic_cluster_metrics(payload)
+
+    results = payload.get("results") or []
+    if not results:
+        st.warning("No clusters matched the current filters.")
+        with st.expander("Raw clusters response", expanded=False):
+            st.json(payload)
+        return
+
+    table_rows = [cluster_summary_row(row) for row in results]
+    st.markdown("#### Cluster list")
+    st.dataframe(pd.DataFrame(table_rows), hide_index=True, width="stretch")
+
+    cluster_ids = [int(row["cluster_id"]) for row in results if row.get("cluster_id") is not None]
+    labels = {
+        int(row["cluster_id"]): (
+            f"{row.get('cluster_id')} · size={row.get('size')} · "
+            f"{', '.join(str(x) for x in (row.get('label_candidates') or [])[:3])}"
+        )
+        for row in results
+        if row.get("cluster_id") is not None
+    }
+
+    if not cluster_ids:
+        st.warning("Cluster IDs were not present in the response.")
+        return
+
+    if st.session_state.get("selected_cluster_id") not in cluster_ids:
+        st.session_state["selected_cluster_id"] = cluster_ids[0]
+
+    selected_cluster_id = st.selectbox(
+        "Open cluster detail",
+        cluster_ids,
+        format_func=lambda cid: labels.get(cid, str(cid)),
+        key="selected_cluster_id",
+    )
+
+    render_topic_cluster_detail(base_url, int(selected_cluster_id))
+
+    with st.expander("Raw clusters response", expanded=False):
+        st.json(payload)
+
+
+def render_selected_paper_topic_cluster(base_url: str, canonical_id: str) -> None:
+    st.subheader("Selected paper topic cluster")
+
+    try:
+        with st.spinner("Loading selected paper topic cluster..."):
+            payload = fetch_paper_topic_cluster(base_url, canonical_id)
+    except Exception as exc:
+        st.error(str(exc))
+        return
+
+    assignment = payload.get("assignment") or {}
+    cluster = payload.get("cluster") or {}
+
+    cols = st.columns(5)
+    cols[0].metric("Cluster ID", assignment.get("cluster_id", "—"))
+    cols[1].metric("Rank in cluster", assignment.get("rank_within_cluster", "—"))
+    cols[2].metric("Distance", fmt_score(assignment.get("distance_to_centroid"), 4))
+    cols[3].metric("Similarity", fmt_score(assignment.get("similarity_to_centroid"), 4))
+    cols[4].metric("Cluster size", cluster.get("size", "—"))
+
+    labels = cluster.get("label_candidates") or []
+    if labels:
+        st.caption(" · ".join(f"`{label}`" for label in labels[:8]))
+
+    with st.expander("Paper topic cluster JSON", expanded=False):
+        st.json(payload)
+
+# --------------------------------------------------------------------------------------
 # Main app
 # --------------------------------------------------------------------------------------
 
@@ -914,76 +1206,83 @@ def main() -> None:
 
     api_base_url, run_clicked = render_sidebar(base_url, profiles_payload)
 
-    if run_clicked:
-        try:
-            params = build_ranking_params()
-            with st.spinner("Loading discovery ranking..."):
-                payload = fetch_ranking(api_base_url, st.session_state["profile_name"], params)
-            st.session_state["ranking_payload"] = payload
-            results = payload.get("results") or []
-            st.session_state["selected_canonical_id"] = (
-                results[0].get("canonical_id") if results and isinstance(results[0], dict) else None
+    ranking_tab, clusters_tab = st.tabs(["Discovery ranking", "Topic clusters"])
+
+    with ranking_tab:
+        if run_clicked:
+            try:
+                params = build_ranking_params()
+                with st.spinner("Loading discovery ranking..."):
+                    payload = fetch_ranking(api_base_url, st.session_state["profile_name"], params)
+                st.session_state["ranking_payload"] = payload
+                results = payload.get("results") or []
+                st.session_state["selected_canonical_id"] = (
+                    results[0].get("canonical_id") if results and isinstance(results[0], dict) else None
+                )
+            except ValueError:
+                st.error("Min year / Max year must be integer values.")
+                st.stop()
+            except Exception as exc:
+                st.error(str(exc))
+                st.stop()
+
+        payload = st.session_state.get("ranking_payload")
+        if not payload:
+            st.info("Choose a discovery profile, optionally set overrides, and click **Run discovery ranking**.")
+            st.markdown(
+                "Recommended first smoke: `recent_artifact_ready` + `min_year=2025` + `Code artifact=True`."
             )
-        except ValueError:
-            st.error("Min year / Max year must be integer values.")
-            st.stop()
-        except Exception as exc:
-            st.error(str(exc))
-            st.stop()
+        else:
+            results = render_ranking(payload)
 
-    payload = st.session_state.get("ranking_payload")
-    if not payload:
-        st.info("Choose a discovery profile, optionally set overrides, and click **Run discovery ranking**.")
-        st.markdown(
-            "Recommended first smoke: `recent_artifact_ready` + `min_year=2025` + `Code artifact=True`."
-        )
-        return
+            if results:
+                st.markdown("---")
+                st.subheader("Selected paper")
 
-    results = render_ranking(payload)
-    if not results:
-        with st.expander("Raw ranking response", expanded=False):
-            st.json(payload)
-        return
+                options = [row.get("canonical_id") for row in results if row.get("canonical_id")]
+                labels = {
+                    row.get("canonical_id"): f"{idx}. {row.get('year', '—')} · {row.get('title', 'Untitled')[:100]}"
+                    for idx, row in enumerate(results, start=1)
+                    if row.get("canonical_id")
+                }
 
-    st.markdown("---")
-    st.subheader("Selected paper")
+                if st.session_state.get("selected_canonical_id") not in options:
+                    st.session_state["selected_canonical_id"] = options[0]
 
-    options = [row.get("canonical_id") for row in results if row.get("canonical_id")]
-    labels = {
-        row.get("canonical_id"): f"{idx}. {row.get('year', '—')} · {row.get('title', 'Untitled')[:100]}"
-        for idx, row in enumerate(results, start=1)
-        if row.get("canonical_id")
-    }
+                selected = st.selectbox(
+                    "Open paper detail",
+                    options,
+                    format_func=lambda cid: labels.get(cid, cid),
+                    key="selected_canonical_id",
+                )
 
-    if st.session_state.get("selected_canonical_id") not in options:
-        st.session_state["selected_canonical_id"] = options[0]
+                if selected:
+                    detail_tab, similar_tab, paper_cluster_tab, raw_tab = st.tabs(
+                        ["Paper detail", "Similar papers", "Topic cluster", "Raw ranking"]
+                    )
 
-    selected = st.selectbox(
-        "Open paper detail",
-        options,
-        format_func=lambda cid: labels.get(cid, cid),
-        key="selected_canonical_id",
-    )
+                    with detail_tab:
+                        try:
+                            with st.spinner("Loading paper detail..."):
+                                detail_payload = fetch_paper_detail(api_base_url, selected)
+                            render_paper_detail(detail_payload)
+                        except Exception as exc:
+                            st.error(str(exc))
 
-    if not selected:
-        st.warning("No selected paper.")
-        return
+                    with similar_tab:
+                        render_similar_papers(api_base_url, selected)
 
-    detail_tab, similar_tab, raw_tab = st.tabs(["Paper detail", "Similar papers", "Raw ranking"])
+                    with paper_cluster_tab:
+                        render_selected_paper_topic_cluster(api_base_url, selected)
 
-    with detail_tab:
-        try:
-            with st.spinner("Loading paper detail..."):
-                detail_payload = fetch_paper_detail(api_base_url, selected)
-            render_paper_detail(detail_payload)
-        except Exception as exc:
-            st.error(str(exc))
+                    with raw_tab:
+                        st.json(payload)
+            else:
+                with st.expander("Raw ranking response", expanded=False):
+                    st.json(payload)
 
-    with similar_tab:
-        render_similar_papers(api_base_url, selected)
-
-    with raw_tab:
-        st.json(payload)
+    with clusters_tab:
+        render_topic_clusters(api_base_url)
 
 
 if __name__ == "__main__":

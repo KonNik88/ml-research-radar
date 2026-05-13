@@ -3,295 +3,486 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import os
 import py_compile
-import sys
-from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from urllib.parse import urljoin
+
+import requests
 
 
 DEFAULT_APP_PATH = Path("services/ui/app.py")
-DEFAULT_REPORT_DIR = Path("artifacts/reports/ui")
-DEFAULT_API_BASE_URL = "http://127.0.0.1:8000"
+DEFAULT_API_BASE_URL = os.getenv("ML_RADAR_API_BASE_URL", "http://127.0.0.1:8000")
+DEFAULT_TIMEOUT_SECONDS = 30
 
-REQUIRED_UI_SNIPPETS = {
-    "reset_button": "Reset discovery filters",
-    "run_button": "Run discovery ranking",
-    "profile_default_state": "Profile default",
-}
+REPORT_DIR = Path("artifacts/reports/ui")
+HISTORY_DIR = REPORT_DIR / "history"
 
-REQUIRED_DISCOVERY_SNIPPETS = {
-    "profiles_endpoint": "/discovery/profiles",
-    "ranking_endpoint": "/discovery/ranking",
-    "paper_detail_endpoint": "/discovery/papers/",
-    "similar_endpoint_suffix": "/similar",
-}
+LATEST_JSON_PATH = REPORT_DIR / "streamlit_discovery_ui_quality_latest.json"
+LATEST_MD_PATH = REPORT_DIR / "streamlit_discovery_ui_quality_latest.md"
 
-REQUIRED_SIMILAR_SNIPPETS = {
-    "semantic_mode": "semantic",
-    "radar_adjusted_mode": "radar_adjusted",
-}
+TEST_CANONICAL_ID = "bd3c9332f17370fa801e6ac9542f125a"
 
-FORBIDDEN_SNIPPETS = {
-    "deprecated_use_container_width": "use_container_width",
-}
+TOPIC_CLUSTER_SORT_VALUES = [
+    "size_desc",
+    "cluster_id_asc",
+    "mean_radar_desc",
+    "artifact_ready_desc",
+]
 
+REQUIRED_UI_SNIPPETS = [
+    "st.set_page_config",
+    "ML Research Radar",
+    "Discovery ranking",
+    "Run discovery ranking",
+    "Reset discovery filters",
+    "fetch_profiles",
+    "fetch_ranking",
+    "fetch_paper_detail",
+    "fetch_similar_papers",
+    "render_similar_papers",
+]
 
-@dataclass
-class ReportPaths:
-    latest_json: str
-    latest_markdown: str
-    history_json: str
-    history_markdown: str
+DISCOVERY_ENDPOINT_STRINGS = [
+    "/discovery/profiles",
+    "/discovery/ranking/",
+    "/discovery/papers/",
+    "/discovery/papers/{canonical_id}/similar",
+]
 
+SIMILAR_MODE_SNIPPETS = [
+    "SIMILAR_RANK_BY_OPTIONS",
+    "semantic",
+    "radar_adjusted",
+]
 
-def utc_timestamp() -> str:
-    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-
-
-def normalize_path(path: Path) -> str:
-    return path.as_posix()
-
-
-def import_available(module_name: str) -> tuple[bool, str | None]:
-    spec = importlib.util.find_spec(module_name)
-    if spec is None:
-        return False, f"module not found: {module_name}"
-    return True, None
-
-
-def compile_python_file(path: Path) -> tuple[bool, str | None]:
-    try:
-        py_compile.compile(str(path), doraise=True)
-        return True, None
-    except py_compile.PyCompileError as exc:
-        return False, str(exc)
-    except Exception as exc:  # pragma: no cover - defensive guard for local validation script
-        return False, repr(exc)
-
-
-def read_text(path: Path) -> tuple[str, str | None]:
-    try:
-        return path.read_text(encoding="utf-8"), None
-    except Exception as exc:  # pragma: no cover - defensive guard for local validation script
-        return "", repr(exc)
+TOPIC_CLUSTER_UI_SNIPPETS = [
+    "Topic clusters",
+    "fetch_topic_clusters",
+    "fetch_topic_cluster_detail",
+    "fetch_paper_topic_cluster",
+    "/discovery/clusters",
+    "/discovery/papers/{canonical_id}/cluster",
+    "CLUSTER_SORT_OPTIONS",
+    "CLUSTER_SORT_LABELS",
+    "size_desc",
+    "cluster_id_asc",
+    "mean_radar_desc",
+    "artifact_ready_desc",
+    "Load topic clusters",
+    "Cluster sort by",
+    "Cluster detail top K",
+    "Selected paper topic cluster",
+]
 
 
-def request_json(api_base_url: str, path: str, *, params: dict[str, Any] | None = None) -> dict[str, Any]:
-    import requests
-
-    url = urljoin(api_base_url.rstrip("/") + "/", path.lstrip("/"))
-    try:
-        response = requests.get(url, params=params, timeout=30)
-        payload: Any
-        try:
-            payload = response.json()
-        except ValueError:
-            payload = {"raw_text": response.text[:1000]}
-        return {
-            "ok": 200 <= response.status_code < 300,
-            "status_code": response.status_code,
-            "url": response.url,
-            "json": payload,
-        }
-    except Exception as exc:  # pragma: no cover - depends on local API availability
-        return {
-            "ok": False,
-            "status_code": None,
-            "url": url,
-            "error": repr(exc),
-        }
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
-def build_markdown_report(report: dict[str, Any]) -> str:
-    lines: list[str] = []
-    lines.append("# Streamlit Discovery UI quality report")
-    lines.append("")
-    lines.append(f"- generated_at_utc: `{report['generated_at_utc']}`")
-    lines.append(f"- app_path: `{report['app_path']}`")
-    lines.append(f"- strict: `{report['strict']}`")
-    lines.append(f"- check_api: `{report['check_api']}`")
-    lines.append(f"- ok: `{report['ok']}`")
-    lines.append(f"- required_failed_count: `{report['required_failed_count']}`")
-    lines.append("")
-    lines.append("## Checks")
-    lines.append("")
-    for name, value in report["checks"].items():
-        mark = "OK" if value else "FAIL"
-        lines.append(f"- **{mark}** `{name}` = `{value}`")
-    lines.append("")
-
-    if report.get("missing_required_snippets"):
-        lines.append("## Missing required snippets")
-        lines.append("")
-        for item in report["missing_required_snippets"]:
-            lines.append(f"- `{item}`")
-        lines.append("")
-
-    if report.get("present_forbidden_snippets"):
-        lines.append("## Present forbidden snippets")
-        lines.append("")
-        for item in report["present_forbidden_snippets"]:
-            lines.append(f"- `{item}`")
-        lines.append("")
-
-    if report.get("api"):
-        lines.append("## API smoke")
-        lines.append("")
-        for name, payload in report["api"].items():
-            lines.append(f"### {name}")
-            lines.append("")
-            lines.append(f"- ok: `{payload.get('ok')}`")
-            lines.append(f"- status_code: `{payload.get('status_code')}`")
-            if payload.get("url"):
-                lines.append(f"- url: `{payload.get('url')}`")
-            if payload.get("error"):
-                lines.append(f"- error: `{payload.get('error')}`")
-            lines.append("")
-
-    if report.get("required_failed_checks"):
-        lines.append("## Required failed checks")
-        lines.append("")
-        for name in report["required_failed_checks"]:
-            lines.append(f"- `{name}`")
-        lines.append("")
-
-    return "\n".join(lines).rstrip() + "\n"
+def utc_now_iso() -> str:
+    return utc_now().isoformat()
 
 
-def write_reports(report: dict[str, Any], report_dir: Path, timestamp: str) -> ReportPaths:
-    history_dir = report_dir / "history"
-    history_dir.mkdir(parents=True, exist_ok=True)
+def utc_stamp() -> str:
+    return utc_now().strftime("%Y%m%dT%H%M%SZ")
 
-    latest_json = report_dir / "streamlit_discovery_ui_quality_latest.json"
-    latest_markdown = report_dir / "streamlit_discovery_ui_quality_latest.md"
-    history_json = history_dir / f"streamlit_discovery_ui_quality_{timestamp}.json"
-    history_markdown = history_dir / f"streamlit_discovery_ui_quality_{timestamp}.md"
 
-    payload = json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True)
-    markdown = build_markdown_report(report)
+def clean_base_url(base_url: str) -> str:
+    return base_url.strip().rstrip("/")
 
-    latest_json.write_text(payload + "\n", encoding="utf-8")
-    history_json.write_text(payload + "\n", encoding="utf-8")
-    latest_markdown.write_text(markdown, encoding="utf-8")
-    history_markdown.write_text(markdown, encoding="utf-8")
 
-    return ReportPaths(
-        latest_json=normalize_path(latest_json),
-        latest_markdown=normalize_path(latest_markdown),
-        history_json=normalize_path(history_json),
-        history_markdown=normalize_path(history_markdown),
+def ensure_parent(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+
+def write_json(path: Path, payload: dict[str, Any]) -> None:
+    ensure_parent(path)
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=False),
+        encoding="utf-8",
     )
 
 
-def build_report(args: argparse.Namespace) -> dict[str, Any]:
-    timestamp = utc_timestamp()
-    app_path = Path(args.app_path)
-    report_dir = Path(args.report_dir)
+def render_markdown_report(report: dict[str, Any]) -> str:
+    checks = report.get("checks") or {}
+    extracted = report.get("extracted_values") or {}
+    errors = report.get("errors") or {}
 
-    streamlit_import_ok, streamlit_import_error = import_available("streamlit")
-    requests_import_ok, requests_import_error = import_available("requests")
-
-    app_exists = app_path.exists()
-    app_non_empty = app_exists and app_path.stat().st_size > 0
-
-    py_compile_ok = False
-    py_compile_error: str | None = None
-    app_text = ""
-    app_read_error: str | None = None
-
-    if app_exists:
-        py_compile_ok, py_compile_error = compile_python_file(app_path)
-        app_text, app_read_error = read_text(app_path)
-
-    required_snippets = {
-        **REQUIRED_UI_SNIPPETS,
-        **REQUIRED_DISCOVERY_SNIPPETS,
-        **REQUIRED_SIMILAR_SNIPPETS,
-    }
-    snippet_presence = {
-        name: snippet in app_text for name, snippet in required_snippets.items()
-    }
-    missing_required_snippets = [
-        name for name, present in snippet_presence.items() if not present
+    lines: list[str] = [
+        "# Streamlit Discovery UI quality report",
+        "",
+        f"- generated_at_utc: `{report.get('generated_at_utc')}`",
+        f"- ok: `{report.get('ok')}`",
+        f"- required_failed_count: `{report.get('required_failed_count')}`",
+        f"- required_failed_checks: `{report.get('required_failed_checks')}`",
+        "",
+        "## Extracted values",
+        "",
     ]
 
-    forbidden_presence = {
-        name: snippet in app_text for name, snippet in FORBIDDEN_SNIPPETS.items()
-    }
-    present_forbidden_snippets = [
-        name for name, present in forbidden_presence.items() if present
-    ]
+    for key, value in extracted.items():
+        if isinstance(value, (dict, list)):
+            pretty = json.dumps(value, ensure_ascii=False, sort_keys=False)
+            lines.append(f"- {key}: `{pretty}`")
+        else:
+            lines.append(f"- {key}: `{value}`")
 
-    legacy_search_endpoint_present = "/search" in app_text
+    lines.extend(["", "## Checks", ""])
 
-    api_payloads: dict[str, Any] = {}
-    api_checks: dict[str, bool] = {}
-    if args.check_api:
-        health = request_json(args.api_base_url, "/health")
-        profiles = request_json(args.api_base_url, "/discovery/profiles")
-        ranking = request_json(
-            args.api_base_url,
-            "/discovery/ranking/recent_artifact_ready",
-            params={"top_k": 1, "min_year": 2025, "has_code": "true"},
-        )
+    for key, value in checks.items():
+        lines.append(f"- {key}: `{value}`")
 
-        api_payloads = {
-            "health": {key: value for key, value in health.items() if key != "json"},
-            "profiles": {key: value for key, value in profiles.items() if key != "json"},
-            "ranking_override": {
-                key: value for key, value in ranking.items() if key != "json"
+    if errors:
+        lines.extend(["", "## Errors / diagnostics", ""])
+        for key, value in errors.items():
+            lines.append(f"- {key}: `{value}`")
+
+    lines.append("")
+    return "\n".join(lines)
+
+
+def write_markdown(path: Path, report: dict[str, Any]) -> None:
+    ensure_parent(path)
+    path.write_text(render_markdown_report(report), encoding="utf-8")
+
+
+def read_text(path: Path) -> tuple[bool, str, str | None]:
+    try:
+        return True, path.read_text(encoding="utf-8"), None
+    except Exception as exc:
+        return False, "", repr(exc)
+
+
+def py_compile_file(path: Path) -> tuple[bool, str | None]:
+    try:
+        py_compile.compile(str(path), doraise=True)
+        return True, None
+    except Exception as exc:
+        return False, repr(exc)
+
+
+def module_import_available(module_name: str) -> bool:
+    return importlib.util.find_spec(module_name) is not None
+
+
+def missing_snippets(text: str, snippets: list[str]) -> list[str]:
+    return [snippet for snippet in snippets if snippet not in text]
+
+
+def request_json(
+    *,
+    base_url: str,
+    path: str,
+    params: dict[str, Any] | None = None,
+    timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
+) -> tuple[bool, dict[str, Any], str | None]:
+    url = f"{clean_base_url(base_url)}{path}"
+    try:
+        response = requests.get(url, params=params, timeout=timeout_seconds)
+    except Exception as exc:
+        return False, {}, repr(exc)
+
+    if not response.ok:
+        text = response.text
+        if len(text) > 800:
+            text = text[:800] + "..."
+        return False, {}, f"HTTP {response.status_code}: {text}"
+
+    try:
+        payload = response.json()
+    except Exception as exc:
+        return False, {}, f"JSON parse error: {exc!r}"
+
+    if not isinstance(payload, dict):
+        return False, {}, f"Expected JSON object, got {type(payload).__name__}"
+
+    return True, payload, None
+
+
+def result_rows(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    rows = payload.get("results") or payload.get("papers") or []
+    if not isinstance(rows, list):
+        return []
+    return [row for row in rows if isinstance(row, dict)]
+
+
+def first_result(payload: dict[str, Any]) -> dict[str, Any] | None:
+    rows = result_rows(payload)
+    return rows[0] if rows else None
+
+
+def coerce_bool(value: Any) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"true", "1", "yes"}:
+            return True
+        if lowered in {"false", "0", "no"}:
+            return False
+    return None
+
+
+def run_api_checks(
+    *,
+    base_url: str,
+    timeout_seconds: int,
+    checks: dict[str, bool],
+    extracted_values: dict[str, Any],
+    errors: dict[str, Any],
+) -> None:
+    base_url = clean_base_url(base_url)
+    extracted_values["api_base_url"] = base_url
+
+    health_ok, health_payload, health_error = request_json(
+        base_url=base_url,
+        path="/health",
+        timeout_seconds=timeout_seconds,
+    )
+    checks["api_health_endpoint_ok"] = health_ok
+    checks["api_health_ready"] = bool(
+        health_payload.get("ready") is True
+        or str(health_payload.get("status", "")).lower() in {"ok", "ready", "healthy"}
+    )
+    extracted_values["api_health_status"] = health_payload.get("status")
+    extracted_values["api_health_backend"] = health_payload.get("backend_mode")
+    extracted_values["api_health_build_id"] = health_payload.get("build_id")
+    if health_error:
+        errors["api_health_error"] = health_error
+
+    profiles_ok, profiles_payload, profiles_error = request_json(
+        base_url=base_url,
+        path="/discovery/profiles",
+        timeout_seconds=timeout_seconds,
+    )
+    profiles = profiles_payload.get("profiles") or []
+    checks["api_profiles_endpoint_ok"] = profiles_ok
+    checks["api_profiles_non_empty"] = bool(profiles)
+    extracted_values["api_profile_count"] = profiles_payload.get("profile_count", len(profiles) if isinstance(profiles, list) else None)
+    extracted_values["api_profile_names"] = [
+        row.get("name") for row in profiles if isinstance(row, dict) and row.get("name")
+    ] if isinstance(profiles, list) else []
+    if profiles_error:
+        errors["api_profiles_error"] = profiles_error
+
+    ranking_ok, ranking_payload, ranking_error = request_json(
+        base_url=base_url,
+        path="/discovery/ranking/recent_artifact_ready",
+        params={
+            "top_k": 1,
+            "min_year": 2025,
+            "has_code": "true",
+        },
+        timeout_seconds=timeout_seconds,
+    )
+    ranking_rows = result_rows(ranking_payload)
+    filters = ranking_payload.get("filters") or {}
+
+    min_year_echoed = filters.get("min_year") == 2025
+    has_code_echoed = coerce_bool(filters.get("has_code")) is True
+
+    checks["api_ranking_override_endpoint_ok"] = ranking_ok
+    checks["api_ranking_override_results_non_empty"] = bool(ranking_rows)
+    checks["api_ranking_override_filters_echoed"] = bool(min_year_echoed and has_code_echoed)
+    extracted_values["api_ranking_override_results_count"] = len(ranking_rows)
+    extracted_values["api_ranking_override_filters"] = filters
+    if ranking_error:
+        errors["api_ranking_override_error"] = ranking_error
+
+    clusters_ok, clusters_payload, clusters_error = request_json(
+        base_url=base_url,
+        path="/discovery/clusters",
+        params={"limit": 1},
+        timeout_seconds=timeout_seconds,
+    )
+    cluster_rows = result_rows(clusters_payload)
+    first_cluster = first_result(clusters_payload) or {}
+
+    checks["api_topic_clusters_endpoint_ok"] = clusters_ok
+    checks["api_topic_clusters_results_non_empty"] = bool(cluster_rows)
+    checks["api_topic_clusters_cluster_id_present"] = first_cluster.get("cluster_id") is not None
+    checks["api_topic_clusters_label_candidates_present"] = bool(first_cluster.get("label_candidates"))
+
+    extracted_values["api_topic_cluster_count"] = (
+        clusters_payload.get("cluster_count")
+        or clusters_payload.get("total_cluster_count")
+    )
+    extracted_values["api_topic_clusters_returned_count"] = (
+        clusters_payload.get("returned_count")
+        or len(cluster_rows)
+    )
+    extracted_values["api_topic_cluster_id"] = first_cluster.get("cluster_id")
+
+    if clusters_error:
+        errors["api_topic_clusters_error"] = clusters_error
+
+    sort_smoke: dict[str, dict[str, Any]] = {}
+    sorted_size_payload: dict[str, Any] = {}
+
+    for sort_value in TOPIC_CLUSTER_SORT_VALUES:
+        sort_ok, sort_payload, sort_error = request_json(
+            base_url=base_url,
+            path="/discovery/clusters",
+            params={
+                "limit": 1,
+                "min_size": 1,
+                "sort_by": sort_value,
             },
-        }
-
-        health_json = health.get("json") if isinstance(health.get("json"), dict) else {}
-        profiles_json = (
-            profiles.get("json") if isinstance(profiles.get("json"), dict) else {}
+            timeout_seconds=timeout_seconds,
         )
-        ranking_json = (
-            ranking.get("json") if isinstance(ranking.get("json"), dict) else {}
-        )
-        ranking_results = ranking_json.get("results") or []
-        ranking_filters = ranking_json.get("filters") or {}
-
-        api_checks = {
-            "api_health_endpoint_ok": bool(health.get("ok")),
-            "api_health_ready": bool(health_json.get("ready")),
-            "api_profiles_endpoint_ok": bool(profiles.get("ok")),
-            "api_profiles_non_empty": int(profiles_json.get("profile_count") or 0) > 0,
-            "api_ranking_override_endpoint_ok": bool(ranking.get("ok")),
-            "api_ranking_override_results_non_empty": len(ranking_results) > 0,
-            "api_ranking_override_filters_echoed": (
-                ranking_filters.get("min_year") == 2025
-                and ranking_filters.get("has_code") is True
-            ),
+        sort_rows = result_rows(sort_payload)
+        sort_smoke[sort_value] = {
+            "ok": sort_ok,
+            "results_count": len(sort_rows),
+            "error": sort_error,
         }
+        checks[f"api_topic_clusters_sort_{sort_value}_ok"] = sort_ok
+        checks[f"api_topic_clusters_sort_{sort_value}_non_empty"] = bool(sort_rows)
 
-    checks: dict[str, bool] = {
-        "app_exists": app_exists,
-        "app_non_empty": app_non_empty,
-        "py_compile_ok": py_compile_ok,
-        "app_read_ok": app_exists and app_read_error is None,
-        "streamlit_import_ok": streamlit_import_ok,
-        "requests_import_ok": requests_import_ok,
-        "required_ui_snippets_present": all(snippet_presence.values()),
-        "discovery_endpoint_strings_present": all(
-            snippet_presence[name] for name in REQUIRED_DISCOVERY_SNIPPETS
-        ),
-        "similar_modes_present": all(
-            snippet_presence[name] for name in REQUIRED_SIMILAR_SNIPPETS
-        ),
-        "reset_button_present": snippet_presence["reset_button"],
-        "no_deprecated_use_container_width": not forbidden_presence[
-            "deprecated_use_container_width"
-        ],
-        "legacy_search_endpoint_absent": not legacy_search_endpoint_present,
-        **api_checks,
-    }
+        if sort_value == "size_desc" and sort_ok:
+            sorted_size_payload = sort_payload
 
-    required_check_names = [
+    size_desc_rows = result_rows(sorted_size_payload)
+    size_desc_first = first_result(sorted_size_payload) or {}
+
+    checks["api_topic_clusters_sorted_endpoint_ok"] = bool(sort_smoke.get("size_desc", {}).get("ok"))
+    checks["api_topic_clusters_sorted_results_non_empty"] = bool(size_desc_rows)
+    checks["api_topic_clusters_sorted_cluster_id_present"] = size_desc_first.get("cluster_id") is not None
+    checks["api_topic_clusters_supported_sort_values_ok"] = all(
+        bool(sort_smoke.get(sort_value, {}).get("ok")) for sort_value in TOPIC_CLUSTER_SORT_VALUES
+    )
+
+    extracted_values["api_topic_clusters_sort_smoke"] = sort_smoke
+    extracted_values["api_topic_clusters_supported_sort_values"] = TOPIC_CLUSTER_SORT_VALUES
+
+    cluster_id = (
+        size_desc_first.get("cluster_id")
+        if size_desc_first.get("cluster_id") is not None
+        else first_cluster.get("cluster_id")
+    )
+
+    if cluster_id is not None:
+        cluster_detail_ok, cluster_detail_payload, cluster_detail_error = request_json(
+            base_url=base_url,
+            path=f"/discovery/clusters/{cluster_id}",
+            params={"top_k": 1},
+            timeout_seconds=timeout_seconds,
+        )
+    else:
+        cluster_detail_ok, cluster_detail_payload, cluster_detail_error = (
+            False,
+            {},
+            "No cluster_id available from /discovery/clusters",
+        )
+
+    cluster_detail_rows = result_rows(cluster_detail_payload)
+    cluster_detail_summary = (
+        cluster_detail_payload.get("summary")
+        or cluster_detail_payload.get("cluster")
+        or {}
+    )
+
+    checks["api_topic_cluster_detail_endpoint_ok"] = cluster_detail_ok
+    checks["api_topic_cluster_detail_papers_non_empty"] = bool(cluster_detail_rows)
+    checks["api_topic_cluster_detail_label_candidates_present"] = bool(
+        cluster_detail_summary.get("label_candidates")
+        or cluster_detail_payload.get("label_candidates")
+    )
+    extracted_values["api_topic_cluster_detail_cluster_id"] = cluster_id
+    extracted_values["api_topic_cluster_detail_returned_papers_count"] = (
+        cluster_detail_payload.get("returned_papers_count")
+        or len(cluster_detail_rows)
+    )
+    if cluster_detail_error:
+        errors["api_topic_cluster_detail_error"] = cluster_detail_error
+
+    paper_cluster_ok, paper_cluster_payload, paper_cluster_error = request_json(
+        base_url=base_url,
+        path=f"/discovery/papers/{TEST_CANONICAL_ID}/cluster",
+        timeout_seconds=timeout_seconds,
+    )
+
+    paper_assignment = paper_cluster_payload.get("assignment") or {}
+    paper_cluster = paper_cluster_payload.get("cluster") or {}
+
+    checks["api_paper_topic_cluster_endpoint_ok"] = paper_cluster_ok
+    checks["api_paper_topic_cluster_assignment_present"] = bool(
+        isinstance(paper_assignment, dict) and paper_assignment.get("cluster_id") is not None
+    )
+    checks["api_paper_topic_cluster_cluster_present"] = bool(
+        isinstance(paper_cluster, dict) and paper_cluster.get("cluster_id") is not None
+    )
+    extracted_values["api_paper_topic_cluster_canonical_id"] = TEST_CANONICAL_ID
+    extracted_values["api_paper_topic_cluster_cluster_id"] = paper_assignment.get("cluster_id")
+
+    if paper_cluster_error:
+        errors["api_paper_topic_cluster_error"] = paper_cluster_error
+
+
+def build_report(
+    *,
+    app_path: Path,
+    check_api: bool,
+    api_base_url: str,
+    timeout_seconds: int,
+) -> dict[str, Any]:
+    checks: dict[str, bool] = {}
+    extracted_values: dict[str, Any] = {}
+    errors: dict[str, Any] = {}
+
+    extracted_values["app_path"] = str(app_path)
+    extracted_values["check_api"] = check_api
+
+    checks["app_exists"] = app_path.exists()
+    checks["app_non_empty"] = app_path.exists() and app_path.stat().st_size > 0
+
+    if app_path.exists():
+        compile_ok, compile_error = py_compile_file(app_path)
+    else:
+        compile_ok, compile_error = False, "App path does not exist"
+
+    checks["py_compile_ok"] = compile_ok
+    if compile_error:
+        errors["py_compile_error"] = compile_error
+
+    app_read_ok, app_text, read_error = read_text(app_path) if app_path.exists() else (False, "", "App path does not exist")
+    checks["app_read_ok"] = app_read_ok
+    if read_error:
+        errors["app_read_error"] = read_error
+
+    checks["streamlit_import_ok"] = module_import_available("streamlit")
+    checks["requests_import_ok"] = module_import_available("requests")
+
+    missing_required = missing_snippets(app_text, REQUIRED_UI_SNIPPETS)
+    missing_discovery = missing_snippets(app_text, DISCOVERY_ENDPOINT_STRINGS)
+    missing_similar = missing_snippets(app_text, SIMILAR_MODE_SNIPPETS)
+    missing_topic = missing_snippets(app_text, TOPIC_CLUSTER_UI_SNIPPETS)
+
+    checks["required_ui_snippets_present"] = not missing_required
+    checks["discovery_endpoint_strings_present"] = not missing_discovery
+    checks["similar_modes_present"] = not missing_similar
+    checks["topic_cluster_ui_snippets_present"] = not missing_topic
+    checks["reset_button_present"] = "Reset discovery filters" in app_text
+    checks["no_deprecated_use_container_width"] = "use_container_width" not in app_text
+    checks["legacy_search_endpoint_absent"] = '"/search"' not in app_text and "'/search'" not in app_text
+
+    extracted_values["missing_required_ui_snippets"] = missing_required
+    extracted_values["missing_discovery_endpoint_strings"] = missing_discovery
+    extracted_values["missing_similar_mode_snippets"] = missing_similar
+    extracted_values["missing_topic_cluster_ui_snippets"] = missing_topic
+
+    if check_api:
+        run_api_checks(
+            base_url=api_base_url,
+            timeout_seconds=timeout_seconds,
+            checks=checks,
+            extracted_values=extracted_values,
+            errors=errors,
+        )
+
+    required_checks = [
         "app_exists",
         "app_non_empty",
         "py_compile_ok",
@@ -301,16 +492,14 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "required_ui_snippets_present",
         "discovery_endpoint_strings_present",
         "similar_modes_present",
+        "topic_cluster_ui_snippets_present",
         "reset_button_present",
         "no_deprecated_use_container_width",
+        "legacy_search_endpoint_absent",
     ]
 
-    # Keep this diagnostic non-required for now: a docstring or comment can mention /search.
-    if args.require_no_legacy_search:
-        required_check_names.append("legacy_search_endpoint_absent")
-
-    if args.check_api:
-        required_check_names.extend(
+    if check_api:
+        required_checks.extend(
             [
                 "api_health_endpoint_ok",
                 "api_health_ready",
@@ -319,108 +508,128 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
                 "api_ranking_override_endpoint_ok",
                 "api_ranking_override_results_non_empty",
                 "api_ranking_override_filters_echoed",
+                "api_topic_clusters_endpoint_ok",
+                "api_topic_clusters_results_non_empty",
+                "api_topic_clusters_cluster_id_present",
+                "api_topic_clusters_label_candidates_present",
+                "api_topic_clusters_sorted_endpoint_ok",
+                "api_topic_clusters_sorted_results_non_empty",
+                "api_topic_clusters_sorted_cluster_id_present",
+                "api_topic_clusters_supported_sort_values_ok",
+                "api_topic_cluster_detail_endpoint_ok",
+                "api_topic_cluster_detail_papers_non_empty",
+                "api_topic_cluster_detail_label_candidates_present",
+                "api_paper_topic_cluster_endpoint_ok",
+                "api_paper_topic_cluster_assignment_present",
+                "api_paper_topic_cluster_cluster_present",
             ]
         )
 
-    required_failed_checks = [name for name in required_check_names if not checks.get(name)]
+    required_failed_checks = [
+        name for name in required_checks if checks.get(name) is not True
+    ]
 
-    report: dict[str, Any] = {
-        "name": "streamlit_discovery_ui_quality",
-        "generated_at_utc": timestamp,
-        "strict": bool(args.strict),
-        "check_api": bool(args.check_api),
-        "api_base_url": args.api_base_url,
-        "app_path": normalize_path(app_path),
-        "report_dir": normalize_path(report_dir),
-        "checks": checks,
-        "required_check_names": required_check_names,
-        "required_failed_checks": required_failed_checks,
-        "required_failed_count": len(required_failed_checks),
+    return {
+        "generated_at_utc": utc_now_iso(),
         "ok": len(required_failed_checks) == 0,
-        "snippet_presence": snippet_presence,
-        "forbidden_presence": forbidden_presence,
-        "missing_required_snippets": missing_required_snippets,
-        "present_forbidden_snippets": present_forbidden_snippets,
-        "diagnostics": {
-            "streamlit_import_error": streamlit_import_error,
-            "requests_import_error": requests_import_error,
-            "py_compile_error": py_compile_error,
-            "app_read_error": app_read_error,
-            "legacy_search_endpoint_present": legacy_search_endpoint_present,
-            "app_size_bytes": app_path.stat().st_size if app_exists else 0,
-        },
-        "api": api_payloads,
+        "required_failed_count": len(required_failed_checks),
+        "required_failed_checks": required_failed_checks,
+        "strict_required_checks": required_checks,
+        "checks": checks,
+        "extracted_values": extracted_values,
+        "errors": errors,
     }
 
-    paths = write_reports(report, report_dir, timestamp)
-    report["outputs"] = asdict(paths)
 
-    # Re-write reports with their own output paths included.
-    payload = json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True)
-    markdown = build_markdown_report(report)
-    Path(paths.latest_json).write_text(payload + "\n", encoding="utf-8")
-    Path(paths.history_json).write_text(payload + "\n", encoding="utf-8")
-    Path(paths.latest_markdown).write_text(markdown, encoding="utf-8")
-    Path(paths.history_markdown).write_text(markdown, encoding="utf-8")
+def print_report_summary(report: dict[str, Any]) -> None:
+    checks = report.get("checks") or {}
+    extracted = report.get("extracted_values") or {}
 
-    return report
+    for key, value in checks.items():
+        prefix = "OK" if value is True else "FAIL"
+        print(f"[{prefix}] {key}={value}")
 
+    print(f"[OK] app_path={extracted.get('app_path')}")
+    print(f"[OK] check_api={extracted.get('check_api')}")
+    print(f"[{'OK' if report.get('ok') else 'FAIL'}] ok={report.get('ok')}")
+    print(f"[{'OK' if report.get('required_failed_count') == 0 else 'FAIL'}] required_failed_count={report.get('required_failed_count')}")
+    print(f"[{'OK' if report.get('required_failed_count') == 0 else 'FAIL'}] required_failed_checks={report.get('required_failed_checks')}")
+    print(f"[OK] latest JSON: {LATEST_JSON_PATH.as_posix()}")
+    print(f"[OK] latest Markdown: {LATEST_MD_PATH.as_posix()}")
 
-def print_report(report: dict[str, Any]) -> None:
-    def ok_line(name: str, value: Any) -> None:
-        prefix = "[OK]" if bool(value) else "[FAIL]"
-        print(f"{prefix} {name}={value}")
-
-    for name, value in report["checks"].items():
-        ok_line(name, value)
-
-    print(f"[OK] app_path={report['app_path']}")
-    print(f"[OK] check_api={report['check_api']}")
-    print(f"[OK] ok={report['ok']}")
-    print(f"[OK] required_failed_count={report['required_failed_count']}")
-    print(f"[OK] required_failed_checks={report['required_failed_checks']}")
-    missing_required_snippets = report.get("missing_required_snippets") or []
-    if missing_required_snippets:
-        print(f"[FAIL] missing_required_snippets={missing_required_snippets}")
-
-    outputs = report.get("outputs") or {}
-    if outputs:
-        print(f"[OK] latest JSON: {outputs.get('latest_json')}")
-        print(f"[OK] latest Markdown: {outputs.get('latest_markdown')}")
-        print(f"[OK] history JSON: {outputs.get('history_json')}")
-        print(f"[OK] history Markdown: {outputs.get('history_markdown')}")
+    history_json = extracted.get("history_json_path")
+    history_md = extracted.get("history_md_path")
+    if history_json:
+        print(f"[OK] history JSON: {history_json}")
+    if history_md:
+        print(f"[OK] history Markdown: {history_md}")
 
 
-def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Validate Streamlit Discovery UI static contract and optional API smoke."
+        description="Validate Streamlit Discovery UI wiring and optional API smoke checks."
     )
-    parser.add_argument("--app-path", default=str(DEFAULT_APP_PATH))
-    parser.add_argument("--report-dir", default=str(DEFAULT_REPORT_DIR))
-    parser.add_argument("--api-base-url", default=DEFAULT_API_BASE_URL)
+    parser.add_argument(
+        "--app-path",
+        default=str(DEFAULT_APP_PATH),
+        help="Path to Streamlit app file.",
+    )
+    parser.add_argument(
+        "--api-base-url",
+        default=DEFAULT_API_BASE_URL,
+        help="FastAPI base URL for --check-api mode.",
+    )
+    parser.add_argument(
+        "--timeout-seconds",
+        type=int,
+        default=DEFAULT_TIMEOUT_SECONDS,
+        help="HTTP timeout for --check-api requests.",
+    )
     parser.add_argument(
         "--check-api",
         action="store_true",
-        help="Also check a running FastAPI Discovery API at --api-base-url.",
+        help="Also call live FastAPI endpoints.",
     )
     parser.add_argument(
-        "--require-no-legacy-search",
+        "--strict",
         action="store_true",
-        help="Fail if the UI file contains the literal '/search'.",
+        help="Exit with non-zero status if required checks fail.",
     )
-    parser.add_argument("--strict", action="store_true")
-    return parser.parse_args(argv)
+    return parser.parse_args()
 
 
-def main(argv: list[str] | None = None) -> int:
-    args = parse_args(argv)
-    report = build_report(args)
-    print_report(report)
+def main() -> None:
+    args = parse_args()
 
-    if args.strict and not report["ok"]:
-        return 1
-    return 0
+    app_path = Path(args.app_path)
+
+    report = build_report(
+        app_path=app_path,
+        check_api=bool(args.check_api),
+        api_base_url=str(args.api_base_url),
+        timeout_seconds=int(args.timeout_seconds),
+    )
+
+    HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+    REPORT_DIR.mkdir(parents=True, exist_ok=True)
+
+    stamp = utc_stamp()
+    history_json_path = HISTORY_DIR / f"streamlit_discovery_ui_quality_{stamp}.json"
+    history_md_path = HISTORY_DIR / f"streamlit_discovery_ui_quality_{stamp}.md"
+
+    report["extracted_values"]["history_json_path"] = history_json_path.as_posix()
+    report["extracted_values"]["history_md_path"] = history_md_path.as_posix()
+
+    write_json(LATEST_JSON_PATH, report)
+    write_markdown(LATEST_MD_PATH, report)
+    write_json(history_json_path, report)
+    write_markdown(history_md_path, report)
+
+    print_report_summary(report)
+
+    if args.strict and not report.get("ok"):
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()
