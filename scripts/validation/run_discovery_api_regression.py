@@ -17,6 +17,8 @@ DEFAULT_DOD_FLAGS = [
     "--require-paper-features",
     "--require-similar-papers",
     "--require-discovery-api",
+    "--require-topic-clusters",
+    "--require-streamlit-discovery-ui",
 ]
 
 
@@ -66,6 +68,19 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
             cmd=python_cmd("scripts.validation.check_discovery_api", "--strict"),
             env=file_env,
         ),
+        Step(
+            name="check_topic_clusters",
+            cmd=python_cmd("scripts.validation.check_topic_clusters", "--strict"),
+            env=file_env,
+        ),
+        Step(
+            name="check_streamlit_discovery_ui_static",
+            cmd=python_cmd(
+                "scripts.validation.check_streamlit_discovery_ui",
+                "--strict",
+            ),
+            env=file_env,
+        ),
     ]
 
     if not args.skip_similar_rebuild:
@@ -90,6 +105,19 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
                     env=file_env,
                 ),
             ]
+        )
+
+    if args.include_live_ui_check:
+        steps.append(
+            Step(
+                name="check_streamlit_discovery_ui_live_api",
+                cmd=python_cmd(
+                    "scripts.validation.check_streamlit_discovery_ui",
+                    "--strict",
+                    "--check-api",
+                ),
+                env=file_env,
+            )
         )
 
     if args.include_db_smoke:
@@ -138,6 +166,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--include-dod",
         action="store_true",
         help="Also run strict DoD with --require-discovery-api. Requires fresh DB smoke report.",
+    )
+    parser.add_argument(
+        "--include-live-ui-check",
+        action="store_true",
+        help=(
+            "Also run Streamlit UI validator with --check-api. "
+            "Requires a live API at ML_RADAR_API_BASE_URL / localhost."
+        ),
     )
     return parser
 

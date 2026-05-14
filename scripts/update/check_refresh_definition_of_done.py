@@ -53,6 +53,13 @@ DEFAULT_DISCOVERY_API_QUALITY_PATH = Path(
     "artifacts/reports/api/discovery_api_quality_latest.json"
 )
 
+DEFAULT_TOPIC_CLUSTERS_QUALITY_PATH = Path(
+    "artifacts/reports/clusters/topic_clusters_quality_latest.json"
+)
+DEFAULT_STREAMLIT_DISCOVERY_UI_QUALITY_PATH = Path(
+    "artifacts/reports/ui/streamlit_discovery_ui_quality_latest.json"
+)
+
 DEFAULT_REPORTS_DIR = Path("artifacts/reports/update")
 
 
@@ -373,6 +380,95 @@ def extract_discovery_api_values(
         ),
         "discovery_api_similar_radar_adjusted_sorted": checks.get(
             "similar_radar_adjusted_sorted"
+        ),
+    }
+
+def extract_topic_clusters_values(
+    topic_clusters_quality: dict[str, Any] | None,
+) -> dict[str, Any]:
+    report = topic_clusters_quality or {}
+    extracted = report.get("extracted_values") if isinstance(report.get("extracted_values"), dict) else {}
+    checks = report.get("checks") if isinstance(report.get("checks"), dict) else {}
+    verdict = report.get("verdict") if isinstance(report.get("verdict"), dict) else {}
+
+    return {
+        "topic_clusters_quality_ok": report_ok(topic_clusters_quality),
+        "topic_clusters_required_failed_count": first_present(
+            report,
+            [
+                ("required_failed_count",),
+                ("verdict", "required_failed_count"),
+            ],
+        ),
+        "topic_clusters_required_failed_checks": first_present(
+            report,
+            [
+                ("required_failed_checks",),
+                ("verdict", "required_failed_checks"),
+            ],
+        ),
+        "topic_clusters_cluster_build_id": extracted.get("cluster_build_id"),
+        "topic_clusters_retrieval_build_id": extracted.get("retrieval_build_id"),
+        "topic_clusters_manifest_build_id": extracted.get("manifest_build_id"),
+        "topic_clusters_assignment_count": extracted.get("assignment_count"),
+        "topic_clusters_actual_cluster_count": extracted.get("actual_cluster_count"),
+        "topic_clusters_empty_cluster_count": extracted.get("empty_cluster_count"),
+        "topic_clusters_assignments_count_matches_canonical_rows": checks.get(
+            "assignments_count_matches_canonical_rows"
+        ),
+        "topic_clusters_cluster_count_positive": checks.get("cluster_count_positive"),
+        "topic_clusters_empty_cluster_count_zero": checks.get("empty_cluster_count_zero"),
+        "topic_clusters_latest_vs_manifest_retrieval_build_id_match": checks.get(
+            "latest_vs_manifest_retrieval_build_id_match"
+        ),
+        "topic_clusters_summary_vs_manifest_retrieval_build_id_match": checks.get(
+            "summary_vs_manifest_retrieval_build_id_match"
+        ),
+        "topic_clusters_verdict": verdict,
+    }
+
+
+def extract_streamlit_discovery_ui_values(
+    streamlit_discovery_ui_quality: dict[str, Any] | None,
+) -> dict[str, Any]:
+    report = streamlit_discovery_ui_quality or {}
+    checks = report.get("checks") if isinstance(report.get("checks"), dict) else {}
+    extracted = report.get("extracted_values") if isinstance(report.get("extracted_values"), dict) else {}
+
+    return {
+        "streamlit_discovery_ui_quality_ok": report_ok(streamlit_discovery_ui_quality),
+        "streamlit_discovery_ui_required_failed_count": first_present(
+            report,
+            [
+                ("required_failed_count",),
+                ("verdict", "required_failed_count"),
+            ],
+        ),
+        "streamlit_discovery_ui_required_failed_checks": first_present(
+            report,
+            [
+                ("required_failed_checks",),
+                ("verdict", "required_failed_checks"),
+            ],
+        ),
+        "streamlit_discovery_ui_check_api": extracted.get("check_api"),
+        "streamlit_discovery_ui_app_path": extracted.get("app_path"),
+        "streamlit_discovery_ui_py_compile_ok": checks.get("py_compile_ok"),
+        "streamlit_discovery_ui_required_ui_snippets_present": checks.get(
+            "required_ui_snippets_present"
+        ),
+        "streamlit_discovery_ui_discovery_endpoint_strings_present": checks.get(
+            "discovery_endpoint_strings_present"
+        ),
+        "streamlit_discovery_ui_similar_modes_present": checks.get("similar_modes_present"),
+        "streamlit_discovery_ui_topic_cluster_snippets_present": checks.get(
+            "topic_cluster_ui_snippets_present"
+        ),
+        "streamlit_discovery_ui_no_deprecated_use_container_width": checks.get(
+            "no_deprecated_use_container_width"
+        ),
+        "streamlit_discovery_ui_legacy_search_endpoint_absent": checks.get(
+            "legacy_search_endpoint_absent"
         ),
     }
 
@@ -901,6 +997,28 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Treat Discovery API quality report as a required DoD condition.",
     )
+    parser.add_argument(
+        "--topic-clusters-quality-path",
+        type=Path,
+        default=DEFAULT_TOPIC_CLUSTERS_QUALITY_PATH,
+        help="Topic clusters quality report path.",
+    )
+    parser.add_argument(
+        "--require-topic-clusters",
+        action="store_true",
+        help="Treat topic clusters quality report as a required DoD condition.",
+    )
+    parser.add_argument(
+        "--streamlit-discovery-ui-quality-path",
+        type=Path,
+        default=DEFAULT_STREAMLIT_DISCOVERY_UI_QUALITY_PATH,
+        help="Streamlit Discovery UI quality report path.",
+    )
+    parser.add_argument(
+        "--require-streamlit-discovery-ui",
+        action="store_true",
+        help="Treat Streamlit Discovery UI static quality report as a required DoD condition.",
+    )
 
     return parser
 
@@ -945,6 +1063,15 @@ def main() -> None:
 
     discovery_api_quality = load_json_if_exists(args.discovery_api_quality_path)
     discovery_api_values = extract_discovery_api_values(discovery_api_quality)
+    topic_clusters_quality = load_json_if_exists(args.topic_clusters_quality_path)
+    topic_clusters_values = extract_topic_clusters_values(topic_clusters_quality)
+
+    streamlit_discovery_ui_quality = load_json_if_exists(
+        args.streamlit_discovery_ui_quality_path
+    )
+    streamlit_discovery_ui_values = extract_streamlit_discovery_ui_values(
+        streamlit_discovery_ui_quality
+    )
 
     huggingface_enrichment_check = load_json_if_exists(
         args.huggingface_enrichment_check_path
@@ -1370,6 +1497,73 @@ def main() -> None:
         "discovery_api_similar_radar_adjusted_sorted": bool(
             discovery_api_values["discovery_api_similar_radar_adjusted_sorted"]
         ),
+        "topic_clusters_quality_exists": args.topic_clusters_quality_path.exists(),
+        "topic_clusters_quality_ok": topic_clusters_values["topic_clusters_quality_ok"],
+        "topic_clusters_required_failed_count_zero": (
+                safe_int(
+                    topic_clusters_values["topic_clusters_required_failed_count"],
+                    default=999999,
+                )
+                == 0
+        ),
+        "topic_clusters_assignment_count_matches_canonical": bool(
+            topic_clusters_values[
+                "topic_clusters_assignments_count_matches_canonical_rows"
+            ]
+        ),
+        "topic_clusters_actual_cluster_count_positive": (
+                safe_int(topic_clusters_values["topic_clusters_actual_cluster_count"]) > 0
+        ),
+        "topic_clusters_empty_cluster_count_zero": bool(
+            topic_clusters_values["topic_clusters_empty_cluster_count_zero"]
+        ),
+        "topic_clusters_retrieval_build_id_matches_manifest": (
+                topic_clusters_values["topic_clusters_retrieval_build_id"] == manifest_build_id
+                and bool(
+            topic_clusters_values[
+                "topic_clusters_latest_vs_manifest_retrieval_build_id_match"
+            ]
+        )
+                and bool(
+            topic_clusters_values[
+                "topic_clusters_summary_vs_manifest_retrieval_build_id_match"
+            ]
+        )
+        ),
+
+        "streamlit_discovery_ui_quality_exists": (
+            args.streamlit_discovery_ui_quality_path.exists()
+        ),
+        "streamlit_discovery_ui_quality_ok": streamlit_discovery_ui_values[
+            "streamlit_discovery_ui_quality_ok"
+        ],
+        "streamlit_discovery_ui_required_failed_count_zero": (
+                safe_int(
+                    streamlit_discovery_ui_values[
+                        "streamlit_discovery_ui_required_failed_count"
+                    ],
+                    default=999999,
+                )
+                == 0
+        ),
+        "streamlit_discovery_ui_py_compile_ok": bool(
+            streamlit_discovery_ui_values["streamlit_discovery_ui_py_compile_ok"]
+        ),
+        "streamlit_discovery_ui_topic_cluster_snippets_present": bool(
+            streamlit_discovery_ui_values[
+                "streamlit_discovery_ui_topic_cluster_snippets_present"
+            ]
+        ),
+        "streamlit_discovery_ui_legacy_search_endpoint_absent": bool(
+            streamlit_discovery_ui_values[
+                "streamlit_discovery_ui_legacy_search_endpoint_absent"
+            ]
+        ),
+        "streamlit_discovery_ui_no_deprecated_use_container_width": bool(
+            streamlit_discovery_ui_values[
+                "streamlit_discovery_ui_no_deprecated_use_container_width"
+            ]
+        ),
     }
 
     required_check_names = [
@@ -1524,6 +1718,32 @@ def main() -> None:
             ]
         )
 
+    if args.require_topic_clusters:
+        required_check_names.extend(
+            [
+                "topic_clusters_quality_exists",
+                "topic_clusters_quality_ok",
+                "topic_clusters_required_failed_count_zero",
+                "topic_clusters_assignment_count_matches_canonical",
+                "topic_clusters_actual_cluster_count_positive",
+                "topic_clusters_empty_cluster_count_zero",
+                "topic_clusters_retrieval_build_id_matches_manifest",
+            ]
+        )
+
+    if args.require_streamlit_discovery_ui:
+        required_check_names.extend(
+            [
+                "streamlit_discovery_ui_quality_exists",
+                "streamlit_discovery_ui_quality_ok",
+                "streamlit_discovery_ui_required_failed_count_zero",
+                "streamlit_discovery_ui_py_compile_ok",
+                "streamlit_discovery_ui_topic_cluster_snippets_present",
+                "streamlit_discovery_ui_legacy_search_endpoint_absent",
+                "streamlit_discovery_ui_no_deprecated_use_container_width",
+            ]
+        )
+
     required_failed = [name for name in required_check_names if not checks.get(name, False)]
 
     verdict = {
@@ -1538,6 +1758,8 @@ def main() -> None:
         "paper_features_required": bool(args.require_paper_features),
         "similar_papers_required": bool(args.require_similar_papers),
         "discovery_api_required": bool(args.require_discovery_api),
+        "topic_clusters_required": bool(args.require_topic_clusters),
+        "streamlit_discovery_ui_required": bool(args.require_streamlit_discovery_ui),
     }
 
     report = {
@@ -1564,6 +1786,10 @@ def main() -> None:
             "paper_features_quality_path": normalize_path(args.paper_features_quality_path),
             "similar_papers_quality_path": normalize_path(args.similar_papers_quality_path),
             "discovery_api_quality_path": normalize_path(args.discovery_api_quality_path),
+            "topic_clusters_quality_path": normalize_path(args.topic_clusters_quality_path),
+            "streamlit_discovery_ui_quality_path": normalize_path(
+                args.streamlit_discovery_ui_quality_path
+            ),
         },
         "canonical_summary": canonical_summary,
         "extracted_values": {
@@ -1583,6 +1809,8 @@ def main() -> None:
             **paper_features_values,
             **similar_papers_values,
             **discovery_api_values,
+            **topic_clusters_values,
+            **streamlit_discovery_ui_values,
         },
         "checks": checks,
         "verdict": verdict,
@@ -1624,6 +1852,11 @@ def main() -> None:
     print(f"[OK] history JSON: {hist_json}")
     print(f"[OK] history Markdown: {hist_md}")
     print(f"[OK] discovery_api_required={verdict['discovery_api_required']}")
+    print(f"[OK] topic_clusters_required={verdict['topic_clusters_required']}")
+    print(
+        f"[OK] streamlit_discovery_ui_required="
+        f"{verdict['streamlit_discovery_ui_required']}"
+    )
 
 if __name__ == "__main__":
     main()

@@ -35,6 +35,9 @@ STEP_ORDER = [
     "retrieval_checks",
     "postpass_audit",
     "known_issues",
+    "build_topic_clusters",
+    "topic_clusters_quality_check",
+    "streamlit_discovery_ui_check",
     "dod_check",
 ]
 
@@ -48,6 +51,15 @@ ARTIFACT_STEPS = {
 PAPER_FEATURE_STEPS = {
     "build_paper_features",
     "paper_features_quality_check",
+}
+
+TOPIC_CLUSTER_STEPS = {
+    "build_topic_clusters",
+    "topic_clusters_quality_check",
+}
+
+STREAMLIT_UI_STEPS = {
+    "streamlit_discovery_ui_check",
 }
 
 GITHUB_ENRICHMENT_STEPS = {
@@ -324,6 +336,24 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Forward --require-discovery-api to final DoD check.",
     )
+    parser.add_argument(
+        "--build-topic-clusters",
+        action="store_true",
+        help="Build topic cluster artifacts and run topic cluster quality check.",
+    )
+    parser.add_argument(
+        "--require-topic-clusters",
+        action="store_true",
+        help="Forward --require-topic-clusters to DoD check.",
+    )
+    parser.add_argument(
+        "--require-streamlit-discovery-ui",
+        action="store_true",
+        help=(
+            "Run static Streamlit Discovery UI validation and forward "
+            "--require-streamlit-discovery-ui to DoD check."
+        ),
+    )
 
     return parser
 
@@ -342,6 +372,11 @@ def artifact_stages_enabled(args: argparse.Namespace) -> bool:
         or args.include_huggingface_enrichment
     )
 
+def topic_cluster_stages_enabled(args: argparse.Namespace) -> bool:
+    return bool(args.build_topic_clusters)
+
+def streamlit_ui_stages_enabled(args: argparse.Namespace) -> bool:
+    return bool(args.require_streamlit_discovery_ui)
 
 def paper_feature_stages_enabled(args: argparse.Namespace) -> bool:
     return bool(args.require_paper_features)
@@ -365,6 +400,12 @@ def step_enabled(step_name: str, args: argparse.Namespace) -> tuple[bool, str]:
 
     if step_name in PAPER_FEATURE_STEPS and not paper_feature_stages_enabled(args):
         return False, "paper_features stages require --require-paper-features"
+
+    if step_name in TOPIC_CLUSTER_STEPS and not topic_cluster_stages_enabled(args):
+        return False, "Topic cluster stages disabled; pass --build-topic-clusters"
+
+    if step_name in STREAMLIT_UI_STEPS and not streamlit_ui_stages_enabled(args):
+        return False, "Streamlit UI stages disabled; pass --require-streamlit-discovery-ui"
 
     return True, "Included"
 
@@ -487,6 +528,24 @@ def main() -> None:
     postpass_audit_cmd = [sys.executable, "-m", "scripts.validation.run_postpass_audit"]
     known_issues_cmd = [sys.executable, "-m", "scripts.validation.build_known_issues_snapshot"]
 
+    build_topic_clusters_cmd = [
+        sys.executable,
+        "-m",
+        "scripts.analytics.build_topic_clusters",
+    ]
+    topic_clusters_quality_cmd = [
+        sys.executable,
+        "-m",
+        "scripts.validation.check_topic_clusters",
+        "--strict",
+    ]
+    streamlit_discovery_ui_cmd = [
+        sys.executable,
+        "-m",
+        "scripts.validation.check_streamlit_discovery_ui",
+        "--strict",
+    ]
+
     dod_cmd = [sys.executable, "-m", "scripts.update.check_refresh_definition_of_done"]
     if args.require_known_issues:
         dod_cmd.append("--require-known-issues")
@@ -502,6 +561,10 @@ def main() -> None:
         dod_cmd.append("--require-similar-papers")
     if args.require_discovery_api:
         dod_cmd.append("--require-discovery-api")
+    if args.require_topic_clusters:
+        dod_cmd.append("--require-topic-clusters")
+    if args.require_streamlit_discovery_ui:
+        dod_cmd.append("--require-streamlit-discovery-ui")
 
     step_cmds = {
         "reconcile_candidate": reconcile_cmd,
@@ -523,6 +586,9 @@ def main() -> None:
         "retrieval_checks": retrieval_checks_cmd,
         "postpass_audit": postpass_audit_cmd,
         "known_issues": known_issues_cmd,
+        "build_topic_clusters": build_topic_clusters_cmd,
+        "topic_clusters_quality_check": topic_clusters_quality_cmd,
+        "streamlit_discovery_ui_check": streamlit_discovery_ui_cmd,
         "dod_check": dod_cmd,
     }
 
@@ -595,6 +661,11 @@ def main() -> None:
             "paper_feature_stages_enabled": paper_feature_stages_enabled(args),
             "require_similar_papers": bool(args.require_similar_papers),
             "require_discovery_api": bool(args.require_discovery_api),
+            "build_topic_clusters": bool(args.build_topic_clusters),
+            "require_topic_clusters": bool(args.require_topic_clusters),
+            "require_streamlit_discovery_ui": bool(args.require_streamlit_discovery_ui),
+            "topic_cluster_stages_enabled": topic_cluster_stages_enabled(args),
+            "streamlit_ui_stages_enabled": streamlit_ui_stages_enabled(args),
         },
         "candidate": {
             "path": normalize_path(candidate_path),
@@ -639,6 +710,14 @@ def main() -> None:
     print(f"[OK] history JSON: {hist_json}")
     print(f"[OK] history Markdown: {hist_md}")
     print(f"[OK] require_discovery_api={bool(args.require_discovery_api)}")
+    print(f"[OK] build_topic_clusters={bool(args.build_topic_clusters)}")
+    print(f"[OK] require_topic_clusters={bool(args.require_topic_clusters)}")
+    print(
+        f"[OK] require_streamlit_discovery_ui="
+        f"{bool(args.require_streamlit_discovery_ui)}"
+    )
+    print(f"[OK] topic_cluster_stages_enabled={topic_cluster_stages_enabled(args)}")
+    print(f"[OK] streamlit_ui_stages_enabled={streamlit_ui_stages_enabled(args)}")
 
 
 if __name__ == "__main__":
