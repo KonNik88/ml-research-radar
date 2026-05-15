@@ -101,6 +101,91 @@ def _safe_float(value: Any, default: float = 0.0) -> float:
 def _cluster_id_of(row: dict[str, Any]) -> int:
     return _safe_int(row.get("cluster_id"))
 
+def _projection_point_type(row: dict[str, Any]) -> str:
+    value = (
+        row.get("point_type")
+        or row.get("type")
+        or row.get("kind")
+        or row.get("role")
+    )
+
+    text = str(value or "").strip().lower()
+    if text:
+        return text
+
+    canonical_id = str(row.get("canonical_id") or "").strip()
+    return "paper" if canonical_id else "centroid"
+
+
+def _projection_xy(row: dict[str, Any]) -> tuple[float, float]:
+    x_value = row.get("x")
+    y_value = row.get("y")
+
+    if x_value is None:
+        x_value = row.get("projection_x")
+    if y_value is None:
+        y_value = row.get("projection_y")
+
+    if (x_value is None or y_value is None) and isinstance(row.get("coordinates"), list):
+        coordinates = row["coordinates"]
+        if len(coordinates) >= 2:
+            x_value = coordinates[0]
+            y_value = coordinates[1]
+
+    try:
+        x = float(x_value)
+        y = float(y_value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"Bad topic projection point coordinates: {row}") from exc
+
+    return x, y
+
+
+def _normalize_projection_point(row: dict[str, Any]) -> dict[str, Any]:
+    point_type = _projection_point_type(row)
+    x, y = _projection_xy(row)
+
+    cluster_id = _safe_int(row.get("cluster_id"))
+
+    label_candidates = row.get("label_candidates") or []
+    if not isinstance(label_candidates, list):
+        label_candidates = []
+
+    metadata = row.get("metadata") or {}
+    if not isinstance(metadata, dict):
+        metadata = {}
+
+    metadata = {
+        **metadata,
+        "cluster_size": row.get("cluster_size"),
+        "mean_radar_score": row.get("mean_radar_score"),
+        "mean_implementation_readiness_score": row.get(
+            "mean_implementation_readiness_score"
+        ),
+        "is_representative": bool(row.get("is_representative")),
+        "is_sampled": bool(row.get("is_sampled")),
+        "rank_within_cluster": row.get("rank_within_cluster"),
+    }
+
+    return {
+        "point_id": row.get("point_id"),
+        "point_type": point_type,
+        "cluster_id": cluster_id,
+        "x": x,
+        "y": y,
+        "canonical_id": row.get("canonical_id"),
+        "title": row.get("title"),
+        "year": row.get("year"),
+        "label_candidates": [str(x) for x in label_candidates if str(x).strip()],
+        "size": row.get("size") or row.get("cluster_size"),
+        "radar_score": row.get("radar_score") or row.get("mean_radar_score"),
+        "implementation_readiness_score": (
+                row.get("implementation_readiness_score")
+                or row.get("mean_implementation_readiness_score")
+        ),
+        "artifact_ready_count": row.get("artifact_ready_count"),
+        "metadata": metadata,
+    }
 
 def _merge_cluster_labels(
     *,
@@ -256,6 +341,8 @@ class DiscoveryService:
         default=None,
         init=False,
     )
+    _topic_projection_summary: dict[str, Any] | None = field(default=None, init=False)
+    _topic_projection_points: list[dict[str, Any]] | None = field(default=None, init=False)
 
     def reload(self) -> None:
         self._profiles_payload = None
@@ -269,6 +356,8 @@ class DiscoveryService:
         self._topic_clusters_payload = None
         self._topic_assignments_by_id = None
         self._topic_assignments_by_cluster = None
+        self._topic_projection_summary = None
+        self._topic_projection_points = None
 
     def _load_profiles_payload(self) -> dict[str, Any]:
         if self._profiles_payload is None:
@@ -454,6 +543,71 @@ class DiscoveryService:
             "results": returned,
         }
 
+    def get_topic_cluster_map(
+        self,
+        *,
+        include_papers: bool = False,
+        max_points: int = 5000,
+    ) -> dict[str, Any]:
+        if max_points <= 0:
+            raise ValueError("max_points must be positive")
+
+        payload = self._load_topic_clusters_payload()
+        projection_summary = self._load_topic_projection_summary()
+        points = self._load_topic_projection_points()
+        summary_counts = projection_summary.get("counts") or {}
+        summary_method = projection_summary.get("method") or {}
+
+        if include_papers:
+            filtered_points = list(points)
+        else:
+            filtered_points = [
+                point
+                for point in points
+                if str(point.get("point_type") or "").lower() == "centroid"
+            ]
+
+        returned_points = filtered_points[:max_points]
+
+        return {
+            "mode": "topic_cluster_map",
+            "projection_build_id": str(projection_summary.get("projection_build_id") or ""),
+            "cluster_build_id": payload["cluster_build_id"],
+            "retrieval_build_id": payload["retrieval_build_id"],
+            "cluster_config_hash": payload.get("cluster_config_hash"),
+            "projection_algorithm": summary_method.get("algorithm"),
+            "point_count": _safe_int(
+                summary_counts.get("point_count"),
+                default=len(points),
+            ),
+            "centroid_count": _safe_int(
+                summary_counts.get("centroid_count"),
+                default=sum(
+                    1
+                    for point in points
+                    if str(point.get("point_type") or "").lower() == "centroid"
+                ),
+            ),
+            "representative_count": _safe_int(
+                summary_counts.get("representative_count"),
+                default=sum(1 for point in points if point.get("is_representative")),
+            ),
+            "sampled_count": _safe_int(
+                summary_counts.get("sampled_count"),
+                default=sum(1 for point in points if point.get("is_sampled")),
+            ),
+            "total_points_count": len(filtered_points),
+            "returned_points_count": len(returned_points),
+            "include_papers": include_papers,
+            "max_points": max_points,
+            "inputs": {
+                **payload["inputs"],
+                "projection_path": payload["inputs"].get("projection_path"),
+                "projection_summary_path": payload["inputs"].get("projection_summary_path"),
+            },
+            "points": returned_points,
+        }
+
     def get_topic_cluster(
         self,
         *,
@@ -609,6 +763,25 @@ class DiscoveryService:
             label_candidates_path = run_dir / "label_candidates.json"
 
         assignments_path = _as_path(latest.get("assignments_path"))
+        projection_payload = latest.get("projection") or {}
+        if not isinstance(projection_payload, dict):
+            projection_payload = {}
+
+        projection_path = _as_path(
+            projection_payload.get("projection_path")
+            or latest.get("projection_path"),
+            base_dir=run_dir,
+        )
+        if projection_path is None:
+            projection_path = run_dir / "projection_2d.jsonl"
+
+        projection_summary_path = _as_path(
+            projection_payload.get("projection_summary_path")
+            or latest.get("projection_summary_path"),
+            base_dir=run_dir,
+        )
+        if projection_summary_path is None:
+            projection_summary_path = run_dir / "projection_summary.json"
         if assignments_path is None:
             assignments_path = run_dir / "assignments.jsonl"
 
@@ -698,6 +871,8 @@ class DiscoveryService:
                 "summary_path": normalize_path(summary_path),
                 "label_candidates_path": normalize_path(label_candidates_path),
                 "assignments_path": normalize_path(assignments_path),
+                "projection_path": normalize_path(projection_path),
+                "projection_summary_path": normalize_path(projection_summary_path),
             },
         }
 
@@ -735,6 +910,61 @@ class DiscoveryService:
 
         self._topic_assignments_by_id = by_id
         self._topic_assignments_by_cluster = by_cluster
+
+    def _load_topic_projection_summary(self) -> dict[str, Any]:
+        if self._topic_projection_summary is not None:
+            return self._topic_projection_summary
+
+        payload = self._load_topic_clusters_payload()
+        summary_path_raw = payload["inputs"].get("projection_summary_path")
+        if not summary_path_raw:
+            raise FileNotFoundError("Topic projection summary path is not configured")
+
+        summary_path = Path(summary_path_raw)
+        if not summary_path.exists():
+            raise FileNotFoundError(f"Topic projection summary file not found: {summary_path}")
+
+        summary = _read_json(summary_path)
+
+        cluster_build_id = str(summary.get("cluster_build_id") or "")
+        retrieval_build_id = str(summary.get("retrieval_build_id") or "")
+
+        if cluster_build_id and cluster_build_id != payload["cluster_build_id"]:
+            raise ValueError(
+                "Topic projection cluster_build_id does not match topic clusters payload: "
+                f"{cluster_build_id} != {payload['cluster_build_id']}"
+            )
+
+        if retrieval_build_id and retrieval_build_id != payload["retrieval_build_id"]:
+            raise ValueError(
+                "Topic projection retrieval_build_id does not match topic clusters payload: "
+                f"{retrieval_build_id} != {payload['retrieval_build_id']}"
+            )
+
+        self._topic_projection_summary = summary
+        return self._topic_projection_summary
+
+    def _load_topic_projection_points(self) -> list[dict[str, Any]]:
+        if self._topic_projection_points is not None:
+            return self._topic_projection_points
+
+        payload = self._load_topic_clusters_payload()
+        projection_path_raw = payload["inputs"].get("projection_path")
+        if not projection_path_raw:
+            raise FileNotFoundError("Topic projection path is not configured")
+
+        projection_path = Path(projection_path_raw)
+        if not projection_path.exists():
+            raise FileNotFoundError(f"Topic projection file not found: {projection_path}")
+
+        rows = _read_jsonl(projection_path)
+        points = [_normalize_projection_point(row) for row in rows]
+
+        if not points:
+            raise ValueError(f"Topic projection has no points: {projection_path}")
+
+        self._topic_projection_points = points
+        return self._topic_projection_points
 
 
 _DISCOVERY_SERVICE = DiscoveryService()

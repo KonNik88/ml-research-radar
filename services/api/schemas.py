@@ -371,3 +371,47 @@ class DiscoveryPaperTopicClusterResponse(BaseModel):
     cluster: dict[str, Any] | None = None
 
     inputs: dict[str, Any] = Field(default_factory=dict)
+
+class DiscoveryTopicClusterMapPoint(BaseModel):
+    point_id: str | None = None
+    point_type: str
+    cluster_id: int
+
+    x: float
+    y: float
+
+    canonical_id: str | None = None
+    title: str | None = None
+    year: int | None = None
+
+    label_candidates: list[str] = Field(default_factory=list)
+
+    size: int | None = None
+    radar_score: float | None = None
+    implementation_readiness_score: float | None = None
+    artifact_ready_count: int | None = None
+
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class DiscoveryTopicClusterMapResponse(BaseModel):
+    mode: str
+
+    projection_build_id: str
+    cluster_build_id: str
+    retrieval_build_id: str
+    cluster_config_hash: str | None = None
+
+    projection_algorithm: str | None = None
+    point_count: int = 0
+    centroid_count: int = 0
+    representative_count: int = 0
+    sampled_count: int = 0
+
+    total_points_count: int = 0
+    returned_points_count: int = 0
+    include_papers: bool = False
+    max_points: int
+
+    inputs: dict[str, Any] = Field(default_factory=dict)
+    points: list[DiscoveryTopicClusterMapPoint] = Field(default_factory=list)

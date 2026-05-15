@@ -18,6 +18,7 @@ OVERRIDE_RANKING_PROFILE = "recent_artifact_ready"
 OVERRIDE_MIN_YEAR = 2025
 OVERRIDE_HAS_CODE = True
 CLUSTER_LIST_LIMIT = 5
+TOPIC_CLUSTER_MAP_MAX_POINTS = 500
 
 REQUIRED_PROFILE_NAMES = {
     "recent_artifact_ready",
@@ -213,6 +214,23 @@ def main() -> None:
             params={"limit": CLUSTER_LIST_LIMIT},
         )
         endpoints["topic_clusters"] = endpoint_meta(topic_clusters)
+        topic_cluster_map = request_json(
+            client,
+            "/discovery/clusters/map",
+        )
+        endpoints["topic_cluster_map"] = endpoint_meta(topic_cluster_map)
+
+        topic_cluster_map_with_papers = request_json(
+            client,
+            "/discovery/clusters/map",
+            params={
+                "include_papers": "true",
+                "max_points": TOPIC_CLUSTER_MAP_MAX_POINTS,
+            },
+        )
+        endpoints["topic_cluster_map_with_papers"] = endpoint_meta(
+            topic_cluster_map_with_papers
+        )
 
         topic_clusters_payload = (
             topic_clusters.get("json")
@@ -325,6 +343,22 @@ def main() -> None:
     )
     topic_cluster_detail_papers = topic_cluster_detail_payload.get("papers") or []
 
+    topic_cluster_map_payload = (
+        topic_cluster_map.get("json")
+        if isinstance(topic_cluster_map.get("json"), dict)
+        else {}
+    )
+    topic_cluster_map_points = topic_cluster_map_payload.get("points") or []
+
+    topic_cluster_map_with_papers_payload = (
+        topic_cluster_map_with_papers.get("json")
+        if isinstance(topic_cluster_map_with_papers.get("json"), dict)
+        else {}
+    )
+    topic_cluster_map_with_papers_points = (
+        topic_cluster_map_with_papers_payload.get("points") or []
+    )
+
     paper_topic_cluster_payload = (
         paper_topic_cluster.get("json")
         if isinstance(paper_topic_cluster.get("json"), dict)
@@ -379,6 +413,70 @@ def main() -> None:
         == paper_topic_cluster_cluster.get("cluster_id")
     )
 
+    topic_cluster_map_projection_build_id_present = bool(
+        topic_cluster_map_payload.get("projection_build_id")
+    )
+    topic_cluster_map_cluster_build_id_present = bool(
+        topic_cluster_map_payload.get("cluster_build_id")
+    )
+    topic_cluster_map_retrieval_build_id_present = bool(
+        topic_cluster_map_payload.get("retrieval_build_id")
+    )
+    topic_cluster_map_algorithm_present = bool(
+        topic_cluster_map_payload.get("projection_algorithm")
+    )
+    topic_cluster_map_counts_present = (
+        int(topic_cluster_map_payload.get("point_count") or 0) > 0
+        and int(topic_cluster_map_payload.get("centroid_count") or 0) > 0
+        and int(topic_cluster_map_payload.get("representative_count") or 0) > 0
+        and int(topic_cluster_map_payload.get("sampled_count") or 0) > 0
+    )
+
+    topic_cluster_map_points_have_xy = (
+        len(topic_cluster_map_points) > 0
+        and all(
+            isinstance(row, dict)
+            and isinstance(row.get("cluster_id"), int)
+            and isinstance(row.get("x"), int | float)
+            and isinstance(row.get("y"), int | float)
+            for row in topic_cluster_map_points
+        )
+    )
+    topic_cluster_map_centroid_points_present = any(
+        isinstance(row, dict) and row.get("point_type") == "centroid"
+        for row in topic_cluster_map_points
+    )
+    topic_cluster_map_default_centroids_only = (
+        len(topic_cluster_map_points) > 0
+        and topic_cluster_map_payload.get("include_papers") is False
+        and all(
+            isinstance(row, dict) and row.get("point_type") == "centroid"
+            for row in topic_cluster_map_points
+        )
+    )
+    topic_cluster_map_returned_count_matches = (
+        topic_cluster_map_payload.get("returned_points_count")
+        == len(topic_cluster_map_points)
+        and len(topic_cluster_map_points) > 0
+    )
+
+    topic_cluster_map_with_papers_points_have_xy = (
+        len(topic_cluster_map_with_papers_points) > 0
+        and all(
+            isinstance(row, dict)
+            and isinstance(row.get("cluster_id"), int)
+            and isinstance(row.get("x"), int | float)
+            and isinstance(row.get("y"), int | float)
+            for row in topic_cluster_map_with_papers_points
+        )
+    )
+    topic_cluster_map_with_papers_limit_respected = (
+        len(topic_cluster_map_with_papers_points) > 0
+        and len(topic_cluster_map_with_papers_points) <= TOPIC_CLUSTER_MAP_MAX_POINTS
+        and topic_cluster_map_with_papers_payload.get("returned_points_count")
+        == len(topic_cluster_map_with_papers_points)
+    )
+
     checks = {
         "profiles_endpoint_ok": bool(profiles.get("ok")),
         "profiles_non_empty": int(profiles_payload.get("profile_count") or 0) > 0,
@@ -400,6 +498,41 @@ def main() -> None:
         "topic_clusters_cluster_ids_present": topic_clusters_cluster_ids_present,
         "topic_clusters_label_candidates_present": topic_clusters_label_candidates_present,
         "topic_cluster_id_resolved": topic_cluster_id is not None,
+        "topic_cluster_map_endpoint_ok": bool(topic_cluster_map.get("ok")),
+        "topic_cluster_map_results_non_empty": len(topic_cluster_map_points) > 0,
+        "topic_cluster_map_projection_build_id_present": (
+            topic_cluster_map_projection_build_id_present
+        ),
+        "topic_cluster_map_cluster_build_id_present": (
+            topic_cluster_map_cluster_build_id_present
+        ),
+        "topic_cluster_map_retrieval_build_id_present": (
+            topic_cluster_map_retrieval_build_id_present
+        ),
+        "topic_cluster_map_algorithm_present": topic_cluster_map_algorithm_present,
+        "topic_cluster_map_counts_present": topic_cluster_map_counts_present,
+        "topic_cluster_map_points_have_xy": topic_cluster_map_points_have_xy,
+        "topic_cluster_map_centroid_points_present": (
+            topic_cluster_map_centroid_points_present
+        ),
+        "topic_cluster_map_default_centroids_only": (
+            topic_cluster_map_default_centroids_only
+        ),
+        "topic_cluster_map_returned_count_matches": (
+            topic_cluster_map_returned_count_matches
+        ),
+        "topic_cluster_map_with_papers_endpoint_ok": bool(
+            topic_cluster_map_with_papers.get("ok")
+        ),
+        "topic_cluster_map_with_papers_results_non_empty": (
+                len(topic_cluster_map_with_papers_points) > 0
+        ),
+        "topic_cluster_map_with_papers_points_have_xy": (
+            topic_cluster_map_with_papers_points_have_xy
+        ),
+        "topic_cluster_map_with_papers_limit_respected": (
+            topic_cluster_map_with_papers_limit_respected
+        ),
         "topic_cluster_detail_endpoint_ok": bool(topic_cluster_detail.get("ok")),
         "topic_cluster_detail_found": topic_cluster_detail_found,
         "topic_cluster_detail_label_candidates_present": is_non_empty_list(
@@ -449,6 +582,7 @@ def main() -> None:
             "top_k": args.top_k,
             "canonical_id_arg": args.canonical_id,
             "cluster_list_limit": CLUSTER_LIST_LIMIT,
+            "topic_cluster_map_max_points": TOPIC_CLUSTER_MAP_MAX_POINTS,
             "required_profile_names": sorted(REQUIRED_PROFILE_NAMES),
         },
         "summary": {
@@ -467,6 +601,26 @@ def main() -> None:
             ),
             "topic_clusters_returned_count": len(topic_cluster_results),
             "topic_cluster_id": topic_cluster_id,
+            "topic_cluster_map_projection_build_id": topic_cluster_map_payload.get(
+                "projection_build_id"
+            ),
+            "topic_cluster_map_projection_algorithm": topic_cluster_map_payload.get(
+                "projection_algorithm"
+            ),
+            "topic_cluster_map_point_count": topic_cluster_map_payload.get("point_count"),
+            "topic_cluster_map_centroid_count": topic_cluster_map_payload.get(
+                "centroid_count"
+            ),
+            "topic_cluster_map_representative_count": topic_cluster_map_payload.get(
+                "representative_count"
+            ),
+            "topic_cluster_map_sampled_count": topic_cluster_map_payload.get(
+                "sampled_count"
+            ),
+            "topic_cluster_map_returned_points_count": len(topic_cluster_map_points),
+            "topic_cluster_map_with_papers_returned_points_count": len(
+                topic_cluster_map_with_papers_points
+            ),
             "topic_cluster_detail_total_papers": topic_cluster_detail_payload.get(
                 "total_papers"
             ),

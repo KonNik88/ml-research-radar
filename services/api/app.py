@@ -20,6 +20,7 @@ from services.api.schemas import (
     DiscoveryRankingResponse,
     DiscoverySimilarPapersResponse,
     DiscoveryTopicClusterDetailResponse,
+    DiscoveryTopicClusterMapResponse,
     DiscoveryTopicClustersResponse,
     DocumentArtifactsResponse,
     DocumentListResponse,
@@ -596,6 +597,17 @@ def discovery_topic_clusters(
     )
     return DiscoveryTopicClustersResponse(**payload)
 
+@app.get("/discovery/clusters/map", response_model=DiscoveryTopicClusterMapResponse)
+def discovery_topic_cluster_map(
+    include_papers: bool = Query(False),
+    max_points: int = Query(5000, ge=1, le=10000),
+) -> DiscoveryTopicClusterMapResponse:
+    service = get_discovery_service()
+    payload = service.get_topic_cluster_map(
+        include_papers=include_papers,
+        max_points=max_points,
+    )
+    return DiscoveryTopicClusterMapResponse(**payload)
 
 @app.get("/discovery/clusters/{cluster_id}", response_model=DiscoveryTopicClusterDetailResponse)
 def discovery_topic_cluster_detail(

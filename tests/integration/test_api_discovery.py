@@ -276,6 +276,56 @@ def test_discovery_topic_clusters_limit_smoke(client: TestClient) -> None:
     sizes = [cluster["size"] for cluster in payload["results"]]
     assert all(size > 0 for size in sizes)
 
+def test_discovery_topic_cluster_map_centroids_smoke(client: TestClient) -> None:
+    response = client.get("/discovery/clusters/map")
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    assert payload["mode"] == "topic_cluster_map"
+    assert payload["projection_build_id"]
+    assert payload["cluster_build_id"]
+    assert payload["retrieval_build_id"]
+
+    assert payload["include_papers"] is False
+    assert payload["centroid_count"] > 0
+    assert payload["returned_points_count"] > 0
+    assert payload["returned_points_count"] <= payload["max_points"]
+    assert payload["returned_points_count"] == payload["centroid_count"]
+
+    assert payload["points"]
+
+    first = payload["points"][0]
+    assert first["point_type"] == "centroid"
+    assert isinstance(first["cluster_id"], int)
+    assert isinstance(first["x"], float)
+    assert isinstance(first["y"], float)
+    assert first["label_candidates"]
+
+
+def test_discovery_topic_cluster_map_include_papers_smoke(client: TestClient) -> None:
+    response = client.get(
+        "/discovery/clusters/map",
+        params={"include_papers": "true", "max_points": 500},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    assert payload["mode"] == "topic_cluster_map"
+    assert payload["include_papers"] is True
+    assert payload["returned_points_count"] > 0
+    assert payload["returned_points_count"] <= 500
+    assert payload["total_points_count"] >= payload["returned_points_count"]
+    assert payload["total_points_count"] >= payload["centroid_count"]
+
+    point_types = {point["point_type"] for point in payload["points"]}
+    assert "centroid" in point_types
+
+    first = payload["points"][0]
+    assert isinstance(first["cluster_id"], int)
+    assert isinstance(first["x"], float)
+    assert isinstance(first["y"], float)
 
 def test_discovery_topic_cluster_detail_smoke(client: TestClient) -> None:
     cluster_id = _first_cluster_id(client)
