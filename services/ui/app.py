@@ -156,11 +156,12 @@ def fetch_topic_cluster_detail(
     cluster_id: int,
     *,
     top_k: int,
+    sort_by: str = "rank",
 ) -> dict[str, Any]:
     return api_get(
         base_url,
         f"/discovery/clusters/{cluster_id}",
-        params={"top_k": top_k},
+        params={"top_k": top_k, "sort_by": sort_by},
     )
 
 def fetch_paper_topic_cluster(base_url: str, canonical_id: str) -> dict[str, Any]:
@@ -318,10 +319,12 @@ def init_ui_state() -> None:
         "cluster_payload": None,
         "selected_cluster_id": None,
         "cluster_detail_top_k": 10,
+        "cluster_detail_sort_by": "rank",
         "topic_map_payload": None,
         "topic_map_include_papers": False,
         "topic_map_max_points": 2000,
         "topic_map_selected_cluster_id": None,
+        "topic_map_cluster_detail_sort_by": "rank",
     }
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
@@ -330,6 +333,12 @@ def init_ui_state() -> None:
         st.session_state.setdefault(key, "Profile default")
         if st.session_state.get("cluster_sort_by") not in CLUSTER_SORT_OPTIONS:
             st.session_state["cluster_sort_by"] = "size_desc"
+
+    if st.session_state.get("cluster_detail_sort_by") not in CLUSTER_PAPER_SORT_OPTIONS:
+        st.session_state["cluster_detail_sort_by"] = "rank"
+
+    if st.session_state.get("topic_map_cluster_detail_sort_by") not in CLUSTER_PAPER_SORT_OPTIONS:
+        st.session_state["topic_map_cluster_detail_sort_by"] = "rank"
 
 
 def reset_discovery_filters(default_profile: str | None = None) -> None:
@@ -951,6 +960,23 @@ CLUSTER_SORT_LABELS = {
     "artifact_ready_desc": "Artifact-ready papers ↓",
 }
 
+CLUSTER_PAPER_SORT_OPTIONS = [
+    "rank",
+    "similarity_desc",
+    "radar_score",
+    "implementation_readiness_score",
+    "citation_signal_score",
+    "year_desc",
+]
+
+CLUSTER_PAPER_SORT_LABELS = {
+    "rank": "Cluster rank / centroid order",
+    "similarity_desc": "Closest to centroid",
+    "radar_score": "Highest radar score",
+    "implementation_readiness_score": "Most implementation-ready",
+    "citation_signal_score": "Highest citation signal",
+    "year_desc": "Newest papers",
+}
 
 def cluster_summary_row(row: dict[str, Any]) -> dict[str, Any]:
     labels = row.get("label_candidates") or []
@@ -983,6 +1009,7 @@ def cluster_paper_row(row: dict[str, Any], rank: int) -> dict[str, Any]:
         "title": row.get("title"),
         "radar": row.get("radar_score"),
         "impl": row.get("implementation_readiness_score"),
+        "citation": row.get("citation_signal_score"),
         "distance": row.get("distance_to_centroid"),
         "similarity": row.get("similarity_to_centroid"),
         "code": row.get("has_code_artifact"),
@@ -1185,7 +1212,18 @@ def render_topic_map(base_url: str) -> None:
             key="topic_map_selected_cluster_id",
         )
 
-        render_topic_cluster_detail(base_url, int(selected_cluster_id))
+        st.selectbox(
+            "Mapped cluster paper sort by",
+            CLUSTER_PAPER_SORT_OPTIONS,
+            key="topic_map_cluster_detail_sort_by",
+            format_func=lambda value: CLUSTER_PAPER_SORT_LABELS.get(value, value),
+        )
+
+        render_topic_cluster_detail(
+            base_url,
+            int(selected_cluster_id),
+            sort_by=st.session_state["topic_map_cluster_detail_sort_by"],
+        )
 
     with st.expander("Topic map points table", expanded=False):
         st.dataframe(df.drop(columns=["plot_size"]), hide_index=True, width="stretch")
@@ -1193,13 +1231,19 @@ def render_topic_map(base_url: str) -> None:
     with st.expander("Raw topic map response", expanded=False):
         st.json(payload)
 
-def render_topic_cluster_detail(base_url: str, cluster_id: int) -> None:
+def render_topic_cluster_detail(
+    base_url: str,
+    cluster_id: int,
+    *,
+    sort_by: str = "rank",
+) -> None:
     try:
         with st.spinner(f"Loading topic cluster {cluster_id}..."):
             payload = fetch_topic_cluster_detail(
                 base_url,
                 cluster_id,
                 top_k=int(st.session_state["cluster_detail_top_k"]),
+                sort_by=sort_by,
             )
     except Exception as exc:
         st.error(str(exc))
@@ -1221,6 +1265,7 @@ def render_topic_cluster_detail(base_url: str, cluster_id: int) -> None:
     cols[3].metric("Code", summary.get("code_artifact_count", "—"))
     cols[4].metric("Mean radar", fmt_score(summary.get("mean_radar_score")))
     cols[5].metric("Mean impl", fmt_score(summary.get("mean_implementation_readiness_score")))
+    st.caption(f"Paper sort: `{payload.get('sort_by') or sort_by}`")
 
     with st.expander("Cluster summary JSON", expanded=False):
         st.json(summary)
@@ -1263,7 +1308,7 @@ def render_topic_clusters(base_url: str) -> None:
         "The UI calls `/discovery/clusters`; it does not run clustering locally."
     )
 
-    control_cols = st.columns([1, 1, 1, 2])
+    control_cols = st.columns([1, 1, 1])
     with control_cols[0]:
         st.number_input(
             "Cluster limit",
@@ -1287,13 +1332,22 @@ def render_topic_clusters(base_url: str) -> None:
             key="cluster_sort_by",
             format_func=lambda value: CLUSTER_SORT_LABELS.get(value, value),
         )
-    with control_cols[3]:
+
+    detail_control_cols = st.columns([1, 2])
+    with detail_control_cols[0]:
         st.number_input(
             "Cluster detail top K",
             min_value=1,
             max_value=100,
             step=1,
             key="cluster_detail_top_k",
+        )
+    with detail_control_cols[1]:
+        st.selectbox(
+            "Cluster paper sort by",
+            CLUSTER_PAPER_SORT_OPTIONS,
+            key="cluster_detail_sort_by",
+            format_func=lambda value: CLUSTER_PAPER_SORT_LABELS.get(value, value),
         )
 
     if st.button("Load topic clusters", type="primary", width="stretch"):
@@ -1356,7 +1410,11 @@ def render_topic_clusters(base_url: str) -> None:
         key="selected_cluster_id",
     )
 
-    render_topic_cluster_detail(base_url, int(selected_cluster_id))
+    render_topic_cluster_detail(
+        base_url,
+        int(selected_cluster_id),
+        sort_by=st.session_state["cluster_detail_sort_by"],
+    )
 
     with st.expander("Raw clusters response", expanded=False):
         st.json(payload)

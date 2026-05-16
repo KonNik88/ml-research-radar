@@ -31,6 +31,15 @@ TOPIC_CLUSTER_SORT_VALUES = [
     "artifact_ready_desc",
 ]
 
+TOPIC_CLUSTER_DETAIL_SORT_VALUES = [
+    "rank",
+    "similarity_desc",
+    "radar_score",
+    "implementation_readiness_score",
+    "citation_signal_score",
+    "year_desc",
+]
+
 REQUIRED_UI_SNIPPETS = [
     "st.set_page_config",
     "ML Research Radar",
@@ -81,6 +90,13 @@ TOPIC_CLUSTER_UI_SNIPPETS = [
     "Load topic map",
     "Show paper points",
     "Topic map projection",
+    "CLUSTER_PAPER_SORT_OPTIONS",
+    "CLUSTER_PAPER_SORT_LABELS",
+    "Cluster paper sort by",
+    "Mapped cluster paper sort by",
+    "similarity_desc",
+    "citation_signal_score",
+    "year_desc",
 ]
 
 
@@ -440,12 +456,64 @@ def run_api_checks(
             "No cluster_id available from /discovery/clusters",
         )
 
+    cluster_detail_sort_smoke: dict[str, dict[str, Any]] = {}
+
+    if cluster_id is not None:
+        for sort_value in TOPIC_CLUSTER_DETAIL_SORT_VALUES:
+            sort_ok, sort_payload, sort_error = request_json(
+                base_url=base_url,
+                path=f"/discovery/clusters/{cluster_id}",
+                params={"top_k": 3, "sort_by": sort_value},
+                timeout_seconds=timeout_seconds,
+            )
+            sort_rows = result_rows(sort_payload)
+            cluster_detail_sort_smoke[sort_value] = {
+                "ok": sort_ok,
+                "results_count": len(sort_rows),
+                "sort_by_echoed": sort_payload.get("sort_by") == sort_value,
+                "error": sort_error,
+            }
+            checks[f"api_topic_cluster_detail_sort_{sort_value}_ok"] = sort_ok
+            checks[f"api_topic_cluster_detail_sort_{sort_value}_non_empty"] = bool(sort_rows)
+            checks[f"api_topic_cluster_detail_sort_{sort_value}_echoed"] = (
+                sort_payload.get("sort_by") == sort_value
+            )
+    else:
+        for sort_value in TOPIC_CLUSTER_DETAIL_SORT_VALUES:
+            cluster_detail_sort_smoke[sort_value] = {
+                "ok": False,
+                "results_count": 0,
+                "sort_by_echoed": False,
+                "error": "No cluster_id available",
+            }
+            checks[f"api_topic_cluster_detail_sort_{sort_value}_ok"] = False
+            checks[f"api_topic_cluster_detail_sort_{sort_value}_non_empty"] = False
+            checks[f"api_topic_cluster_detail_sort_{sort_value}_echoed"] = False
+
     cluster_detail_rows = result_rows(cluster_detail_payload)
     cluster_detail_summary = (
         cluster_detail_payload.get("summary")
         or cluster_detail_payload.get("cluster")
         or {}
     )
+
+    checks["api_topic_cluster_detail_supported_sort_values_ok"] = all(
+        bool(cluster_detail_sort_smoke.get(sort_value, {}).get("ok"))
+        for sort_value in TOPIC_CLUSTER_DETAIL_SORT_VALUES
+    )
+    checks["api_topic_cluster_detail_sort_results_non_empty"] = all(
+        bool(cluster_detail_sort_smoke.get(sort_value, {}).get("results_count"))
+        for sort_value in TOPIC_CLUSTER_DETAIL_SORT_VALUES
+    )
+    checks["api_topic_cluster_detail_sort_values_echoed"] = all(
+        bool(cluster_detail_sort_smoke.get(sort_value, {}).get("sort_by_echoed"))
+        for sort_value in TOPIC_CLUSTER_DETAIL_SORT_VALUES
+    )
+
+    extracted_values["api_topic_cluster_detail_supported_sort_values"] = (
+        TOPIC_CLUSTER_DETAIL_SORT_VALUES
+    )
+    extracted_values["api_topic_cluster_detail_sort_smoke"] = cluster_detail_sort_smoke
 
     checks["api_topic_cluster_detail_endpoint_ok"] = cluster_detail_ok
     checks["api_topic_cluster_detail_papers_non_empty"] = bool(cluster_detail_rows)
@@ -588,6 +656,9 @@ def build_report(
                 "api_topic_cluster_detail_endpoint_ok",
                 "api_topic_cluster_detail_papers_non_empty",
                 "api_topic_cluster_detail_label_candidates_present",
+                "api_topic_cluster_detail_supported_sort_values_ok",
+                "api_topic_cluster_detail_sort_results_non_empty",
+                "api_topic_cluster_detail_sort_values_echoed",
                 "api_paper_topic_cluster_endpoint_ok",
                 "api_paper_topic_cluster_assignment_present",
                 "api_paper_topic_cluster_cluster_present",
