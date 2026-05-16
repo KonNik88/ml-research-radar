@@ -65,6 +65,7 @@ DiscoveryClusterPaperSortBy = Literal[
     "similarity_desc",
     "radar_score",
     "implementation_readiness_score",
+    "citation_signal_score",
     "year_desc",
 ]
 

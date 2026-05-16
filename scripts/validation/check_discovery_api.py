@@ -20,6 +20,15 @@ OVERRIDE_HAS_CODE = True
 CLUSTER_LIST_LIMIT = 5
 TOPIC_CLUSTER_MAP_MAX_POINTS = 500
 
+CLUSTER_PAPER_SORT_MODES = [
+    "rank",
+    "similarity_desc",
+    "radar_score",
+    "implementation_readiness_score",
+    "citation_signal_score",
+    "year_desc",
+]
+
 REQUIRED_PROFILE_NAMES = {
     "recent_artifact_ready",
     "huggingface_ready",
@@ -135,6 +144,21 @@ def is_non_empty_dict(value: Any) -> bool:
 def is_non_empty_list(value: Any) -> bool:
     return isinstance(value, list) and bool(value)
 
+def numeric_values(rows: list[Any], field_name: str) -> list[float]:
+    values: list[float] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        value = row.get(field_name)
+        try:
+            values.append(float(value or 0.0))
+        except (TypeError, ValueError):
+            values.append(0.0)
+    return values
+
+
+def is_sorted_desc(values: list[float]) -> bool:
+    return values == sorted(values, reverse=True)
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -243,6 +267,8 @@ def main() -> None:
             topic_cluster_id = topic_cluster_results[0].get("cluster_id")
 
         topic_cluster_detail: dict[str, Any] = {}
+        topic_cluster_detail_sort_results: dict[str, dict[str, Any]] = {}
+
         if topic_cluster_id is not None:
             topic_cluster_detail = request_json(
                 client,
@@ -250,6 +276,15 @@ def main() -> None:
                 params={"top_k": args.top_k},
             )
             endpoints["topic_cluster_detail"] = endpoint_meta(topic_cluster_detail)
+
+            for sort_mode in CLUSTER_PAPER_SORT_MODES:
+                result = request_json(
+                    client,
+                    f"/discovery/clusters/{topic_cluster_id}",
+                    params={"top_k": args.top_k, "sort_by": sort_mode},
+                )
+                topic_cluster_detail_sort_results[sort_mode] = result
+                endpoints[f"topic_cluster_detail_sort_{sort_mode}"] = endpoint_meta(result)
 
         canonical_id = args.canonical_id
         if not canonical_id and ranking_results:
@@ -342,6 +377,14 @@ def main() -> None:
         else {}
     )
     topic_cluster_detail_papers = topic_cluster_detail_payload.get("papers") or []
+    topic_cluster_detail_sort_payloads: dict[str, dict[str, Any]] = {}
+    topic_cluster_detail_sort_papers: dict[str, list[Any]] = {}
+
+    for sort_mode, result in topic_cluster_detail_sort_results.items():
+        payload = result.get("json") if isinstance(result.get("json"), dict) else {}
+        papers = payload.get("papers") or []
+        topic_cluster_detail_sort_payloads[sort_mode] = payload
+        topic_cluster_detail_sort_papers[sort_mode] = papers
 
     topic_cluster_map_payload = (
         topic_cluster_map.get("json")
@@ -477,6 +520,62 @@ def main() -> None:
         == len(topic_cluster_map_with_papers_points)
     )
 
+    topic_cluster_detail_sort_endpoint_ok = (
+        len(topic_cluster_detail_sort_results) == len(CLUSTER_PAPER_SORT_MODES)
+        and all(
+            bool(result.get("ok"))
+            for result in topic_cluster_detail_sort_results.values()
+        )
+    )
+
+    topic_cluster_detail_sort_results_non_empty = (
+        len(topic_cluster_detail_sort_papers) == len(CLUSTER_PAPER_SORT_MODES)
+        and all(len(papers) > 0 for papers in topic_cluster_detail_sort_papers.values())
+    )
+
+    topic_cluster_detail_sort_echoed = (
+        len(topic_cluster_detail_sort_payloads) == len(CLUSTER_PAPER_SORT_MODES)
+        and all(
+            payload.get("sort_by") == sort_mode
+            for sort_mode, payload in topic_cluster_detail_sort_payloads.items()
+        )
+    )
+
+    topic_cluster_detail_similarity_sorted = is_sorted_desc(
+        numeric_values(
+            topic_cluster_detail_sort_papers.get("similarity_desc", []),
+            "similarity_to_centroid",
+        )
+    )
+
+    topic_cluster_detail_radar_sorted = is_sorted_desc(
+        numeric_values(
+            topic_cluster_detail_sort_papers.get("radar_score", []),
+            "radar_score",
+        )
+    )
+
+    topic_cluster_detail_implementation_sorted = is_sorted_desc(
+        numeric_values(
+            topic_cluster_detail_sort_papers.get("implementation_readiness_score", []),
+            "implementation_readiness_score",
+        )
+    )
+
+    topic_cluster_detail_citation_sorted = is_sorted_desc(
+        numeric_values(
+            topic_cluster_detail_sort_papers.get("citation_signal_score", []),
+            "citation_signal_score",
+        )
+    )
+
+    topic_cluster_detail_year_sorted = is_sorted_desc(
+        numeric_values(
+            topic_cluster_detail_sort_papers.get("year_desc", []),
+            "year",
+        )
+    )
+
     checks = {
         "profiles_endpoint_ok": bool(profiles.get("ok")),
         "profiles_non_empty": int(profiles_payload.get("profile_count") or 0) > 0,
@@ -539,6 +638,20 @@ def main() -> None:
             topic_cluster_detail_summary.get("label_candidates")
         ),
         "topic_cluster_detail_papers_non_empty": len(topic_cluster_detail_papers) > 0,
+        "topic_cluster_detail_sort_endpoint_ok": topic_cluster_detail_sort_endpoint_ok,
+        "topic_cluster_detail_sort_results_non_empty": (
+            topic_cluster_detail_sort_results_non_empty
+        ),
+        "topic_cluster_detail_sort_echoed": topic_cluster_detail_sort_echoed,
+        "topic_cluster_detail_similarity_sorted": (
+            topic_cluster_detail_similarity_sorted
+        ),
+        "topic_cluster_detail_radar_sorted": topic_cluster_detail_radar_sorted,
+        "topic_cluster_detail_implementation_sorted": (
+            topic_cluster_detail_implementation_sorted
+        ),
+        "topic_cluster_detail_citation_sorted": topic_cluster_detail_citation_sorted,
+        "topic_cluster_detail_year_sorted": topic_cluster_detail_year_sorted,
         "canonical_id_resolved": bool(canonical_id),
         "detail_endpoint_ok": bool(detail.get("ok")),
         "detail_found": bool(detail_payload.get("found")),
@@ -626,6 +739,10 @@ def main() -> None:
             ),
             "topic_cluster_detail_returned_papers_count": len(
                 topic_cluster_detail_papers
+            ),
+            "topic_cluster_detail_sort_modes": CLUSTER_PAPER_SORT_MODES,
+            "topic_cluster_detail_sort_modes_checked_count": len(
+                topic_cluster_detail_sort_results
             ),
             "canonical_id": canonical_id,
             "detail_title": detail_body.get("title"),

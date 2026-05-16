@@ -353,23 +353,54 @@ def test_discovery_topic_cluster_detail_smoke(client: TestClient) -> None:
     assert first_paper["rank_within_cluster"] >= 1
 
 
-def test_discovery_topic_cluster_detail_sort_by_radar_smoke(client: TestClient) -> None:
+@pytest.mark.parametrize(
+    ("sort_by", "score_field"),
+    [
+        ("similarity_desc", "similarity_to_centroid"),
+        ("radar_score", "radar_score"),
+        ("implementation_readiness_score", "implementation_readiness_score"),
+        ("citation_signal_score", "citation_signal_score"),
+        ("year_desc", "year"),
+    ],
+)
+def test_discovery_topic_cluster_detail_sort_modes_smoke(
+    client: TestClient,
+    sort_by: str,
+    score_field: str,
+) -> None:
     cluster_id = _first_cluster_id(client)
 
     response = client.get(
         f"/discovery/clusters/{cluster_id}",
-        params={"top_k": 5, "sort_by": "radar_score"},
+        params={"top_k": 10, "sort_by": sort_by},
     )
 
     assert response.status_code == 200
     payload = response.json()
 
-    assert payload["sort_by"] == "radar_score"
+    assert payload["sort_by"] == sort_by
     assert payload["papers"]
+    assert 1 <= payload["returned_papers_count"] <= 10
 
-    scores = [float(row.get("radar_score") or 0.0) for row in payload["papers"]]
-    assert scores == sorted(scores, reverse=True)
+    values = [
+        float(row.get(score_field) or 0.0)
+        for row in payload["papers"]
+    ]
+    assert values == sorted(values, reverse=True)
 
+def test_discovery_topic_cluster_detail_invalid_sort_by_returns_422(
+    client: TestClient,
+) -> None:
+    cluster_id = _first_cluster_id(client)
+
+    response = client.get(
+        f"/discovery/clusters/{cluster_id}",
+        params={"sort_by": "not_a_sort_field"},
+    )
+
+    assert response.status_code == 422
+    payload = response.json()
+    assert payload["error_code"] == "validation_error"
 
 def test_discovery_topic_cluster_detail_missing_returns_404(client: TestClient) -> None:
     response = client.get("/discovery/clusters/999999")

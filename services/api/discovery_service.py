@@ -303,6 +303,16 @@ def _sort_cluster_papers(
             reverse=True,
         )
 
+    if sort_by == "citation_signal_score":
+        return sorted(
+            papers,
+            key=lambda x: (
+                _safe_float(x.get("citation_signal_score")),
+                _safe_float(x.get("similarity_to_centroid")),
+            ),
+            reverse=True,
+        )
+
     if sort_by == "year_desc":
         return sorted(
             papers,
