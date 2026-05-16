@@ -148,6 +148,8 @@ def fetch_similar_papers(
 def fetch_topic_clusters(base_url: str, params: dict[str, Any]) -> dict[str, Any]:
     return api_get(base_url, "/discovery/clusters", params=params)
 
+def fetch_topic_cluster_map(base_url: str, params: dict[str, Any]) -> dict[str, Any]:
+    return api_get(base_url, "/discovery/clusters/map", params=params)
 
 def fetch_topic_cluster_detail(
     base_url: str,
@@ -316,6 +318,10 @@ def init_ui_state() -> None:
         "cluster_payload": None,
         "selected_cluster_id": None,
         "cluster_detail_top_k": 10,
+        "topic_map_payload": None,
+        "topic_map_include_papers": False,
+        "topic_map_max_points": 2000,
+        "topic_map_selected_cluster_id": None,
     }
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
@@ -995,6 +1001,197 @@ def render_topic_cluster_metrics(payload: dict[str, Any]) -> None:
     cols[3].metric("Retrieval", compact_id(payload.get("retrieval_build_id"), n=6))
     cols[4].metric("Mode", payload.get("mode", "topic_clusters"))
 
+def topic_map_point_row(row: dict[str, Any]) -> dict[str, Any]:
+    labels = row.get("label_candidates") or []
+    metadata = row.get("metadata") or {}
+
+    cluster_id = row.get("cluster_id")
+    point_type = row.get("point_type")
+
+    title = row.get("title")
+    if not title and point_type == "centroid":
+        title = f"Cluster {cluster_id}: {', '.join(str(x) for x in labels[:3])}"
+
+    return {
+        "cluster_id": cluster_id,
+        "point_type": point_type,
+        "x": row.get("x"),
+        "y": row.get("y"),
+        "title": title or "—",
+        "year": row.get("year"),
+        "labels": ", ".join(str(x) for x in labels[:5]),
+        "size": row.get("size") or metadata.get("cluster_size"),
+        "radar": row.get("radar_score") or metadata.get("mean_radar_score"),
+        "impl": (
+            row.get("implementation_readiness_score")
+            or metadata.get("mean_implementation_readiness_score")
+        ),
+        "artifact_ready": row.get("artifact_ready_count"),
+        "canonical_id": row.get("canonical_id"),
+    }
+
+
+def render_topic_map_metrics(payload: dict[str, Any]) -> None:
+    cols = st.columns(6)
+    cols[0].metric("Projection", compact_id(payload.get("projection_build_id"), n=6))
+    cols[1].metric("Algorithm", payload.get("projection_algorithm", "—"))
+    cols[2].metric("Total points", payload.get("point_count", "—"))
+    cols[3].metric("Centroids", payload.get("centroid_count", "—"))
+    cols[4].metric("Representatives", payload.get("representative_count", "—"))
+    cols[5].metric("Sampled", payload.get("sampled_count", "—"))
+
+
+def render_topic_map(base_url: str) -> None:
+    st.subheader("Topic map")
+    st.caption(
+        "Lightweight 2D projection over precomputed topic clusters. "
+        "By default the UI shows cluster centroids only; paper points are optional."
+    )
+
+    control_cols = st.columns([1, 1, 2])
+    with control_cols[0]:
+        st.checkbox(
+            "Show paper points",
+            key="topic_map_include_papers",
+            help="If disabled, only cluster centroids are loaded from `/discovery/clusters/map`.",
+        )
+    with control_cols[1]:
+        st.number_input(
+            "Max map points",
+            min_value=80,
+            max_value=10000,
+            step=100,
+            key="topic_map_max_points",
+        )
+    with control_cols[2]:
+        st.caption(
+            "Centroids keep the map readable. Paper points add representatives/samples, "
+            "but can make the plot denser."
+        )
+
+    if st.button("Load topic map", type="primary", width="stretch"):
+        try:
+            params = {
+                "include_papers": "true" if st.session_state["topic_map_include_papers"] else "false",
+                "max_points": int(st.session_state["topic_map_max_points"]),
+            }
+            with st.spinner("Loading topic map projection..."):
+                payload = fetch_topic_cluster_map(base_url, params)
+            st.session_state["topic_map_payload"] = payload
+
+            points = payload.get("points") or []
+            centroid_points = [
+                row
+                for row in points
+                if isinstance(row, dict) and row.get("point_type") == "centroid"
+            ]
+            if centroid_points:
+                st.session_state["topic_map_selected_cluster_id"] = int(
+                    centroid_points[0]["cluster_id"]
+                )
+        except Exception as exc:
+            st.error(str(exc))
+            return
+
+    payload = st.session_state.get("topic_map_payload")
+    if not payload:
+        st.info("Click **Load topic map** to render the precomputed topic projection.")
+        return
+
+    render_topic_map_metrics(payload)
+
+    points = payload.get("points") or []
+    if not points:
+        st.warning("Topic map returned no points.")
+        with st.expander("Raw topic map response", expanded=False):
+            st.json(payload)
+        return
+
+    df = pd.DataFrame([topic_map_point_row(row) for row in points])
+    if df.empty:
+        st.warning("Topic map points could not be converted into a table.")
+        return
+
+    # Keep point sizes stable and readable.
+    df["plot_size"] = df["size"].fillna(50).astype(float).clip(lower=20, upper=1500)
+
+    st.markdown("#### Research landscape projection")
+
+    try:
+        import plotly.express as px
+
+        fig = px.scatter(
+            df,
+            x="x",
+            y="y",
+            color="cluster_id",
+            symbol="point_type",
+            size="plot_size",
+            hover_data={
+                "cluster_id": True,
+                "point_type": True,
+                "title": True,
+                "year": True,
+                "labels": True,
+                "size": True,
+                "radar": True,
+                "impl": True,
+                "artifact_ready": True,
+                "canonical_id": True,
+                "plot_size": False,
+                "x": False,
+                "y": False,
+            },
+            title="Topic map projection",
+        )
+        fig.update_layout(
+            height=720,
+            legend_title_text="Cluster",
+            margin={"l": 10, "r": 10, "t": 50, "b": 10},
+        )
+        fig.update_traces(marker={"opacity": 0.78})
+        st.plotly_chart(fig, width="stretch")
+    except Exception as exc:
+        st.warning(f"Plotly rendering failed, falling back to Streamlit scatter chart: {exc}")
+        st.scatter_chart(
+            df,
+            x="x",
+            y="y",
+            color="cluster_id",
+            size="plot_size",
+        )
+
+    centroid_df = df[df["point_type"] == "centroid"].copy()
+    if not centroid_df.empty:
+        st.markdown("#### Open cluster from map")
+        cluster_ids = sorted(int(x) for x in centroid_df["cluster_id"].dropna().unique())
+
+        labels = {
+            int(row["cluster_id"]): (
+                f"{int(row['cluster_id'])} · size={row.get('size', '—')} · "
+                f"{str(row.get('labels') or '')[:120]}"
+            )
+            for _, row in centroid_df.iterrows()
+            if row.get("cluster_id") is not None
+        }
+
+        if st.session_state.get("topic_map_selected_cluster_id") not in cluster_ids:
+            st.session_state["topic_map_selected_cluster_id"] = cluster_ids[0]
+
+        selected_cluster_id = st.selectbox(
+            "Open mapped cluster detail",
+            cluster_ids,
+            format_func=lambda cid: labels.get(cid, str(cid)),
+            key="topic_map_selected_cluster_id",
+        )
+
+        render_topic_cluster_detail(base_url, int(selected_cluster_id))
+
+    with st.expander("Topic map points table", expanded=False):
+        st.dataframe(df.drop(columns=["plot_size"]), hide_index=True, width="stretch")
+
+    with st.expander("Raw topic map response", expanded=False):
+        st.json(payload)
 
 def render_topic_cluster_detail(base_url: str, cluster_id: int) -> None:
     try:
@@ -1206,7 +1403,9 @@ def main() -> None:
 
     api_base_url, run_clicked = render_sidebar(base_url, profiles_payload)
 
-    ranking_tab, clusters_tab = st.tabs(["Discovery ranking", "Topic clusters"])
+    ranking_tab, clusters_tab, topic_map_tab = st.tabs(
+        ["Discovery ranking", "Topic clusters", "Topic map"]
+    )
 
     with ranking_tab:
         if run_clicked:
@@ -1283,6 +1482,9 @@ def main() -> None:
 
     with clusters_tab:
         render_topic_clusters(api_base_url)
+
+    with topic_map_tab:
+        render_topic_map(api_base_url)
 
 
 if __name__ == "__main__":

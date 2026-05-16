@@ -74,6 +74,13 @@ TOPIC_CLUSTER_UI_SNIPPETS = [
     "Cluster sort by",
     "Cluster detail top K",
     "Selected paper topic cluster",
+    "Topic map",
+    "fetch_topic_cluster_map",
+    "render_topic_map",
+    "/discovery/clusters/map",
+    "Load topic map",
+    "Show paper points",
+    "Topic map projection",
 ]
 
 
@@ -318,6 +325,62 @@ def run_api_checks(
     if clusters_error:
         errors["api_topic_clusters_error"] = clusters_error
 
+    topic_map_ok, topic_map_payload, topic_map_error = request_json(
+        base_url=base_url,
+        path="/discovery/clusters/map",
+        timeout_seconds=timeout_seconds,
+    )
+    topic_map_points = topic_map_payload.get("points") or []
+    first_topic_map_point = (
+        topic_map_points[0]
+        if topic_map_points and isinstance(topic_map_points[0], dict)
+        else {}
+    )
+
+    checks["api_topic_map_endpoint_ok"] = topic_map_ok
+    checks["api_topic_map_results_non_empty"] = bool(topic_map_points)
+    checks["api_topic_map_projection_build_id_present"] = bool(
+        topic_map_payload.get("projection_build_id")
+    )
+    checks["api_topic_map_algorithm_present"] = bool(
+        topic_map_payload.get("projection_algorithm")
+    )
+    checks["api_topic_map_points_have_xy"] = (
+        bool(topic_map_points)
+        and all(
+            isinstance(row, dict)
+            and row.get("cluster_id") is not None
+            and isinstance(row.get("x"), int | float)
+            and isinstance(row.get("y"), int | float)
+            for row in topic_map_points
+        )
+    )
+    checks["api_topic_map_default_centroids_only"] = (
+        bool(topic_map_points)
+        and topic_map_payload.get("include_papers") is False
+        and all(
+            isinstance(row, dict) and row.get("point_type") == "centroid"
+            for row in topic_map_points
+        )
+    )
+
+    extracted_values["api_topic_map_projection_build_id"] = topic_map_payload.get(
+        "projection_build_id"
+    )
+    extracted_values["api_topic_map_projection_algorithm"] = topic_map_payload.get(
+        "projection_algorithm"
+    )
+    extracted_values["api_topic_map_point_count"] = topic_map_payload.get("point_count")
+    extracted_values["api_topic_map_returned_points_count"] = (
+        topic_map_payload.get("returned_points_count") or len(topic_map_points)
+    )
+    extracted_values["api_topic_map_first_cluster_id"] = first_topic_map_point.get(
+        "cluster_id"
+    )
+
+    if topic_map_error:
+        errors["api_topic_map_error"] = topic_map_error
+
     sort_smoke: dict[str, dict[str, Any]] = {}
     sorted_size_payload: dict[str, Any] = {}
 
@@ -512,6 +575,12 @@ def build_report(
                 "api_topic_clusters_results_non_empty",
                 "api_topic_clusters_cluster_id_present",
                 "api_topic_clusters_label_candidates_present",
+                "api_topic_map_endpoint_ok",
+                "api_topic_map_results_non_empty",
+                "api_topic_map_projection_build_id_present",
+                "api_topic_map_algorithm_present",
+                "api_topic_map_points_have_xy",
+                "api_topic_map_default_centroids_only",
                 "api_topic_clusters_sorted_endpoint_ok",
                 "api_topic_clusters_sorted_results_non_empty",
                 "api_topic_clusters_sorted_cluster_id_present",
