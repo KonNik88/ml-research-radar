@@ -18,6 +18,7 @@ DEFAULT_DOD_FLAGS = [
     "--require-similar-papers",
     "--require-discovery-api",
     "--require-topic-clusters",
+    "--require-topic-projection",
     "--require-streamlit-discovery-ui",
 ]
 
@@ -71,6 +72,11 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
         Step(
             name="check_topic_clusters",
             cmd=python_cmd("scripts.validation.check_topic_clusters", "--strict"),
+            env=file_env,
+        ),
+        Step(
+            name="check_topic_projection",
+            cmd=python_cmd("scripts.validation.check_topic_projection", "--strict"),
             env=file_env,
         ),
         Step(

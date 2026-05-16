@@ -37,6 +37,8 @@ STEP_ORDER = [
     "known_issues",
     "build_topic_clusters",
     "topic_clusters_quality_check",
+    "build_topic_projection",
+    "topic_projection_quality_check",
     "streamlit_discovery_ui_check",
     "dod_check",
 ]
@@ -56,6 +58,11 @@ PAPER_FEATURE_STEPS = {
 TOPIC_CLUSTER_STEPS = {
     "build_topic_clusters",
     "topic_clusters_quality_check",
+}
+
+TOPIC_PROJECTION_STEPS = {
+    "build_topic_projection",
+    "topic_projection_quality_check",
 }
 
 STREAMLIT_UI_STEPS = {
@@ -347,6 +354,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Forward --require-topic-clusters to DoD check.",
     )
     parser.add_argument(
+        "--build-topic-projection",
+        action="store_true",
+        help="Build topic projection artifacts and run topic projection quality check.",
+    )
+    parser.add_argument(
+        "--require-topic-projection",
+        action="store_true",
+        help="Forward --require-topic-projection to DoD check.",
+    )
+    parser.add_argument(
         "--require-streamlit-discovery-ui",
         action="store_true",
         help=(
@@ -374,6 +391,9 @@ def artifact_stages_enabled(args: argparse.Namespace) -> bool:
 
 def topic_cluster_stages_enabled(args: argparse.Namespace) -> bool:
     return bool(args.build_topic_clusters)
+
+def topic_projection_stages_enabled(args: argparse.Namespace) -> bool:
+    return bool(args.build_topic_projection)
 
 def streamlit_ui_stages_enabled(args: argparse.Namespace) -> bool:
     return bool(args.require_streamlit_discovery_ui)
@@ -404,11 +424,13 @@ def step_enabled(step_name: str, args: argparse.Namespace) -> tuple[bool, str]:
     if step_name in TOPIC_CLUSTER_STEPS and not topic_cluster_stages_enabled(args):
         return False, "Topic cluster stages disabled; pass --build-topic-clusters"
 
+    if step_name in TOPIC_PROJECTION_STEPS and not topic_projection_stages_enabled(args):
+        return False, "Topic projection stages disabled; pass --build-topic-projection"
+
     if step_name in STREAMLIT_UI_STEPS and not streamlit_ui_stages_enabled(args):
         return False, "Streamlit UI stages disabled; pass --require-streamlit-discovery-ui"
 
     return True, "Included"
-
 
 def main() -> None:
     args = build_parser().parse_args()
@@ -539,6 +561,17 @@ def main() -> None:
         "scripts.validation.check_topic_clusters",
         "--strict",
     ]
+    build_topic_projection_cmd = [
+        sys.executable,
+        "-m",
+        "scripts.analytics.build_topic_projection",
+    ]
+    topic_projection_quality_cmd = [
+        sys.executable,
+        "-m",
+        "scripts.validation.check_topic_projection",
+        "--strict",
+    ]
     streamlit_discovery_ui_cmd = [
         sys.executable,
         "-m",
@@ -563,6 +596,8 @@ def main() -> None:
         dod_cmd.append("--require-discovery-api")
     if args.require_topic_clusters:
         dod_cmd.append("--require-topic-clusters")
+    if args.require_topic_projection:
+        dod_cmd.append("--require-topic-projection")
     if args.require_streamlit_discovery_ui:
         dod_cmd.append("--require-streamlit-discovery-ui")
 
@@ -588,6 +623,8 @@ def main() -> None:
         "known_issues": known_issues_cmd,
         "build_topic_clusters": build_topic_clusters_cmd,
         "topic_clusters_quality_check": topic_clusters_quality_cmd,
+        "build_topic_projection": build_topic_projection_cmd,
+        "topic_projection_quality_check": topic_projection_quality_cmd,
         "streamlit_discovery_ui_check": streamlit_discovery_ui_cmd,
         "dod_check": dod_cmd,
     }
@@ -663,6 +700,9 @@ def main() -> None:
             "require_discovery_api": bool(args.require_discovery_api),
             "build_topic_clusters": bool(args.build_topic_clusters),
             "require_topic_clusters": bool(args.require_topic_clusters),
+            "build_topic_projection": bool(args.build_topic_projection),
+            "require_topic_projection": bool(args.require_topic_projection),
+            "topic_projection_stages_enabled": topic_projection_stages_enabled(args),
             "require_streamlit_discovery_ui": bool(args.require_streamlit_discovery_ui),
             "topic_cluster_stages_enabled": topic_cluster_stages_enabled(args),
             "streamlit_ui_stages_enabled": streamlit_ui_stages_enabled(args),
@@ -712,6 +752,9 @@ def main() -> None:
     print(f"[OK] require_discovery_api={bool(args.require_discovery_api)}")
     print(f"[OK] build_topic_clusters={bool(args.build_topic_clusters)}")
     print(f"[OK] require_topic_clusters={bool(args.require_topic_clusters)}")
+    print(f"[OK] build_topic_projection={bool(args.build_topic_projection)}")
+    print(f"[OK] require_topic_projection={bool(args.require_topic_projection)}")
+    print(f"[OK] topic_projection_stages_enabled={topic_projection_stages_enabled(args)}")
     print(
         f"[OK] require_streamlit_discovery_ui="
         f"{bool(args.require_streamlit_discovery_ui)}"

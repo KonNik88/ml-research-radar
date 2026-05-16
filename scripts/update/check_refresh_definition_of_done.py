@@ -56,6 +56,9 @@ DEFAULT_DISCOVERY_API_QUALITY_PATH = Path(
 DEFAULT_TOPIC_CLUSTERS_QUALITY_PATH = Path(
     "artifacts/reports/clusters/topic_clusters_quality_latest.json"
 )
+DEFAULT_TOPIC_PROJECTION_QUALITY_PATH = Path(
+    "artifacts/reports/clusters/topic_projection_quality_latest.json"
+)
 DEFAULT_STREAMLIT_DISCOVERY_UI_QUALITY_PATH = Path(
     "artifacts/reports/ui/streamlit_discovery_ui_quality_latest.json"
 )
@@ -427,6 +430,78 @@ def extract_topic_clusters_values(
         "topic_clusters_verdict": verdict,
     }
 
+def extract_topic_projection_values(
+    topic_projection_quality: dict[str, Any] | None,
+) -> dict[str, Any]:
+    report = topic_projection_quality or {}
+    extracted = (
+        report.get("extracted_values")
+        if isinstance(report.get("extracted_values"), dict)
+        else {}
+    )
+    checks = report.get("checks") if isinstance(report.get("checks"), dict) else {}
+    verdict = report.get("verdict") if isinstance(report.get("verdict"), dict) else {}
+
+    return {
+        "topic_projection_quality_ok": report_ok(topic_projection_quality),
+        "topic_projection_required_failed_count": first_present(
+            report,
+            [
+                ("required_failed_count",),
+                ("verdict", "required_failed_count"),
+            ],
+        ),
+        "topic_projection_required_failed_checks": first_present(
+            report,
+            [
+                ("required_failed_checks",),
+                ("verdict", "required_failed_checks"),
+            ],
+        ),
+        "topic_projection_build_id": extracted.get("projection_build_id"),
+        "topic_projection_cluster_build_id": extracted.get("cluster_build_id"),
+        "topic_projection_retrieval_build_id": extracted.get("retrieval_build_id"),
+        "topic_projection_manifest_build_id": extracted.get("manifest_build_id"),
+        "topic_projection_algorithm": extracted.get("projection_algorithm"),
+        "topic_projection_rows_count": extracted.get("rows_count"),
+        "topic_projection_centroid_count": extracted.get("centroid_count"),
+        "topic_projection_representative_count": extracted.get("representative_count"),
+        "topic_projection_sampled_count": extracted.get("sampled_count"),
+        "topic_projection_expected_cluster_count": extracted.get("expected_cluster_count"),
+        "topic_projection_actual_cluster_count": extracted.get("actual_cluster_count"),
+        "topic_projection_bad_xy_count": extracted.get("bad_xy_count"),
+        "topic_projection_topic_latest_exists": checks.get("topic_latest_exists"),
+        "topic_projection_enabled": checks.get("projection_enabled"),
+        "topic_projection_exists": checks.get("projection_exists"),
+        "topic_projection_summary_exists": checks.get("projection_summary_exists"),
+        "topic_projection_rows_non_empty": checks.get("projection_rows_non_empty"),
+        "topic_projection_xy_finite": checks.get("projection_xy_finite"),
+        "topic_projection_centroid_points_present": checks.get(
+            "centroid_points_present"
+        ),
+        "topic_projection_representative_points_present": checks.get(
+            "representative_points_present"
+        ),
+        "topic_projection_centroid_count_matches_cluster_count": checks.get(
+            "centroid_count_matches_cluster_count"
+        ),
+        "topic_projection_one_centroid_per_cluster": checks.get(
+            "one_centroid_per_cluster"
+        ),
+        "topic_projection_summary_point_count_matches_rows": checks.get(
+            "summary_point_count_matches_rows"
+        ),
+        "topic_projection_algorithm_supported": checks.get(
+            "projection_algorithm_supported"
+        ),
+        "topic_projection_latest_vs_manifest_retrieval_build_id_match": checks.get(
+            "latest_vs_manifest_retrieval_build_id_match"
+        ),
+        "topic_projection_summary_vs_manifest_retrieval_build_id_match": checks.get(
+            "summary_vs_manifest_retrieval_build_id_match"
+        ),
+        "topic_projection_verdict": verdict,
+    }
 
 def extract_streamlit_discovery_ui_values(
     streamlit_discovery_ui_quality: dict[str, Any] | None,
@@ -1009,6 +1084,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Treat topic clusters quality report as a required DoD condition.",
     )
     parser.add_argument(
+        "--topic-projection-quality-path",
+        type=Path,
+        default=DEFAULT_TOPIC_PROJECTION_QUALITY_PATH,
+        help="Topic projection quality report path.",
+    )
+    parser.add_argument(
+        "--require-topic-projection",
+        action="store_true",
+        help="Treat topic projection quality report as a required DoD condition.",
+    )
+    parser.add_argument(
         "--streamlit-discovery-ui-quality-path",
         type=Path,
         default=DEFAULT_STREAMLIT_DISCOVERY_UI_QUALITY_PATH,
@@ -1065,6 +1151,8 @@ def main() -> None:
     discovery_api_values = extract_discovery_api_values(discovery_api_quality)
     topic_clusters_quality = load_json_if_exists(args.topic_clusters_quality_path)
     topic_clusters_values = extract_topic_clusters_values(topic_clusters_quality)
+    topic_projection_quality = load_json_if_exists(args.topic_projection_quality_path)
+    topic_projection_values = extract_topic_projection_values(topic_projection_quality)
 
     streamlit_discovery_ui_quality = load_json_if_exists(
         args.streamlit_discovery_ui_quality_path
@@ -1530,7 +1618,65 @@ def main() -> None:
             ]
         )
         ),
-
+        "topic_projection_quality_exists": args.topic_projection_quality_path.exists(),
+        "topic_projection_quality_ok": topic_projection_values[
+            "topic_projection_quality_ok"
+        ],
+        "topic_projection_required_failed_count_zero": (
+                safe_int(
+                    topic_projection_values["topic_projection_required_failed_count"],
+                    default=999999,
+                )
+                == 0
+        ),
+        "topic_projection_enabled": bool(
+            topic_projection_values["topic_projection_enabled"]
+        ),
+        "topic_projection_exists": bool(
+            topic_projection_values["topic_projection_exists"]
+        ),
+        "topic_projection_summary_exists": bool(
+            topic_projection_values["topic_projection_summary_exists"]
+        ),
+        "topic_projection_rows_non_empty": bool(
+            topic_projection_values["topic_projection_rows_non_empty"]
+        ),
+        "topic_projection_points_have_xy": bool(
+            topic_projection_values["topic_projection_xy_finite"]
+        ),
+        "topic_projection_algorithm_supported": bool(
+            topic_projection_values["topic_projection_algorithm_supported"]
+        ),
+        "topic_projection_centroid_count_matches_topic_clusters": (
+                safe_int(topic_projection_values["topic_projection_centroid_count"])
+                == safe_int(topic_clusters_values["topic_clusters_actual_cluster_count"])
+                and bool(
+            topic_projection_values[
+                "topic_projection_centroid_count_matches_cluster_count"
+            ]
+        )
+        ),
+        "topic_projection_one_centroid_per_cluster": bool(
+            topic_projection_values["topic_projection_one_centroid_per_cluster"]
+        ),
+        "topic_projection_cluster_build_id_matches_topic_clusters": (
+                topic_projection_values["topic_projection_cluster_build_id"]
+                == topic_clusters_values["topic_clusters_cluster_build_id"]
+        ),
+        "topic_projection_retrieval_build_id_matches_manifest": (
+                topic_projection_values["topic_projection_retrieval_build_id"]
+                == manifest_build_id
+                and bool(
+            topic_projection_values[
+                "topic_projection_latest_vs_manifest_retrieval_build_id_match"
+            ]
+        )
+                and bool(
+            topic_projection_values[
+                "topic_projection_summary_vs_manifest_retrieval_build_id_match"
+            ]
+        )
+        ),
         "streamlit_discovery_ui_quality_exists": (
             args.streamlit_discovery_ui_quality_path.exists()
         ),
@@ -1731,6 +1877,25 @@ def main() -> None:
             ]
         )
 
+    if args.require_topic_projection:
+        required_check_names.extend(
+            [
+                "topic_projection_quality_exists",
+                "topic_projection_quality_ok",
+                "topic_projection_required_failed_count_zero",
+                "topic_projection_enabled",
+                "topic_projection_exists",
+                "topic_projection_summary_exists",
+                "topic_projection_rows_non_empty",
+                "topic_projection_points_have_xy",
+                "topic_projection_algorithm_supported",
+                "topic_projection_centroid_count_matches_topic_clusters",
+                "topic_projection_one_centroid_per_cluster",
+                "topic_projection_cluster_build_id_matches_topic_clusters",
+                "topic_projection_retrieval_build_id_matches_manifest",
+            ]
+        )
+
     if args.require_streamlit_discovery_ui:
         required_check_names.extend(
             [
@@ -1759,6 +1924,7 @@ def main() -> None:
         "similar_papers_required": bool(args.require_similar_papers),
         "discovery_api_required": bool(args.require_discovery_api),
         "topic_clusters_required": bool(args.require_topic_clusters),
+        "topic_projection_required": bool(args.require_topic_projection),
         "streamlit_discovery_ui_required": bool(args.require_streamlit_discovery_ui),
     }
 
@@ -1787,6 +1953,9 @@ def main() -> None:
             "similar_papers_quality_path": normalize_path(args.similar_papers_quality_path),
             "discovery_api_quality_path": normalize_path(args.discovery_api_quality_path),
             "topic_clusters_quality_path": normalize_path(args.topic_clusters_quality_path),
+            "topic_projection_quality_path": normalize_path(
+                args.topic_projection_quality_path
+            ),
             "streamlit_discovery_ui_quality_path": normalize_path(
                 args.streamlit_discovery_ui_quality_path
             ),
@@ -1811,6 +1980,33 @@ def main() -> None:
             **discovery_api_values,
             **topic_clusters_values,
             **streamlit_discovery_ui_values,
+            "topic_projection_build_id": topic_projection_values[
+                "topic_projection_build_id"
+            ],
+            "topic_projection_cluster_build_id": topic_projection_values[
+                "topic_projection_cluster_build_id"
+            ],
+            "topic_projection_retrieval_build_id": topic_projection_values[
+                "topic_projection_retrieval_build_id"
+            ],
+            "topic_projection_manifest_build_id": topic_projection_values[
+                "topic_projection_manifest_build_id"
+            ],
+            "topic_projection_algorithm": topic_projection_values[
+                "topic_projection_algorithm"
+            ],
+            "topic_projection_rows_count": topic_projection_values[
+                "topic_projection_rows_count"
+            ],
+            "topic_projection_centroid_count": topic_projection_values[
+                "topic_projection_centroid_count"
+            ],
+            "topic_projection_representative_count": topic_projection_values[
+                "topic_projection_representative_count"
+            ],
+            "topic_projection_sampled_count": topic_projection_values[
+                "topic_projection_sampled_count"
+            ],
         },
         "checks": checks,
         "verdict": verdict,
@@ -1853,6 +2049,7 @@ def main() -> None:
     print(f"[OK] history Markdown: {hist_md}")
     print(f"[OK] discovery_api_required={verdict['discovery_api_required']}")
     print(f"[OK] topic_clusters_required={verdict['topic_clusters_required']}")
+    print(f"[OK] topic_projection_required={verdict['topic_projection_required']}")
     print(
         f"[OK] streamlit_discovery_ui_required="
         f"{verdict['streamlit_discovery_ui_required']}"
