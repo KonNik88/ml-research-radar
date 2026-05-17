@@ -154,14 +154,12 @@ def fetch_topic_cluster_map(base_url: str, params: dict[str, Any]) -> dict[str, 
 def fetch_topic_cluster_detail(
     base_url: str,
     cluster_id: int,
-    *,
-    top_k: int,
-    sort_by: str = "rank",
+    params: dict[str, Any],
 ) -> dict[str, Any]:
     return api_get(
         base_url,
         f"/discovery/clusters/{cluster_id}",
-        params={"top_k": top_k, "sort_by": sort_by},
+        params=params,
     )
 
 def fetch_paper_topic_cluster(base_url: str, canonical_id: str) -> dict[str, Any]:
@@ -223,6 +221,11 @@ def to_int_or_none(value: str) -> int | None:
         return None
     return int(stripped)
 
+def float_or_none(value: str) -> float | None:
+    stripped = value.strip()
+    if not stripped:
+        return None
+    return float(stripped)
 
 def render_kv(label: str, value: Any) -> None:
     st.markdown(f"**{label}:** {dash(value)}")
@@ -320,6 +323,19 @@ def init_ui_state() -> None:
         "selected_cluster_id": None,
         "cluster_detail_top_k": 10,
         "cluster_detail_sort_by": "rank",
+        "cluster_detail_min_year": "",
+        "cluster_detail_max_year": "",
+        "cluster_detail_has_code": "Profile default",
+        "cluster_detail_has_dataset": "Profile default",
+        "cluster_detail_has_model": "Profile default",
+        "cluster_detail_has_demo": "Profile default",
+        "cluster_detail_has_github": "Profile default",
+        "cluster_detail_has_hf": "Profile default",
+        "cluster_detail_has_acl": "Profile default",
+        "cluster_detail_has_doi": "Profile default",
+        "cluster_detail_min_radar_score": "",
+        "cluster_detail_min_implementation_readiness_score": "",
+        "cluster_detail_min_citation_signal_score": "",
         "topic_map_payload": None,
         "topic_map_include_papers": False,
         "topic_map_max_points": 2000,
@@ -358,6 +374,16 @@ def reset_discovery_filters(default_profile: str | None = None) -> None:
     st.session_state["ranking_payload"] = None
     st.session_state["selected_canonical_id"] = None
 
+def reset_cluster_detail_filters() -> None:
+    st.session_state["cluster_detail_min_year"] = ""
+    st.session_state["cluster_detail_max_year"] = ""
+
+    for key in CLUSTER_DETAIL_BOOL_FILTER_KEYS:
+        st.session_state[f"cluster_detail_{key}"] = "Profile default"
+
+    st.session_state["cluster_detail_min_radar_score"] = ""
+    st.session_state["cluster_detail_min_implementation_readiness_score"] = ""
+    st.session_state["cluster_detail_min_citation_signal_score"] = ""
 
 def build_ranking_params() -> dict[str, Any]:
     params: dict[str, Any] = {"top_k": int(st.session_state["top_k"])}
@@ -395,6 +421,41 @@ def build_ranking_params() -> dict[str, Any]:
 
     return params
 
+def build_cluster_detail_params(*, top_k: int, sort_by: str) -> dict[str, Any]:
+    params: dict[str, Any] = {
+        "top_k": int(top_k),
+        "sort_by": sort_by,
+    }
+
+    min_year = to_int_or_none(st.session_state.get("cluster_detail_min_year", ""))
+    max_year = to_int_or_none(st.session_state.get("cluster_detail_max_year", ""))
+
+    if min_year is not None:
+        params["min_year"] = min_year
+    if max_year is not None:
+        params["max_year"] = max_year
+
+    for key in CLUSTER_DETAIL_BOOL_FILTER_KEYS:
+        selected = st.session_state.get(f"cluster_detail_{key}", "Profile default")
+        if selected == "True":
+            params[key] = "true"
+        elif selected == "False":
+            params[key] = "false"
+
+    score_fields = {
+        "cluster_detail_min_radar_score": "min_radar_score",
+        "cluster_detail_min_implementation_readiness_score": (
+            "min_implementation_readiness_score"
+        ),
+        "cluster_detail_min_citation_signal_score": "min_citation_signal_score",
+    }
+
+    for state_key, param_key in score_fields.items():
+        value = float_or_none(st.session_state.get(state_key, ""))
+        if value is not None:
+            params[param_key] = value
+
+    return params
 
 def get_profiles_or_stop(base_url: str) -> dict[str, Any]:
     try:
@@ -978,6 +1039,28 @@ CLUSTER_PAPER_SORT_LABELS = {
     "year_desc": "Newest papers",
 }
 
+CLUSTER_DETAIL_BOOL_FILTER_KEYS = [
+    "has_code",
+    "has_dataset",
+    "has_model",
+    "has_demo",
+    "has_github",
+    "has_hf",
+    "has_acl",
+    "has_doi",
+]
+
+CLUSTER_DETAIL_BOOL_FILTER_LABELS = {
+    "has_code": "Code artifact",
+    "has_dataset": "Dataset artifact",
+    "has_model": "Model artifact",
+    "has_demo": "Demo artifact",
+    "has_github": "GitHub found",
+    "has_hf": "Hugging Face",
+    "has_acl": "ACL source",
+    "has_doi": "DOI present",
+}
+
 def cluster_summary_row(row: dict[str, Any]) -> dict[str, Any]:
     labels = row.get("label_candidates") or []
     representative_title = row.get("representative_title")
@@ -1238,13 +1321,22 @@ def render_topic_cluster_detail(
     sort_by: str = "rank",
 ) -> None:
     try:
+        params = build_cluster_detail_params(
+            top_k=int(st.session_state["cluster_detail_top_k"]),
+            sort_by=sort_by,
+        )
         with st.spinner(f"Loading topic cluster {cluster_id}..."):
             payload = fetch_topic_cluster_detail(
                 base_url,
                 cluster_id,
-                top_k=int(st.session_state["cluster_detail_top_k"]),
-                sort_by=sort_by,
+                params=params,
             )
+    except ValueError:
+        st.error(
+            "Cluster detail year and score filters must be numeric. "
+            "Scores should be in the 0.0–1.0 range."
+        )
+        return
     except Exception as exc:
         st.error(str(exc))
         return
@@ -1259,13 +1351,31 @@ def render_topic_cluster_detail(
         st.caption(" · ".join(f"`{label}`" for label in labels[:8]))
 
     cols = st.columns(6)
-    cols[0].metric("Total papers", payload.get("total_papers") or summary.get("size", "—"))
-    cols[1].metric("Returned", payload.get("returned_papers_count") or len(papers))
-    cols[2].metric("Artifact-ready", summary.get("artifact_ready_count", "—"))
-    cols[3].metric("Code", summary.get("code_artifact_count", "—"))
+    cols[0].metric(
+        "Total papers",
+        payload.get("total_papers") or summary.get("size", "—"),
+    )
+    cols[1].metric(
+        "After filters",
+        payload.get("filtered_papers_count", "—"),
+    )
+    cols[2].metric(
+        "Returned",
+        payload.get("returned_papers_count") or len(papers),
+    )
+    cols[3].metric("Artifact-ready", summary.get("artifact_ready_count", "—"))
     cols[4].metric("Mean radar", fmt_score(summary.get("mean_radar_score")))
     cols[5].metric("Mean impl", fmt_score(summary.get("mean_implementation_readiness_score")))
     st.caption(f"Paper sort: `{payload.get('sort_by') or sort_by}`")
+    effective_filters = payload.get("filters") or {}
+    if effective_filters:
+        st.caption(
+            "Active filters: "
+            + ", ".join(f"`{key}={value}`" for key, value in effective_filters.items())
+        )
+
+    with st.expander("Effective cluster detail filters", expanded=False):
+        st.json(effective_filters)
 
     with st.expander("Cluster summary JSON", expanded=False):
         st.json(summary)
@@ -1348,6 +1458,53 @@ def render_topic_clusters(base_url: str) -> None:
             CLUSTER_PAPER_SORT_OPTIONS,
             key="cluster_detail_sort_by",
             format_func=lambda value: CLUSTER_PAPER_SORT_LABELS.get(value, value),
+        )
+
+    with st.expander("Cluster detail filters", expanded=False):
+        year_cols = st.columns(2)
+        year_cols[0].text_input(
+            "Detail min year",
+            key="cluster_detail_min_year",
+            placeholder="2020",
+        )
+        year_cols[1].text_input(
+            "Detail max year",
+            key="cluster_detail_max_year",
+            placeholder="2026",
+        )
+
+        st.caption("Artifact/source filters inside the selected topic cluster")
+        bool_cols = st.columns(4)
+        for idx, key in enumerate(CLUSTER_DETAIL_BOOL_FILTER_KEYS):
+            with bool_cols[idx % 4]:
+                st.selectbox(
+                    CLUSTER_DETAIL_BOOL_FILTER_LABELS[key],
+                    TRISTATE_OPTIONS,
+                    key=f"cluster_detail_{key}",
+                    help="Profile default means this filter is not sent to the API.",
+                )
+
+        score_cols = st.columns(3)
+        score_cols[0].text_input(
+            "Min radar score",
+            key="cluster_detail_min_radar_score",
+            placeholder="0.3",
+        )
+        score_cols[1].text_input(
+            "Min implementation readiness",
+            key="cluster_detail_min_implementation_readiness_score",
+            placeholder="0.2",
+        )
+        score_cols[2].text_input(
+            "Min citation signal",
+            key="cluster_detail_min_citation_signal_score",
+            placeholder="0.1",
+        )
+
+        st.button(
+            "Reset cluster detail filters",
+            width="stretch",
+            on_click=reset_cluster_detail_filters,
         )
 
     if st.button("Load topic clusters", type="primary", width="stretch"):

@@ -99,6 +99,20 @@ TOPIC_CLUSTER_UI_SNIPPETS = [
     "year_desc",
 ]
 
+CLUSTER_DETAIL_FILTER_UI_SNIPPETS = [
+    "Cluster detail filters",
+    "cluster_detail_min_year",
+    "cluster_detail_max_year",
+    "cluster_detail_has_code",
+    "cluster_detail_has_github",
+    "cluster_detail_min_radar_score",
+    "cluster_detail_min_implementation_readiness_score",
+    "cluster_detail_min_citation_signal_score",
+    "build_cluster_detail_params",
+    "filtered_papers_count",
+    "Effective cluster detail filters",
+    "Reset cluster detail filters",
+]
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -399,6 +413,7 @@ def run_api_checks(
 
     sort_smoke: dict[str, dict[str, Any]] = {}
     sorted_size_payload: dict[str, Any] = {}
+    artifact_ready_payload: dict[str, Any] = {}
 
     for sort_value in TOPIC_CLUSTER_SORT_VALUES:
         sort_ok, sort_payload, sort_error = request_json(
@@ -422,6 +437,8 @@ def run_api_checks(
 
         if sort_value == "size_desc" and sort_ok:
             sorted_size_payload = sort_payload
+        if sort_value == "artifact_ready_desc" and sort_ok:
+            artifact_ready_payload = sort_payload
 
     size_desc_rows = result_rows(sorted_size_payload)
     size_desc_first = first_result(sorted_size_payload) or {}
@@ -442,6 +459,13 @@ def run_api_checks(
         else first_cluster.get("cluster_id")
     )
 
+    artifact_ready_first = first_result(artifact_ready_payload) or {}
+    cluster_detail_filter_id = (
+        artifact_ready_first.get("cluster_id")
+        if artifact_ready_first.get("cluster_id") is not None
+        else cluster_id
+    )
+
     if cluster_id is not None:
         cluster_detail_ok, cluster_detail_payload, cluster_detail_error = request_json(
             base_url=base_url,
@@ -454,6 +478,33 @@ def run_api_checks(
             False,
             {},
             "No cluster_id available from /discovery/clusters",
+        )
+
+    if cluster_detail_filter_id is not None:
+        (
+            cluster_detail_filter_ok,
+            cluster_detail_filter_payload,
+            cluster_detail_filter_error,
+        ) = request_json(
+            base_url=base_url,
+            path=f"/discovery/clusters/{cluster_detail_filter_id}",
+            params={
+                "top_k": 3,
+                "min_year": 2020,
+                "has_code": "true",
+                "sort_by": "radar_score",
+            },
+            timeout_seconds=timeout_seconds,
+        )
+    else:
+        (
+            cluster_detail_filter_ok,
+            cluster_detail_filter_payload,
+            cluster_detail_filter_error,
+        ) = (
+            False,
+            {},
+            "No cluster_id available for cluster detail filter smoke",
         )
 
     cluster_detail_sort_smoke: dict[str, dict[str, Any]] = {}
@@ -497,6 +548,13 @@ def run_api_checks(
         or {}
     )
 
+    cluster_detail_filter_rows = result_rows(cluster_detail_filter_payload)
+    cluster_detail_filter_effective = (
+        cluster_detail_filter_payload.get("filters")
+        if isinstance(cluster_detail_filter_payload.get("filters"), dict)
+        else {}
+    )
+
     checks["api_topic_cluster_detail_supported_sort_values_ok"] = all(
         bool(cluster_detail_sort_smoke.get(sort_value, {}).get("ok"))
         for sort_value in TOPIC_CLUSTER_DETAIL_SORT_VALUES
@@ -528,6 +586,49 @@ def run_api_checks(
     )
     if cluster_detail_error:
         errors["api_topic_cluster_detail_error"] = cluster_detail_error
+
+    checks["api_topic_cluster_detail_filter_endpoint_ok"] = cluster_detail_filter_ok
+    checks["api_topic_cluster_detail_filter_results_non_empty"] = bool(
+        cluster_detail_filter_rows
+    )
+    checks["api_topic_cluster_detail_filter_filters_echoed"] = (
+        cluster_detail_filter_effective.get("min_year") == 2020
+        and coerce_bool(cluster_detail_filter_effective.get("has_code")) is True
+    )
+    checks["api_topic_cluster_detail_filter_counts_valid"] = (
+        int(cluster_detail_filter_payload.get("total_papers") or 0)
+        >= int(cluster_detail_filter_payload.get("filtered_papers_count") or 0)
+        >= int(cluster_detail_filter_payload.get("returned_papers_count") or 0)
+        == len(cluster_detail_filter_rows)
+    )
+    checks["api_topic_cluster_detail_filter_rows_match"] = (
+        bool(cluster_detail_filter_rows)
+        and all(
+            isinstance(row, dict)
+            and int(row.get("year") or 0) >= 2020
+            and bool(row.get("has_code_artifact")) is True
+            for row in cluster_detail_filter_rows
+        )
+    )
+
+    extracted_values["api_topic_cluster_detail_filter_cluster_id"] = (
+        cluster_detail_filter_id
+    )
+    extracted_values["api_topic_cluster_detail_filter_filters"] = (
+        cluster_detail_filter_effective
+    )
+    extracted_values["api_topic_cluster_detail_filter_total_papers"] = (
+        cluster_detail_filter_payload.get("total_papers")
+    )
+    extracted_values["api_topic_cluster_detail_filter_filtered_papers_count"] = (
+        cluster_detail_filter_payload.get("filtered_papers_count")
+    )
+    extracted_values["api_topic_cluster_detail_filter_returned_papers_count"] = (
+        len(cluster_detail_filter_rows)
+    )
+
+    if cluster_detail_filter_error:
+        errors["api_topic_cluster_detail_filter_error"] = cluster_detail_filter_error
 
     paper_cluster_ok, paper_cluster_payload, paper_cluster_error = request_json(
         base_url=base_url,
@@ -590,11 +691,18 @@ def build_report(
     missing_discovery = missing_snippets(app_text, DISCOVERY_ENDPOINT_STRINGS)
     missing_similar = missing_snippets(app_text, SIMILAR_MODE_SNIPPETS)
     missing_topic = missing_snippets(app_text, TOPIC_CLUSTER_UI_SNIPPETS)
+    missing_cluster_detail_filters = missing_snippets(
+        app_text,
+        CLUSTER_DETAIL_FILTER_UI_SNIPPETS,
+    )
 
     checks["required_ui_snippets_present"] = not missing_required
     checks["discovery_endpoint_strings_present"] = not missing_discovery
     checks["similar_modes_present"] = not missing_similar
     checks["topic_cluster_ui_snippets_present"] = not missing_topic
+    checks["cluster_detail_filter_ui_snippets_present"] = (
+        not missing_cluster_detail_filters
+    )
     checks["reset_button_present"] = "Reset discovery filters" in app_text
     checks["no_deprecated_use_container_width"] = "use_container_width" not in app_text
     checks["legacy_search_endpoint_absent"] = '"/search"' not in app_text and "'/search'" not in app_text
@@ -603,6 +711,9 @@ def build_report(
     extracted_values["missing_discovery_endpoint_strings"] = missing_discovery
     extracted_values["missing_similar_mode_snippets"] = missing_similar
     extracted_values["missing_topic_cluster_ui_snippets"] = missing_topic
+    extracted_values["missing_cluster_detail_filter_ui_snippets"] = (
+        missing_cluster_detail_filters
+    )
 
     if check_api:
         run_api_checks(
@@ -624,6 +735,7 @@ def build_report(
         "discovery_endpoint_strings_present",
         "similar_modes_present",
         "topic_cluster_ui_snippets_present",
+        "cluster_detail_filter_ui_snippets_present",
         "reset_button_present",
         "no_deprecated_use_container_width",
         "legacy_search_endpoint_absent",
@@ -657,6 +769,11 @@ def build_report(
                 "api_topic_cluster_detail_papers_non_empty",
                 "api_topic_cluster_detail_label_candidates_present",
                 "api_topic_cluster_detail_supported_sort_values_ok",
+                "api_topic_cluster_detail_filter_endpoint_ok",
+                "api_topic_cluster_detail_filter_results_non_empty",
+                "api_topic_cluster_detail_filter_filters_echoed",
+                "api_topic_cluster_detail_filter_counts_valid",
+                "api_topic_cluster_detail_filter_rows_match",
                 "api_topic_cluster_detail_sort_results_non_empty",
                 "api_topic_cluster_detail_sort_values_echoed",
                 "api_paper_topic_cluster_endpoint_ok",
