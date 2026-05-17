@@ -357,6 +357,9 @@ class DiscoveryTopicClusterDetailResponse(BaseModel):
     inputs: dict[str, Any] = Field(default_factory=dict)
     papers: list[dict[str, Any]] = Field(default_factory=list)
 
+    filtered_papers_count: int = 0
+    filters: dict[str, Any] = Field(default_factory=dict)
+
 
 class DiscoveryPaperTopicClusterResponse(BaseModel):
     mode: str

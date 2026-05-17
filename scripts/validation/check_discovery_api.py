@@ -19,6 +19,9 @@ OVERRIDE_MIN_YEAR = 2025
 OVERRIDE_HAS_CODE = True
 CLUSTER_LIST_LIMIT = 5
 TOPIC_CLUSTER_MAP_MAX_POINTS = 500
+CLUSTER_DETAIL_FILTER_MIN_YEAR = 2020
+CLUSTER_DETAIL_FILTER_HAS_CODE = True
+CLUSTER_DETAIL_FILTER_SORT_BY = "radar_score"
 
 CLUSTER_PAPER_SORT_MODES = [
     "rank",
@@ -238,6 +241,18 @@ def main() -> None:
             params={"limit": CLUSTER_LIST_LIMIT},
         )
         endpoints["topic_clusters"] = endpoint_meta(topic_clusters)
+        topic_clusters_artifact_ready = request_json(
+            client,
+            "/discovery/clusters",
+            params={
+                "limit": 1,
+                "sort_by": "artifact_ready_desc",
+                "min_size": 1,
+            },
+        )
+        endpoints["topic_clusters_artifact_ready"] = endpoint_meta(
+            topic_clusters_artifact_ready
+        )
         topic_cluster_map = request_json(
             client,
             "/discovery/clusters/map",
@@ -266,7 +281,26 @@ def main() -> None:
         if topic_cluster_results and isinstance(topic_cluster_results[0], dict):
             topic_cluster_id = topic_cluster_results[0].get("cluster_id")
 
+        topic_clusters_artifact_ready_payload = (
+            topic_clusters_artifact_ready.get("json")
+            if isinstance(topic_clusters_artifact_ready.get("json"), dict)
+            else {}
+        )
+        topic_clusters_artifact_ready_results = (
+            topic_clusters_artifact_ready_payload.get("results") or []
+        )
+
+        topic_cluster_filter_id = None
+        if (
+            topic_clusters_artifact_ready_results
+            and isinstance(topic_clusters_artifact_ready_results[0], dict)
+        ):
+            topic_cluster_filter_id = topic_clusters_artifact_ready_results[0].get(
+                "cluster_id"
+            )
+
         topic_cluster_detail: dict[str, Any] = {}
+        topic_cluster_detail_filters: dict[str, Any] = {}
         topic_cluster_detail_sort_results: dict[str, dict[str, Any]] = {}
 
         if topic_cluster_id is not None:
@@ -285,6 +319,21 @@ def main() -> None:
                 )
                 topic_cluster_detail_sort_results[sort_mode] = result
                 endpoints[f"topic_cluster_detail_sort_{sort_mode}"] = endpoint_meta(result)
+
+        if topic_cluster_filter_id is not None:
+            topic_cluster_detail_filters = request_json(
+                client,
+                f"/discovery/clusters/{topic_cluster_filter_id}",
+                params={
+                    "top_k": args.top_k,
+                    "min_year": CLUSTER_DETAIL_FILTER_MIN_YEAR,
+                    "has_code": str(CLUSTER_DETAIL_FILTER_HAS_CODE).lower(),
+                    "sort_by": CLUSTER_DETAIL_FILTER_SORT_BY,
+                },
+            )
+            endpoints["topic_cluster_detail_filters"] = endpoint_meta(
+                topic_cluster_detail_filters
+            )
 
         canonical_id = args.canonical_id
         if not canonical_id and ranking_results:
@@ -379,6 +428,20 @@ def main() -> None:
     topic_cluster_detail_papers = topic_cluster_detail_payload.get("papers") or []
     topic_cluster_detail_sort_payloads: dict[str, dict[str, Any]] = {}
     topic_cluster_detail_sort_papers: dict[str, list[Any]] = {}
+
+    topic_cluster_detail_filters_payload = (
+        topic_cluster_detail_filters.get("json")
+        if isinstance(topic_cluster_detail_filters.get("json"), dict)
+        else {}
+    )
+    topic_cluster_detail_filters_papers = (
+        topic_cluster_detail_filters_payload.get("papers") or []
+    )
+    topic_cluster_detail_filters_effective = (
+        topic_cluster_detail_filters_payload.get("filters")
+        if isinstance(topic_cluster_detail_filters_payload.get("filters"), dict)
+        else {}
+    )
 
     for sort_mode, result in topic_cluster_detail_sort_results.items():
         payload = result.get("json") if isinstance(result.get("json"), dict) else {}
@@ -576,6 +639,37 @@ def main() -> None:
         )
     )
 
+    topic_cluster_detail_filters_echoed = (
+        topic_cluster_detail_filters_effective.get("min_year")
+        == CLUSTER_DETAIL_FILTER_MIN_YEAR
+        and topic_cluster_detail_filters_effective.get("has_code")
+        is CLUSTER_DETAIL_FILTER_HAS_CODE
+    )
+
+    topic_cluster_detail_filters_counts_valid = (
+        int(topic_cluster_detail_filters_payload.get("total_papers") or 0)
+        >= int(topic_cluster_detail_filters_payload.get("filtered_papers_count") or 0)
+        >= int(topic_cluster_detail_filters_payload.get("returned_papers_count") or 0)
+        == len(topic_cluster_detail_filters_papers)
+    )
+
+    topic_cluster_detail_filters_results_match = (
+        len(topic_cluster_detail_filters_papers) > 0
+        and all(
+            isinstance(row, dict)
+            and int(row.get("year") or 0) >= CLUSTER_DETAIL_FILTER_MIN_YEAR
+            and bool(row.get("has_code_artifact")) is CLUSTER_DETAIL_FILTER_HAS_CODE
+            for row in topic_cluster_detail_filters_papers
+        )
+    )
+
+    topic_cluster_detail_filters_radar_sorted = is_sorted_desc(
+        numeric_values(
+            topic_cluster_detail_filters_papers,
+            "radar_score",
+        )
+    )
+
     checks = {
         "profiles_endpoint_ok": bool(profiles.get("ok")),
         "profiles_non_empty": int(profiles_payload.get("profile_count") or 0) > 0,
@@ -638,6 +732,24 @@ def main() -> None:
             topic_cluster_detail_summary.get("label_candidates")
         ),
         "topic_cluster_detail_papers_non_empty": len(topic_cluster_detail_papers) > 0,
+        "topic_cluster_detail_filters_endpoint_ok": bool(
+            topic_cluster_detail_filters.get("ok")
+        ),
+        "topic_cluster_detail_filters_found": (
+                topic_cluster_detail_filters_payload.get("found") is True
+                and topic_cluster_detail_filters_payload.get("cluster_id")
+                == topic_cluster_filter_id
+        ),
+        "topic_cluster_detail_filters_echoed": topic_cluster_detail_filters_echoed,
+        "topic_cluster_detail_filters_counts_valid": (
+            topic_cluster_detail_filters_counts_valid
+        ),
+        "topic_cluster_detail_filters_results_match": (
+            topic_cluster_detail_filters_results_match
+        ),
+        "topic_cluster_detail_filters_radar_sorted": (
+            topic_cluster_detail_filters_radar_sorted
+        ),
         "topic_cluster_detail_sort_endpoint_ok": topic_cluster_detail_sort_endpoint_ok,
         "topic_cluster_detail_sort_results_non_empty": (
             topic_cluster_detail_sort_results_non_empty
@@ -697,6 +809,9 @@ def main() -> None:
             "cluster_list_limit": CLUSTER_LIST_LIMIT,
             "topic_cluster_map_max_points": TOPIC_CLUSTER_MAP_MAX_POINTS,
             "required_profile_names": sorted(REQUIRED_PROFILE_NAMES),
+            "cluster_detail_filter_min_year": CLUSTER_DETAIL_FILTER_MIN_YEAR,
+            "cluster_detail_filter_has_code": CLUSTER_DETAIL_FILTER_HAS_CODE,
+            "cluster_detail_filter_sort_by": CLUSTER_DETAIL_FILTER_SORT_BY,
         },
         "summary": {
             "profile_count": profiles_payload.get("profile_count"),
@@ -740,6 +855,17 @@ def main() -> None:
             "topic_cluster_detail_returned_papers_count": len(
                 topic_cluster_detail_papers
             ),
+            "topic_cluster_filter_id": topic_cluster_filter_id,
+            "topic_cluster_detail_filtered_total_papers": (
+                topic_cluster_detail_filters_payload.get("total_papers")
+            ),
+            "topic_cluster_detail_filtered_papers_count": (
+                topic_cluster_detail_filters_payload.get("filtered_papers_count")
+            ),
+            "topic_cluster_detail_filtered_returned_papers_count": len(
+                topic_cluster_detail_filters_papers
+            ),
+            "topic_cluster_detail_filters": topic_cluster_detail_filters_effective,
             "topic_cluster_detail_sort_modes": CLUSTER_PAPER_SORT_MODES,
             "topic_cluster_detail_sort_modes_checked_count": len(
                 topic_cluster_detail_sort_results

@@ -351,6 +351,10 @@ def test_discovery_topic_cluster_detail_smoke(client: TestClient) -> None:
     assert first_paper["canonical_id"]
     assert first_paper["title"]
     assert first_paper["rank_within_cluster"] >= 1
+    assert "filtered_papers_count" in payload
+    assert "filters" in payload
+    assert isinstance(payload["filters"], dict)
+    assert payload["filtered_papers_count"] == payload["total_papers"]
 
 
 @pytest.mark.parametrize(
@@ -445,3 +449,121 @@ def test_discovery_topic_clusters_invalid_sort_by_returns_422(client: TestClient
     assert response.status_code == 422
     payload = response.json()
     assert payload["error_code"] == "validation_error"
+
+def test_discovery_topic_cluster_detail_filters_echoed_and_counts_valid(client: TestClient) -> None:
+    cluster_id = _first_cluster_id(client)
+
+    response = client.get(
+        f"/discovery/clusters/{cluster_id}",
+        params={
+            "top_k": 5,
+            "min_year": 2020,
+            "min_radar_score": 0.0,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    assert payload["filters"]["min_year"] == 2020
+    assert payload["filters"]["min_radar_score"] == 0.0
+    assert payload["total_papers"] >= payload["filtered_papers_count"]
+    assert payload["filtered_papers_count"] >= payload["returned_papers_count"]
+    assert payload["returned_papers_count"] == len(payload["papers"])
+
+def test_discovery_topic_cluster_detail_min_year_filter(client: TestClient) -> None:
+    cluster_id = _first_cluster_id(client)
+
+    response = client.get(
+        f"/discovery/clusters/{cluster_id}",
+        params={"top_k": 10, "min_year": 2024, "sort_by": "year_desc"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    assert payload["filters"]["min_year"] == 2024
+    assert payload["total_papers"] >= payload["filtered_papers_count"]
+    assert payload["filtered_papers_count"] >= payload["returned_papers_count"]
+    assert payload["returned_papers_count"] == len(payload["papers"])
+
+    for row in payload["papers"]:
+        assert row["year"] is not None
+        assert row["year"] >= 2024
+
+def _artifact_ready_cluster_id(client: TestClient) -> int:
+    response = client.get(
+        "/discovery/clusters",
+        params={"limit": 1, "sort_by": "artifact_ready_desc"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["results"]
+    return int(payload["results"][0]["cluster_id"])
+
+def test_discovery_topic_cluster_detail_has_code_filter(client: TestClient) -> None:
+    cluster_id = _artifact_ready_cluster_id(client)
+
+    response = client.get(
+        f"/discovery/clusters/{cluster_id}",
+        params={"top_k": 10, "has_code": "true", "sort_by": "radar_score"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    assert payload["filters"]["has_code"] is True
+    assert payload["papers"]
+
+    for row in payload["papers"]:
+        assert row["has_code_artifact"] is True
+
+def test_discovery_topic_cluster_detail_min_score_filters(client: TestClient) -> None:
+    cluster_id = _artifact_ready_cluster_id(client)
+
+    response = client.get(
+        f"/discovery/clusters/{cluster_id}",
+        params={
+            "top_k": 10,
+            "min_radar_score": 0.2,
+            "min_citation_signal_score": 0.0,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    for row in payload["papers"]:
+        assert float(row.get("radar_score") or 0.0) >= 0.2
+        assert float(row.get("citation_signal_score") or 0.0) >= 0.0
+
+def test_discovery_topic_cluster_detail_invalid_year_range_returns_400(client: TestClient) -> None:
+    cluster_id = _first_cluster_id(client)
+
+    response = client.get(
+        f"/discovery/clusters/{cluster_id}",
+        params={"min_year": 2026, "max_year": 2025},
+    )
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["error_code"] == "bad_request"
+    assert "min_year" in payload["message"]
+
+def test_discovery_topic_cluster_detail_has_github_filter(client: TestClient) -> None:
+    cluster_id = _artifact_ready_cluster_id(client)
+
+    response = client.get(
+        f"/discovery/clusters/{cluster_id}",
+        params={"top_k": 10, "has_github": "true", "sort_by": "radar_score"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    assert payload["filters"]["has_github"] is True
+    assert payload["total_papers"] >= payload["filtered_papers_count"]
+    assert payload["filtered_papers_count"] >= payload["returned_papers_count"]
+
+    for row in payload["papers"]:
+        assert int(row.get("github_found_repo_count") or 0) > 0

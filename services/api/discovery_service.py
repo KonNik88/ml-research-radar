@@ -258,6 +258,144 @@ def _sort_clusters(
 
     raise ValueError(f"Unsupported topic cluster sort_by: {sort_by}")
 
+def _bool_filter_matches(actual: bool, expected: bool | None) -> bool:
+    if expected is None:
+        return True
+    return actual is expected
+
+def _row_has_github(row: dict[str, Any]) -> bool:
+    return _safe_int(row.get("github_found_repo_count")) > 0
+
+def _row_has_hf(row: dict[str, Any]) -> bool:
+    return _safe_int(row.get("hf_found_count")) > 0
+
+def _row_has_acl(row: dict[str, Any]) -> bool:
+    if bool(row.get("has_acl")):
+        return True
+
+    source_families = row.get("source_families") or []
+    if not isinstance(source_families, list):
+        return False
+
+    normalized = {str(x).strip().lower() for x in source_families}
+    return bool({"acl", "acl_anthology", "acl-family"} & normalized)
+
+def _row_has_doi(row: dict[str, Any]) -> bool:
+    if "has_doi" in row:
+        return bool(row.get("has_doi"))
+    return bool(row.get("doi"))
+
+def _score_at_least(
+    row: dict[str, Any],
+    field_name: str,
+    threshold: float | None,
+) -> bool:
+    if threshold is None:
+        return True
+    return _safe_float(row.get(field_name), default=0.0) >= float(threshold)
+
+def _apply_topic_cluster_paper_filters(
+    papers: list[dict[str, Any]],
+    *,
+    min_year: int | None = None,
+    max_year: int | None = None,
+    has_code: bool | None = None,
+    has_dataset: bool | None = None,
+    has_model: bool | None = None,
+    has_demo: bool | None = None,
+    has_github: bool | None = None,
+    has_hf: bool | None = None,
+    has_acl: bool | None = None,
+    has_doi: bool | None = None,
+    min_radar_score: float | None = None,
+    min_implementation_readiness_score: float | None = None,
+    min_citation_signal_score: float | None = None,
+) -> list[dict[str, Any]]:
+    if min_year is not None and max_year is not None and min_year > max_year:
+        raise ValueError("min_year must be less than or equal to max_year")
+
+    filtered: list[dict[str, Any]] = []
+
+    for row in papers:
+        year = row.get("year")
+
+        if min_year is not None:
+            if year is None or _safe_int(year, default=-9999) < min_year:
+                continue
+
+        if max_year is not None:
+            if year is None or _safe_int(year, default=999999) > max_year:
+                continue
+
+        if not _bool_filter_matches(bool(row.get("has_code_artifact")), has_code):
+            continue
+        if not _bool_filter_matches(bool(row.get("has_dataset_artifact")), has_dataset):
+            continue
+        if not _bool_filter_matches(bool(row.get("has_model_artifact")), has_model):
+            continue
+        if not _bool_filter_matches(bool(row.get("has_demo_artifact")), has_demo):
+            continue
+
+        if not _bool_filter_matches(_row_has_github(row), has_github):
+            continue
+        if not _bool_filter_matches(_row_has_hf(row), has_hf):
+            continue
+        if not _bool_filter_matches(_row_has_acl(row), has_acl):
+            continue
+        if not _bool_filter_matches(_row_has_doi(row), has_doi):
+            continue
+
+        if not _score_at_least(row, "radar_score", min_radar_score):
+            continue
+        if not _score_at_least(
+            row,
+            "implementation_readiness_score",
+            min_implementation_readiness_score,
+        ):
+            continue
+        if not _score_at_least(
+            row,
+            "citation_signal_score",
+            min_citation_signal_score,
+        ):
+            continue
+
+        filtered.append(row)
+
+    return filtered
+
+def _effective_topic_cluster_filters(
+    *,
+    min_year: int | None = None,
+    max_year: int | None = None,
+    has_code: bool | None = None,
+    has_dataset: bool | None = None,
+    has_model: bool | None = None,
+    has_demo: bool | None = None,
+    has_github: bool | None = None,
+    has_hf: bool | None = None,
+    has_acl: bool | None = None,
+    has_doi: bool | None = None,
+    min_radar_score: float | None = None,
+    min_implementation_readiness_score: float | None = None,
+    min_citation_signal_score: float | None = None,
+) -> dict[str, Any]:
+    raw = {
+        "min_year": min_year,
+        "max_year": max_year,
+        "has_code": has_code,
+        "has_dataset": has_dataset,
+        "has_model": has_model,
+        "has_demo": has_demo,
+        "has_github": has_github,
+        "has_hf": has_hf,
+        "has_acl": has_acl,
+        "has_doi": has_doi,
+        "min_radar_score": min_radar_score,
+        "min_implementation_readiness_score": min_implementation_readiness_score,
+        "min_citation_signal_score": min_citation_signal_score,
+    }
+    return {key: value for key, value in raw.items() if value is not None}
 
 def _sort_cluster_papers(
     papers: list[dict[str, Any]],
@@ -512,19 +650,27 @@ class DiscoveryService:
         )
 
     def get_topic_clusters(
-        self,
-        *,
-        limit: int = 20,
-        offset: int = 0,
-        sort_by: str = "size_desc",
-        include_representatives: bool = True,
+            self,
+            *,
+            limit: int = 20,
+            offset: int = 0,
+            sort_by: str = "size_desc",
+            include_representatives: bool = True,
+            min_size: int | None = None,
     ) -> dict[str, Any]:
         payload = self._load_topic_clusters_payload()
         clusters = list(payload["clusters"])
 
+        if min_size is not None:
+            clusters = [
+                cluster
+                for cluster in clusters
+                if _safe_int(cluster.get("size")) >= min_size
+            ]
+
         clusters = _sort_clusters(clusters, sort_by=sort_by)
         total = len(clusters)
-        returned = clusters[offset : offset + limit]
+        returned = clusters[offset: offset + limit]
 
         if not include_representatives:
             cleaned: list[dict[str, Any]] = []
@@ -619,15 +765,44 @@ class DiscoveryService:
         }
 
     def get_topic_cluster(
-        self,
-        *,
-        cluster_id: int,
-        top_k: int = 20,
-        sort_by: str = "rank",
+            self,
+            *,
+            cluster_id: int,
+            top_k: int = 20,
+            sort_by: str = "rank",
+            min_year: int | None = None,
+            max_year: int | None = None,
+            has_code: bool | None = None,
+            has_dataset: bool | None = None,
+            has_model: bool | None = None,
+            has_demo: bool | None = None,
+            has_github: bool | None = None,
+            has_hf: bool | None = None,
+            has_acl: bool | None = None,
+            has_doi: bool | None = None,
+            min_radar_score: float | None = None,
+            min_implementation_readiness_score: float | None = None,
+            min_citation_signal_score: float | None = None,
     ) -> dict[str, Any]:
         payload = self._load_topic_clusters_payload()
         clusters_by_id = payload["clusters_by_id"]
         summary = clusters_by_id.get(cluster_id)
+
+        filters = _effective_topic_cluster_filters(
+            min_year=min_year,
+            max_year=max_year,
+            has_code=has_code,
+            has_dataset=has_dataset,
+            has_model=has_model,
+            has_demo=has_demo,
+            has_github=has_github,
+            has_hf=has_hf,
+            has_acl=has_acl,
+            has_doi=has_doi,
+            min_radar_score=min_radar_score,
+            min_implementation_readiness_score=min_implementation_readiness_score,
+            min_citation_signal_score=min_citation_signal_score,
+        )
 
         if summary is None:
             return {
@@ -639,17 +814,39 @@ class DiscoveryService:
                 "cluster_config_hash": payload.get("cluster_config_hash"),
                 "summary": {},
                 "total_papers": 0,
+                "filtered_papers_count": 0,
                 "returned_papers_count": 0,
                 "top_k": top_k,
                 "sort_by": sort_by,
+                "filters": filters,
                 "inputs": payload["inputs"],
                 "papers": [],
             }
 
         assignments_by_cluster = self._load_topic_assignments_by_cluster()
+
         papers = list(assignments_by_cluster.get(cluster_id, []))
-        papers = _sort_cluster_papers(papers, sort_by=sort_by)
-        returned_papers = papers[:top_k]
+        total_papers = len(papers)
+
+        filtered_papers = _apply_topic_cluster_paper_filters(
+            papers,
+            min_year=min_year,
+            max_year=max_year,
+            has_code=has_code,
+            has_dataset=has_dataset,
+            has_model=has_model,
+            has_demo=has_demo,
+            has_github=has_github,
+            has_hf=has_hf,
+            has_acl=has_acl,
+            has_doi=has_doi,
+            min_radar_score=min_radar_score,
+            min_implementation_readiness_score=min_implementation_readiness_score,
+            min_citation_signal_score=min_citation_signal_score,
+        )
+
+        filtered_papers = _sort_cluster_papers(filtered_papers, sort_by=sort_by)
+        returned_papers = filtered_papers[:top_k]
 
         return {
             "mode": "topic_cluster_detail",
@@ -659,10 +856,12 @@ class DiscoveryService:
             "retrieval_build_id": payload.get("retrieval_build_id"),
             "cluster_config_hash": payload.get("cluster_config_hash"),
             "summary": summary,
-            "total_papers": len(papers),
+            "total_papers": total_papers,
+            "filtered_papers_count": len(filtered_papers),
             "returned_papers_count": len(returned_papers),
             "top_k": top_k,
             "sort_by": sort_by,
+            "filters": filters,
             "inputs": payload["inputs"],
             "papers": returned_papers,
         }

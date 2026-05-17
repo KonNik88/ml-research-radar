@@ -588,6 +588,7 @@ def discovery_topic_clusters(
     offset: int = Query(0, ge=0),
     sort_by: DiscoveryClusterSortBy = Query("size_desc"),
     include_representatives: bool = Query(True),
+    min_size: int | None = Query(None, ge=1),
 ) -> DiscoveryTopicClustersResponse:
     service = get_discovery_service()
     payload = service.get_topic_clusters(
@@ -595,6 +596,7 @@ def discovery_topic_clusters(
         offset=offset,
         sort_by=sort_by,
         include_representatives=include_representatives,
+        min_size=min_size,
     )
     return DiscoveryTopicClustersResponse(**payload)
 
@@ -615,12 +617,40 @@ def discovery_topic_cluster_detail(
     cluster_id: int,
     top_k: int = Query(20, ge=1, le=settings.max_top_k),
     sort_by: DiscoveryClusterPaperSortBy = Query("rank"),
+    min_year: int | None = Query(None, ge=1900, le=2100),
+    max_year: int | None = Query(None, ge=1900, le=2100),
+    has_code: bool | None = Query(None),
+    has_dataset: bool | None = Query(None),
+    has_model: bool | None = Query(None),
+    has_demo: bool | None = Query(None),
+    has_github: bool | None = Query(None),
+    has_hf: bool | None = Query(None),
+    has_acl: bool | None = Query(None),
+    has_doi: bool | None = Query(None),
+    min_radar_score: float | None = Query(None, ge=0.0, le=1.0),
+    min_implementation_readiness_score: float | None = Query(None, ge=0.0, le=1.0),
+    min_citation_signal_score: float | None = Query(None, ge=0.0, le=1.0),
 ) -> DiscoveryTopicClusterDetailResponse:
+    if min_year is not None and max_year is not None and min_year > max_year:
+        raise ValueError("min_year must be less than or equal to max_year")
     service = get_discovery_service()
     payload = service.get_topic_cluster(
         cluster_id=cluster_id,
         top_k=top_k,
         sort_by=sort_by,
+        min_year=min_year,
+        max_year=max_year,
+        has_code=has_code,
+        has_dataset=has_dataset,
+        has_model=has_model,
+        has_demo=has_demo,
+        has_github=has_github,
+        has_hf=has_hf,
+        has_acl=has_acl,
+        has_doi=has_doi,
+        min_radar_score=min_radar_score,
+        min_implementation_readiness_score=min_implementation_readiness_score,
+        min_citation_signal_score=min_citation_signal_score,
     )
 
     if not payload["found"]:
