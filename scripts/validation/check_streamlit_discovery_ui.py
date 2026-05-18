@@ -114,6 +114,20 @@ CLUSTER_DETAIL_FILTER_UI_SNIPPETS = [
     "Reset cluster detail filters",
 ]
 
+ARTIFACT_EXPLORER_UI_SNIPPETS = [
+    "Artifact explorer",
+    "fetch_artifacts",
+    "build_artifact_params",
+    "render_artifact_explorer",
+    "artifact_provider",
+    "artifact_relation_type",
+    "artifact_min_stars",
+    "artifact_github_status",
+    "artifact_has_github_metadata",
+    "/artifacts",
+    "Load artifacts",
+]
+
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -411,6 +425,31 @@ def run_api_checks(
     if topic_map_error:
         errors["api_topic_map_error"] = topic_map_error
 
+    artifacts_ok, artifacts_payload, artifacts_error = request_json(
+        base_url=base_url,
+        path="/artifacts",
+        params={
+            "limit": 3,
+            "provider": "github",
+            "has_paper_links": "true",
+            "has_github_metadata": "true",
+            "sort_by": "stars_desc",
+        },
+        timeout_seconds=timeout_seconds,
+    )
+    artifact_rows = result_rows(artifacts_payload)
+
+    checks["api_artifacts_endpoint_ok"] = artifacts_ok
+    checks["api_artifacts_results_non_empty"] = bool(artifact_rows)
+    checks["api_artifacts_total_present"] = artifacts_payload.get("total") is not None
+    checks["api_artifacts_sort_echoed"] = artifacts_payload.get("sort_by") == "stars_desc"
+
+    extracted_values["api_artifacts_total"] = artifacts_payload.get("total")
+    extracted_values["api_artifacts_results_count"] = len(artifact_rows)
+
+    if artifacts_error:
+        errors["api_artifacts_error"] = artifacts_error
+
     sort_smoke: dict[str, dict[str, Any]] = {}
     sorted_size_payload: dict[str, Any] = {}
     artifact_ready_payload: dict[str, Any] = {}
@@ -695,6 +734,10 @@ def build_report(
         app_text,
         CLUSTER_DETAIL_FILTER_UI_SNIPPETS,
     )
+    missing_artifact_explorer = missing_snippets(
+        app_text,
+        ARTIFACT_EXPLORER_UI_SNIPPETS,
+    )
 
     checks["required_ui_snippets_present"] = not missing_required
     checks["discovery_endpoint_strings_present"] = not missing_discovery
@@ -706,6 +749,7 @@ def build_report(
     checks["reset_button_present"] = "Reset discovery filters" in app_text
     checks["no_deprecated_use_container_width"] = "use_container_width" not in app_text
     checks["legacy_search_endpoint_absent"] = '"/search"' not in app_text and "'/search'" not in app_text
+    checks["artifact_explorer_ui_snippets_present"] = not missing_artifact_explorer
 
     extracted_values["missing_required_ui_snippets"] = missing_required
     extracted_values["missing_discovery_endpoint_strings"] = missing_discovery
@@ -714,6 +758,7 @@ def build_report(
     extracted_values["missing_cluster_detail_filter_ui_snippets"] = (
         missing_cluster_detail_filters
     )
+    extracted_values["missing_artifact_explorer_ui_snippets"] = missing_artifact_explorer
 
     if check_api:
         run_api_checks(
@@ -739,6 +784,7 @@ def build_report(
         "reset_button_present",
         "no_deprecated_use_container_width",
         "legacy_search_endpoint_absent",
+        "artifact_explorer_ui_snippets_present",
     ]
 
     if check_api:
@@ -779,6 +825,10 @@ def build_report(
                 "api_paper_topic_cluster_endpoint_ok",
                 "api_paper_topic_cluster_assignment_present",
                 "api_paper_topic_cluster_cluster_present",
+                "api_artifacts_endpoint_ok",
+                "api_artifacts_results_non_empty",
+                "api_artifacts_total_present",
+                "api_artifacts_sort_echoed",
             ]
         )
 

@@ -54,6 +54,45 @@ SORT_OPTIONS = [
 ]
 DIRECTION_OPTIONS = ["Profile default", "Descending", "Ascending"]
 SIMILAR_RANK_BY_OPTIONS = ["semantic", "radar_adjusted"]
+ARTIFACT_PROVIDER_OPTIONS = [
+    "",
+    "github",
+    "huggingface",
+    "zenodo",
+    "figshare",
+    "kaggle",
+    "youtube",
+]
+
+ARTIFACT_RELATION_TYPE_OPTIONS = [
+    "",
+    "code",
+    "dataset",
+    "model",
+    "demo",
+    "project",
+    "artifact",
+]
+
+ARTIFACT_SORT_OPTIONS = [
+    "linked_papers_desc",
+    "provider_asc",
+    "type_asc",
+    "owner_asc",
+    "last_seen_desc",
+    "stars_desc",
+    "forks_desc",
+]
+
+ARTIFACT_GITHUB_STATUS_OPTIONS = [
+    "",
+    "found",
+    "not_found",
+    "forbidden",
+    "rate_limited",
+    "error",
+    "skipped_invalid_external_id",
+]
 
 st.set_page_config(
     page_title="ML Research Radar",
@@ -161,6 +200,9 @@ def fetch_topic_cluster_detail(
         f"/discovery/clusters/{cluster_id}",
         params=params,
     )
+
+def fetch_artifacts(base_url: str, params: dict[str, Any]) -> dict[str, Any]:
+    return api_get(base_url, "/artifacts", params=params)
 
 def fetch_paper_topic_cluster(base_url: str, canonical_id: str) -> dict[str, Any]:
     return api_get(base_url, f"/discovery/papers/{canonical_id}/cluster")
@@ -341,6 +383,23 @@ def init_ui_state() -> None:
         "topic_map_max_points": 2000,
         "topic_map_selected_cluster_id": None,
         "topic_map_cluster_detail_sort_by": "rank",
+        "artifact_payload": None,
+        "artifact_limit": 20,
+        "artifact_offset": 0,
+        "artifact_provider": "",
+        "artifact_type": "",
+        "artifact_relation_type": "",
+        "artifact_owner": "",
+        "artifact_min_confidence": "",
+        "artifact_has_paper_links": "Profile default",
+        "artifact_min_stars": "",
+        "artifact_max_stars": "",
+        "artifact_language": "",
+        "artifact_license": "",
+        "artifact_archived": "Profile default",
+        "artifact_github_status": "",
+        "artifact_has_github_metadata": "Profile default",
+        "artifact_sort_by": "linked_papers_desc",
     }
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
@@ -456,6 +515,282 @@ def build_cluster_detail_params(*, top_k: int, sort_by: str) -> dict[str, Any]:
             params[param_key] = value
 
     return params
+
+def build_artifact_params() -> dict[str, Any]:
+    params: dict[str, Any] = {
+        "limit": int(st.session_state["artifact_limit"]),
+        "offset": int(st.session_state["artifact_offset"]),
+        "sort_by": st.session_state["artifact_sort_by"],
+    }
+
+    provider = st.session_state.get("artifact_provider", "").strip()
+    artifact_type = st.session_state.get("artifact_type", "").strip()
+    relation_type = st.session_state.get("artifact_relation_type", "").strip()
+    owner = st.session_state.get("artifact_owner", "").strip()
+    language = st.session_state.get("artifact_language", "").strip()
+    license_name = st.session_state.get("artifact_license", "").strip()
+
+    if provider:
+        params["provider"] = provider
+    if artifact_type:
+        params["artifact_type"] = artifact_type
+    if relation_type:
+        params["relation_type"] = relation_type
+    if owner:
+        params["owner"] = owner
+    if language:
+        params["language"] = language
+    if license_name:
+        params["license"] = license_name
+
+    min_confidence = float_or_none(st.session_state.get("artifact_min_confidence", ""))
+    if min_confidence is not None:
+        params["min_confidence"] = min_confidence
+
+    min_stars = to_int_or_none(st.session_state.get("artifact_min_stars", ""))
+    max_stars = to_int_or_none(st.session_state.get("artifact_max_stars", ""))
+    if min_stars is not None:
+        params["min_stars"] = min_stars
+    if max_stars is not None:
+        params["max_stars"] = max_stars
+
+    has_paper_links = st.session_state.get("artifact_has_paper_links", "Profile default")
+    if has_paper_links == "True":
+        params["has_paper_links"] = "true"
+    elif has_paper_links == "False":
+        params["has_paper_links"] = "false"
+
+    archived = st.session_state.get("artifact_archived", "Profile default")
+    if archived == "True":
+        params["archived"] = "true"
+    elif archived == "False":
+        params["archived"] = "false"
+
+    has_github_metadata = st.session_state.get(
+        "artifact_has_github_metadata",
+        "Profile default",
+    )
+    if has_github_metadata == "True":
+        params["has_github_metadata"] = "true"
+    elif has_github_metadata == "False":
+        params["has_github_metadata"] = "false"
+
+    github_status = st.session_state.get("artifact_github_status", "").strip()
+    if github_status:
+        params["github_status"] = github_status
+
+    return params
+
+def artifact_row_to_table(row: dict[str, Any]) -> dict[str, Any]:
+    metadata = row.get("metadata") or {}
+    github = metadata.get("github") if isinstance(metadata, dict) else {}
+    if not isinstance(github, dict):
+        github = {}
+
+    return {
+        "provider": row.get("provider"),
+        "type": row.get("artifact_type") or row.get("type"),
+        "owner": row.get("owner"),
+        "name": row.get("name") or row.get("title"),
+        "linked_papers": row.get("linked_papers_count"),
+        "confidence": row.get("confidence"),
+        "stars": row.get("github_stars") or github.get("stargazers_count"),
+        "forks": row.get("github_forks") or github.get("forks_count"),
+        "language": row.get("language") or github.get("language"),
+        "license": row.get("license") or github.get("license"),
+        "archived": row.get("archived") or github.get("archived"),
+        "status": row.get("github_status") or github.get("status"),
+        "url": row.get("url") or row.get("normalized_url") or row.get("external_url"),
+        "artifact_id": row.get("artifact_id"),
+    }
+
+def render_artifact_card(row: dict[str, Any], rank: int) -> None:
+    metadata = row.get("metadata") or {}
+    github = metadata.get("github") if isinstance(metadata, dict) else {}
+    if not isinstance(github, dict):
+        github = {}
+
+    title = (
+        row.get("name")
+        or row.get("title")
+        or row.get("normalized_url")
+        or row.get("url")
+        or "Untitled artifact"
+    )
+
+    url = row.get("url") or row.get("normalized_url") or row.get("external_url")
+
+    with st.container(border=True):
+        st.markdown(f"### {rank}. {title}")
+
+        cols = st.columns(6)
+        cols[0].metric("Provider", dash(row.get("provider")))
+        cols[1].metric("Type", dash(row.get("artifact_type") or row.get("type")))
+        cols[2].metric("Linked papers", dash(row.get("linked_papers_count")))
+        cols[3].metric("Stars", dash(row.get("github_stars") or github.get("stargazers_count")))
+        cols[4].metric("Forks", dash(row.get("github_forks") or github.get("forks_count")))
+        cols[5].metric("Language", dash(row.get("language") or github.get("language")))
+
+        render_kv("Owner", row.get("owner"))
+        render_kv("License", row.get("license") or github.get("license"))
+        render_kv("GitHub status", row.get("github_status") or github.get("status"))
+        render_kv("Artifact ID", row.get("artifact_id"))
+
+        if url:
+            st.markdown(maybe_markdown_link("Open artifact", url))
+
+        with st.expander("Artifact row JSON", expanded=False):
+            st.json(row)
+
+def render_artifact_explorer(base_url: str) -> None:
+    st.subheader("Artifact explorer")
+    st.caption(
+        "Browse materialized artifact evidence: GitHub repositories, Hugging Face assets, "
+        "datasets, models, demos and other linked implementation resources."
+    )
+
+    control_cols = st.columns([1, 1, 1, 1])
+    with control_cols[0]:
+        st.number_input(
+            "Artifact limit",
+            min_value=1,
+            max_value=100,
+            step=1,
+            key="artifact_limit",
+        )
+    with control_cols[1]:
+        st.number_input(
+            "Artifact offset",
+            min_value=0,
+            max_value=1_000_000,
+            step=20,
+            key="artifact_offset",
+        )
+    with control_cols[2]:
+        st.selectbox(
+            "Artifact provider",
+            ARTIFACT_PROVIDER_OPTIONS,
+            key="artifact_provider",
+            format_func=lambda value: value or "Any provider",
+        )
+    with control_cols[3]:
+        st.selectbox(
+            "Artifact sort by",
+            ARTIFACT_SORT_OPTIONS,
+            key="artifact_sort_by",
+        )
+
+    filter_cols = st.columns([1, 1, 1, 1])
+    with filter_cols[0]:
+        st.text_input(
+            "Artifact type",
+            key="artifact_type",
+            placeholder="github_repository",
+        )
+    with filter_cols[1]:
+        st.selectbox(
+            "Relation type",
+            ARTIFACT_RELATION_TYPE_OPTIONS,
+            key="artifact_relation_type",
+            format_func=lambda value: value or "Any relation",
+        )
+    with filter_cols[2]:
+        st.text_input("Owner", key="artifact_owner", placeholder="facebookresearch")
+    with filter_cols[3]:
+        st.text_input("Min confidence", key="artifact_min_confidence", placeholder="0.7")
+
+    github_cols = st.columns([1, 1, 1, 1])
+    with github_cols[0]:
+        st.text_input("Min stars", key="artifact_min_stars", placeholder="100")
+    with github_cols[1]:
+        st.text_input("Max stars", key="artifact_max_stars", placeholder="")
+    with github_cols[2]:
+        st.text_input("Language", key="artifact_language", placeholder="Python")
+    with github_cols[3]:
+        st.text_input("License", key="artifact_license", placeholder="mit")
+
+    state_cols = st.columns([1, 1, 1])
+    with state_cols[0]:
+        st.selectbox(
+            "Has paper links",
+            TRISTATE_OPTIONS,
+            key="artifact_has_paper_links",
+        )
+    with state_cols[1]:
+        st.selectbox(
+            "Archived",
+            TRISTATE_OPTIONS,
+            key="artifact_archived",
+        )
+    with state_cols[2]:
+        st.selectbox(
+            "Has GitHub metadata",
+            TRISTATE_OPTIONS,
+            key="artifact_has_github_metadata",
+        )
+
+    st.selectbox(
+        "GitHub status",
+        ARTIFACT_GITHUB_STATUS_OPTIONS,
+        key="artifact_github_status",
+        format_func=lambda value: value or "Any status",
+    )
+
+    if st.button("Load artifacts", type="primary", width="stretch"):
+        try:
+            params = build_artifact_params()
+            with st.spinner("Loading artifacts..."):
+                payload = fetch_artifacts(base_url, params)
+            st.session_state["artifact_payload"] = payload
+        except ValueError:
+            st.error(
+                "Artifact numeric filters must be valid numbers. "
+                "min_confidence should be 0.0–1.0, stars should be integers."
+            )
+            return
+        except Exception as exc:
+            st.error(str(exc))
+            st.info(
+                "Artifact explorer requires API started with DB backend and Postgres available: "
+                "`set ML_RADAR_SEARCH_BACKEND=db`."
+            )
+            return
+
+    payload = st.session_state.get("artifact_payload")
+    if not payload:
+        st.info(
+            "Start the API with DB backend, choose artifact filters, and click **Load artifacts**."
+        )
+        return
+
+    rows = payload.get("results") or []
+
+    cols = st.columns(4)
+    cols[0].metric("Total artifacts", payload.get("total", "—"))
+    cols[1].metric("Returned", len(rows))
+    cols[2].metric("Offset", payload.get("offset", "—"))
+    cols[3].metric("Sort", payload.get("sort_by", "—"))
+
+    with st.expander("Artifact request response metadata", expanded=False):
+        st.json({key: value for key, value in payload.items() if key != "results"})
+
+    if not rows:
+        st.warning("No artifacts matched the current filter combination.")
+        return
+
+    st.markdown("#### Artifact table")
+    st.dataframe(
+        pd.DataFrame([artifact_row_to_table(row) for row in rows]),
+        hide_index=True,
+        width="stretch",
+    )
+
+    st.markdown("#### Artifact cards")
+    for idx, row in enumerate(rows, start=1):
+        render_artifact_card(row, idx)
+
+    with st.expander("Raw artifacts response", expanded=False):
+        st.json(payload)
 
 def get_profiles_or_stop(base_url: str) -> dict[str, Any]:
     try:
@@ -1618,8 +1953,8 @@ def main() -> None:
 
     api_base_url, run_clicked = render_sidebar(base_url, profiles_payload)
 
-    ranking_tab, clusters_tab, topic_map_tab = st.tabs(
-        ["Discovery ranking", "Topic clusters", "Topic map"]
+    ranking_tab, clusters_tab, topic_map_tab, artifacts_tab = st.tabs(
+        ["Discovery ranking", "Topic clusters", "Topic map", "Artifact explorer"]
     )
 
     with ranking_tab:
@@ -1700,6 +2035,9 @@ def main() -> None:
 
     with topic_map_tab:
         render_topic_map(api_base_url)
+
+    with artifacts_tab:
+        render_artifact_explorer(api_base_url)
 
 
 if __name__ == "__main__":
