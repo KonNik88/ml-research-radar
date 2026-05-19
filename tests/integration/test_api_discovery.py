@@ -567,3 +567,89 @@ def test_discovery_topic_cluster_detail_has_github_filter(client: TestClient) ->
 
     for row in payload["papers"]:
         assert int(row.get("github_found_repo_count") or 0) > 0
+
+def _first_linked_artifact_id_or_skip(client: TestClient) -> str:
+    response = client.get(
+        "/artifacts",
+        params={
+            "limit": 1,
+            "provider": "github",
+            "has_paper_links": "true",
+            "has_github_metadata": "true",
+            "sort_by": "stars_desc",
+        },
+    )
+
+    if response.status_code == 503:
+        pytest.skip("DB backend is not enabled for artifact API tests")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["results"]
+
+    artifact_id = payload["results"][0]["artifact_id"]
+    assert artifact_id
+    return str(artifact_id)
+
+def test_artifact_detail_smoke(client: TestClient) -> None:
+    artifact_id = _first_linked_artifact_id_or_skip(client)
+
+    response = client.get(f"/artifacts/{artifact_id}")
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    assert payload["artifact_id"] == artifact_id
+    assert payload["found"] is True
+    assert payload["artifact"]["artifact_id"] == artifact_id
+    assert payload["artifact"]["provider"]
+    assert payload["artifact"]["normalized_url"]
+
+def test_artifact_linked_papers_smoke(client: TestClient) -> None:
+    artifact_id = _first_linked_artifact_id_or_skip(client)
+
+    response = client.get(
+        f"/artifacts/{artifact_id}/papers",
+        params={"limit": 5},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    assert payload["artifact_id"] == artifact_id
+    assert payload["total"] > 0
+    assert 1 <= len(payload["results"]) <= 5
+
+    first = payload["results"][0]
+    assert first["artifact_id"] == artifact_id
+    assert first["canonical_id"]
+    assert first["relation_type"]
+    assert 0.0 <= float(first["confidence"]) <= 1.0
+    assert first["paper"]["canonical_id"] == first["canonical_id"]
+    assert first["paper"]["title"]
+
+def test_artifact_linked_papers_sort_year_desc_smoke(client: TestClient) -> None:
+    artifact_id = _first_linked_artifact_id_or_skip(client)
+
+    response = client.get(
+        f"/artifacts/{artifact_id}/papers",
+        params={"limit": 5, "sort_by": "year_desc"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    years = [
+        int(row["paper"]["year"])
+        for row in payload["results"]
+        if row["paper"].get("year") is not None
+    ]
+    assert years == sorted(years, reverse=True)
+
+def test_artifact_detail_missing_returns_404(client: TestClient) -> None:
+    response = client.get("/artifacts/not-a-real-artifact-id")
+
+    if response.status_code == 503:
+        pytest.skip("DB backend is not enabled for artifact API tests")
+
+    assert response.status_code == 404

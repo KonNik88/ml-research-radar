@@ -22,6 +22,11 @@ TOPIC_CLUSTER_MAP_MAX_POINTS = 500
 CLUSTER_DETAIL_FILTER_MIN_YEAR = 2020
 CLUSTER_DETAIL_FILTER_HAS_CODE = True
 CLUSTER_DETAIL_FILTER_SORT_BY = "radar_score"
+ARTIFACT_SMOKE_PROVIDER = "github"
+ARTIFACT_SMOKE_HAS_PAPER_LINKS = True
+ARTIFACT_SMOKE_HAS_GITHUB_METADATA = True
+ARTIFACT_SMOKE_SORT_BY = "stars_desc"
+ARTIFACT_LINKED_PAPERS_SORT_BY = "confidence_desc"
 
 CLUSTER_PAPER_SORT_MODES = [
     "rank",
@@ -199,6 +204,11 @@ def main() -> None:
 
     endpoints: dict[str, dict[str, Any]] = {}
 
+    artifact_id: str | None = None
+    artifact_list: dict[str, Any] = {}
+    artifact_detail: dict[str, Any] = {}
+    artifact_linked_papers: dict[str, Any] = {}
+
     with TestClient(app) as client:
         profiles = request_json(client, "/discovery/profiles")
         endpoints["profiles"] = endpoint_meta(profiles)
@@ -368,6 +378,51 @@ def main() -> None:
             )
             endpoints["paper_topic_cluster"] = endpoint_meta(paper_topic_cluster)
 
+        if args.backend_mode == "db":
+            artifact_list = request_json(
+                client,
+                "/artifacts",
+                params={
+                    "limit": 1,
+                    "provider": ARTIFACT_SMOKE_PROVIDER,
+                    "has_paper_links": str(ARTIFACT_SMOKE_HAS_PAPER_LINKS).lower(),
+                    "has_github_metadata": str(
+                        ARTIFACT_SMOKE_HAS_GITHUB_METADATA
+                    ).lower(),
+                    "sort_by": ARTIFACT_SMOKE_SORT_BY,
+                },
+            )
+            endpoints["artifact_list_smoke"] = endpoint_meta(artifact_list)
+
+            artifact_list_payload = (
+                artifact_list.get("json")
+                if isinstance(artifact_list.get("json"), dict)
+                else {}
+            )
+            artifact_results = artifact_list_payload.get("results") or []
+
+            if artifact_results and isinstance(artifact_results[0], dict):
+                artifact_id = str(artifact_results[0].get("artifact_id") or "").strip()
+
+            if artifact_id:
+                artifact_detail = request_json(
+                    client,
+                    f"/artifacts/{artifact_id}",
+                )
+                endpoints["artifact_detail"] = endpoint_meta(artifact_detail)
+
+                artifact_linked_papers = request_json(
+                    client,
+                    f"/artifacts/{artifact_id}/papers",
+                    params={
+                        "limit": args.top_k,
+                        "sort_by": ARTIFACT_LINKED_PAPERS_SORT_BY,
+                    },
+                )
+                endpoints["artifact_linked_papers"] = endpoint_meta(
+                    artifact_linked_papers
+                )
+
     detail_payload = detail.get("json") if isinstance(detail.get("json"), dict) else {}
     ranking_overrides_payload = (
         ranking_overrides.get("json")
@@ -473,6 +528,33 @@ def main() -> None:
     paper_topic_cluster_assignment = paper_topic_cluster_payload.get("assignment")
     paper_topic_cluster_cluster = paper_topic_cluster_payload.get("cluster")
 
+    artifact_list_payload = (
+        artifact_list.get("json")
+        if isinstance(artifact_list.get("json"), dict)
+        else {}
+    )
+    artifact_list_results = artifact_list_payload.get("results") or []
+
+    artifact_detail_payload = (
+        artifact_detail.get("json")
+        if isinstance(artifact_detail.get("json"), dict)
+        else {}
+    )
+    artifact_detail_body = (
+        artifact_detail_payload.get("artifact")
+        if isinstance(artifact_detail_payload.get("artifact"), dict)
+        else {}
+    )
+
+    artifact_linked_papers_payload = (
+        artifact_linked_papers.get("json")
+        if isinstance(artifact_linked_papers.get("json"), dict)
+        else {}
+    )
+    artifact_linked_papers_results = (
+        artifact_linked_papers_payload.get("results") or []
+    )
+
     missing_required_profiles = sorted(REQUIRED_PROFILE_NAMES - profile_names)
 
     ranking_overrides_results_match_filters = (
@@ -517,6 +599,32 @@ def main() -> None:
         and is_non_empty_dict(paper_topic_cluster_cluster)
         and paper_topic_cluster_assignment.get("cluster_id")
         == paper_topic_cluster_cluster.get("cluster_id")
+    )
+
+    artifact_detail_found = (
+        artifact_detail_payload.get("found") is True
+        and artifact_detail_payload.get("artifact_id") == artifact_id
+        and artifact_detail_body.get("artifact_id") == artifact_id
+    )
+
+    artifact_linked_papers_rows_match = (
+        len(artifact_linked_papers_results) > 0
+        and all(
+            isinstance(row, dict)
+            and row.get("artifact_id") == artifact_id
+            and bool(row.get("canonical_id"))
+            and bool(row.get("relation_type"))
+            and isinstance(row.get("paper"), dict)
+            and row["paper"].get("canonical_id") == row.get("canonical_id")
+            and bool(row["paper"].get("title"))
+            for row in artifact_linked_papers_results
+        )
+    )
+
+    artifact_linked_papers_counts_valid = (
+        int(artifact_linked_papers_payload.get("total") or 0)
+        >= len(artifact_linked_papers_results)
+        > 0
     )
 
     topic_cluster_map_projection_build_id_present = bool(
@@ -793,6 +901,33 @@ def main() -> None:
         "paper_topic_cluster_id_match": paper_topic_cluster_id_match,
     }
 
+    if args.backend_mode == "db":
+        checks.update(
+            {
+                "artifact_list_endpoint_ok": bool(artifact_list.get("ok")),
+                "artifact_list_results_non_empty": len(artifact_list_results) > 0,
+                "artifact_id_resolved": bool(artifact_id),
+                "artifact_detail_endpoint_ok": bool(artifact_detail.get("ok")),
+                "artifact_detail_found": artifact_detail_found,
+                "artifact_linked_papers_endpoint_ok": bool(
+                    artifact_linked_papers.get("ok")
+                ),
+                "artifact_linked_papers_results_non_empty": (
+                    len(artifact_linked_papers_results) > 0
+                ),
+                "artifact_linked_papers_counts_valid": (
+                    artifact_linked_papers_counts_valid
+                ),
+                "artifact_linked_papers_rows_match": (
+                    artifact_linked_papers_rows_match
+                ),
+                "artifact_linked_papers_sort_echoed": (
+                    artifact_linked_papers_payload.get("sort_by")
+                    == ARTIFACT_LINKED_PAPERS_SORT_BY
+                ),
+            }
+        )
+
     required_failed_checks = [name for name, ok in checks.items() if not ok]
 
     report = {
@@ -812,6 +947,12 @@ def main() -> None:
             "cluster_detail_filter_min_year": CLUSTER_DETAIL_FILTER_MIN_YEAR,
             "cluster_detail_filter_has_code": CLUSTER_DETAIL_FILTER_HAS_CODE,
             "cluster_detail_filter_sort_by": CLUSTER_DETAIL_FILTER_SORT_BY,
+            "artifact_detail_checks_enabled": args.backend_mode == "db",
+            "artifact_smoke_provider": ARTIFACT_SMOKE_PROVIDER,
+            "artifact_smoke_has_paper_links": ARTIFACT_SMOKE_HAS_PAPER_LINKS,
+            "artifact_smoke_has_github_metadata": ARTIFACT_SMOKE_HAS_GITHUB_METADATA,
+            "artifact_smoke_sort_by": ARTIFACT_SMOKE_SORT_BY,
+            "artifact_linked_papers_sort_by": ARTIFACT_LINKED_PAPERS_SORT_BY,
         },
         "summary": {
             "profile_count": profiles_payload.get("profile_count"),
@@ -878,6 +1019,18 @@ def main() -> None:
                 paper_topic_cluster_assignment.get("cluster_id")
                 if isinstance(paper_topic_cluster_assignment, dict)
                 else None
+            ),
+            "artifact_detail_checks_enabled": args.backend_mode == "db",
+            "artifact_id": artifact_id,
+            "artifact_list_results_count": len(artifact_list_results),
+            "artifact_detail_provider": artifact_detail_body.get("provider"),
+            "artifact_detail_type": artifact_detail_body.get("artifact_type"),
+            "artifact_detail_linked_papers_count": (
+                artifact_detail_body.get("linked_papers_count")
+            ),
+            "artifact_linked_papers_total": artifact_linked_papers_payload.get("total"),
+            "artifact_linked_papers_results_count": len(
+                artifact_linked_papers_results
             ),
         },
         "checks": checks,

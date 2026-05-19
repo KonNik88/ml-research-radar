@@ -234,6 +234,38 @@ class DocumentArtifactsResponse(BaseModel):
     total: int
     results: list[PaperArtifactLinkResponse]
 
+class ArtifactDetailResponse(BaseModel):
+    artifact_id: str
+    found: bool
+    artifact: ArtifactEntityResponse
+
+
+class ArtifactLinkedPaperRow(BaseModel):
+    link_id: str
+    canonical_id: str
+    artifact_id: str
+    relation_type: str
+    confidence: float = 0.0
+
+    evidence_source: str | None = None
+    evidence_url: str | None = None
+    source_field: str | None = None
+    source_doc_id: str | None = None
+
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: str | None = None
+    updated_at: str | None = None
+
+    paper: SearchResultDocument
+
+
+class ArtifactLinkedPapersResponse(BaseModel):
+    artifact_id: str
+    total: int
+    offset: int
+    limit: int
+    sort_by: str
+    results: list[ArtifactLinkedPaperRow]
 
 class DiscoveryProfile(BaseModel):
     name: str

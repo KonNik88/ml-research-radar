@@ -542,6 +542,126 @@ class PostgresDocumentStore:
             row = cur.fetchone()
             return int(row["total"]) if row else 0
 
+    def get_artifact_by_id(self, artifact_id: str) -> dict[str, Any] | None:
+        sql = """
+        SELECT
+            ae.*,
+            COALESCE(stats.linked_papers_count, 0) AS linked_papers_count,
+            COALESCE(stats.relation_types, '[]'::jsonb) AS relation_types
+        FROM artifact_entities ae
+        LEFT JOIN (
+            SELECT
+                artifact_id,
+                COUNT(DISTINCT canonical_id) AS linked_papers_count,
+                jsonb_agg(DISTINCT relation_type ORDER BY relation_type) AS relation_types
+            FROM paper_artifact_links
+            GROUP BY artifact_id
+        ) stats
+          ON stats.artifact_id = ae.artifact_id
+        WHERE ae.artifact_id = %s
+        """
+
+        with self.connection() as conn, conn.cursor() as cur:
+            cur.execute(sql, (artifact_id,))
+            row = cur.fetchone()
+            if not row:
+                return None
+            return self._normalize_artifact_row(row)
+
+    def list_artifact_papers(
+        self,
+        artifact_id: str,
+        *,
+        relation_type: str | None = None,
+        min_confidence: float | None = None,
+        limit: int = 20,
+        offset: int = 0,
+        sort_by: str = "confidence_desc",
+    ) -> list[dict[str, Any]]:
+        where_clauses = ["pal.artifact_id = %s"]
+        params: list[Any] = [artifact_id]
+
+        if relation_type:
+            where_clauses.append("pal.relation_type = %s")
+            params.append(relation_type)
+
+        if min_confidence is not None:
+            where_clauses.append("pal.confidence >= %s")
+            params.append(float(min_confidence))
+
+        where_sql = "WHERE " + " AND ".join(where_clauses)
+
+        if sort_by == "year_desc":
+            order_by = "ORDER BY cd.year DESC NULLS LAST, pal.confidence DESC, cd.title ASC"
+        elif sort_by == "title_asc":
+            order_by = "ORDER BY cd.title ASC NULLS LAST, pal.confidence DESC"
+        else:
+            order_by = "ORDER BY pal.confidence DESC, cd.year DESC NULLS LAST, cd.title ASC"
+
+        sql = f"""
+        SELECT
+            pal.link_id AS link_id,
+            pal.canonical_id AS link_canonical_id,
+            pal.artifact_id AS link_artifact_id,
+            pal.relation_type AS link_relation_type,
+            pal.confidence AS link_confidence,
+            pal.evidence_source AS link_evidence_source,
+            pal.evidence_url AS link_evidence_url,
+            pal.source_field AS link_source_field,
+            pal.source_doc_id AS link_source_doc_id,
+            pal.metadata AS link_metadata,
+            pal.created_at AS link_created_at,
+            pal.updated_at AS link_updated_at,
+
+            cd.*
+        FROM paper_artifact_links pal
+        JOIN canonical_documents cd
+          ON cd.canonical_id = pal.canonical_id
+        {where_sql}
+        {order_by}
+        LIMIT %s OFFSET %s
+        """
+
+        params.extend([limit, offset])
+
+        with self.connection() as conn, conn.cursor() as cur:
+            cur.execute(sql, params)
+            rows = cur.fetchall()
+            return [self._normalize_artifact_paper_link_row(row) for row in rows]
+
+    def count_artifact_papers(
+        self,
+        artifact_id: str,
+        *,
+        relation_type: str | None = None,
+        min_confidence: float | None = None,
+    ) -> int:
+        where_clauses = ["pal.artifact_id = %s"]
+        params: list[Any] = [artifact_id]
+
+        if relation_type:
+            where_clauses.append("pal.relation_type = %s")
+            params.append(relation_type)
+
+        if min_confidence is not None:
+            where_clauses.append("pal.confidence >= %s")
+            params.append(float(min_confidence))
+
+        where_sql = "WHERE " + " AND ".join(where_clauses)
+
+        sql = f"""
+        SELECT COUNT(*) AS total
+        FROM paper_artifact_links pal
+        JOIN canonical_documents cd
+          ON cd.canonical_id = pal.canonical_id
+        {where_sql}
+        """
+
+        with self.connection() as conn, conn.cursor() as cur:
+            cur.execute(sql, params)
+            row = cur.fetchone()
+            return int(row["total"]) if row else 0
+
     def get_document_artifacts(
         self,
         canonical_id: str,
@@ -1056,6 +1176,62 @@ class PostgresDocumentStore:
                     pass
 
         return normalized
+
+    @staticmethod
+    def _normalize_artifact_paper_link_row(row: dict[str, Any]) -> dict[str, Any]:
+        link_metadata = row.get("link_metadata")
+        if isinstance(link_metadata, str):
+            try:
+                link_metadata = json.loads(link_metadata)
+            except json.JSONDecodeError:
+                pass
+        if link_metadata is None:
+            link_metadata = {}
+
+        link_keys = {
+            "link_id",
+            "link_canonical_id",
+            "link_artifact_id",
+            "link_relation_type",
+            "link_confidence",
+            "link_evidence_source",
+            "link_evidence_url",
+            "link_source_field",
+            "link_source_doc_id",
+            "link_metadata",
+            "link_created_at",
+            "link_updated_at",
+        }
+
+        paper = {
+            key: value
+            for key, value in row.items()
+            if key not in link_keys
+        }
+        paper = PostgresDocumentStore._normalize_row(paper)
+
+        out = {
+            "link_id": row.get("link_id"),
+            "canonical_id": row.get("link_canonical_id"),
+            "artifact_id": row.get("link_artifact_id"),
+            "relation_type": row.get("link_relation_type"),
+            "confidence": float(row.get("link_confidence") or 0.0),
+            "evidence_source": row.get("link_evidence_source"),
+            "evidence_url": row.get("link_evidence_url"),
+            "source_field": row.get("link_source_field"),
+            "source_doc_id": row.get("link_source_doc_id"),
+            "metadata": link_metadata,
+            "created_at": row.get("link_created_at"),
+            "updated_at": row.get("link_updated_at"),
+            "paper": paper,
+        }
+
+        for field in ("created_at", "updated_at"):
+            value = out.get(field)
+            if value is not None and not isinstance(value, str):
+                out[field] = value.isoformat()
+
+        return out
 
     @staticmethod
     def _normalize_artifact_row(row: dict[str, Any]) -> dict[str, Any]:

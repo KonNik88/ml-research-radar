@@ -29,6 +29,8 @@ from services.api.schemas import (
     ReloadResponse,
     RuntimeSnapshotResponse,
     SearchResponse,
+    ArtifactDetailResponse,
+    ArtifactLinkedPapersResponse,
 )
 from services.api.search_service import db_row_to_schema, run_search
 from services.api.settings import get_settings
@@ -480,6 +482,76 @@ def list_artifacts(
         results=rows,
     )
 
+@app.get("/artifacts/{artifact_id}", response_model=ArtifactDetailResponse)
+def get_artifact_detail(
+    artifact_id: str,
+) -> ArtifactDetailResponse:
+    runtime = get_runtime()
+    if not runtime.is_ready():
+        raise RuntimeError("Runtime is not ready")
+
+    if runtime.db_store is None:
+        raise RuntimeError("DB backend is not enabled")
+
+    artifact = runtime.db_store.get_artifact_by_id(artifact_id)
+    if artifact is None:
+        raise HTTPException(status_code=404, detail=f"Artifact not found: {artifact_id}")
+
+    return ArtifactDetailResponse(
+        artifact_id=artifact_id,
+        found=True,
+        artifact=artifact,
+    )
+
+@app.get("/artifacts/{artifact_id}/papers", response_model=ArtifactLinkedPapersResponse)
+def get_artifact_papers(
+    artifact_id: str,
+    relation_type: str | None = Query(None, description="Trusted relation filter, e.g. code/dataset/model/demo"),
+    min_confidence: float | None = Query(None, ge=0.0, le=1.0),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    sort_by: Literal["confidence_desc", "year_desc", "title_asc"] = Query("confidence_desc"),
+) -> ArtifactLinkedPapersResponse:
+    runtime = get_runtime()
+    if not runtime.is_ready():
+        raise RuntimeError("Runtime is not ready")
+
+    if runtime.db_store is None:
+        raise RuntimeError("DB backend is not enabled")
+
+    artifact = runtime.db_store.get_artifact_by_id(artifact_id)
+    if artifact is None:
+        raise HTTPException(status_code=404, detail=f"Artifact not found: {artifact_id}")
+
+    rows = runtime.db_store.list_artifact_papers(
+        artifact_id=artifact_id,
+        relation_type=relation_type,
+        min_confidence=min_confidence,
+        limit=limit,
+        offset=offset,
+        sort_by=sort_by,
+    )
+
+    total = runtime.db_store.count_artifact_papers(
+        artifact_id=artifact_id,
+        relation_type=relation_type,
+        min_confidence=min_confidence,
+    )
+
+    return ArtifactLinkedPapersResponse(
+        artifact_id=artifact_id,
+        total=total,
+        offset=offset,
+        limit=limit,
+        sort_by=sort_by,
+        results=[
+            {
+                **row,
+                "paper": db_row_to_schema(row["paper"]),
+            }
+            for row in rows
+        ],
+    )
 
 @app.get("/documents/{canonical_id}/artifacts", response_model=DocumentArtifactsResponse)
 def get_document_artifacts(
