@@ -126,6 +126,18 @@ ARTIFACT_EXPLORER_UI_SNIPPETS = [
     "artifact_has_github_metadata",
     "/artifacts",
     "Load artifacts",
+    "fetch_artifact_detail",
+    "fetch_artifact_linked_papers",
+    "build_artifact_linked_papers_params",
+    "render_artifact_detail_panel",
+    "render_artifact_linked_papers",
+    "selected_artifact_id",
+    "artifact_detail_payload",
+    "artifact_linked_papers_payload",
+    "artifact_linked_papers_limit",
+    "artifact_linked_papers_sort_by",
+    "Load artifact detail",
+    "/papers",
 ]
 
 def utc_now() -> datetime:
@@ -438,6 +450,52 @@ def run_api_checks(
         timeout_seconds=timeout_seconds,
     )
     artifact_rows = result_rows(artifacts_payload)
+    first_artifact = artifact_rows[0] if artifact_rows else {}
+    artifact_id = (
+        str(first_artifact.get("artifact_id"))
+        if isinstance(first_artifact, dict) and first_artifact.get("artifact_id")
+        else None
+    )
+
+    if artifact_id:
+        (
+            artifact_detail_ok,
+            artifact_detail_payload,
+            artifact_detail_error,
+        ) = request_json(
+            base_url=base_url,
+            path=f"/artifacts/{artifact_id}",
+            timeout_seconds=timeout_seconds,
+        )
+
+        (
+            artifact_linked_papers_ok,
+            artifact_linked_papers_payload,
+            artifact_linked_papers_error,
+        ) = request_json(
+            base_url=base_url,
+            path=f"/artifacts/{artifact_id}/papers",
+            params={
+                "limit": 3,
+                "sort_by": "confidence_desc",
+            },
+            timeout_seconds=timeout_seconds,
+        )
+    else:
+        artifact_detail_ok, artifact_detail_payload, artifact_detail_error = (
+            False,
+            {},
+            "No artifact_id available from /artifacts",
+        )
+        (
+            artifact_linked_papers_ok,
+            artifact_linked_papers_payload,
+            artifact_linked_papers_error,
+        ) = (
+            False,
+            {},
+            "No artifact_id available from /artifacts",
+        )
 
     checks["api_artifacts_endpoint_ok"] = artifacts_ok
     checks["api_artifacts_results_non_empty"] = bool(artifact_rows)
@@ -449,6 +507,61 @@ def run_api_checks(
 
     if artifacts_error:
         errors["api_artifacts_error"] = artifacts_error
+
+    artifact_detail_body = (
+        artifact_detail_payload.get("artifact")
+        if isinstance(artifact_detail_payload.get("artifact"), dict)
+        else {}
+    )
+    artifact_linked_paper_rows = result_rows(artifact_linked_papers_payload)
+
+    checks["api_artifact_detail_endpoint_ok"] = artifact_detail_ok
+    checks["api_artifact_detail_found"] = (
+        artifact_detail_payload.get("found") is True
+        and artifact_detail_payload.get("artifact_id") == artifact_id
+        and artifact_detail_body.get("artifact_id") == artifact_id
+    )
+    checks["api_artifact_linked_papers_endpoint_ok"] = artifact_linked_papers_ok
+    checks["api_artifact_linked_papers_results_non_empty"] = bool(
+        artifact_linked_paper_rows
+    )
+    checks["api_artifact_linked_papers_counts_valid"] = (
+        int(artifact_linked_papers_payload.get("total") or 0)
+        >= len(artifact_linked_paper_rows)
+        > 0
+    )
+    checks["api_artifact_linked_papers_rows_match"] = (
+        bool(artifact_linked_paper_rows)
+        and all(
+            isinstance(row, dict)
+            and row.get("artifact_id") == artifact_id
+            and bool(row.get("canonical_id"))
+            and bool(row.get("relation_type"))
+            and isinstance(row.get("paper"), dict)
+            and row["paper"].get("canonical_id") == row.get("canonical_id")
+            and bool(row["paper"].get("title"))
+            for row in artifact_linked_paper_rows
+        )
+    )
+
+    extracted_values["api_artifact_detail_artifact_id"] = artifact_id
+    extracted_values["api_artifact_detail_provider"] = artifact_detail_body.get("provider")
+    extracted_values["api_artifact_detail_type"] = artifact_detail_body.get("artifact_type")
+    extracted_values["api_artifact_detail_linked_papers_count"] = (
+        artifact_detail_body.get("linked_papers_count")
+    )
+    extracted_values["api_artifact_linked_papers_total"] = (
+        artifact_linked_papers_payload.get("total")
+    )
+    extracted_values["api_artifact_linked_papers_results_count"] = len(
+        artifact_linked_paper_rows
+    )
+
+    if artifact_detail_error:
+        errors["api_artifact_detail_error"] = artifact_detail_error
+
+    if artifact_linked_papers_error:
+        errors["api_artifact_linked_papers_error"] = artifact_linked_papers_error
 
     sort_smoke: dict[str, dict[str, Any]] = {}
     sorted_size_payload: dict[str, Any] = {}
@@ -829,6 +942,12 @@ def build_report(
                 "api_artifacts_results_non_empty",
                 "api_artifacts_total_present",
                 "api_artifacts_sort_echoed",
+                "api_artifact_detail_endpoint_ok",
+                "api_artifact_detail_found",
+                "api_artifact_linked_papers_endpoint_ok",
+                "api_artifact_linked_papers_results_non_empty",
+                "api_artifact_linked_papers_counts_valid",
+                "api_artifact_linked_papers_rows_match",
             ]
         )
 

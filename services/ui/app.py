@@ -94,6 +94,12 @@ ARTIFACT_GITHUB_STATUS_OPTIONS = [
     "skipped_invalid_external_id",
 ]
 
+ARTIFACT_LINKED_PAPERS_SORT_OPTIONS = [
+    "confidence_desc",
+    "year_desc",
+    "title_asc",
+]
+
 st.set_page_config(
     page_title="ML Research Radar",
     page_icon="🔎",
@@ -203,6 +209,16 @@ def fetch_topic_cluster_detail(
 
 def fetch_artifacts(base_url: str, params: dict[str, Any]) -> dict[str, Any]:
     return api_get(base_url, "/artifacts", params=params)
+
+def fetch_artifact_detail(base_url: str, artifact_id: str) -> dict[str, Any]:
+    return api_get(base_url, f"/artifacts/{artifact_id}")
+
+def fetch_artifact_linked_papers(
+    base_url: str,
+    artifact_id: str,
+    params: dict[str, Any],
+) -> dict[str, Any]:
+    return api_get(base_url, f"/artifacts/{artifact_id}/papers", params=params)
 
 def fetch_paper_topic_cluster(base_url: str, canonical_id: str) -> dict[str, Any]:
     return api_get(base_url, f"/discovery/papers/{canonical_id}/cluster")
@@ -400,6 +416,14 @@ def init_ui_state() -> None:
         "artifact_github_status": "",
         "artifact_has_github_metadata": "Profile default",
         "artifact_sort_by": "linked_papers_desc",
+        "selected_artifact_id": None,
+        "artifact_detail_payload": None,
+        "artifact_linked_papers_payload": None,
+        "artifact_linked_papers_limit": 20,
+        "artifact_linked_papers_offset": 0,
+        "artifact_linked_papers_relation_type": "",
+        "artifact_linked_papers_min_confidence": "",
+        "artifact_linked_papers_sort_by": "confidence_desc",
     }
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
@@ -581,6 +605,28 @@ def build_artifact_params() -> dict[str, Any]:
 
     return params
 
+def build_artifact_linked_papers_params() -> dict[str, Any]:
+    params: dict[str, Any] = {
+        "limit": int(st.session_state["artifact_linked_papers_limit"]),
+        "offset": int(st.session_state["artifact_linked_papers_offset"]),
+        "sort_by": st.session_state["artifact_linked_papers_sort_by"],
+    }
+
+    relation_type = st.session_state.get(
+        "artifact_linked_papers_relation_type",
+        "",
+    ).strip()
+    if relation_type:
+        params["relation_type"] = relation_type
+
+    min_confidence = float_or_none(
+        st.session_state.get("artifact_linked_papers_min_confidence", "")
+    )
+    if min_confidence is not None:
+        params["min_confidence"] = min_confidence
+
+    return params
+
 def artifact_row_to_table(row: dict[str, Any]) -> dict[str, Any]:
     metadata = row.get("metadata") or {}
     github = metadata.get("github") if isinstance(metadata, dict) else {}
@@ -602,6 +648,24 @@ def artifact_row_to_table(row: dict[str, Any]) -> dict[str, Any]:
         "status": row.get("github_status") or github.get("status"),
         "url": row.get("url") or row.get("normalized_url") or row.get("external_url"),
         "artifact_id": row.get("artifact_id"),
+    }
+
+def artifact_linked_paper_row_to_table(row: dict[str, Any]) -> dict[str, Any]:
+    paper = row.get("paper") or {}
+    if not isinstance(paper, dict):
+        paper = {}
+
+    return {
+        "year": paper.get("year"),
+        "title": paper.get("title"),
+        "relation": row.get("relation_type"),
+        "confidence": row.get("confidence"),
+        "canonical_id": row.get("canonical_id"),
+        "source": row.get("evidence_source"),
+        "source_field": row.get("source_field"),
+        "doi": paper.get("doi"),
+        "arxiv_id": paper.get("arxiv_id"),
+        "venue": paper.get("venue"),
     }
 
 def render_artifact_card(row: dict[str, Any], rank: int) -> None:
@@ -641,6 +705,112 @@ def render_artifact_card(row: dict[str, Any], rank: int) -> None:
 
         with st.expander("Artifact row JSON", expanded=False):
             st.json(row)
+
+def render_artifact_detail_panel(payload: dict[str, Any]) -> None:
+    artifact = payload.get("artifact") or {}
+    if not isinstance(artifact, dict):
+        st.warning("Artifact detail payload does not contain an artifact object.")
+        with st.expander("Raw artifact detail response", expanded=False):
+            st.json(payload)
+        return
+
+    metadata = artifact.get("metadata") or {}
+    github = metadata.get("github") if isinstance(metadata, dict) else {}
+    if not isinstance(github, dict):
+        github = {}
+
+    title = (
+        artifact.get("name")
+        or artifact.get("title")
+        or artifact.get("normalized_url")
+        or artifact.get("canonical_url")
+        or artifact.get("artifact_id")
+        or "Untitled artifact"
+    )
+
+    st.markdown(f"### Artifact detail: {title}")
+
+    cols = st.columns(6)
+    cols[0].metric("Provider", dash(artifact.get("provider")))
+    cols[1].metric("Type", dash(artifact.get("artifact_type")))
+    cols[2].metric("Linked papers", dash(artifact.get("linked_papers_count")))
+    cols[3].metric("Stars", dash(artifact.get("stars") or github.get("stargazers_count")))
+    cols[4].metric("Forks", dash(artifact.get("forks") or github.get("forks_count")))
+    cols[5].metric("Language", dash(github.get("language")))
+
+    render_kv("Artifact ID", artifact.get("artifact_id"))
+    render_kv("Owner", artifact.get("owner"))
+    render_kv("License", artifact.get("license"))
+    render_kv("GitHub status", github.get("status"))
+    render_kv("Relation types", ", ".join(artifact.get("relation_types") or []))
+
+    url = artifact.get("canonical_url") or artifact.get("normalized_url")
+    if url:
+        st.markdown(maybe_markdown_link("Open artifact", url))
+
+    description = artifact.get("description")
+    if description:
+        with st.expander("Artifact description", expanded=False):
+            st.write(description)
+
+    with st.expander("Artifact detail JSON", expanded=False):
+        st.json(payload)
+
+def render_artifact_linked_papers(payload: dict[str, Any]) -> None:
+    rows = payload.get("results") or []
+
+    st.markdown("### Linked papers")
+
+    cols = st.columns(4)
+    cols[0].metric("Total linked papers", payload.get("total", "—"))
+    cols[1].metric("Returned", len(rows))
+    cols[2].metric("Offset", payload.get("offset", "—"))
+    cols[3].metric("Sort", payload.get("sort_by", "—"))
+
+    if not rows:
+        st.warning("No linked papers matched the current filters.")
+        with st.expander("Raw linked papers response", expanded=False):
+            st.json(payload)
+        return
+
+    st.dataframe(
+        pd.DataFrame([artifact_linked_paper_row_to_table(row) for row in rows]),
+        hide_index=True,
+        width="stretch",
+    )
+
+    for idx, row in enumerate(rows, start=1):
+        paper = row.get("paper") or {}
+        if not isinstance(paper, dict):
+            paper = {}
+
+        with st.container(border=True):
+            st.markdown(f"### {idx}. {paper.get('title', 'Untitled paper')}")
+            cols = st.columns(5)
+            cols[0].metric("Year", dash(paper.get("year")))
+            cols[1].metric("Relation", dash(row.get("relation_type")))
+            cols[2].metric("Confidence", fmt_score(row.get("confidence")))
+            cols[3].metric("Source count", dash(paper.get("source_count")))
+            cols[4].metric("Citations", dash(paper.get("cited_by_count")))
+
+            render_kv("Canonical ID", row.get("canonical_id"))
+            render_kv("Evidence source", row.get("evidence_source"))
+            render_kv("Evidence field", row.get("source_field"))
+
+            evidence_url = row.get("evidence_url")
+            if evidence_url:
+                st.markdown(maybe_markdown_link("Open evidence", evidence_url))
+
+            abstract = paper.get("abstract")
+            if abstract:
+                preview = abstract if len(abstract) <= 500 else abstract[:500].rstrip() + "…"
+                st.write(preview)
+
+            with st.expander("Linked paper row JSON", expanded=False):
+                st.json(row)
+
+    with st.expander("Raw linked papers response", expanded=False):
+        st.json(payload)
 
 def render_artifact_explorer(base_url: str) -> None:
     st.subheader("Artifact explorer")
@@ -742,6 +912,13 @@ def render_artifact_explorer(base_url: str) -> None:
             with st.spinner("Loading artifacts..."):
                 payload = fetch_artifacts(base_url, params)
             st.session_state["artifact_payload"] = payload
+
+            rows = payload.get("results") or []
+            if rows and isinstance(rows[0], dict):
+                st.session_state["selected_artifact_id"] = rows[0].get("artifact_id")
+
+            st.session_state["artifact_detail_payload"] = None
+            st.session_state["artifact_linked_papers_payload"] = None
         except ValueError:
             st.error(
                 "Artifact numeric filters must be valid numbers. "
@@ -784,6 +961,108 @@ def render_artifact_explorer(base_url: str) -> None:
         hide_index=True,
         width="stretch",
     )
+
+    st.markdown("#### Artifact detail and linked papers")
+
+    artifact_ids = [
+        str(row.get("artifact_id"))
+        for row in rows
+        if isinstance(row, dict) and row.get("artifact_id")
+    ]
+
+    artifact_labels = {
+        str(row.get("artifact_id")): (
+            f"{row.get('provider', '—')} · "
+            f"{row.get('owner') or '—'} / {row.get('name') or row.get('title') or row.get('normalized_url') or '—'} · "
+            f"papers={row.get('linked_papers_count', '—')}"
+        )
+        for row in rows
+        if isinstance(row, dict) and row.get("artifact_id")
+    }
+
+    if artifact_ids:
+        if st.session_state.get("selected_artifact_id") not in artifact_ids:
+            st.session_state["selected_artifact_id"] = artifact_ids[0]
+
+        selected_artifact_id = st.selectbox(
+            "Open artifact detail",
+            artifact_ids,
+            key="selected_artifact_id",
+            format_func=lambda artifact_id: artifact_labels.get(
+                artifact_id,
+                artifact_id,
+            ),
+        )
+
+        linked_control_cols = st.columns([1, 1, 1, 1])
+        with linked_control_cols[0]:
+            st.number_input(
+                "Linked papers limit",
+                min_value=1,
+                max_value=100,
+                step=1,
+                key="artifact_linked_papers_limit",
+            )
+        with linked_control_cols[1]:
+            st.number_input(
+                "Linked papers offset",
+                min_value=0,
+                max_value=1_000_000,
+                step=20,
+                key="artifact_linked_papers_offset",
+            )
+        with linked_control_cols[2]:
+            st.selectbox(
+                "Linked relation type",
+                ARTIFACT_RELATION_TYPE_OPTIONS,
+                key="artifact_linked_papers_relation_type",
+                format_func=lambda value: value or "Any relation",
+            )
+        with linked_control_cols[3]:
+            st.selectbox(
+                "Linked papers sort by",
+                ARTIFACT_LINKED_PAPERS_SORT_OPTIONS,
+                key="artifact_linked_papers_sort_by",
+            )
+
+        st.text_input(
+            "Linked papers min confidence",
+            key="artifact_linked_papers_min_confidence",
+            placeholder="0.7",
+        )
+
+        if st.button("Load artifact detail", type="secondary", width="stretch"):
+            try:
+                params = build_artifact_linked_papers_params()
+                with st.spinner("Loading artifact detail and linked papers..."):
+                    detail_payload = fetch_artifact_detail(
+                        base_url,
+                        selected_artifact_id,
+                    )
+                    linked_payload = fetch_artifact_linked_papers(
+                        base_url,
+                        selected_artifact_id,
+                        params,
+                    )
+
+                st.session_state["artifact_detail_payload"] = detail_payload
+                st.session_state["artifact_linked_papers_payload"] = linked_payload
+            except ValueError:
+                st.error(
+                    "Linked paper filters must be numeric where applicable. "
+                    "min_confidence should be 0.0–1.0."
+                )
+            except Exception as exc:
+                st.error(str(exc))
+
+        detail_payload = st.session_state.get("artifact_detail_payload")
+        linked_payload = st.session_state.get("artifact_linked_papers_payload")
+
+        if detail_payload:
+            render_artifact_detail_panel(detail_payload)
+
+        if linked_payload:
+            render_artifact_linked_papers(linked_payload)
 
     st.markdown("#### Artifact cards")
     for idx, row in enumerate(rows, start=1):
