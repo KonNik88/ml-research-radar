@@ -424,6 +424,12 @@ def init_ui_state() -> None:
         "artifact_linked_papers_relation_type": "",
         "artifact_linked_papers_min_confidence": "",
         "artifact_linked_papers_sort_by": "confidence_desc",
+        "artifact_selected_linked_paper_canonical_id": None,
+        "artifact_linked_paper_detail_payload": None,
+        "artifact_linked_paper_similar_payload": None,
+        "artifact_linked_paper_cluster_payload": None,
+        "artifact_linked_paper_similar_top_k": 10,
+        "artifact_linked_paper_similar_rank_by": "semantic",
     }
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
@@ -467,6 +473,12 @@ def reset_cluster_detail_filters() -> None:
     st.session_state["cluster_detail_min_radar_score"] = ""
     st.session_state["cluster_detail_min_implementation_readiness_score"] = ""
     st.session_state["cluster_detail_min_citation_signal_score"] = ""
+
+def reset_artifact_linked_paper_selection() -> None:
+    st.session_state["artifact_selected_linked_paper_canonical_id"] = None
+    st.session_state["artifact_linked_paper_detail_payload"] = None
+    st.session_state["artifact_linked_paper_similar_payload"] = None
+    st.session_state["artifact_linked_paper_cluster_payload"] = None
 
 def build_ranking_params() -> dict[str, Any]:
     params: dict[str, Any] = {"top_k": int(st.session_state["top_k"])}
@@ -797,6 +809,18 @@ def render_artifact_linked_papers(payload: dict[str, Any]) -> None:
             render_kv("Evidence source", row.get("evidence_source"))
             render_kv("Evidence field", row.get("source_field"))
 
+            canonical_id = str(row.get("canonical_id") or "").strip()
+            if canonical_id:
+                if st.button(
+                    "Open this paper",
+                    key=f"open_artifact_linked_paper_{canonical_id}_{idx}",
+                ):
+                    st.session_state["artifact_selected_linked_paper_canonical_id"] = canonical_id
+                    st.session_state["artifact_linked_paper_detail_payload"] = None
+                    st.session_state["artifact_linked_paper_similar_payload"] = None
+                    st.session_state["artifact_linked_paper_cluster_payload"] = None
+                    st.rerun()
+
             evidence_url = row.get("evidence_url")
             if evidence_url:
                 st.markdown(maybe_markdown_link("Open evidence", evidence_url))
@@ -919,6 +943,7 @@ def render_artifact_explorer(base_url: str) -> None:
 
             st.session_state["artifact_detail_payload"] = None
             st.session_state["artifact_linked_papers_payload"] = None
+            reset_artifact_linked_paper_selection()
         except ValueError:
             st.error(
                 "Artifact numeric filters must be valid numbers. "
@@ -1047,6 +1072,7 @@ def render_artifact_explorer(base_url: str) -> None:
 
                 st.session_state["artifact_detail_payload"] = detail_payload
                 st.session_state["artifact_linked_papers_payload"] = linked_payload
+                reset_artifact_linked_paper_selection()
             except ValueError:
                 st.error(
                     "Linked paper filters must be numeric where applicable. "
@@ -1063,6 +1089,120 @@ def render_artifact_explorer(base_url: str) -> None:
 
         if linked_payload:
             render_artifact_linked_papers(linked_payload)
+
+        selected_linked_paper_id = st.session_state.get(
+            "artifact_selected_linked_paper_canonical_id"
+        )
+
+        if selected_linked_paper_id:
+            st.divider()
+            st.subheader("Selected linked paper")
+            render_kv("Canonical ID", selected_linked_paper_id)
+
+            similar_cols = st.columns([1, 1])
+            with similar_cols[0]:
+                st.number_input(
+                    "Linked paper similar top K",
+                    min_value=1,
+                    max_value=50,
+                    step=1,
+                    key="artifact_linked_paper_similar_top_k",
+                )
+            with similar_cols[1]:
+                st.selectbox(
+                    "Linked paper similar rank by",
+                    SIMILAR_RANK_BY_OPTIONS,
+                    key="artifact_linked_paper_similar_rank_by",
+                )
+
+            action_cols = st.columns([1, 1, 1, 1])
+
+            with action_cols[0]:
+                if st.button(
+                    "Load linked paper detail",
+                    key="load_artifact_linked_paper_detail",
+                    width="stretch",
+                ):
+                    try:
+                        with st.spinner("Loading linked paper detail..."):
+                            st.session_state["artifact_linked_paper_detail_payload"] = (
+                                fetch_paper_detail(base_url, selected_linked_paper_id)
+                            )
+                    except Exception as exc:
+                        st.error(str(exc))
+
+            with action_cols[1]:
+                if st.button(
+                    "Load linked paper similar papers",
+                    key="load_artifact_linked_paper_similar",
+                    width="stretch",
+                ):
+                    try:
+                        with st.spinner("Loading linked paper similar papers..."):
+                            st.session_state["artifact_linked_paper_similar_payload"] = (
+                                fetch_similar_papers(
+                                    base_url,
+                                    selected_linked_paper_id,
+                                    top_k=int(
+                                        st.session_state[
+                                            "artifact_linked_paper_similar_top_k"
+                                        ]
+                                    ),
+                                    rank_by=st.session_state[
+                                        "artifact_linked_paper_similar_rank_by"
+                                    ],
+                                )
+                            )
+                    except Exception as exc:
+                        st.error(str(exc))
+
+            with action_cols[2]:
+                if st.button(
+                    "Load linked paper topic cluster",
+                    key="load_artifact_linked_paper_cluster",
+                    width="stretch",
+                ):
+                    try:
+                        with st.spinner("Loading linked paper topic cluster..."):
+                            st.session_state["artifact_linked_paper_cluster_payload"] = (
+                                fetch_paper_topic_cluster(
+                                    base_url,
+                                    selected_linked_paper_id,
+                                )
+                            )
+                    except Exception as exc:
+                        st.error(str(exc))
+
+            with action_cols[3]:
+                if st.button(
+                    "Clear selected linked paper",
+                    key="clear_artifact_linked_paper",
+                    width="stretch",
+                ):
+                    reset_artifact_linked_paper_selection()
+                    st.rerun()
+
+            linked_detail_payload = st.session_state.get(
+                "artifact_linked_paper_detail_payload"
+            )
+            linked_similar_payload = st.session_state.get(
+                "artifact_linked_paper_similar_payload"
+            )
+            linked_cluster_payload = st.session_state.get(
+                "artifact_linked_paper_cluster_payload"
+            )
+
+            if linked_detail_payload:
+                st.markdown("#### Linked paper detail")
+                render_paper_detail(linked_detail_payload)
+
+            if linked_similar_payload:
+                st.markdown("#### Linked paper similar papers")
+                render_similar_papers_payload(linked_similar_payload)
+
+            if linked_cluster_payload:
+                st.markdown("#### Linked paper topic cluster")
+                render_paper_topic_cluster_payload(linked_cluster_payload)
 
     st.markdown("#### Artifact cards")
     for idx, row in enumerate(rows, start=1):
@@ -1615,6 +1755,55 @@ def render_similar_papers(base_url: str, canonical_id: str) -> None:
     with st.expander("Raw similar response", expanded=False):
         st.json(payload)
 
+def render_similar_papers_payload(payload: dict[str, Any]) -> None:
+    st.subheader("Similar papers for linked paper")
+
+    results = payload.get("results") or []
+
+    cols = st.columns(5)
+    cols[0].metric("Rank by", payload.get("rank_by", "—"))
+    cols[1].metric("Returned", payload.get("returned_rows_count", len(results)))
+    cols[2].metric("Input rows", payload.get("input_rows_count", "—"))
+    cols[3].metric("Target found", str(payload.get("target_found")))
+    cols[4].metric(
+        "Embedding shape",
+        str(safe_get(payload.get("dense_artifacts"), "embedding_shape", "—")),
+    )
+
+    if not results:
+        st.warning("No similar papers returned.")
+        with st.expander("Raw linked paper similar response", expanded=False):
+            st.json(payload)
+        return
+
+    st.dataframe(
+        pd.DataFrame([similar_row_to_table(row) for row in results]),
+        hide_index=True,
+        width="stretch",
+    )
+
+    for row in results:
+        with st.container(border=True):
+            st.markdown(f"### {row.get('rank')}. {row.get('title', 'Untitled')}")
+            render_badges(row)
+
+            metric_cols = st.columns(5)
+            metric_cols[0].metric("Year", dash(row.get("year")))
+            metric_cols[1].metric("Semantic", fmt_score(row.get("semantic_similarity"), 4))
+            metric_cols[2].metric(
+                "Adjusted",
+                fmt_score(row.get("radar_adjusted_similarity"), 4),
+            )
+            metric_cols[3].metric("Radar", fmt_score(row.get("radar_score")))
+            metric_cols[4].metric(
+                "Impl",
+                fmt_score(row.get("implementation_readiness_score")),
+            )
+
+            st.caption(f"ID: `{compact_id(row.get('canonical_id'))}`")
+
+    with st.expander("Raw linked paper similar response", expanded=False):
+        st.json(payload)
 
 # --------------------------------------------------------------------------------------
 # Topic clusters
@@ -2216,6 +2405,32 @@ def render_selected_paper_topic_cluster(base_url: str, canonical_id: str) -> Non
         st.caption(" · ".join(f"`{label}`" for label in labels[:8]))
 
     with st.expander("Paper topic cluster JSON", expanded=False):
+        st.json(payload)
+
+def render_paper_topic_cluster_payload(payload: dict[str, Any]) -> None:
+    st.subheader("Linked paper topic cluster")
+
+    if not payload.get("found", True):
+        st.warning("No topic cluster found for selected linked paper.")
+        with st.expander("Paper topic cluster JSON", expanded=False):
+            st.json(payload)
+        return
+
+    assignment = payload.get("assignment") or {}
+    cluster = payload.get("cluster") or {}
+
+    cols = st.columns(5)
+    cols[0].metric("Cluster ID", assignment.get("cluster_id", "—"))
+    cols[1].metric("Rank in cluster", assignment.get("rank_within_cluster", "—"))
+    cols[2].metric("Distance", fmt_score(assignment.get("distance_to_centroid"), 4))
+    cols[3].metric("Similarity", fmt_score(assignment.get("similarity_to_centroid"), 4))
+    cols[4].metric("Cluster size", cluster.get("size", "—"))
+
+    labels = cluster.get("label_candidates") or []
+    if labels:
+        st.caption(" · ".join(f"`{label}`" for label in labels[:8]))
+
+    with st.expander("Linked paper topic cluster JSON", expanded=False):
         st.json(payload)
 
 # --------------------------------------------------------------------------------------

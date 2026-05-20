@@ -140,6 +140,24 @@ ARTIFACT_EXPLORER_UI_SNIPPETS = [
     "/papers",
 ]
 
+ARTIFACT_LINKED_PAPER_NAVIGATION_SNIPPETS = [
+    "artifact_selected_linked_paper_canonical_id",
+    "artifact_linked_paper_detail_payload",
+    "artifact_linked_paper_similar_payload",
+    "artifact_linked_paper_cluster_payload",
+    "artifact_linked_paper_similar_top_k",
+    "artifact_linked_paper_similar_rank_by",
+    "reset_artifact_linked_paper_selection",
+    "render_similar_papers_payload",
+    "render_paper_topic_cluster_payload",
+    "Open this paper",
+    "Selected linked paper",
+    "Load linked paper detail",
+    "Load linked paper similar papers",
+    "Load linked paper topic cluster",
+    "Clear selected linked paper",
+]
+
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -852,6 +870,11 @@ def build_report(
         ARTIFACT_EXPLORER_UI_SNIPPETS,
     )
 
+    missing_artifact_linked_paper_navigation = missing_snippets(
+        app_text,
+        ARTIFACT_LINKED_PAPER_NAVIGATION_SNIPPETS,
+    )
+
     checks["required_ui_snippets_present"] = not missing_required
     checks["discovery_endpoint_strings_present"] = not missing_discovery
     checks["similar_modes_present"] = not missing_similar
@@ -863,6 +886,9 @@ def build_report(
     checks["no_deprecated_use_container_width"] = "use_container_width" not in app_text
     checks["legacy_search_endpoint_absent"] = '"/search"' not in app_text and "'/search'" not in app_text
     checks["artifact_explorer_ui_snippets_present"] = not missing_artifact_explorer
+    checks["artifact_linked_paper_navigation_snippets_present"] = (
+        not missing_artifact_linked_paper_navigation
+    )
 
     extracted_values["missing_required_ui_snippets"] = missing_required
     extracted_values["missing_discovery_endpoint_strings"] = missing_discovery
@@ -872,6 +898,9 @@ def build_report(
         missing_cluster_detail_filters
     )
     extracted_values["missing_artifact_explorer_ui_snippets"] = missing_artifact_explorer
+    extracted_values["missing_artifact_linked_paper_navigation_snippets"] = (
+        missing_artifact_linked_paper_navigation
+    )
 
     if check_api:
         run_api_checks(
@@ -898,6 +927,7 @@ def build_report(
         "no_deprecated_use_container_width",
         "legacy_search_endpoint_absent",
         "artifact_explorer_ui_snippets_present",
+        "artifact_linked_paper_navigation_snippets_present",
     ]
 
     if check_api:
