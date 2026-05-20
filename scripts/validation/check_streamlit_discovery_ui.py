@@ -177,6 +177,24 @@ PAPER_WORKSPACE_UI_SNIPPETS = [
     "Open in Paper workspace",
 ]
 
+PAPER_WORKSPACE_ARTIFACT_UI_SNIPPETS = [
+    "Selected paper artifacts",
+    "selected_paper_selected_artifact_id",
+    "selected_paper_artifact_detail_payload",
+    "selected_paper_artifact_linked_papers_payload",
+    "selected_paper_artifact_linked_papers_limit",
+    "selected_paper_artifact_linked_papers_offset",
+    "selected_paper_artifact_linked_papers_relation_type",
+    "selected_paper_artifact_linked_papers_min_confidence",
+    "selected_paper_artifact_linked_papers_sort_by",
+    "reset_selected_paper_artifact_navigation",
+    "build_selected_paper_artifact_linked_papers_params",
+    "render_selected_paper_artifacts",
+    "Load selected paper artifact detail",
+    "Load selected paper artifact linked papers",
+    "Other papers linked to this artifact",
+]
+
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -899,6 +917,11 @@ def build_report(
         PAPER_WORKSPACE_UI_SNIPPETS,
     )
 
+    missing_paper_workspace_artifact = missing_snippets(
+        app_text,
+        PAPER_WORKSPACE_ARTIFACT_UI_SNIPPETS,
+    )
+
     checks["required_ui_snippets_present"] = not missing_required
     checks["discovery_endpoint_strings_present"] = not missing_discovery
     checks["similar_modes_present"] = not missing_similar
@@ -914,6 +937,9 @@ def build_report(
         not missing_artifact_linked_paper_navigation
     )
     checks["paper_workspace_ui_snippets_present"] = not missing_paper_workspace
+    checks["paper_workspace_artifact_ui_snippets_present"] = (
+        not missing_paper_workspace_artifact
+    )
 
     extracted_values["missing_required_ui_snippets"] = missing_required
     extracted_values["missing_discovery_endpoint_strings"] = missing_discovery
@@ -927,6 +953,9 @@ def build_report(
         missing_artifact_linked_paper_navigation
     )
     extracted_values["missing_paper_workspace_ui_snippets"] = missing_paper_workspace
+    extracted_values["missing_paper_workspace_artifact_ui_snippets"] = (
+        missing_paper_workspace_artifact
+    )
 
     if check_api:
         run_api_checks(
@@ -955,6 +984,7 @@ def build_report(
         "artifact_explorer_ui_snippets_present",
         "artifact_linked_paper_navigation_snippets_present",
         "paper_workspace_ui_snippets_present",
+        "paper_workspace_artifact_ui_snippets_present",
     ]
 
     if check_api:

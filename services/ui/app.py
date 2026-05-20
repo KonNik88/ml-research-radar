@@ -380,6 +380,14 @@ def init_ui_state() -> None:
         "selected_paper_cluster_payload": None,
         "selected_paper_similar_top_k": 10,
         "selected_paper_similar_rank_by": "semantic",
+        "selected_paper_selected_artifact_id": None,
+        "selected_paper_artifact_detail_payload": None,
+        "selected_paper_artifact_linked_papers_payload": None,
+        "selected_paper_artifact_linked_papers_limit": 20,
+        "selected_paper_artifact_linked_papers_offset": 0,
+        "selected_paper_artifact_linked_papers_relation_type": "",
+        "selected_paper_artifact_linked_papers_min_confidence": "",
+        "selected_paper_artifact_linked_papers_sort_by": "confidence_desc",
         "cluster_limit": 10,
         "cluster_min_size": 1,
         "cluster_sort_by": "size_desc",
@@ -486,10 +494,17 @@ def reset_artifact_linked_paper_selection() -> None:
     st.session_state["artifact_linked_paper_similar_payload"] = None
     st.session_state["artifact_linked_paper_cluster_payload"] = None
 
+def reset_selected_paper_artifact_navigation() -> None:
+    st.session_state["selected_paper_selected_artifact_id"] = None
+    st.session_state["selected_paper_artifact_detail_payload"] = None
+    st.session_state["selected_paper_artifact_linked_papers_payload"] = None
+
+
 def reset_selected_paper_payloads() -> None:
     st.session_state["selected_paper_detail_payload"] = None
     st.session_state["selected_paper_similar_payload"] = None
     st.session_state["selected_paper_cluster_payload"] = None
+    reset_selected_paper_artifact_navigation()
 
 
 def select_paper(canonical_id: str | None) -> None:
@@ -661,6 +676,28 @@ def build_artifact_linked_papers_params() -> dict[str, Any]:
 
     min_confidence = float_or_none(
         st.session_state.get("artifact_linked_papers_min_confidence", "")
+    )
+    if min_confidence is not None:
+        params["min_confidence"] = min_confidence
+
+    return params
+
+def build_selected_paper_artifact_linked_papers_params() -> dict[str, Any]:
+    params: dict[str, Any] = {
+        "limit": int(st.session_state["selected_paper_artifact_linked_papers_limit"]),
+        "offset": int(st.session_state["selected_paper_artifact_linked_papers_offset"]),
+        "sort_by": st.session_state["selected_paper_artifact_linked_papers_sort_by"],
+    }
+
+    relation_type = st.session_state.get(
+        "selected_paper_artifact_linked_papers_relation_type",
+        "",
+    ).strip()
+    if relation_type:
+        params["relation_type"] = relation_type
+
+    min_confidence = float_or_none(
+        st.session_state.get("selected_paper_artifact_linked_papers_min_confidence", "")
     )
     if min_confidence is not None:
         params["min_confidence"] = min_confidence
@@ -1573,6 +1610,12 @@ def extract_artifact_rows(detail: dict[str, Any]) -> list[dict[str, Any]]:
             entity = item
         rows.append(
             {
+                "artifact_id": first_non_empty(
+                    item.get("artifact_id"),
+                    entity.get("artifact_id"),
+                    item.get("id"),
+                    entity.get("id"),
+                ),
                 "provider": first_non_empty(item.get("provider"), entity.get("provider")),
                 "type": first_non_empty(
                     item.get("artifact_type"),
@@ -2478,6 +2521,152 @@ def render_paper_topic_cluster_payload(payload: dict[str, Any]) -> None:
     with st.expander("Linked paper topic cluster JSON", expanded=False):
         st.json(payload)
 
+def render_selected_paper_artifacts(base_url: str, detail_payload: dict[str, Any] | None) -> None:
+    st.subheader("Selected paper artifacts")
+
+    if not detail_payload:
+        st.info("Load selected paper detail first to inspect artifact evidence.")
+        return
+
+    detail = detail_root(detail_payload)
+    rows = extract_artifact_rows(detail)
+
+    if not rows:
+        st.info("No artifact rows found in selected paper detail payload.")
+        with st.expander("Selected paper detail payload", expanded=False):
+            st.json(detail_payload)
+        return
+
+    st.markdown("#### Artifact evidence from paper detail")
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+
+    artifact_ids = [
+        str(row.get("artifact_id"))
+        for row in rows
+        if isinstance(row, dict) and row.get("artifact_id")
+    ]
+
+    if not artifact_ids:
+        st.warning(
+            "Artifact rows were found, but artifact_id is missing. "
+            "Artifact detail navigation requires artifact_id in the paper detail payload."
+        )
+        with st.expander("Artifact rows without artifact_id", expanded=False):
+            st.json(rows)
+        return
+
+    labels = {
+        str(row.get("artifact_id")): (
+            f"{row.get('provider') or '—'} · "
+            f"{row.get('type') or '—'} · "
+            f"{row.get('title/name') or row.get('url') or row.get('artifact_id')}"
+        )
+        for row in rows
+        if isinstance(row, dict) and row.get("artifact_id")
+    }
+
+    if st.session_state.get("selected_paper_selected_artifact_id") not in artifact_ids:
+        st.session_state["selected_paper_selected_artifact_id"] = artifact_ids[0]
+
+    selected_artifact_id = st.selectbox(
+        "Open selected paper artifact",
+        artifact_ids,
+        key="selected_paper_selected_artifact_id",
+        format_func=lambda artifact_id: labels.get(artifact_id, artifact_id),
+    )
+
+    linked_control_cols = st.columns([1, 1, 1, 1])
+    with linked_control_cols[0]:
+        st.number_input(
+            "Paper artifact linked papers limit",
+            min_value=1,
+            max_value=100,
+            step=1,
+            key="selected_paper_artifact_linked_papers_limit",
+        )
+    with linked_control_cols[1]:
+        st.number_input(
+            "Paper artifact linked papers offset",
+            min_value=0,
+            max_value=1_000_000,
+            step=20,
+            key="selected_paper_artifact_linked_papers_offset",
+        )
+    with linked_control_cols[2]:
+        st.selectbox(
+            "Paper artifact linked relation type",
+            ARTIFACT_RELATION_TYPE_OPTIONS,
+            key="selected_paper_artifact_linked_papers_relation_type",
+            format_func=lambda value: value or "Any relation",
+        )
+    with linked_control_cols[3]:
+        st.selectbox(
+            "Paper artifact linked papers sort by",
+            ARTIFACT_LINKED_PAPERS_SORT_OPTIONS,
+            key="selected_paper_artifact_linked_papers_sort_by",
+        )
+
+    st.text_input(
+        "Paper artifact linked papers min confidence",
+        key="selected_paper_artifact_linked_papers_min_confidence",
+        placeholder="0.7",
+    )
+
+    action_cols = st.columns([1, 1])
+
+    with action_cols[0]:
+        if st.button(
+            "Load selected paper artifact detail",
+            key="load_selected_paper_artifact_detail",
+            width="stretch",
+        ):
+            try:
+                with st.spinner("Loading selected paper artifact detail..."):
+                    st.session_state["selected_paper_artifact_detail_payload"] = (
+                        fetch_artifact_detail(base_url, selected_artifact_id)
+                    )
+            except Exception as exc:
+                st.error(str(exc))
+
+    with action_cols[1]:
+        if st.button(
+            "Load selected paper artifact linked papers",
+            key="load_selected_paper_artifact_linked_papers",
+            width="stretch",
+        ):
+            try:
+                params = build_selected_paper_artifact_linked_papers_params()
+                with st.spinner("Loading linked papers for selected paper artifact..."):
+                    st.session_state["selected_paper_artifact_linked_papers_payload"] = (
+                        fetch_artifact_linked_papers(
+                            base_url,
+                            selected_artifact_id,
+                            params,
+                        )
+                    )
+            except ValueError:
+                st.error(
+                    "Linked paper filters must be numeric where applicable. "
+                    "min_confidence should be 0.0–1.0."
+                )
+            except Exception as exc:
+                st.error(str(exc))
+
+    artifact_detail_payload = st.session_state.get(
+        "selected_paper_artifact_detail_payload"
+    )
+    artifact_linked_papers_payload = st.session_state.get(
+        "selected_paper_artifact_linked_papers_payload"
+    )
+
+    if artifact_detail_payload:
+        st.markdown("#### Selected paper artifact detail")
+        render_artifact_detail_panel(artifact_detail_payload)
+
+    if artifact_linked_papers_payload:
+        st.markdown("#### Other papers linked to this artifact")
+        render_artifact_linked_papers(artifact_linked_papers_payload)
+
 def render_paper_workspace(base_url: str) -> None:
     st.subheader("Paper workspace")
     st.caption(
@@ -2546,6 +2735,7 @@ def render_paper_workspace(base_url: str) -> None:
                         base_url,
                         selected_paper_id,
                     )
+                    reset_selected_paper_artifact_navigation()
             except Exception as exc:
                 st.error(str(exc))
 
@@ -2604,6 +2794,7 @@ def render_paper_workspace(base_url: str) -> None:
             "Selected paper detail",
             "Selected paper similar papers",
             "Selected paper topic cluster",
+            "Selected paper artifacts",
         ]
     )
 
@@ -2624,6 +2815,9 @@ def render_paper_workspace(base_url: str) -> None:
             render_paper_topic_cluster_payload(cluster_payload)
         else:
             st.info("Click **Load selected paper topic cluster**.")
+
+    with workspace_tabs[3]:
+        render_selected_paper_artifacts(base_url, detail_payload)
 
 # --------------------------------------------------------------------------------------
 # Main app
