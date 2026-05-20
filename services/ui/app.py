@@ -1510,10 +1510,11 @@ def render_result_card(row: dict[str, Any], rank: int) -> None:
 
         if canonical_id:
             if st.button(
-                "Open in Paper workspace",
-                key=f"open_ranking_paper_workspace_{rank}_{canonical_id}",
-                width="stretch",
+                    "Open in Paper workspace",
+                    key=f"open_ranking_paper_workspace_{rank}_{canonical_id}",
+                    width="stretch",
             ):
+                st.session_state["selected_canonical_id"] = canonical_id
                 select_paper(canonical_id)
                 st.success("Selected paper updated. Open the Paper workspace tab.")
 
@@ -2898,7 +2899,13 @@ def main() -> None:
                 )
 
                 if selected:
-                    select_paper(selected)
+                    if st.button(
+                            "Open selected paper in Paper workspace",
+                            key="open_selected_ranking_paper_workspace",
+                            width="stretch",
+                    ):
+                        select_paper(selected)
+                        st.success("Selected paper updated. Open the Paper workspace tab.")
 
                 if selected:
                     detail_tab, similar_tab, paper_cluster_tab, raw_tab = st.tabs(
