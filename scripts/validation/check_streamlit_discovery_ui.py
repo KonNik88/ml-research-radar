@@ -158,6 +158,25 @@ ARTIFACT_LINKED_PAPER_NAVIGATION_SNIPPETS = [
     "Clear selected linked paper",
 ]
 
+PAPER_WORKSPACE_UI_SNIPPETS = [
+    "Paper workspace",
+    "selected_paper_canonical_id",
+    "selected_paper_detail_payload",
+    "selected_paper_similar_payload",
+    "selected_paper_cluster_payload",
+    "selected_paper_similar_top_k",
+    "selected_paper_similar_rank_by",
+    "reset_selected_paper_payloads",
+    "select_paper",
+    "clear_selected_paper",
+    "render_paper_workspace",
+    "Load selected paper detail",
+    "Load selected paper similar papers",
+    "Load selected paper topic cluster",
+    "Clear selected paper",
+    "Open in Paper workspace",
+]
+
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -875,6 +894,11 @@ def build_report(
         ARTIFACT_LINKED_PAPER_NAVIGATION_SNIPPETS,
     )
 
+    missing_paper_workspace = missing_snippets(
+        app_text,
+        PAPER_WORKSPACE_UI_SNIPPETS,
+    )
+
     checks["required_ui_snippets_present"] = not missing_required
     checks["discovery_endpoint_strings_present"] = not missing_discovery
     checks["similar_modes_present"] = not missing_similar
@@ -889,6 +913,7 @@ def build_report(
     checks["artifact_linked_paper_navigation_snippets_present"] = (
         not missing_artifact_linked_paper_navigation
     )
+    checks["paper_workspace_ui_snippets_present"] = not missing_paper_workspace
 
     extracted_values["missing_required_ui_snippets"] = missing_required
     extracted_values["missing_discovery_endpoint_strings"] = missing_discovery
@@ -901,6 +926,7 @@ def build_report(
     extracted_values["missing_artifact_linked_paper_navigation_snippets"] = (
         missing_artifact_linked_paper_navigation
     )
+    extracted_values["missing_paper_workspace_ui_snippets"] = missing_paper_workspace
 
     if check_api:
         run_api_checks(
@@ -928,6 +954,7 @@ def build_report(
         "legacy_search_endpoint_absent",
         "artifact_explorer_ui_snippets_present",
         "artifact_linked_paper_navigation_snippets_present",
+        "paper_workspace_ui_snippets_present",
     ]
 
     if check_api:

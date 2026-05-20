@@ -374,6 +374,12 @@ def init_ui_state() -> None:
         "similar_rank_by": "semantic",
         "ranking_payload": None,
         "selected_canonical_id": None,
+        "selected_paper_canonical_id": None,
+        "selected_paper_detail_payload": None,
+        "selected_paper_similar_payload": None,
+        "selected_paper_cluster_payload": None,
+        "selected_paper_similar_top_k": 10,
+        "selected_paper_similar_rank_by": "semantic",
         "cluster_limit": 10,
         "cluster_min_size": 1,
         "cluster_sort_by": "size_desc",
@@ -479,6 +485,28 @@ def reset_artifact_linked_paper_selection() -> None:
     st.session_state["artifact_linked_paper_detail_payload"] = None
     st.session_state["artifact_linked_paper_similar_payload"] = None
     st.session_state["artifact_linked_paper_cluster_payload"] = None
+
+def reset_selected_paper_payloads() -> None:
+    st.session_state["selected_paper_detail_payload"] = None
+    st.session_state["selected_paper_similar_payload"] = None
+    st.session_state["selected_paper_cluster_payload"] = None
+
+
+def select_paper(canonical_id: str | None) -> None:
+    canonical_id = str(canonical_id or "").strip()
+    if not canonical_id:
+        return
+
+    previous = st.session_state.get("selected_paper_canonical_id")
+    st.session_state["selected_paper_canonical_id"] = canonical_id
+
+    if previous != canonical_id:
+        reset_selected_paper_payloads()
+
+
+def clear_selected_paper() -> None:
+    st.session_state["selected_paper_canonical_id"] = None
+    reset_selected_paper_payloads()
 
 def build_ranking_params() -> dict[str, Any]:
     params: dict[str, Any] = {"top_k": int(st.session_state["top_k"])}
@@ -812,14 +840,13 @@ def render_artifact_linked_papers(payload: dict[str, Any]) -> None:
             canonical_id = str(row.get("canonical_id") or "").strip()
             if canonical_id:
                 if st.button(
-                    "Open this paper",
-                    key=f"open_artifact_linked_paper_{canonical_id}_{idx}",
+                        "Open this paper in Paper workspace",
+                        key=f"open_artifact_linked_paper_workspace_{canonical_id}_{idx}",
+                        width="stretch",
                 ):
-                    st.session_state["artifact_selected_linked_paper_canonical_id"] = canonical_id
-                    st.session_state["artifact_linked_paper_detail_payload"] = None
-                    st.session_state["artifact_linked_paper_similar_payload"] = None
-                    st.session_state["artifact_linked_paper_cluster_payload"] = None
-                    st.rerun()
+                    select_paper(canonical_id)
+                    reset_artifact_linked_paper_selection()
+                    st.success("Selected paper updated. Open the Paper workspace tab.")
 
             evidence_url = row.get("evidence_url")
             if evidence_url:
@@ -1443,6 +1470,15 @@ def render_result_card(row: dict[str, Any], rank: int) -> None:
         source_families = summarize_sources(row.get("source_families"))
         st.caption(f"Authors: {authors}")
         st.caption(f"Sources: {source_families} · ID: `{compact_id(canonical_id)}`")
+
+        if canonical_id:
+            if st.button(
+                "Open in Paper workspace",
+                key=f"open_ranking_paper_workspace_{rank}_{canonical_id}",
+                width="stretch",
+            ):
+                select_paper(canonical_id)
+                st.success("Selected paper updated. Open the Paper workspace tab.")
 
         abstract = row.get("abstract") or row.get("abstract_preview")
         if abstract:
@@ -2207,6 +2243,15 @@ def render_topic_cluster_detail(
                     f"Sources: {summarize_sources(row.get('source_families'))} · "
                     f"ID: `{compact_id(row.get('canonical_id'))}`"
                 )
+                canonical_id = str(row.get("canonical_id") or "").strip()
+                if canonical_id:
+                    if st.button(
+                        "Open in Paper workspace",
+                        key=f"open_cluster_paper_workspace_{cluster_id}_{idx}_{canonical_id}",
+                        width="stretch",
+                    ):
+                        select_paper(canonical_id)
+                        st.success("Selected paper updated. Open the Paper workspace tab.")
     else:
         st.warning("No papers returned for this cluster.")
 
@@ -2433,6 +2478,153 @@ def render_paper_topic_cluster_payload(payload: dict[str, Any]) -> None:
     with st.expander("Linked paper topic cluster JSON", expanded=False):
         st.json(payload)
 
+def render_paper_workspace(base_url: str) -> None:
+    st.subheader("Paper workspace")
+    st.caption(
+        "Unified paper-centric workspace. Open a paper from ranking, topic clusters, "
+        "topic map or artifact linked papers, then inspect its metadata, artifacts, "
+        "similar papers and topic context in one place."
+    )
+
+    selected_paper_id = st.session_state.get("selected_paper_canonical_id")
+
+    manual_cols = st.columns([3, 1])
+    with manual_cols[0]:
+        manual_id = st.text_input(
+            "Canonical ID",
+            value=selected_paper_id or "",
+            key="paper_workspace_manual_canonical_id",
+            placeholder="Paste canonical_id here or open a paper from another tab.",
+        ).strip()
+    with manual_cols[1]:
+        if st.button("Use canonical ID", key="paper_workspace_use_manual_id", width="stretch"):
+            if manual_id:
+                select_paper(manual_id)
+                st.rerun()
+            else:
+                st.warning("Canonical ID is empty.")
+
+    selected_paper_id = st.session_state.get("selected_paper_canonical_id")
+
+    if not selected_paper_id:
+        st.info(
+            "No selected paper yet. Open one from Discovery ranking, Topic clusters, "
+            "Topic map, or Artifact explorer."
+        )
+        return
+
+    st.markdown("### Selected paper")
+    render_kv("Canonical ID", selected_paper_id)
+
+    similar_cols = st.columns([1, 1])
+    with similar_cols[0]:
+        st.number_input(
+            "Workspace similar top K",
+            min_value=1,
+            max_value=50,
+            step=1,
+            key="selected_paper_similar_top_k",
+        )
+    with similar_cols[1]:
+        st.selectbox(
+            "Workspace similar rank by",
+            SIMILAR_RANK_BY_OPTIONS,
+            key="selected_paper_similar_rank_by",
+        )
+
+    action_cols = st.columns([1, 1, 1, 1])
+
+    with action_cols[0]:
+        if st.button(
+            "Load selected paper detail",
+            key="load_selected_paper_detail",
+            width="stretch",
+        ):
+            try:
+                with st.spinner("Loading selected paper detail..."):
+                    st.session_state["selected_paper_detail_payload"] = fetch_paper_detail(
+                        base_url,
+                        selected_paper_id,
+                    )
+            except Exception as exc:
+                st.error(str(exc))
+
+    with action_cols[1]:
+        if st.button(
+            "Load selected paper similar papers",
+            key="load_selected_paper_similar",
+            width="stretch",
+        ):
+            try:
+                with st.spinner("Loading selected paper similar papers..."):
+                    st.session_state["selected_paper_similar_payload"] = fetch_similar_papers(
+                        base_url,
+                        selected_paper_id,
+                        top_k=int(st.session_state["selected_paper_similar_top_k"]),
+                        rank_by=st.session_state["selected_paper_similar_rank_by"],
+                    )
+            except Exception as exc:
+                st.error(str(exc))
+
+    with action_cols[2]:
+        if st.button(
+            "Load selected paper topic cluster",
+            key="load_selected_paper_cluster",
+            width="stretch",
+        ):
+            try:
+                with st.spinner("Loading selected paper topic cluster..."):
+                    st.session_state["selected_paper_cluster_payload"] = fetch_paper_topic_cluster(
+                        base_url,
+                        selected_paper_id,
+                    )
+            except Exception as exc:
+                st.error(str(exc))
+
+    with action_cols[3]:
+        if st.button(
+            "Clear selected paper",
+            key="clear_selected_paper",
+            width="stretch",
+        ):
+            clear_selected_paper()
+            st.rerun()
+
+    detail_payload = st.session_state.get("selected_paper_detail_payload")
+    similar_payload = st.session_state.get("selected_paper_similar_payload")
+    cluster_payload = st.session_state.get("selected_paper_cluster_payload")
+
+    if not any([detail_payload, similar_payload, cluster_payload]):
+        st.info(
+            "Load detail, similar papers, or topic cluster for the selected paper."
+        )
+
+    workspace_tabs = st.tabs(
+        [
+            "Selected paper detail",
+            "Selected paper similar papers",
+            "Selected paper topic cluster",
+        ]
+    )
+
+    with workspace_tabs[0]:
+        if detail_payload:
+            render_paper_detail(detail_payload)
+        else:
+            st.info("Click **Load selected paper detail**.")
+
+    with workspace_tabs[1]:
+        if similar_payload:
+            render_similar_papers_payload(similar_payload)
+        else:
+            st.info("Click **Load selected paper similar papers**.")
+
+    with workspace_tabs[2]:
+        if cluster_payload:
+            render_paper_topic_cluster_payload(cluster_payload)
+        else:
+            st.info("Click **Load selected paper topic cluster**.")
+
 # --------------------------------------------------------------------------------------
 # Main app
 # --------------------------------------------------------------------------------------
@@ -2447,8 +2639,20 @@ def main() -> None:
 
     api_base_url, run_clicked = render_sidebar(base_url, profiles_payload)
 
-    ranking_tab, clusters_tab, topic_map_tab, artifacts_tab = st.tabs(
-        ["Discovery ranking", "Topic clusters", "Topic map", "Artifact explorer"]
+    (
+        ranking_tab,
+        paper_workspace_tab,
+        clusters_tab,
+        topic_map_tab,
+        artifacts_tab,
+    ) = st.tabs(
+        [
+            "Discovery ranking",
+            "Paper workspace",
+            "Topic clusters",
+            "Topic map",
+            "Artifact explorer",
+        ]
     )
 
     with ranking_tab:
@@ -2500,6 +2704,9 @@ def main() -> None:
                 )
 
                 if selected:
+                    select_paper(selected)
+
+                if selected:
                     detail_tab, similar_tab, paper_cluster_tab, raw_tab = st.tabs(
                         ["Paper detail", "Similar papers", "Topic cluster", "Raw ranking"]
                     )
@@ -2523,6 +2730,9 @@ def main() -> None:
             else:
                 with st.expander("Raw ranking response", expanded=False):
                     st.json(payload)
+
+    with paper_workspace_tab:
+        render_paper_workspace(api_base_url)
 
     with clusters_tab:
         render_topic_clusters(api_base_url)
