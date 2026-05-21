@@ -438,12 +438,6 @@ def init_ui_state() -> None:
         "artifact_linked_papers_relation_type": "",
         "artifact_linked_papers_min_confidence": "",
         "artifact_linked_papers_sort_by": "confidence_desc",
-        "artifact_selected_linked_paper_canonical_id": None,
-        "artifact_linked_paper_detail_payload": None,
-        "artifact_linked_paper_similar_payload": None,
-        "artifact_linked_paper_cluster_payload": None,
-        "artifact_linked_paper_similar_top_k": 10,
-        "artifact_linked_paper_similar_rank_by": "semantic",
     }
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
@@ -488,24 +482,15 @@ def reset_cluster_detail_filters() -> None:
     st.session_state["cluster_detail_min_implementation_readiness_score"] = ""
     st.session_state["cluster_detail_min_citation_signal_score"] = ""
 
-def reset_artifact_linked_paper_selection() -> None:
-    st.session_state["artifact_selected_linked_paper_canonical_id"] = None
-    st.session_state["artifact_linked_paper_detail_payload"] = None
-    st.session_state["artifact_linked_paper_similar_payload"] = None
-    st.session_state["artifact_linked_paper_cluster_payload"] = None
-
 def reset_selected_paper_artifact_navigation() -> None:
-    st.session_state["selected_paper_selected_artifact_id"] = None
     st.session_state["selected_paper_artifact_detail_payload"] = None
     st.session_state["selected_paper_artifact_linked_papers_payload"] = None
-
 
 def reset_selected_paper_payloads() -> None:
     st.session_state["selected_paper_detail_payload"] = None
     st.session_state["selected_paper_similar_payload"] = None
     st.session_state["selected_paper_cluster_payload"] = None
     reset_selected_paper_artifact_navigation()
-
 
 def select_paper(canonical_id: str | None) -> None:
     canonical_id = str(canonical_id or "").strip()
@@ -882,8 +867,7 @@ def render_artifact_linked_papers(payload: dict[str, Any]) -> None:
                         width="stretch",
                 ):
                     select_paper(canonical_id)
-                    reset_artifact_linked_paper_selection()
-                    st.success("Selected paper updated. Open the Paper workspace tab.")
+                    st.rerun()
 
             evidence_url = row.get("evidence_url")
             if evidence_url:
@@ -1007,7 +991,6 @@ def render_artifact_explorer(base_url: str) -> None:
 
             st.session_state["artifact_detail_payload"] = None
             st.session_state["artifact_linked_papers_payload"] = None
-            reset_artifact_linked_paper_selection()
         except ValueError:
             st.error(
                 "Artifact numeric filters must be valid numbers. "
@@ -1136,7 +1119,6 @@ def render_artifact_explorer(base_url: str) -> None:
 
                 st.session_state["artifact_detail_payload"] = detail_payload
                 st.session_state["artifact_linked_papers_payload"] = linked_payload
-                reset_artifact_linked_paper_selection()
             except ValueError:
                 st.error(
                     "Linked paper filters must be numeric where applicable. "
@@ -1153,120 +1135,6 @@ def render_artifact_explorer(base_url: str) -> None:
 
         if linked_payload:
             render_artifact_linked_papers(linked_payload)
-
-        selected_linked_paper_id = st.session_state.get(
-            "artifact_selected_linked_paper_canonical_id"
-        )
-
-        if selected_linked_paper_id:
-            st.divider()
-            st.subheader("Selected linked paper")
-            render_kv("Canonical ID", selected_linked_paper_id)
-
-            similar_cols = st.columns([1, 1])
-            with similar_cols[0]:
-                st.number_input(
-                    "Linked paper similar top K",
-                    min_value=1,
-                    max_value=50,
-                    step=1,
-                    key="artifact_linked_paper_similar_top_k",
-                )
-            with similar_cols[1]:
-                st.selectbox(
-                    "Linked paper similar rank by",
-                    SIMILAR_RANK_BY_OPTIONS,
-                    key="artifact_linked_paper_similar_rank_by",
-                )
-
-            action_cols = st.columns([1, 1, 1, 1])
-
-            with action_cols[0]:
-                if st.button(
-                    "Load linked paper detail",
-                    key="load_artifact_linked_paper_detail",
-                    width="stretch",
-                ):
-                    try:
-                        with st.spinner("Loading linked paper detail..."):
-                            st.session_state["artifact_linked_paper_detail_payload"] = (
-                                fetch_paper_detail(base_url, selected_linked_paper_id)
-                            )
-                    except Exception as exc:
-                        st.error(str(exc))
-
-            with action_cols[1]:
-                if st.button(
-                    "Load linked paper similar papers",
-                    key="load_artifact_linked_paper_similar",
-                    width="stretch",
-                ):
-                    try:
-                        with st.spinner("Loading linked paper similar papers..."):
-                            st.session_state["artifact_linked_paper_similar_payload"] = (
-                                fetch_similar_papers(
-                                    base_url,
-                                    selected_linked_paper_id,
-                                    top_k=int(
-                                        st.session_state[
-                                            "artifact_linked_paper_similar_top_k"
-                                        ]
-                                    ),
-                                    rank_by=st.session_state[
-                                        "artifact_linked_paper_similar_rank_by"
-                                    ],
-                                )
-                            )
-                    except Exception as exc:
-                        st.error(str(exc))
-
-            with action_cols[2]:
-                if st.button(
-                    "Load linked paper topic cluster",
-                    key="load_artifact_linked_paper_cluster",
-                    width="stretch",
-                ):
-                    try:
-                        with st.spinner("Loading linked paper topic cluster..."):
-                            st.session_state["artifact_linked_paper_cluster_payload"] = (
-                                fetch_paper_topic_cluster(
-                                    base_url,
-                                    selected_linked_paper_id,
-                                )
-                            )
-                    except Exception as exc:
-                        st.error(str(exc))
-
-            with action_cols[3]:
-                if st.button(
-                    "Clear selected linked paper",
-                    key="clear_artifact_linked_paper",
-                    width="stretch",
-                ):
-                    reset_artifact_linked_paper_selection()
-                    st.rerun()
-
-            linked_detail_payload = st.session_state.get(
-                "artifact_linked_paper_detail_payload"
-            )
-            linked_similar_payload = st.session_state.get(
-                "artifact_linked_paper_similar_payload"
-            )
-            linked_cluster_payload = st.session_state.get(
-                "artifact_linked_paper_cluster_payload"
-            )
-
-            if linked_detail_payload:
-                st.markdown("#### Linked paper detail")
-                render_paper_detail(linked_detail_payload)
-
-            if linked_similar_payload:
-                st.markdown("#### Linked paper similar papers")
-                render_similar_papers_payload(linked_similar_payload)
-
-            if linked_cluster_payload:
-                st.markdown("#### Linked paper topic cluster")
-                render_paper_topic_cluster_payload(linked_cluster_payload)
 
     st.markdown("#### Artifact cards")
     for idx, row in enumerate(rows, start=1):
@@ -2290,12 +2158,12 @@ def render_topic_cluster_detail(
                 canonical_id = str(row.get("canonical_id") or "").strip()
                 if canonical_id:
                     if st.button(
-                        "Open in Paper workspace",
-                        key=f"open_cluster_paper_workspace_{cluster_id}_{idx}_{canonical_id}",
-                        width="stretch",
+                            "Open in Paper workspace",
+                            key=f"open_cluster_paper_workspace_{cluster_id}_{idx}_{canonical_id}",
+                            width="stretch",
                     ):
                         select_paper(canonical_id)
-                        st.success("Selected paper updated. Open the Paper workspace tab.")
+                        st.rerun()
     else:
         st.warning("No papers returned for this cluster.")
 

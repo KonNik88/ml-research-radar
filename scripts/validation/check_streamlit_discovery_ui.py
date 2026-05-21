@@ -141,21 +141,11 @@ ARTIFACT_EXPLORER_UI_SNIPPETS = [
 ]
 
 ARTIFACT_LINKED_PAPER_NAVIGATION_SNIPPETS = [
-    "artifact_selected_linked_paper_canonical_id",
-    "artifact_linked_paper_detail_payload",
-    "artifact_linked_paper_similar_payload",
-    "artifact_linked_paper_cluster_payload",
-    "artifact_linked_paper_similar_top_k",
-    "artifact_linked_paper_similar_rank_by",
-    "reset_artifact_linked_paper_selection",
-    "render_similar_papers_payload",
-    "render_paper_topic_cluster_payload",
-    "Open this paper",
-    "Selected linked paper",
-    "Load linked paper detail",
-    "Load linked paper similar papers",
-    "Load linked paper topic cluster",
-    "Clear selected linked paper",
+    "render_artifact_linked_papers",
+    "Open this paper in Paper workspace",
+    "select_paper(canonical_id)",
+    "Selected paper updated. Open the Paper workspace tab.",
+    "artifact_linked_papers_payload",
 ]
 
 PAPER_WORKSPACE_UI_SNIPPETS = [
