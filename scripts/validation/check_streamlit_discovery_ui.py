@@ -66,6 +66,22 @@ SIMILAR_MODE_SNIPPETS = [
     "radar_adjusted",
 ]
 
+SEARCH_UI_SNIPPETS = [
+    "Search",
+    "SEARCH_MODE_OPTIONS",
+    "SEARCH_SORT_OPTIONS",
+    "fetch_search",
+    "build_search_params",
+    "render_search_tab",
+    "render_search_results",
+    "search_query",
+    "search_mode",
+    "search_payload",
+    "Run search",
+    "Open search result in Paper workspace",
+    "/search",
+]
+
 TOPIC_CLUSTER_UI_SNIPPETS = [
     "Topic clusters",
     "fetch_topic_clusters",
@@ -398,6 +414,38 @@ def run_api_checks(
     extracted_values["api_ranking_override_filters"] = filters
     if ranking_error:
         errors["api_ranking_override_error"] = ranking_error
+
+    search_ok, search_payload, search_error = request_json(
+        base_url=base_url,
+        path="/search",
+        params={
+            "query": "graph neural networks",
+            "mode": "lexical",
+            "top_k": 3,
+        },
+        timeout_seconds=timeout_seconds,
+    )
+    search_rows = result_rows(search_payload)
+
+    checks["api_search_endpoint_ok"] = search_ok
+    checks["api_search_results_non_empty"] = bool(search_rows)
+    checks["api_search_rows_have_documents"] = (
+        bool(search_rows)
+        and all(
+            isinstance(row, dict)
+            and isinstance(row.get("document"), dict)
+            and bool(row["document"].get("canonical_id"))
+            and bool(row["document"].get("title"))
+            for row in search_rows
+        )
+    )
+
+    extracted_values["api_search_query"] = search_payload.get("query")
+    extracted_values["api_search_mode"] = search_payload.get("mode")
+    extracted_values["api_search_results_count"] = len(search_rows)
+
+    if search_error:
+        errors["api_search_error"] = search_error
 
     clusters_ok, clusters_payload, clusters_error = request_json(
         base_url=base_url,
@@ -887,6 +935,7 @@ def build_report(
     missing_required = missing_snippets(app_text, REQUIRED_UI_SNIPPETS)
     missing_discovery = missing_snippets(app_text, DISCOVERY_ENDPOINT_STRINGS)
     missing_similar = missing_snippets(app_text, SIMILAR_MODE_SNIPPETS)
+    missing_search = missing_snippets(app_text, SEARCH_UI_SNIPPETS)
     missing_topic = missing_snippets(app_text, TOPIC_CLUSTER_UI_SNIPPETS)
     missing_cluster_detail_filters = missing_snippets(
         app_text,
@@ -915,13 +964,17 @@ def build_report(
     checks["required_ui_snippets_present"] = not missing_required
     checks["discovery_endpoint_strings_present"] = not missing_discovery
     checks["similar_modes_present"] = not missing_similar
+    checks["search_tab_ui_snippets_present"] = not missing_search
     checks["topic_cluster_ui_snippets_present"] = not missing_topic
     checks["cluster_detail_filter_ui_snippets_present"] = (
         not missing_cluster_detail_filters
     )
     checks["reset_button_present"] = "Reset discovery filters" in app_text
     checks["no_deprecated_use_container_width"] = "use_container_width" not in app_text
-    checks["legacy_search_endpoint_absent"] = '"/search"' not in app_text and "'/search'" not in app_text
+    checks["legacy_search_endpoint_absent"] = (
+            "render_legacy_search" not in app_text
+            and "legacy_search_payload" not in app_text
+    )
     checks["artifact_explorer_ui_snippets_present"] = not missing_artifact_explorer
     checks["artifact_linked_paper_navigation_snippets_present"] = (
         not missing_artifact_linked_paper_navigation
@@ -934,6 +987,7 @@ def build_report(
     extracted_values["missing_required_ui_snippets"] = missing_required
     extracted_values["missing_discovery_endpoint_strings"] = missing_discovery
     extracted_values["missing_similar_mode_snippets"] = missing_similar
+    extracted_values["missing_search_ui_snippets"] = missing_search
     extracted_values["missing_topic_cluster_ui_snippets"] = missing_topic
     extracted_values["missing_cluster_detail_filter_ui_snippets"] = (
         missing_cluster_detail_filters
@@ -966,6 +1020,7 @@ def build_report(
         "required_ui_snippets_present",
         "discovery_endpoint_strings_present",
         "similar_modes_present",
+        "search_tab_ui_snippets_present",
         "topic_cluster_ui_snippets_present",
         "cluster_detail_filter_ui_snippets_present",
         "reset_button_present",
@@ -987,6 +1042,9 @@ def build_report(
                 "api_ranking_override_endpoint_ok",
                 "api_ranking_override_results_non_empty",
                 "api_ranking_override_filters_echoed",
+                "api_search_endpoint_ok",
+                "api_search_results_non_empty",
+                "api_search_rows_have_documents",
                 "api_topic_clusters_endpoint_ok",
                 "api_topic_clusters_results_non_empty",
                 "api_topic_clusters_cluster_id_present",

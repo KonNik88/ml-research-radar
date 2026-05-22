@@ -100,6 +100,18 @@ ARTIFACT_LINKED_PAPERS_SORT_OPTIONS = [
     "title_asc",
 ]
 
+SEARCH_MODE_OPTIONS = [
+    "lexical",
+    "dense",
+    "hybrid",
+]
+
+SEARCH_SORT_OPTIONS = [
+    "relevance",
+    "year_desc",
+    "year_asc",
+]
+
 st.set_page_config(
     page_title="ML Research Radar",
     page_icon="🔎",
@@ -163,6 +175,8 @@ def fetch_info(base_url: str) -> dict[str, Any]:
 def fetch_runtime(base_url: str) -> dict[str, Any]:
     return api_get(base_url, "/runtime")
 
+def fetch_search(base_url: str, params: dict[str, Any]) -> dict[str, Any]:
+    return api_get(base_url, "/search", params=params)
 
 @st.cache_data(ttl=30, show_spinner=False)
 def fetch_profiles(base_url: str) -> dict[str, Any]:
@@ -372,6 +386,21 @@ def init_ui_state() -> None:
         "descending": "Profile default",
         "similar_top_k": 10,
         "similar_rank_by": "semantic",
+        "search_query": "",
+        "search_mode": "lexical",
+        "search_top_k": 10,
+        "search_rank": False,
+        "search_year_from": "",
+        "search_year_to": "",
+        "search_category": "",
+        "search_source": "",
+        "search_publication_type": "",
+        "search_venue": "",
+        "search_open_access": "Profile default",
+        "search_has_code_link": "Profile default",
+        "search_offset": 0,
+        "search_sort_by": "relevance",
+        "search_payload": None,
         "ranking_payload": None,
         "selected_canonical_id": None,
         "selected_paper_canonical_id": None,
@@ -541,6 +570,52 @@ def build_ranking_params() -> dict[str, Any]:
         params["descending"] = "true"
     elif direction == "Ascending":
         params["descending"] = "false"
+
+    return params
+
+def build_search_params() -> dict[str, Any]:
+    query = st.session_state.get("search_query", "").strip()
+    if not query:
+        raise ValueError("Search query is empty.")
+
+    params: dict[str, Any] = {
+        "query": query,
+        "mode": st.session_state["search_mode"],
+        "top_k": int(st.session_state["search_top_k"]),
+        "rank": "true" if st.session_state.get("search_rank") else "false",
+        "offset": int(st.session_state["search_offset"]),
+        "sort_by": st.session_state["search_sort_by"],
+    }
+
+    year_from = to_int_or_none(st.session_state.get("search_year_from", ""))
+    year_to = to_int_or_none(st.session_state.get("search_year_to", ""))
+
+    if year_from is not None:
+        params["year_from"] = year_from
+    if year_to is not None:
+        params["year_to"] = year_to
+
+    for state_key, param_key in [
+        ("search_category", "category"),
+        ("search_source", "source"),
+        ("search_publication_type", "publication_type"),
+        ("search_venue", "venue"),
+    ]:
+        value = st.session_state.get(state_key, "").strip()
+        if value:
+            params[param_key] = value
+
+    open_access = st.session_state.get("search_open_access", "Profile default")
+    if open_access == "True":
+        params["open_access"] = "true"
+    elif open_access == "False":
+        params["open_access"] = "false"
+
+    has_code_link = st.session_state.get("search_has_code_link", "Profile default")
+    if has_code_link == "True":
+        params["has_code_link"] = "true"
+    elif has_code_link == "False":
+        params["has_code_link"] = "false"
 
     return params
 
@@ -1292,6 +1367,92 @@ def render_sidebar(base_url: str, profiles_payload: dict[str, Any]) -> tuple[str
 # Rendering ranking
 # --------------------------------------------------------------------------------------
 
+def render_search_tab(base_url: str) -> None:
+    st.subheader("Search")
+    st.caption(
+        "Search over the canonical paper corpus via `/search`. "
+        "File backend supports lexical, dense and hybrid modes. "
+        "DB backend currently supports lexical mode only."
+    )
+
+    st.text_input(
+        "Search query",
+        key="search_query",
+        placeholder="graph neural networks, protein language models, diffusion models...",
+    )
+
+    control_cols = st.columns([1, 1, 1, 1])
+    with control_cols[0]:
+        st.selectbox("Search mode", SEARCH_MODE_OPTIONS, key="search_mode")
+    with control_cols[1]:
+        st.number_input(
+            "Search top K",
+            min_value=1,
+            max_value=MAX_TOP_K,
+            step=1,
+            key="search_top_k",
+        )
+    with control_cols[2]:
+        st.checkbox("Apply rank layer", key="search_rank")
+    with control_cols[3]:
+        st.selectbox("Search sort by", SEARCH_SORT_OPTIONS, key="search_sort_by")
+
+    offset_cols = st.columns([1, 1, 2])
+    with offset_cols[0]:
+        st.number_input(
+            "Search offset",
+            min_value=0,
+            max_value=1_000_000,
+            step=10,
+            key="search_offset",
+        )
+    with offset_cols[1]:
+        st.selectbox("Open access", TRISTATE_OPTIONS, key="search_open_access")
+    with offset_cols[2]:
+        st.selectbox("Has legacy code link", TRISTATE_OPTIONS, key="search_has_code_link")
+
+    with st.expander("Search filters", expanded=False):
+        year_cols = st.columns(2)
+        year_cols[0].text_input("Search year from", key="search_year_from", placeholder="2020")
+        year_cols[1].text_input("Search year to", key="search_year_to", placeholder="2026")
+
+        filter_cols = st.columns(4)
+        filter_cols[0].text_input("Search category", key="search_category", placeholder="cs.LG")
+        filter_cols[1].text_input("Search source", key="search_source", placeholder="arxiv")
+        filter_cols[2].text_input(
+            "Search publication type",
+            key="search_publication_type",
+            placeholder="preprint",
+        )
+        filter_cols[3].text_input("Search venue", key="search_venue", placeholder="NeurIPS")
+
+    if st.button("Run search", type="primary", width="stretch"):
+        try:
+            params = build_search_params()
+            with st.spinner("Running search..."):
+                st.session_state["search_payload"] = fetch_search(base_url, params)
+        except ValueError as exc:
+            st.error(str(exc))
+            return
+        except Exception as exc:
+            st.error(str(exc))
+            st.info(
+                "If you selected dense/hybrid mode, start the API with "
+                "`set ML_RADAR_SEARCH_BACKEND=file`. "
+                "DB backend currently supports lexical search only."
+            )
+            return
+
+    payload = st.session_state.get("search_payload")
+    if not payload:
+        st.info("Enter a query and click **Run search**.")
+        st.markdown(
+            "Good smoke queries: `protein language models`, `diffusion models`, "
+            "`graph neural networks`, `retrieval augmented generation`."
+        )
+        return
+
+    render_search_results(payload)
 
 def profile_by_name(profiles_payload: dict[str, Any], name: str | None) -> dict[str, Any] | None:
     for profile in profiles_payload.get("profiles") or []:
@@ -1335,6 +1496,34 @@ def render_effective_filters(payload: dict[str, Any]) -> None:
         with st.expander("Effective filters", expanded=False):
             st.json(filters)
 
+def search_result_to_table_row(item: dict[str, Any], rank: int) -> dict[str, Any]:
+    document = item.get("document") or {}
+    retrieval = item.get("retrieval") or {}
+    ranking = item.get("ranking") or {}
+
+    if not isinstance(document, dict):
+        document = {}
+    if not isinstance(retrieval, dict):
+        retrieval = {}
+    if not isinstance(ranking, dict):
+        ranking = {}
+
+    return {
+        "rank": rank,
+        "year": document.get("year"),
+        "title": document.get("title"),
+        "source_count": document.get("source_count"),
+        "retrieval": first_non_empty(
+            retrieval.get("hybrid_score"),
+            retrieval.get("dense_score"),
+            retrieval.get("lexical_score"),
+            retrieval.get("score"),
+        ),
+        "final_rank": ranking.get("final_score"),
+        "doi": document.get("doi"),
+        "arxiv_id": document.get("arxiv_id"),
+        "canonical_id": document.get("canonical_id"),
+    }
 
 def result_to_table_row(row: dict[str, Any], rank: int) -> dict[str, Any]:
     return {
@@ -1404,6 +1593,103 @@ def render_empty_results(payload: dict[str, Any]) -> None:
     with st.expander("Effective filters for empty result", expanded=True):
         st.json(payload.get("filters") or {})
 
+def render_search_results(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    st.markdown("---")
+    st.subheader("Search results")
+
+    results = payload.get("results") or []
+
+    cols = st.columns(6)
+    cols[0].metric("Query", payload.get("query", "—"))
+    cols[1].metric("Mode", payload.get("mode", "—"))
+    cols[2].metric("Top K", payload.get("top_k", "—"))
+    cols[3].metric("Returned", len(results))
+    cols[4].metric("Rank", str(payload.get("rank_applied")))
+    cols[5].metric("Build", compact_id(payload.get("build_id"), n=6))
+
+    meta = payload.get("meta")
+    if meta:
+        with st.expander("Search meta", expanded=False):
+            st.json(meta)
+
+    if not results:
+        st.warning("No search results returned.")
+        with st.expander("Raw search response", expanded=False):
+            st.json(payload)
+        return []
+
+    st.markdown("#### Search results table")
+    st.dataframe(
+        pd.DataFrame(
+            [search_result_to_table_row(item, idx) for idx, item in enumerate(results, start=1)]
+        ),
+        hide_index=True,
+        width="stretch",
+    )
+
+    st.markdown("#### Search result cards")
+    for idx, item in enumerate(results, start=1):
+        document = item.get("document") or {}
+        retrieval = item.get("retrieval") or {}
+        ranking = item.get("ranking") or {}
+
+        if not isinstance(document, dict):
+            document = {}
+        if not isinstance(retrieval, dict):
+            retrieval = {}
+        if not isinstance(ranking, dict):
+            ranking = {}
+
+        canonical_id = document.get("canonical_id")
+        title = document.get("title") or "Untitled"
+
+        with st.container(border=True):
+            st.markdown(f"### {idx}. {title}")
+
+            cols = st.columns(5)
+            cols[0].metric("Year", dash(document.get("year")))
+            cols[1].metric("Sources", dash(document.get("source_count")))
+            cols[2].metric(
+                "Retrieval",
+                fmt_score(
+                    first_non_empty(
+                        retrieval.get("hybrid_score"),
+                        retrieval.get("dense_score"),
+                        retrieval.get("lexical_score"),
+                        retrieval.get("score"),
+                    ),
+                    4,
+                ),
+            )
+            cols[3].metric("Final rank", fmt_score(ranking.get("final_score"), 4))
+            cols[4].metric("DOI", "yes" if document.get("doi") else "—")
+
+            st.caption(
+                f"ID: `{compact_id(canonical_id)}` · "
+                f"arXiv: `{dash(document.get('arxiv_id'))}`"
+            )
+
+            if canonical_id:
+                if st.button(
+                    "Open search result in Paper workspace",
+                    key=f"open_search_result_workspace_{idx}_{canonical_id}",
+                    width="stretch",
+                ):
+                    select_paper(canonical_id)
+                    st.success("Selected paper updated. Open the Paper workspace tab.")
+
+            abstract = document.get("abstract")
+            if abstract:
+                preview = abstract if len(abstract) <= 600 else abstract[:600].rstrip() + "…"
+                st.write(preview)
+
+            with st.expander("Search result JSON", expanded=False):
+                st.json(item)
+
+    with st.expander("Raw search response", expanded=False):
+        st.json(payload)
+
+    return results
 
 def render_ranking(payload: dict[str, Any]) -> list[dict[str, Any]]:
     st.markdown("---")
@@ -2704,6 +2990,7 @@ def main() -> None:
 
     (
         ranking_tab,
+        search_tab,
         paper_workspace_tab,
         clusters_tab,
         topic_map_tab,
@@ -2711,6 +2998,7 @@ def main() -> None:
     ) = st.tabs(
         [
             "Discovery ranking",
+            "Search",
             "Paper workspace",
             "Topic clusters",
             "Topic map",
@@ -2799,6 +3087,9 @@ def main() -> None:
             else:
                 with st.expander("Raw ranking response", expanded=False):
                     st.json(payload)
+
+    with search_tab:
+        render_search_tab(api_base_url)
 
     with paper_workspace_tab:
         render_paper_workspace(api_base_url)
