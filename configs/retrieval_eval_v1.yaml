@@ -1,0 +1,30 @@
+schema_version: retrieval_eval_v1
+
+defaults:
+  backend_mode: file
+  modes:
+    - lexical
+    - dense
+    - hybrid
+    - hybrid_ranked
+  top_k_values:
+    - 5
+    - 10
+    - 20
+  primary_k: 10
+
+paths:
+  golden_queries_path: data/eval/retrieval/golden_queries.jsonl
+  output_dir: artifacts/reports/evaluation
+
+thresholds:
+  # Structural thresholds. Keep these strict enough to catch broken eval runs.
+  min_enabled_cases: 10
+  require_all_modes_present: true
+  require_metrics_finite: true
+
+  # Quality thresholds. These are intentionally soft for v1 baseline.
+  max_empty_result_rate: 0.05
+  min_hybrid_hit_at_10: 0.60
+  min_hybrid_mrr_at_10: 0.25
+  min_hybrid_recall_at_10: 0.40
