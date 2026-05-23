@@ -570,6 +570,279 @@ def summarize_groups(
 
     return out
 
+def metric_from_run(run: dict[str, Any], k: int, metric_name: str) -> float:
+    metrics = run.get("metrics") or {}
+    item = metrics.get(str(k)) or metrics.get(k) or {}
+    try:
+        return float(item.get(metric_name, 0.0) or 0.0)
+    except Exception:
+        return 0.0
+
+
+def metric_from_mode_summary(
+    mode_summary: dict[str, Any],
+    mode: str,
+    metric_name: str,
+    k: int,
+) -> float:
+    key = f"{metric_name}_at_{k}"
+    try:
+        return float((mode_summary.get(mode) or {}).get(key, 0.0) or 0.0)
+    except Exception:
+        return 0.0
+
+
+def latency_p50_from_mode_summary(mode_summary: dict[str, Any], mode: str) -> float | None:
+    latency = (mode_summary.get(mode) or {}).get("latency_ms") or {}
+    value = latency.get("p50")
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except Exception:
+        return None
+
+
+def build_pairwise_mode_comparison(
+    *,
+    mode_summary: dict[str, Any],
+    modes: list[str],
+    primary_k: int,
+) -> dict[str, Any]:
+    pairs = [
+        ("hybrid", "lexical"),
+        ("hybrid", "dense"),
+        ("hybrid_ranked", "hybrid"),
+        ("dense", "lexical"),
+    ]
+
+    out: dict[str, Any] = {}
+
+    for left, right in pairs:
+        if left not in modes or right not in modes:
+            continue
+
+        item: dict[str, Any] = {}
+        for metric_name in ("hit", "recall", "mrr", "ndcg"):
+            left_value = metric_from_mode_summary(
+                mode_summary=mode_summary,
+                mode=left,
+                metric_name=metric_name,
+                k=primary_k,
+            )
+            right_value = metric_from_mode_summary(
+                mode_summary=mode_summary,
+                mode=right,
+                metric_name=metric_name,
+                k=primary_k,
+            )
+            delta = round(left_value - right_value, 6)
+
+            item[f"{metric_name}_at_{primary_k}"] = {
+                left: round(left_value, 6),
+                right: round(right_value, 6),
+                "delta": delta,
+                "winner": left if delta > 0 else right if delta < 0 else "tie",
+            }
+
+        left_p50 = latency_p50_from_mode_summary(mode_summary, left)
+        right_p50 = latency_p50_from_mode_summary(mode_summary, right)
+        latency_delta = None
+        latency_ratio = None
+        if left_p50 is not None and right_p50 not in (None, 0):
+            latency_delta = round(left_p50 - right_p50, 3)
+            latency_ratio = round(left_p50 / right_p50, 3)
+
+        item["latency_p50_ms"] = {
+            left: left_p50,
+            right: right_p50,
+            "delta": latency_delta,
+            "ratio": latency_ratio,
+            "faster": (
+                left
+                if left_p50 is not None and right_p50 is not None and left_p50 < right_p50
+                else right
+                if left_p50 is not None and right_p50 is not None and right_p50 < left_p50
+                else "tie"
+            ),
+        }
+
+        out[f"{left}_vs_{right}"] = item
+
+    return out
+
+
+def build_mode_ranking(
+    *,
+    mode_summary: dict[str, Any],
+    modes: list[str],
+    primary_k: int,
+) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+
+    for metric_name in ("hit", "recall", "mrr", "ndcg"):
+        rows = []
+        for mode in modes:
+            rows.append(
+                {
+                    "mode": mode,
+                    "value": metric_from_mode_summary(
+                        mode_summary=mode_summary,
+                        mode=mode,
+                        metric_name=metric_name,
+                        k=primary_k,
+                    ),
+                }
+            )
+        rows.sort(key=lambda x: x["value"], reverse=True)
+        out[f"{metric_name}_at_{primary_k}"] = rows
+
+    latency_rows = []
+    for mode in modes:
+        p50 = latency_p50_from_mode_summary(mode_summary, mode)
+        if p50 is not None:
+            latency_rows.append({"mode": mode, "p50_ms": p50})
+    latency_rows.sort(key=lambda x: x["p50_ms"])
+
+    out["latency_p50_ms"] = latency_rows
+    return out
+
+
+def build_query_mode_diagnostics(
+    *,
+    case_runs: list[dict[str, Any]],
+    modes: list[str],
+    primary_k: int,
+) -> list[dict[str, Any]]:
+    diagnostics: list[dict[str, Any]] = []
+
+    for case in case_runs:
+        runs_by_mode = {
+            run.get("mode"): run
+            for run in case.get("runs", [])
+            if run.get("mode") in modes and not run.get("error")
+        }
+
+        if not runs_by_mode:
+            continue
+
+        per_mode: dict[str, dict[str, float]] = {}
+        for mode, run in runs_by_mode.items():
+            per_mode[mode] = {
+                "hit": metric_from_run(run, primary_k, "hit"),
+                "recall": metric_from_run(run, primary_k, "recall"),
+                "mrr": metric_from_run(run, primary_k, "mrr"),
+                "ndcg": metric_from_run(run, primary_k, "ndcg"),
+            }
+
+        best_by_recall = sorted(
+            per_mode.items(),
+            key=lambda x: (x[1]["recall"], x[1]["mrr"], x[1]["ndcg"]),
+            reverse=True,
+        )
+        best_by_mrr = sorted(
+            per_mode.items(),
+            key=lambda x: (x[1]["mrr"], x[1]["recall"], x[1]["ndcg"]),
+            reverse=True,
+        )
+        best_by_ndcg = sorted(
+            per_mode.items(),
+            key=lambda x: (x[1]["ndcg"], x[1]["recall"], x[1]["mrr"]),
+            reverse=True,
+        )
+
+        failed_modes = [
+            mode
+            for mode, values in per_mode.items()
+            if values["hit"] <= 0.0
+        ]
+
+        notes: list[str] = []
+
+        lexical = per_mode.get("lexical")
+        dense = per_mode.get("dense")
+        hybrid = per_mode.get("hybrid")
+        hybrid_ranked = per_mode.get("hybrid_ranked")
+
+        if lexical and lexical["hit"] <= 0 and dense and dense["hit"] > 0:
+            notes.append("dense_recovers_lexical_failure")
+
+        if lexical and dense and dense["recall"] > lexical["recall"]:
+            notes.append("dense_recall_gt_lexical")
+
+        if lexical and dense and lexical["recall"] > dense["recall"]:
+            notes.append("lexical_recall_gt_dense")
+
+        if hybrid and lexical and hybrid["recall"] > lexical["recall"]:
+            notes.append("hybrid_recall_gt_lexical")
+
+        if hybrid and dense and hybrid["recall"] > dense["recall"]:
+            notes.append("hybrid_recall_gt_dense")
+
+        if hybrid_ranked and hybrid and hybrid_ranked["recall"] > hybrid["recall"]:
+            notes.append("hybrid_ranked_improves_recall")
+
+        if hybrid_ranked and hybrid and hybrid_ranked["ndcg"] < hybrid["ndcg"]:
+            notes.append("hybrid_ranked_lowers_ndcg")
+
+        if hybrid and dense and hybrid["recall"] < dense["recall"]:
+            notes.append("hybrid_recall_lt_dense")
+
+        diagnostics.append(
+            {
+                "query_id": case.get("query_id"),
+                "query": case.get("query"),
+                "group": case.get("group"),
+                "best_by_recall": best_by_recall[0][0] if best_by_recall else None,
+                "best_by_mrr": best_by_mrr[0][0] if best_by_mrr else None,
+                "best_by_ndcg": best_by_ndcg[0][0] if best_by_ndcg else None,
+                "failed_modes": failed_modes,
+                "notes": notes,
+                "per_mode": per_mode,
+            }
+        )
+
+    return diagnostics
+
+
+def build_mode_comparison_summary(
+    *,
+    case_runs: list[dict[str, Any]],
+    mode_summary: dict[str, Any],
+    modes: list[str],
+    primary_k: int,
+) -> dict[str, Any]:
+    query_diagnostics = build_query_mode_diagnostics(
+        case_runs=case_runs,
+        modes=modes,
+        primary_k=primary_k,
+    )
+
+    note_counts: dict[str, int] = {}
+    failed_mode_counts: dict[str, int] = {}
+
+    for item in query_diagnostics:
+        for note in item.get("notes", []):
+            note_counts[note] = note_counts.get(note, 0) + 1
+        for mode in item.get("failed_modes", []):
+            failed_mode_counts[mode] = failed_mode_counts.get(mode, 0) + 1
+
+    return {
+        "primary_k": primary_k,
+        "mode_ranking": build_mode_ranking(
+            mode_summary=mode_summary,
+            modes=modes,
+            primary_k=primary_k,
+        ),
+        "pairwise": build_pairwise_mode_comparison(
+            mode_summary=mode_summary,
+            modes=modes,
+            primary_k=primary_k,
+        ),
+        "query_diagnostics": query_diagnostics,
+        "note_counts": dict(sorted(note_counts.items())),
+        "failed_mode_counts": dict(sorted(failed_mode_counts.items())),
+    }
 
 def build_markdown(report: dict[str, Any]) -> str:
     primary_k = report["config"]["primary_k"]
@@ -600,6 +873,96 @@ def build_markdown(report: dict[str, Any]) -> str:
             f"{row.get(f'ndcg_at_{primary_k}', 0):.3f} | "
             f"{row.get('empty_result_rate', 0):.3f} | "
             f"{lat.get('p50')} | {lat.get('p95')} |"
+        )
+    lines.append("")
+
+    comparison = report.get("comparison_summary") or {}
+    mode_ranking = comparison.get("mode_ranking") or {}
+    pairwise = comparison.get("pairwise") or {}
+    query_diagnostics = comparison.get("query_diagnostics") or []
+    note_counts = comparison.get("note_counts") or {}
+    failed_mode_counts = comparison.get("failed_mode_counts") or {}
+
+    lines.append("## Mode comparison diagnostics")
+    lines.append("")
+
+    lines.append("### Overall mode ranking")
+    lines.append("")
+    for metric_key, rows in mode_ranking.items():
+        if not isinstance(rows, list) or not rows:
+            continue
+
+        lines.append(f"#### `{metric_key}`")
+        for idx, row in enumerate(rows, start=1):
+            if "value" in row:
+                lines.append(f"{idx}. `{row['mode']}` — {row['value']:.3f}")
+            elif "p50_ms" in row:
+                lines.append(f"{idx}. `{row['mode']}` — {row['p50_ms']:.3f} ms")
+        lines.append("")
+
+    lines.append("### Pairwise deltas")
+    lines.append("")
+    if pairwise:
+        lines.append("| Pair | Metric | Left | Right | Delta | Winner |")
+        lines.append("|---|---|---:|---:|---:|---|")
+
+        for pair_name, pair_item in pairwise.items():
+            for metric_name, metric_item in pair_item.items():
+                if metric_name == "latency_p50_ms":
+                    continue
+
+                modes_in_metric = [
+                    key
+                    for key in metric_item.keys()
+                    if key not in {"delta", "winner"}
+                ]
+                if len(modes_in_metric) != 2:
+                    continue
+
+                left_mode, right_mode = modes_in_metric
+                left_value = metric_item.get(left_mode)
+                right_value = metric_item.get(right_mode)
+                delta = metric_item.get("delta")
+                winner = metric_item.get("winner")
+
+                lines.append(
+                    f"| `{pair_name}` | `{metric_name}` | "
+                    f"{float(left_value):.3f} | {float(right_value):.3f} | "
+                    f"{float(delta):+.3f} | `{winner}` |"
+                )
+        lines.append("")
+
+    lines.append("### Diagnostic signals")
+    lines.append("")
+    if note_counts:
+        for note, count in note_counts.items():
+            lines.append(f"- `{note}`: **{count}**")
+    else:
+        lines.append("- none")
+    lines.append("")
+
+    lines.append("### Failed modes")
+    lines.append("")
+    if failed_mode_counts:
+        for mode, count in failed_mode_counts.items():
+            lines.append(f"- `{mode}`: **{count}**")
+    else:
+        lines.append("- none")
+    lines.append("")
+
+    lines.append("### Query-level mode comparison")
+    lines.append("")
+    lines.append("| Query | Best recall | Best MRR | Best nDCG | Failed modes | Notes |")
+    lines.append("|---|---|---|---|---|---|")
+    for item in query_diagnostics:
+        failed = ", ".join(f"`{x}`" for x in item.get("failed_modes", [])) or "-"
+        notes = ", ".join(f"`{x}`" for x in item.get("notes", [])) or "-"
+        lines.append(
+            f"| `{item.get('query_id')}` | "
+            f"`{item.get('best_by_recall')}` | "
+            f"`{item.get('best_by_mrr')}` | "
+            f"`{item.get('best_by_ndcg')}` | "
+            f"{failed} | {notes} |"
         )
     lines.append("")
 
@@ -746,6 +1109,13 @@ def main() -> None:
         for mode in modes
     }
 
+    comparison_summary = build_mode_comparison_summary(
+        case_runs=case_runs,
+        mode_summary=mode_summary,
+        modes=modes,
+        primary_k=primary_k,
+    )
+
     report = {
         "schema_version": "retrieval_eval_v1",
         "report_name": "retrieval_eval",
@@ -774,6 +1144,7 @@ def main() -> None:
             "modes_count": len(modes),
         },
         "mode_summary": mode_summary,
+        "comparison_summary": comparison_summary,
         "group_summary": summarize_groups(
             case_runs=case_runs,
             modes=modes,

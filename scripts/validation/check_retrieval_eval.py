@@ -131,6 +131,10 @@ def build_checks(
     summary = report.get("summary") or {}
     mode_summary = report.get("mode_summary") or {}
     cases = report.get("cases") or []
+    comparison_summary = report.get("comparison_summary") or {}
+    comparison_query_diagnostics = comparison_summary.get("query_diagnostics") or []
+    comparison_pairwise = comparison_summary.get("pairwise") or {}
+    comparison_mode_ranking = comparison_summary.get("mode_ranking") or {}
 
     enabled_cases_count = safe_int(summary.get("enabled_cases_count"))
     executed_cases_count = safe_int(summary.get("executed_cases_count"))
@@ -163,6 +167,10 @@ def build_checks(
         "all_cases_have_all_expected_modes": all_cases_have_all_modes,
         "no_runtime_errors": no_runtime_errors,
         "metrics_finite": all_numbers_finite(report),
+        "comparison_summary_present": bool(comparison_summary),
+        "comparison_query_diagnostics_present": bool(comparison_query_diagnostics),
+        "comparison_pairwise_present": bool(comparison_pairwise),
+        "comparison_mode_ranking_present": bool(comparison_mode_ranking),
         "hybrid_empty_result_rate_within_threshold": empty_result_rate <= safe_float(thresholds.get("max_empty_result_rate"), default=1.0),
         f"hybrid_hit_at_{primary_k}_minimum_met": hybrid_hit >= safe_float(thresholds.get(f"min_hybrid_hit_at_{primary_k}"), default=0.0),
         f"hybrid_mrr_at_{primary_k}_minimum_met": hybrid_mrr >= safe_float(thresholds.get(f"min_hybrid_mrr_at_{primary_k}"), default=0.0),
@@ -181,6 +189,10 @@ def required_check_names(*, strict: bool, primary_k: int) -> list[str]:
         "all_cases_have_all_expected_modes",
         "no_runtime_errors",
         "metrics_finite",
+        "comparison_summary_present",
+        "comparison_query_diagnostics_present",
+        "comparison_pairwise_present",
+        "comparison_mode_ranking_present",
     ]
 
     if strict:
@@ -283,6 +295,12 @@ def main() -> None:
             f"hybrid_mrr_at_{primary_k}": hybrid_summary.get(f"mrr_at_{primary_k}"),
             f"hybrid_ndcg_at_{primary_k}": hybrid_summary.get(f"ndcg_at_{primary_k}"),
             "hybrid_empty_result_rate": hybrid_summary.get("empty_result_rate"),
+            "comparison_query_diagnostics_count": len(
+                (report.get("comparison_summary") or {}).get("query_diagnostics") or []
+            ),
+            "comparison_pairwise_count": len((report.get("comparison_summary") or {}).get("pairwise") or {}),
+            "comparison_note_counts": (report.get("comparison_summary") or {}).get("note_counts") or {},
+            "comparison_failed_mode_counts": (report.get("comparison_summary") or {}).get("failed_mode_counts") or {},
         },
         "checks": checks,
         "required_checks": required,
