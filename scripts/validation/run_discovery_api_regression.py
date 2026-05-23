@@ -89,6 +89,25 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
         ),
     ]
 
+    if args.include_retrieval_eval:
+        steps.extend(
+            [
+                Step(
+                    name="run_retrieval_eval",
+                    cmd=python_cmd("scripts.evaluation.run_retrieval_eval"),
+                    env=file_env,
+                ),
+                Step(
+                    name="check_retrieval_eval",
+                    cmd=python_cmd(
+                        "scripts.validation.check_retrieval_eval",
+                        "--strict",
+                    ),
+                    env=file_env,
+                ),
+            ]
+        )
+
     if not args.skip_similar_rebuild:
         steps.extend(
             [
@@ -162,6 +181,14 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=20,
         help="top_k for scripts.retrieval.find_similar_papers.",
+    )
+    parser.add_argument(
+        "--include-retrieval-eval",
+        action="store_true",
+        help=(
+            "Also run retrieval evaluation v1 and strict retrieval eval quality check. "
+            "Uses file backend and does not require a live API server."
+        ),
     )
     parser.add_argument(
         "--include-db-smoke",
