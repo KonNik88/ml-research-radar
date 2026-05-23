@@ -235,8 +235,21 @@ def weak_relevance_grade(result: dict[str, Any], case: dict[str, Any]) -> float:
 
 def relevance_grade(result: dict[str, Any], case: dict[str, Any], grades_by_id: dict[str, float]) -> float:
     canonical_id = canonical_id_from_result(result)
+
     if canonical_id and canonical_id in grades_by_id:
         return float(grades_by_id[canonical_id])
+
+    expected = case.get("expected") or {}
+
+    # If a case has explicit canonical relevance labels, evaluate it strictly.
+    # This prevents weak title/term matching from making the benchmark too easy.
+    strict_canonical_relevance = bool(
+        expected.get("strict_canonical_relevance", bool(grades_by_id))
+    )
+
+    if grades_by_id and strict_canonical_relevance:
+        return 0.0
+
     return weak_relevance_grade(result, case)
 
 
