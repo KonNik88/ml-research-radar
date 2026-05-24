@@ -23,11 +23,13 @@ analysis:
 experiments:
   include_baselines: true
 
-  # v1.0 keeps candidate_k fixed at the current effective baseline:
-  # search_top_k=20 -> current candidate pool is 100 via max(top_k, top_k*5, 50).
-  # Later versions can expand this to [50, 100, 200].
+  # v1.1 expands candidate_k after adding query-level lexical/dense caching.
+  # Dense and lexical retrieval are computed once per query at max(candidate_k_values),
+  # then sliced for smaller candidate pools.
   candidate_k_values:
+    - 50
     - 100
+    - 200
 
   rank_modes:
     - false
@@ -52,8 +54,8 @@ experiments:
 
 thresholds:
   min_enabled_cases: 10
-  min_variants_count: 10
-  min_hybrid_variants_count: 5
+  min_variants_count: 30
+  min_hybrid_variants_count: 30
   require_baselines: true
   require_recommendations_non_empty: true
   require_rank_effects: true

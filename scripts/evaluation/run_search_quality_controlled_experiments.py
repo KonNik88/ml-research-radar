@@ -27,7 +27,6 @@ from scripts.evaluation.run_retrieval_eval import (
 from services.api.runtime import get_runtime
 from services.api.search_service import (
     _dense_search_with_model,
-    _hybrid_search_with_model,
     _lexical_results_to_dicts,
     _load_search_scoring_params,
 )
@@ -111,6 +110,20 @@ def load_yaml(path: Path) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ValueError(f"Config must be a YAML mapping: {path}")
     return payload
+
+
+def minmax_normalize(score_map: dict[str, float]) -> dict[str, float]:
+    if not score_map:
+        return {}
+
+    values = list(score_map.values())
+    min_v = min(values)
+    max_v = max(values)
+
+    if abs(max_v - min_v) < 1e-12:
+        return {k: 1.0 for k in score_map}
+
+    return {k: (v - min_v) / (max_v - min_v) for k, v in score_map.items()}
 
 
 def build_runtime(backend_mode: str):
@@ -228,12 +241,23 @@ def make_variant_id(
     return "__".join(parts)
 
 
+def candidate_k_values_from_config(config: dict[str, Any], search_top_k: int) -> list[int]:
+    experiments = config.get("experiments") or {}
+    values = [int(x) for x in experiments.get("candidate_k_values") or [max(search_top_k * 5, 50)]]
+    values = sorted(set(v for v in values if v >= search_top_k))
+    if not values:
+        values = [max(search_top_k * 5, 50)]
+    return values
+
+
 def build_variants(config: dict[str, Any], search_top_k: int) -> list[dict[str, Any]]:
     experiments = config.get("experiments") or {}
+    candidate_k_values = candidate_k_values_from_config(config, search_top_k)
+    baseline_candidate_k = max(candidate_k_values)
+
     variants: list[dict[str, Any]] = []
 
     if bool(experiments.get("include_baselines", True)):
-        baseline_candidate_k = max(search_top_k * 5, 50)
         variants.extend(
             [
                 {
@@ -267,7 +291,6 @@ def build_variants(config: dict[str, Any], search_top_k: int) -> list[dict[str, 
             ]
         )
 
-    candidate_k_values = [int(x) for x in experiments.get("candidate_k_values") or [max(search_top_k * 5, 50)]]
     rank_modes = [bool(x) for x in experiments.get("rank_modes") or [False, True]]
     weights = experiments.get("hybrid_weights") or []
 
@@ -298,14 +321,12 @@ def build_variants(config: dict[str, Any], search_top_k: int) -> list[dict[str, 
     return variants
 
 
-def run_variant(
+def prepare_query_cache(
     *,
     runtime: Any,
     query: str,
-    variant: dict[str, Any],
-    search_top_k: int,
-    scoring_params: dict[str, float],
-) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    max_candidate_k: int,
+) -> dict[str, Any]:
     documents = runtime.documents
     lexical_artifacts = runtime.lexical_artifacts
     dense_artifacts = runtime.dense_artifacts
@@ -314,57 +335,158 @@ def run_variant(
     if lexical_artifacts is None or dense_artifacts is None or embedding_model is None:
         raise RuntimeError("File runtime retrieval artifacts are not initialized")
 
+    t_lexical = time.perf_counter()
+    lexical_results = lexical_artifacts.index.search(query=query, top_k=max_candidate_k)
+    lexical_candidates = _lexical_results_to_dicts(lexical_results)
+    lexical_ms = round((time.perf_counter() - t_lexical) * 1000.0, 3)
+
+    t_dense = time.perf_counter()
+    dense_candidates = _dense_search_with_model(
+        query=query,
+        documents=documents,
+        embeddings=dense_artifacts.embeddings,
+        ids=dense_artifacts.ids,
+        embedding_model=embedding_model,
+        top_k=max_candidate_k,
+    )
+    dense_ms = round((time.perf_counter() - t_dense) * 1000.0, 3)
+
+    return {
+        "max_candidate_k": max_candidate_k,
+        "lexical_candidates": lexical_candidates,
+        "dense_candidates": dense_candidates,
+        "retrieval_cache_timing_ms": {
+            "lexical_ms": lexical_ms,
+            "dense_ms": dense_ms,
+        },
+    }
+
+
+def build_hybrid_candidates_from_cache(
+    *,
+    runtime: Any,
+    query_cache: dict[str, Any],
+    candidate_k: int,
+    lexical_weight: float,
+    dense_weight: float,
+) -> tuple[list[dict[str, Any]], dict[str, float]]:
+    t_merge = time.perf_counter()
+
+    lexical_candidates = list(query_cache["lexical_candidates"][:candidate_k])
+    dense_candidates = list(query_cache["dense_candidates"][:candidate_k])
+
+    lexical_score_map = {
+        str(candidate["canonical_id"]): float(candidate.get("score", 0.0))
+        for candidate in lexical_candidates
+    }
+    dense_score_map = {
+        str(candidate["canonical_id"]): float(candidate.get("score", 0.0))
+        for candidate in dense_candidates
+    }
+
+    lexical_norm = minmax_normalize(lexical_score_map)
+    dense_norm = minmax_normalize(dense_score_map)
+
+    all_ids = set(lexical_norm) | set(dense_norm)
+    id_to_doc = {doc.canonical_id: doc for doc in runtime.documents}
+
+    combined: list[dict[str, Any]] = []
+    for canonical_id in all_ids:
+        doc = id_to_doc.get(canonical_id)
+        if doc is None:
+            continue
+
+        lexical_score = lexical_score_map.get(canonical_id, 0.0)
+        dense_score = dense_score_map.get(canonical_id, 0.0)
+
+        hybrid_score = (
+            lexical_weight * lexical_norm.get(canonical_id, 0.0)
+            + dense_weight * dense_norm.get(canonical_id, 0.0)
+        )
+
+        combined.append(
+            {
+                "canonical_id": canonical_id,
+                "hybrid_score": float(hybrid_score),
+                "lexical_score": float(lexical_score),
+                "dense_score": float(dense_score),
+                "title": doc.title,
+                "year": doc.year,
+                "doi": doc.doi,
+                "source_count": int(doc.source_count or 0),
+                "document": doc,
+            }
+        )
+
+    combined.sort(key=lambda x: x["hybrid_score"], reverse=True)
+    merge_ms = round((time.perf_counter() - t_merge) * 1000.0, 3)
+
+    return combined, {"hybrid_merge_ms": merge_ms}
+
+
+def estimated_query_ms_for_variant(
+    *,
+    mode: str,
+    query_cache: dict[str, Any],
+    timings: dict[str, float],
+) -> float:
+    cache_timing = query_cache.get("retrieval_cache_timing_ms") or {}
+
+    if mode == "lexical":
+        return safe_float(cache_timing.get("lexical_ms"))
+
+    if mode == "dense":
+        return safe_float(cache_timing.get("dense_ms"))
+
+    if mode == "hybrid":
+        return round(
+            safe_float(cache_timing.get("lexical_ms"))
+            + safe_float(cache_timing.get("dense_ms"))
+            + safe_float(timings.get("hybrid_merge_ms"))
+            + safe_float(timings.get("rank_ms")),
+            3,
+        )
+
+    return safe_float(timings.get("eval_wall_ms"))
+
+
+def run_variant(
+    *,
+    runtime: Any,
+    query_cache: dict[str, Any],
+    variant: dict[str, Any],
+    search_top_k: int,
+    scoring_params: dict[str, float],
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     candidate_k = int(variant["candidate_k"])
     mode = variant["mode"]
 
     t0 = time.perf_counter()
-    retrieval_timings: dict[str, float] = {}
+    timings: dict[str, float] = {}
 
     if mode == "lexical":
-        t_retrieve = time.perf_counter()
-        lexical_results = lexical_artifacts.index.search(query=query, top_k=candidate_k)
-        raw_candidates = _lexical_results_to_dicts(lexical_results)
-        retrieval_timings["retrieve_ms"] = round((time.perf_counter() - t_retrieve) * 1000.0, 3)
+        raw_candidates = list(query_cache["lexical_candidates"][:candidate_k])
         eval_results = [
             candidate_to_eval_result(candidate)
             for candidate in raw_candidates[:search_top_k]
         ]
 
     elif mode == "dense":
-        t_retrieve = time.perf_counter()
-        raw_candidates = _dense_search_with_model(
-            query=query,
-            documents=documents,
-            embeddings=dense_artifacts.embeddings,
-            ids=dense_artifacts.ids,
-            embedding_model=embedding_model,
-            top_k=candidate_k,
-        )
-        retrieval_timings["retrieve_ms"] = round((time.perf_counter() - t_retrieve) * 1000.0, 3)
+        raw_candidates = list(query_cache["dense_candidates"][:candidate_k])
         eval_results = [
             candidate_to_eval_result(candidate)
             for candidate in raw_candidates[:search_top_k]
         ]
 
     elif mode == "hybrid":
-        raw_candidates, hybrid_timings = _hybrid_search_with_model(
-            query=query,
-            documents=documents,
-            lexical_index=lexical_artifacts.index,
-            dense_embeddings=dense_artifacts.embeddings,
-            dense_ids=dense_artifacts.ids,
-            embedding_model=embedding_model,
-            top_k=candidate_k,
+        raw_candidates, merge_timings = build_hybrid_candidates_from_cache(
+            runtime=runtime,
+            query_cache=query_cache,
+            candidate_k=candidate_k,
             lexical_weight=safe_float(variant.get("lexical_weight"), 0.55),
             dense_weight=safe_float(variant.get("dense_weight"), 0.45),
         )
-        retrieval_timings.update(hybrid_timings)
-        retrieval_timings["retrieve_ms"] = round(
-            safe_float(hybrid_timings.get("lexical_ms"))
-            + safe_float(hybrid_timings.get("dense_ms"))
-            + safe_float(hybrid_timings.get("hybrid_merge_ms")),
-            3,
-        )
+        timings.update(merge_timings)
 
         if bool(variant.get("rank")):
             t_rank = time.perf_counter()
@@ -376,7 +498,7 @@ def run_variant(
                 source_support_weight=scoring_params["ranking_source_support_weight"],
                 metadata_quality_weight=scoring_params["ranking_metadata_quality_weight"],
             )
-            retrieval_timings["rank_ms"] = round((time.perf_counter() - t_rank) * 1000.0, 3)
+            timings["rank_ms"] = round((time.perf_counter() - t_rank) * 1000.0, 3)
             eval_results = [
                 ranked_to_eval_result(item)
                 for item in ranked_results[:search_top_k]
@@ -390,10 +512,14 @@ def run_variant(
     else:
         raise ValueError(f"Unsupported experiment mode: {mode}")
 
-    wall_ms = round((time.perf_counter() - t0) * 1000.0, 3)
-    retrieval_timings["wall_ms"] = wall_ms
+    timings["eval_wall_ms"] = round((time.perf_counter() - t0) * 1000.0, 3)
+    timings["estimated_query_ms"] = estimated_query_ms_for_variant(
+        mode=mode,
+        query_cache=query_cache,
+        timings=timings,
+    )
 
-    return eval_results, retrieval_timings
+    return eval_results, timings
 
 
 def summarize_variants(
@@ -413,22 +539,27 @@ def summarize_variants(
             if run.get("variant_id") == variant_id and not run.get("error")
         ]
 
-        primary_metrics = [
-            run.get("metrics", {}).get(str(primary_k)) or {}
-            for run in variant_runs
-        ]
-        latencies = [safe_float(run.get("timing_ms_wall")) for run in variant_runs]
+        estimated_latencies = [safe_float(run.get("estimated_query_ms")) for run in variant_runs]
+        eval_wall_latencies = [safe_float(run.get("eval_wall_ms")) for run in variant_runs]
 
         summary: dict[str, Any] = {
             **variant,
             "runs_count": len(variant_runs),
             "error_count": len([run for run in runs if run.get("variant_id") == variant_id and run.get("error")]),
-            "latency_ms": {
-                "p50": percentile(latencies, 0.50),
-                "p95": percentile(latencies, 0.95),
-                "mean": round(float(statistics.mean(latencies)), 3) if latencies else None,
+            "estimated_query_latency_ms": {
+                "p50": percentile(estimated_latencies, 0.50),
+                "p95": percentile(estimated_latencies, 0.95),
+                "mean": round(float(statistics.mean(estimated_latencies)), 3) if estimated_latencies else None,
+            },
+            "eval_wall_latency_ms": {
+                "p50": percentile(eval_wall_latencies, 0.50),
+                "p95": percentile(eval_wall_latencies, 0.95),
+                "mean": round(float(statistics.mean(eval_wall_latencies)), 3) if eval_wall_latencies else None,
             },
         }
+
+        # Backward-compatible alias used by the first v1.0 report/validator.
+        summary["latency_ms"] = summary["estimated_query_latency_ms"]
 
         for k in top_k_values:
             metrics_k = [
@@ -447,7 +578,7 @@ def summarize_variants(
         }
         summary["quality_composite"] = compute_quality_composite(composite_input, quality_weights)
 
-        p50 = summary["latency_ms"]["p50"]
+        p50 = summary["estimated_query_latency_ms"]["p50"]
         summary["quality_per_second_p50"] = (
             round(summary["quality_composite"] / (safe_float(p50) / 1000.0), 6)
             if p50 and safe_float(p50) > 0
@@ -504,12 +635,30 @@ def rank_variants(variant_summary: list[dict[str, Any]], primary_k: int) -> dict
             "mode": item["mode"],
             "rank": item.get("rank"),
             "candidate_k": item.get("candidate_k"),
-            "value": (item.get("latency_ms") or {}).get("p50"),
+            "value": (item.get("estimated_query_latency_ms") or {}).get("p50"),
         }
         for item in variant_summary
-        if (item.get("latency_ms") or {}).get("p50") is not None
+        if (item.get("estimated_query_latency_ms") or {}).get("p50") is not None
     ]
     latency_rows.sort(key=lambda x: safe_float(x["value"]))
+    rankings["estimated_query_latency_p50_ms"] = latency_rows
+
+    eval_wall_rows = [
+        {
+            "variant_id": item["variant_id"],
+            "variant_type": item["variant_type"],
+            "mode": item["mode"],
+            "rank": item.get("rank"),
+            "candidate_k": item.get("candidate_k"),
+            "value": (item.get("eval_wall_latency_ms") or {}).get("p50"),
+        }
+        for item in variant_summary
+        if (item.get("eval_wall_latency_ms") or {}).get("p50") is not None
+    ]
+    eval_wall_rows.sort(key=lambda x: safe_float(x["value"]))
+    rankings["eval_wall_latency_p50_ms"] = eval_wall_rows
+
+    # Backward-compatible key name.
     rankings["latency_p50_ms"] = latency_rows
 
     return rankings
@@ -520,7 +669,7 @@ def build_pareto_frontier(variant_summary: list[dict[str, Any]]) -> list[dict[st
 
     for item in variant_summary:
         quality = safe_float(item.get("quality_composite"))
-        latency = (item.get("latency_ms") or {}).get("p50")
+        latency = (item.get("estimated_query_latency_ms") or {}).get("p50")
         if latency is None:
             continue
         latency_f = safe_float(latency)
@@ -529,7 +678,7 @@ def build_pareto_frontier(variant_summary: list[dict[str, Any]]) -> list[dict[st
         for other in variant_summary:
             if other["variant_id"] == item["variant_id"]:
                 continue
-            other_latency = (other.get("latency_ms") or {}).get("p50")
+            other_latency = (other.get("estimated_query_latency_ms") or {}).get("p50")
             if other_latency is None:
                 continue
             other_quality = safe_float(other.get("quality_composite"))
@@ -554,12 +703,13 @@ def build_pareto_frontier(variant_summary: list[dict[str, Any]]) -> list[dict[st
                     "lexical_weight": item.get("lexical_weight"),
                     "dense_weight": item.get("dense_weight"),
                     "quality_composite": quality,
-                    "latency_p50_ms": latency_f,
+                    "estimated_query_latency_p50_ms": latency_f,
+                    "eval_wall_latency_p50_ms": (item.get("eval_wall_latency_ms") or {}).get("p50"),
                     "quality_per_second_p50": item.get("quality_per_second_p50"),
                 }
             )
 
-    frontier.sort(key=lambda x: (-safe_float(x["quality_composite"]), safe_float(x["latency_p50_ms"])))
+    frontier.sort(key=lambda x: (-safe_float(x["quality_composite"]), safe_float(x["estimated_query_latency_p50_ms"])))
     return frontier
 
 
@@ -607,9 +757,14 @@ def build_rank_effects(
                     - safe_float(unranked.get("quality_composite")),
                     6,
                 ),
-                "latency_p50_ms_delta": round(
-                    safe_float((ranked.get("latency_ms") or {}).get("p50"))
-                    - safe_float((unranked.get("latency_ms") or {}).get("p50")),
+                "estimated_query_latency_p50_ms_delta": round(
+                    safe_float((ranked.get("estimated_query_latency_ms") or {}).get("p50"))
+                    - safe_float((unranked.get("estimated_query_latency_ms") or {}).get("p50")),
+                    3,
+                ),
+                "eval_wall_latency_p50_ms_delta": round(
+                    safe_float((ranked.get("eval_wall_latency_ms") or {}).get("p50"))
+                    - safe_float((unranked.get("eval_wall_latency_ms") or {}).get("p50")),
                     3,
                 ),
                 "ranked_variant_id": ranked["variant_id"],
@@ -649,7 +804,8 @@ def build_weight_effects(
                 f"recall_at_{primary_k}": item.get(f"recall_at_{primary_k}"),
                 f"ndcg_at_{primary_k}": item.get(f"ndcg_at_{primary_k}"),
                 "quality_composite": item.get("quality_composite"),
-                "latency_p50_ms": (item.get("latency_ms") or {}).get("p50"),
+                "estimated_query_latency_p50_ms": (item.get("estimated_query_latency_ms") or {}).get("p50"),
+                "eval_wall_latency_p50_ms": (item.get("eval_wall_latency_ms") or {}).get("p50"),
             }
         )
 
@@ -697,7 +853,8 @@ def build_query_winners(
                     "ndcg": safe_float(m.get("ndcg")),
                     "mrr": safe_float(m.get("mrr")),
                     "hit": safe_float(m.get("hit")),
-                    "timing_ms_wall": run.get("timing_ms_wall"),
+                    "estimated_query_ms": run.get("estimated_query_ms"),
+                    "eval_wall_ms": run.get("eval_wall_ms"),
                 }
             )
 
@@ -718,6 +875,25 @@ def build_query_winners(
     return out
 
 
+def build_cache_summary(query_cache_meta: list[dict[str, Any]]) -> dict[str, Any]:
+    lexical_times = [safe_float(item.get("lexical_ms")) for item in query_cache_meta]
+    dense_times = [safe_float(item.get("dense_ms")) for item in query_cache_meta]
+
+    return {
+        "queries_cached": len(query_cache_meta),
+        "lexical_ms": {
+            "p50": percentile(lexical_times, 0.50),
+            "p95": percentile(lexical_times, 0.95),
+            "mean": round(float(statistics.mean(lexical_times)), 3) if lexical_times else None,
+        },
+        "dense_ms": {
+            "p50": percentile(dense_times, 0.50),
+            "p95": percentile(dense_times, 0.95),
+            "mean": round(float(statistics.mean(dense_times)), 3) if dense_times else None,
+        },
+    }
+
+
 def build_recommendations(
     *,
     rankings: dict[str, list[dict[str, Any]]],
@@ -734,7 +910,7 @@ def build_recommendations(
     best_quality = top_variant("quality_composite")
     best_recall = top_variant(f"recall_at_{primary_k}")
     best_ndcg = top_variant(f"ndcg_at_{primary_k}")
-    fastest = top_variant("latency_p50_ms")
+    fastest = top_variant("estimated_query_latency_p50_ms") or top_variant("latency_p50_ms")
     best_tradeoff = top_variant("quality_per_second_p50")
 
     if best_quality:
@@ -778,7 +954,7 @@ def build_recommendations(
                 "type": "latency_baseline",
                 "priority": "medium",
                 "message": (
-                    f"`{fastest['variant_id']}` is fastest by p50 latency. "
+                    f"`{fastest['variant_id']}` is fastest by estimated p50 query latency. "
                     "If this is a dense baseline, it remains the practical serving-speed reference."
                 ),
             }
@@ -858,15 +1034,27 @@ def build_markdown(report: dict[str, Any]) -> str:
     lines.append(f"- Corpus doc count: `{report['runtime'].get('corpus_doc_count')}`")
     lines.append(f"- Enabled cases: **{report['summary']['enabled_cases_count']}**")
     lines.append(f"- Variants: **{report['summary']['variants_count']}**")
+    lines.append(f"- Runs: **{report['summary']['runs_count']}**")
     lines.append(f"- Primary k: **{primary_k}**")
+    lines.append("")
+    lines.append("> `estimated_query_latency_ms` approximates query latency using cached lexical/dense retrieval timings plus per-variant merge/rank cost. `eval_wall_latency_ms` is the actual runner wall time after cache reuse and should not be interpreted as production latency.")
+    lines.append("")
+
+    lines.append("## Cache summary")
+    lines.append("")
+    cache = report.get("cache_summary") or {}
+    lines.append(f"- Queries cached: **{cache.get('queries_cached')}**")
+    lines.append(f"- Lexical p50 ms: `{(cache.get('lexical_ms') or {}).get('p50')}`")
+    lines.append(f"- Dense p50 ms: `{(cache.get('dense_ms') or {}).get('p50')}`")
     lines.append("")
 
     lines.append("## Variant summary")
     lines.append("")
-    lines.append("| Variant | Type | Rank | k | Lex | Dense | Recall@K | MRR@K | nDCG@K | Composite | p50 ms | Quality/sec |")
-    lines.append("|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
+    lines.append("| Variant | Type | Rank | k | Lex | Dense | Recall@K | MRR@K | nDCG@K | Composite | Est p50 ms | Eval p50 ms | Quality/sec |")
+    lines.append("|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
     for row in report["variant_summary"]:
-        lat = row.get("latency_ms") or {}
+        est = row.get("estimated_query_latency_ms") or {}
+        eval_wall = row.get("eval_wall_latency_ms") or {}
         lines.append(
             f"| `{row['variant_id']}` | `{row['variant_type']}` | "
             f"{row.get('rank')} | {row.get('candidate_k')} | "
@@ -875,7 +1063,8 @@ def build_markdown(report: dict[str, Any]) -> str:
             f"{row.get(f'mrr_at_{primary_k}', 0):.3f} | "
             f"{row.get(f'ndcg_at_{primary_k}', 0):.3f} | "
             f"{row.get('quality_composite', 0):.3f} | "
-            f"{lat.get('p50')} | "
+            f"{est.get('p50')} | "
+            f"{eval_wall.get('p50')} | "
             f"{row.get('quality_per_second_p50')} |"
         )
     lines.append("")
@@ -891,13 +1080,14 @@ def build_markdown(report: dict[str, Any]) -> str:
     lines.append("## Pareto frontier")
     lines.append("")
     if report["pareto_frontier"]:
-        lines.append("| Variant | Composite | p50 ms | Quality/sec |")
-        lines.append("|---|---:|---:|---:|")
+        lines.append("| Variant | Composite | Est p50 ms | Eval p50 ms | Quality/sec |")
+        lines.append("|---|---:|---:|---:|---:|")
         for item in report["pareto_frontier"]:
             lines.append(
                 f"| `{item['variant_id']}` | "
                 f"{item['quality_composite']:.3f} | "
-                f"{item['latency_p50_ms']:.3f} | "
+                f"{item['estimated_query_latency_p50_ms']:.3f} | "
+                f"{item.get('eval_wall_latency_p50_ms')} | "
                 f"{item.get('quality_per_second_p50')} |"
             )
     else:
@@ -907,15 +1097,16 @@ def build_markdown(report: dict[str, Any]) -> str:
     lines.append("## Rank effects")
     lines.append("")
     if report["rank_effects"]:
-        lines.append("| k | Lex | Dense | ΔRecall@K | ΔnDCG@K | ΔComposite | Δp50 ms |")
-        lines.append("|---:|---:|---:|---:|---:|---:|---:|")
+        lines.append("| k | Lex | Dense | ΔRecall@K | ΔnDCG@K | ΔComposite | ΔEst p50 ms | ΔEval p50 ms |")
+        lines.append("|---:|---:|---:|---:|---:|---:|---:|---:|")
         for item in report["rank_effects"]:
             lines.append(
                 f"| {item['candidate_k']} | {item['lexical_weight']:.2f} | {item['dense_weight']:.2f} | "
                 f"{item.get(f'recall_at_{primary_k}_delta', 0):+.3f} | "
                 f"{item.get(f'ndcg_at_{primary_k}_delta', 0):+.3f} | "
                 f"{item.get('quality_composite_delta', 0):+.3f} | "
-                f"{item.get('latency_p50_ms_delta', 0):+.3f} |"
+                f"{item.get('estimated_query_latency_p50_ms_delta', 0):+.3f} | "
+                f"{item.get('eval_wall_latency_p50_ms_delta', 0):+.3f} |"
             )
     else:
         lines.append("- none")
@@ -924,8 +1115,8 @@ def build_markdown(report: dict[str, Any]) -> str:
     lines.append("## Weight effects")
     lines.append("")
     if report["weight_effects"]:
-        lines.append("| Variant | Rank | k | Lex | Dense | Recall@K | nDCG@K | Composite | p50 ms |")
-        lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|")
+        lines.append("| Variant | Rank | k | Lex | Dense | Recall@K | nDCG@K | Composite | Est p50 ms | Eval p50 ms |")
+        lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
         for item in report["weight_effects"]:
             lines.append(
                 f"| `{item['variant_id']}` | {item.get('rank')} | {item.get('candidate_k')} | "
@@ -933,7 +1124,8 @@ def build_markdown(report: dict[str, Any]) -> str:
                 f"{item.get(f'recall_at_{primary_k}', 0):.3f} | "
                 f"{item.get(f'ndcg_at_{primary_k}', 0):.3f} | "
                 f"{item.get('quality_composite', 0):.3f} | "
-                f"{item.get('latency_p50_ms')} |"
+                f"{item.get('estimated_query_latency_p50_ms')} | "
+                f"{item.get('eval_wall_latency_p50_ms')} |"
             )
     else:
         lines.append("- none")
@@ -970,7 +1162,7 @@ def build_markdown(report: dict[str, Any]) -> str:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Run controlled search quality experiments over retrieval weights/rank settings. "
+            "Run controlled search quality experiments over retrieval weights/rank/candidate_k settings. "
             "This script is evaluation-only and does not modify API defaults."
         )
     )
@@ -998,7 +1190,7 @@ def main() -> None:
     top_k_values = [int(k) for k in defaults.get("top_k_values") or [5, 10, 20]]
     if primary_k not in top_k_values:
         top_k_values.append(primary_k)
-    top_k_values = sorted(set(k for k in top_k_values if k > 0))
+    top_k_values = sorted(set(top_k_values))
     search_top_k = int(defaults.get("search_top_k") or max(top_k_values))
 
     quality_weights = analysis.get("quality_composite_weights") or {
@@ -1018,18 +1210,37 @@ def main() -> None:
     scoring_params = _load_search_scoring_params()
 
     variants = build_variants(config, search_top_k=search_top_k)
+    max_candidate_k = max(int(variant.get("candidate_k") or 0) for variant in variants)
+
     runs: list[dict[str, Any]] = []
+    query_cache_meta: list[dict[str, Any]] = []
 
     for case in enabled_cases:
         query = str(case.get("query") or "").strip()
         if not query:
             continue
 
+        query_cache = prepare_query_cache(
+            runtime=runtime,
+            query=query,
+            max_candidate_k=max_candidate_k,
+        )
+        cache_timing = query_cache.get("retrieval_cache_timing_ms") or {}
+        query_cache_meta.append(
+            {
+                "query_id": str(case.get("query_id") or ""),
+                "query": query,
+                "max_candidate_k": max_candidate_k,
+                "lexical_ms": cache_timing.get("lexical_ms"),
+                "dense_ms": cache_timing.get("dense_ms"),
+            }
+        )
+
         for variant in variants:
             try:
                 eval_results, timings = run_variant(
                     runtime=runtime,
-                    query=query,
+                    query_cache=query_cache,
                     variant=variant,
                     search_top_k=search_top_k,
                     scoring_params=scoring_params,
@@ -1052,7 +1263,8 @@ def main() -> None:
                         "lexical_weight": variant.get("lexical_weight"),
                         "dense_weight": variant.get("dense_weight"),
                         "results_count": len(eval_results),
-                        "timing_ms_wall": timings.get("wall_ms"),
+                        "estimated_query_ms": timings.get("estimated_query_ms"),
+                        "eval_wall_ms": timings.get("eval_wall_ms"),
                         "timings": timings,
                         "metrics": metrics,
                         "top_results": [
@@ -1077,7 +1289,8 @@ def main() -> None:
                         "lexical_weight": variant.get("lexical_weight"),
                         "dense_weight": variant.get("dense_weight"),
                         "results_count": 0,
-                        "timing_ms_wall": None,
+                        "estimated_query_ms": None,
+                        "eval_wall_ms": None,
                         "timings": {},
                         "metrics": {},
                         "top_results": [],
@@ -1113,6 +1326,7 @@ def main() -> None:
         rank_effects=rank_effects,
         primary_k=primary_k,
     )
+    cache_summary = build_cache_summary(query_cache_meta)
 
     report = {
         "schema_version": "search_quality_controlled_experiments_v1",
@@ -1128,6 +1342,7 @@ def main() -> None:
             "primary_k": primary_k,
             "top_k_values": top_k_values,
             "search_top_k": search_top_k,
+            "max_candidate_k": max_candidate_k,
             "quality_composite_weights": quality_weights,
         },
         "runtime": {
@@ -1144,7 +1359,10 @@ def main() -> None:
             "runs_count": len(runs),
             "error_count": len([run for run in runs if run.get("error")]),
             "hybrid_variants_count": len([variant for variant in variants if variant.get("variant_type") == "hybrid"]),
+            "max_candidate_k": max_candidate_k,
         },
+        "cache_summary": cache_summary,
+        "query_cache_meta": query_cache_meta,
         "variants": variants,
         "variant_summary": variant_summary,
         "rankings": rankings,
@@ -1173,6 +1391,8 @@ def main() -> None:
     print(f"[OK] variants_count={len(variants)}")
     print(f"[OK] runs_count={len(runs)}")
     print(f"[OK] error_count={report['summary']['error_count']}")
+    print(f"[OK] max_candidate_k={max_candidate_k}")
+    print(f"[OK] cache_queries={cache_summary['queries_cached']}")
     print(f"[OK] pareto_frontier_count={len(pareto_frontier)}")
     print(f"[OK] recommendations_count={len(recommendations)}")
     print(f"[OK] latest JSON: {latest_json}")
