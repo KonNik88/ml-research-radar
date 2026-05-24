@@ -108,6 +108,27 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
             ]
         )
 
+    if args.include_search_quality_experiments:
+        steps.extend(
+            [
+                Step(
+                    name="run_search_quality_experiments",
+                    cmd=python_cmd(
+                        "scripts.evaluation.run_search_quality_experiments",
+                    ),
+                    env=file_env,
+                ),
+                Step(
+                    name="check_search_quality_experiments",
+                    cmd=python_cmd(
+                        "scripts.validation.check_search_quality_experiments",
+                        "--strict",
+                    ),
+                    env=file_env,
+                ),
+            ]
+        )
+
     if not args.skip_similar_rebuild:
         steps.extend(
             [
@@ -188,6 +209,15 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Also run retrieval evaluation v1 and strict retrieval eval quality check. "
             "Uses file backend and does not require a live API server."
+        ),
+    )
+    parser.add_argument(
+        "--include-search-quality-experiments",
+        action="store_true",
+        help=(
+            "Also run search quality experiments v1 and strict quality check. "
+            "This analyzes retrieval_eval_latest.json; use together with "
+            "--include-retrieval-eval when you want a fresh retrieval eval report."
         ),
     )
     parser.add_argument(
