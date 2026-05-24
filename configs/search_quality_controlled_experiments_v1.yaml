@@ -1,0 +1,60 @@
+schema_version: search_quality_controlled_experiments_v1
+
+defaults:
+  backend_mode: file
+  primary_k: 10
+  top_k_values:
+    - 5
+    - 10
+    - 20
+  search_top_k: 20
+
+paths:
+  golden_queries_path: data/eval/retrieval/golden_queries.jsonl
+  output_dir: artifacts/reports/evaluation
+  validation_output_dir: artifacts/reports/validation
+
+analysis:
+  quality_composite_weights:
+    recall: 0.40
+    ndcg: 0.40
+    mrr: 0.20
+
+experiments:
+  include_baselines: true
+
+  # v1.0 keeps candidate_k fixed at the current effective baseline:
+  # search_top_k=20 -> current candidate pool is 100 via max(top_k, top_k*5, 50).
+  # Later versions can expand this to [50, 100, 200].
+  candidate_k_values:
+    - 100
+
+  rank_modes:
+    - false
+    - true
+
+  hybrid_weights:
+    - name: lexical_075_dense_025
+      lexical_weight: 0.75
+      dense_weight: 0.25
+    - name: lexical_060_dense_040
+      lexical_weight: 0.60
+      dense_weight: 0.40
+    - name: baseline_055_dense_045
+      lexical_weight: 0.55
+      dense_weight: 0.45
+    - name: lexical_040_dense_060
+      lexical_weight: 0.40
+      dense_weight: 0.60
+    - name: lexical_025_dense_075
+      lexical_weight: 0.25
+      dense_weight: 0.75
+
+thresholds:
+  min_enabled_cases: 10
+  min_variants_count: 10
+  min_hybrid_variants_count: 5
+  require_baselines: true
+  require_recommendations_non_empty: true
+  require_rank_effects: true
+  require_metrics_finite: true
