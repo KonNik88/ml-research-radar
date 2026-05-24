@@ -1,0 +1,152 @@
+schema_version: golden_labeling_v1
+
+defaults:
+  backend_mode: file
+  modes:
+    - lexical
+    - dense
+    - hybrid
+    - hybrid_ranked
+  top_k: 20
+  max_candidates_per_query: 30
+
+paths:
+  output_dir: artifacts/reports/evaluation
+  validation_output_dir: artifacts/reports/validation
+
+queries:
+  - query_id: rag_evaluation_001
+    enabled: true
+    group: retrieval_rag
+    query: rag evaluation benchmarks
+    intent: Find papers about evaluation methods, benchmarks, metrics, or reliability checks for retrieval-augmented generation systems.
+    expected_terms:
+      title_substrings: []
+      must_have_any_terms:
+        - retrieval augmented generation
+        - rag evaluation
+        - benchmark
+        - hallucination
+        - factuality
+
+  - query_id: scientific_reranking_001
+    enabled: true
+    group: retrieval_ranking
+    query: scientific paper reranking neural retrieval
+    intent: Find papers about reranking, neural retrieval, or ranking scientific papers/documents.
+    expected_terms:
+      title_substrings: []
+      must_have_any_terms:
+        - reranking
+        - neural retrieval
+        - scientific documents
+        - ranking
+
+  - query_id: multimodal_retrieval_001
+    enabled: true
+    group: multimodal_retrieval
+    query: multimodal retrieval vision language models
+    intent: Find papers about multimodal retrieval, vision-language retrieval, CLIP-like retrieval, or image-text search.
+    expected_terms:
+      title_substrings: []
+      must_have_any_terms:
+        - multimodal retrieval
+        - vision language
+        - image text
+        - clip
+
+  - query_id: graph_rag_001
+    enabled: true
+    group: graph_ml
+    query: graph retrieval augmented generation
+    intent: Find papers about graph-based RAG, GraphRAG, knowledge graph retrieval, or graph-enhanced language generation.
+    expected_terms:
+      title_substrings: []
+      must_have_any_terms:
+        - graph retrieval
+        - graphrag
+        - knowledge graph
+        - retrieval augmented
+
+  - query_id: llm_agents_tools_001
+    enabled: true
+    group: agents
+    query: large language model agents tool use
+    intent: Find papers about LLM agents, tool use, planning, action, or tool-augmented reasoning.
+    expected_terms:
+      title_substrings: []
+      must_have_any_terms:
+        - agents
+        - tool use
+        - planning
+        - large language models
+
+  - query_id: diffusion_transformers_001
+    enabled: true
+    group: generative_models
+    query: diffusion transformers
+    intent: Find papers about diffusion transformers, transformer-based diffusion models, or DiT-style generative models.
+    expected_terms:
+      title_substrings: []
+      must_have_any_terms:
+        - diffusion transformer
+        - diffusion models
+        - transformer
+
+  - query_id: protein_structure_prediction_001
+    enabled: true
+    group: bio_ml
+    query: protein structure prediction deep learning
+    intent: Find papers about deep learning for protein structure prediction, AlphaFold-like methods, or protein folding.
+    expected_terms:
+      title_substrings: []
+      must_have_any_terms:
+        - protein structure
+        - structure prediction
+        - protein folding
+        - alphafold
+
+  - query_id: tabular_deep_learning_001
+    enabled: true
+    group: tabular_ml
+    query: tabular deep learning transformers
+    intent: Find papers about deep learning for tabular data, tabular transformers, or neural tabular models.
+    expected_terms:
+      title_substrings: []
+      must_have_any_terms:
+        - tabular
+        - transformer
+        - deep learning
+
+  - query_id: self_supervised_vision_001
+    enabled: true
+    group: self_supervised_learning
+    query: self supervised visual representation learning
+    intent: Find papers about self-supervised learning for computer vision and visual representation learning.
+    expected_terms:
+      title_substrings: []
+      must_have_any_terms:
+        - self supervised
+        - visual representation
+        - contrastive learning
+        - vision
+
+  - query_id: audio_language_models_001
+    enabled: true
+    group: audio_ml
+    query: audio language models speech generation
+    intent: Find papers about audio language models, speech generation, speech language models, or neural codecs.
+    expected_terms:
+      title_substrings: []
+      must_have_any_terms:
+        - audio language model
+        - speech generation
+        - speech language model
+        - neural codec
+
+thresholds:
+  min_enabled_queries: 5
+  min_modes_count: 4
+  min_candidates_per_query: 5
+  require_jsonl_templates: true
+  require_markdown_sections: true
