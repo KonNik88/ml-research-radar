@@ -1,0 +1,36 @@
+schema_version: search_quality_experiments_v1
+
+paths:
+  retrieval_eval_report_path: artifacts/reports/evaluation/retrieval_eval_latest.json
+  output_dir: artifacts/reports/evaluation
+  validation_output_dir: artifacts/reports/validation
+
+analysis:
+  primary_k: 10
+  modes:
+    - lexical
+    - dense
+    - hybrid
+    - hybrid_ranked
+
+  quality_composite_weights:
+    recall: 0.40
+    ndcg: 0.40
+    mrr: 0.20
+
+  comparison_pairs:
+    - left: hybrid
+      right: lexical
+    - left: hybrid
+      right: dense
+    - left: hybrid_ranked
+      right: hybrid
+    - left: dense
+      right: lexical
+
+thresholds:
+  min_modes_count: 4
+  min_queries_count: 10
+  require_pareto_frontier_non_empty: true
+  require_recommendations_non_empty: true
+  require_query_diagnostics: true
