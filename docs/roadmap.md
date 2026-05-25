@@ -2,27 +2,101 @@
 
 ## Purpose
 
-This roadmap describes the current implementation stage of **ML Research Radar** and the next planned stages.
+This roadmap is the primary living planning document for **ML Research Radar**.
 
-The roadmap is intentionally incremental. The project prefers closing stable vertical slices over expanding feature surface too early.
+It describes:
+
+- what the project is;
+- what is already green;
+- what architectural invariants must not be broken;
+- what should be done next;
+- what is intentionally postponed.
+
+The roadmap is intentionally incremental. The project prefers closing stable, validated vertical slices over expanding feature surface too early.
 
 Current strategic direction:
 
 ```text
 stable canonical corpus
 → derived retrieval/materialized layers
+→ artifact evidence layer
+→ paper features
 → product discovery API
-→ thin UI
-→ topic maps / vector serving / future RAG
+→ thin Streamlit UI
+→ topic clusters / topic map
+→ retrieval-quality hardening
+→ vector serving / future RAG / analytics / dataset releases
 ```
 
-The project has moved beyond a source-ingestion-only phase. The current priority is to preserve canonical/data-contract discipline while building useful product/discovery workflows over the corpus.
+The project has moved beyond a source-ingestion-only phase. The current priority is to preserve canonical/data-contract discipline while making the corpus useful through validated discovery workflows.
+
+---
+
+## 0. Current checkpoint
+
+Current working checkpoint:
+
+```text
+Discovery Green Checkpoint — 2026-05
+```
+
+This is a working green checkpoint, not necessarily a formal versioned public release.
+
+Current green state:
+
+```text
+canonical_doc_count = 60954
+canonical_multisource_docs = 9192
+doi_count = 10183
+
+arXiv backbone = 60000
+ACL-family docs = 957
+ACL-only docs = 954
+ACL-enriched existing docs = 3
+
+retrieval_build_id = 20260504T164021Z
+embedding_model = sentence-transformers/all-MiniLM-L6-v2
+embedding_shape = [60954, 384]
+
+artifact_entities_db_count = 7333
+artifact_observations_db_count = 38246
+paper_artifact_links_db_count = 7430
+
+github_found_count = 5339
+huggingface_found_count = 77
+
+paper_features_rows_count = 60954
+
+topic_clusters_count = 80
+topic_cluster_assignments_count = 60954
+topic_projection_algorithm = umap
+topic_projection_points_count = 2080
+
+strict_DoD_required_checks = 132
+strict_DoD_failed_checks = 0
+strict_DoD_passed = true
+```
+
+Current source of truth for the actual implementation state:
+
+```text
+fresh code + latest reports + strict DoD
+```
+
+If older documentation conflicts with fresh validators/reports/code, the fresh validators/reports/code win.
 
 ---
 
 ## 1. Guiding architecture
 
-ML Research Radar is a paper-centric canonical corpus platform for ML/AI research.
+ML Research Radar is a **paper-centric canonical corpus and discovery platform** for ML/AI research.
+
+It is not:
+
+- just an arXiv parser;
+- just a JSONL search toy;
+- just a RAG demo;
+- just a set of disconnected ingest scripts.
 
 Core architecture:
 
@@ -40,7 +114,8 @@ sources
 → ranking / paper detail / similar papers
 → Discovery API
 → Streamlit Discovery UI
-→ topic clusters / future topic map
+→ topic clusters / topic projection
+→ retrieval evaluation / controlled experiments
 → future vector serving / RAG / analytics / dataset releases
 ```
 
@@ -52,20 +127,22 @@ Postgres = materialized serving layer
 retrieval artifacts = derived retrieval layer
 artifact DB = derived evidence/materialization plane
 paper_features / ranking / detail / similar = derived discovery layer
-topic clusters = derived analytics/discovery layer
+topic clusters / topic projection = derived analytics/discovery layer
 Discovery API = product/discovery API over derived layers
 Streamlit UI = thin client over Discovery API
 ```
 
 GitHub and Hugging Face enrich artifacts. They are not paper truth sources.
 
-Topic clusters and future topic maps are derived from retrieval/canonical/features artifacts. They are not paper truth and do not modify canonical identity.
+Topic clusters and topic projections are derived from retrieval/canonical/features artifacts. They are not paper truth and do not modify canonical identity.
 
 ---
 
-## 2. Completed / Current Stage
+## 2. Completed / current stages
 
-## 2.1 Canonical paper corpus foundation
+### 2.1 Canonical paper corpus foundation
+
+Status: **done / green**
 
 Completed:
 
@@ -85,8 +162,6 @@ Completed:
 - canonical contract validator;
 - canonical sanitize after ACL extra-field issue;
 - source-level vs canonical-level identity separation.
-
-Status: done
 
 Current stable paper sources:
 
@@ -109,11 +184,11 @@ Current green corpus baseline:
 ```text
 canonical_doc_count = 60954
 canonical_multisource_docs = 9192
+doi_count = 10183
 arXiv backbone = 60000
 ACL-family docs = 957
 ACL-only docs = 954
 ACL-enriched existing docs = 3
-DoD passed = true
 ```
 
 ACL integration outcome:
@@ -126,11 +201,18 @@ ACL integration outcome:
 73 title-year-only overlaps excluded from automatic merge
 ```
 
-Important principle: canonical JSONL remains the paper-level source of truth. Postgres, retrieval artifacts, artifact tables, paper features, clustering artifacts and APIs are materializations over that truth.
+Important principle:
+
+```text
+Canonical JSONL remains the paper-level source of truth.
+Postgres, retrieval artifacts, artifact tables, features, clustering artifacts and APIs are materializations over that truth.
+```
 
 ---
 
-## 2.2 Retrieval foundation
+### 2.2 Retrieval foundation
+
+Status: **done / green**
 
 Completed:
 
@@ -143,9 +225,7 @@ Completed:
 - retrieval validation checks;
 - file-backend retrieval runtime;
 - manifest-based dense artifact resolution for similar papers;
-- manifest-based dense artifact resolution reused by topic clusters.
-
-Status: done
+- manifest-based dense artifact resolution reused by topic clusters and topic projection.
 
 Current retrieval build:
 
@@ -170,7 +250,11 @@ artifacts/retrieval/dense/ids_20260504T164021Z.json
 artifacts/retrieval/dense/meta_20260504T164021Z.json
 ```
 
-Important principle: retrieval artifacts are derived from the canonical paper corpus and are not source of truth.
+Important principle:
+
+```text
+Retrieval artifacts are derived from the canonical paper corpus and are not source of truth.
+```
 
 Current caveat:
 
@@ -181,73 +265,9 @@ Stronger scientific embeddings are a future quality milestone.
 
 ---
 
-## 2.3 Audit / diagnostics / evaluation layer
+### 2.3 Storage-backed core v1
 
-Completed:
-
-- corpus audit;
-- source corpus audit;
-- overlap diagnostics;
-- source-to-canonical comparison;
-- source metadata diagnostics;
-- multisource inspection;
-- retrieval checks;
-- postpass audit;
-- known issues snapshot;
-- refresh Definition of Done;
-- provenance consistency checks;
-- canonical contract check;
-- paper features quality check;
-- ranking profiles quality check;
-- ranking report quality check;
-- paper detail quality check;
-- similar papers quality check;
-- Discovery API quality check;
-- Streamlit Discovery UI smoke check;
-- topic clusters quality check.
-
-Status: done
-
-Current strict DoD command:
-
-```bat
-python -m scripts.update.check_refresh_definition_of_done --require-known-issues --require-artifacts --require-github-enrichment --require-huggingface-enrichment --require-paper-features --require-similar-papers --require-discovery-api
-```
-
-Expected result:
-
-```text
-dod_passed = true
-required_failed_count = 0
-```
-
-Important note:
-
-```text
---require-similar-papers checks latest similar_papers_quality report.
-It does not create a corpus-wide similar-papers artifact.
-```
-
-Before strict DoD with similar-papers requirement, generate/validate latest similar report when needed:
-
-```bat
-python -m scripts.ranking.demo_radar_ranking --profile huggingface_ready --top-k 5
-python -m scripts.details.build_paper_detail --from-latest-ranking-rank 1
-python -m scripts.retrieval.find_similar_papers --from-latest-detail --top-k 20
-python -m scripts.validation.check_similar_papers_report --strict
-```
-
-Topic clusters are currently validated by a standalone strict validator:
-
-```bat
-python -m scripts.validation.check_topic_clusters --strict
-```
-
-Topic clusters are green, but not yet required by the main refresh DoD. Optional DoD integration through `--require-topic-clusters` is a planned hardening step.
-
----
-
-## 2.4 Storage-backed core v1
+Status: **done / green**
 
 Completed:
 
@@ -261,8 +281,6 @@ Completed:
 - `export_postgres_v1 --replace` hardening;
 - source lookup index folded into `store/sql/02_indexes.sql`.
 
-Status: done
-
 Current Postgres paper DB baseline:
 
 ```text
@@ -273,7 +291,9 @@ Postgres remains a materialized serving layer. The canonical JSONL corpus remain
 
 ---
 
-## 2.5 DB-backed `/search` v1
+### 2.4 DB-backed `/search` v1
+
+Status: **done**
 
 Completed:
 
@@ -283,13 +303,20 @@ Completed:
 - integration tests for DB search path;
 - preservation of existing file retrieval path.
 
-Status: done
+Important principle:
 
-Important principle: file backend is retrieval-first; DB backend is browse/filter + lexical search v1. Dense/hybrid parity in DB backend is not required at this stage.
+```text
+file backend = retrieval-first
+DB backend = browse/filter + lexical search v1
+```
+
+Dense/hybrid parity in DB backend is not required at this stage. Future dense serving should likely go through a vector-serving layer rather than forcing dense retrieval into the current SQL backend.
 
 ---
 
-## 2.6 Source viability gate
+### 2.5 Source viability gate
+
+Status: **done**
 
 Completed:
 
@@ -300,8 +327,6 @@ Completed:
 - source viability validation script introduced;
 - candidate sources checked before integration work;
 - ACL Anthology validated and promoted as the first major source onboarding case.
-
-Status: done
 
 Current viability outcome:
 
@@ -316,7 +341,7 @@ medrxiv: viable domain paper source candidate
 paperswithcode: blocked / archived live source
 ```
 
-Key lesson:
+Key rule:
 
 ```text
 viability first, candidate integration second, stable integration last
@@ -324,7 +349,9 @@ viability first, candidate integration second, stable integration last
 
 ---
 
-## 2.7 Artifact Layer v1
+### 2.6 Artifact Layer v1
+
+Status: **done / green**
 
 Completed:
 
@@ -341,26 +368,33 @@ Completed:
 - refresh pipeline artifact stages;
 - DB-backed artifact API:
   - `GET /artifacts`;
+  - `GET /artifacts/{artifact_id}`;
+  - `GET /artifacts/{artifact_id}/papers`;
   - `GET /documents/{canonical_id}/artifacts`;
   - `GET /documents` trusted artifact filters;
 - integration tests for artifact API and document artifact filters.
 
-Status: done
-
-Current artifact baseline, approximate:
+Current artifact baseline:
 
 ```text
-artifact_entities ≈ 7333–7336
-artifact_observations ≈ 38246
-paper_artifact_links ≈ 7430
-linked canonical docs ≈ 6673
+artifact_entities_raw_count = 7336
+artifact_entities_db_count = 7333
+artifact_observations_count = 38246
+trusted_paper_artifact_links_count = 7430
 ```
 
-Important principle: Artifact Layer v1 is a separate evidence/materialization plane. It does not modify canonical paper truth.
+Important principle:
+
+```text
+Artifact Layer v1 is a separate evidence/materialization plane.
+It does not modify canonical paper truth.
+```
 
 ---
 
-## 2.8 GitHub Artifact Enrichment v1
+### 2.7 GitHub Artifact Enrichment v1
+
+Status: **done / green**
 
 Completed:
 
@@ -375,15 +409,14 @@ Completed:
 - DB artifact API supports GitHub-specific enriched filters;
 - GitHub metadata is consumed by paper features and paper detail cards.
 
-Status: done
-
-Current GitHub enrichment baseline, approximate:
+Current GitHub enrichment baseline:
 
 ```text
-github_entities_count ≈ 5953
-metadata_rows_count ≈ 5953
-found_count ≈ 5339
-not_found_count ≈ 614
+github_entities_count = 5953
+metadata_rows_count = 5953
+found_count = 5339
+not_found_count = 614
+forbidden_count = 0
 rate_limited_count = 0
 error_count = 0
 ok = true
@@ -399,18 +432,14 @@ Important principles:
 
 ---
 
-## 2.9 Hugging Face Artifact Enrichment v1
+### 2.8 Hugging Face Artifact Enrichment v1
+
+Status: **done / green with expected diagnostics**
 
 Completed:
 
 - extracted Hugging Face model/dataset/space entities enriched through Hub API;
-- provider-specific snapshot metadata written to:
-
-```text
-data/enriched/huggingface_artifacts/huggingface_artifact_metadata.<ts>.jsonl
-data/enriched/huggingface_artifacts/huggingface_artifact_metadata_latest.jsonl
-```
-
+- provider-specific snapshot metadata;
 - standalone strict validation report;
 - HF metadata merge in `export_artifacts_postgres_v1.py`;
 - Postgres materialization into `artifact_entities.metadata.huggingface`;
@@ -419,16 +448,14 @@ data/enriched/huggingface_artifacts/huggingface_artifact_metadata_latest.jsonl
 - optional HF stages in refresh pipeline;
 - HF metadata consumed by paper features and paper detail cards.
 
-Status: done
-
-Current Hugging Face enrichment baseline, approximate:
+Current Hugging Face enrichment baseline:
 
 ```text
-huggingface_entities_count ≈ 100
-metadata_rows_count ≈ 100
-found_count ≈ 77
-forbidden_count ≈ 2
-skipped_invalid_external_id_count ≈ 21
+huggingface_entities_count = 100
+metadata_rows_count = 100
+found_count = 77
+forbidden_count = 2
+skipped_invalid_external_id_count = 21
 rate_limited_count = 0
 error_count = 0
 ok = true
@@ -439,12 +466,14 @@ Important principles:
 - Hugging Face is an artifact enrichment provider, not a paper source.
 - `forbidden` rows are provider/access states and remain diagnostic.
 - `skipped_invalid_external_id` rows are recognized extraction/noise states and remain diagnostic.
-- Neither state should fail the core strict gate unless policy changes later.
-- Provider-specific Hugging Face API filters are postponed.
+- Neither state fails the current core strict gate.
+- Provider-specific Hugging Face API filters are postponed until there is a clear product need.
 
 ---
 
-## 2.10 Paper Features v1
+### 2.9 Paper Features v1
+
+Status: **done / green**
 
 Completed:
 
@@ -453,8 +482,6 @@ Completed:
 - strict paper features validator;
 - feature quality report;
 - DoD integration through `--require-paper-features`.
-
-Status: done
 
 Current feature build baseline:
 
@@ -490,11 +517,18 @@ recency_score
 radar_score
 ```
 
-Important principle: paper features are derived, transparent v1 heuristics. They are not canonical paper truth and not ML-learned quality labels.
+Important principle:
+
+```text
+Paper features are derived, transparent v1 heuristics.
+They are not canonical paper truth and not ML-learned quality labels.
+```
 
 ---
 
-## 2.11 Ranking / Paper Detail / Similar Papers v1
+### 2.10 Ranking / Paper Detail / Similar Papers v1
+
+Status: **done / green**
 
 Completed:
 
@@ -507,9 +541,7 @@ Completed:
 - semantic similar papers over current dense retrieval embeddings;
 - radar-adjusted similar papers mode;
 - similar papers validator;
-- similar papers optional DoD gate.
-
-Status: done
+- similar papers DoD gate.
 
 Current ranking profiles:
 
@@ -556,68 +588,45 @@ Current `radar_adjusted` formula:
 + 0.05 * implementation_readiness_score
 ```
 
-Status note: all-MiniLM-L6-v2 is accepted for functional validation v1. Stronger scientific embeddings are a later retrieval-quality milestone.
+Current similar-papers quality state:
+
+```text
+target_found = true
+results_non_empty = true
+self_not_in_results = true
+canonical_ids_unique = true
+scores_in_range = true
+sorted_correctly = true
+ids_count_matches_input_rows = true
+```
 
 ---
 
-## 2.12 Discovery API v1
+### 2.11 Discovery API
+
+Status: **done / green**
 
 Completed:
 
-- API namespace for product discovery:
+- product discovery namespace:
   - `GET /discovery/profiles`;
   - `GET /discovery/ranking/{profile_name}`;
   - `GET /discovery/papers/{canonical_id}`;
   - `GET /discovery/papers/{canonical_id}/similar`;
+  - `GET /discovery/papers/{canonical_id}/cluster`;
+  - `GET /discovery/clusters`;
+  - `GET /discovery/clusters/{cluster_id}`;
+  - `GET /discovery/clusters/map`;
 - file-first `DiscoveryService`;
 - profile-based ranking endpoint;
+- ranking query overrides;
 - paper detail endpoint;
 - semantic/radar-adjusted similar papers endpoint;
+- topic-cluster endpoints;
+- topic-map endpoint;
 - integration tests for Discovery API;
-- Discovery API quality validator:
-
-```bat
-python -m scripts.validation.check_discovery_api --strict
-```
-
-- optional DoD gate:
-
-```text
---require-discovery-api
-```
-
-- Discovery API similar runtime cache:
-  - dense bundle cache;
-  - normalized embeddings cache;
-  - dense id index cache;
-  - feature lookup cache;
-  - canonical lookup cache;
-- `test_api_discovery.py` module-scoped client fixture to avoid repeated API startup.
-
-Status: done
-
-Note: topic-cluster endpoints are documented separately as Discovery API v1.2 because they expose the already-built topic cluster layer through the product API surface.
-
----
-
-## 2.13 Discovery API v1.1 — ranking query overrides
-
-Completed:
-
-- extended `GET /discovery/ranking/{profile_name}` with controlled query overrides;
-- kept ranking profiles as base presets;
-- query parameters now override or add filters without changing core ranking logic;
-- response `profile.filters` remains base profile filters;
-- response `filters` now represents effective filters after overrides;
-- boolean overrides support `true` and `false` explicitly;
-- `top_k` is capped by API settings;
-- invalid `sort_by` is rejected by API validation;
-- invalid `min_year > max_year` is rejected as bad request;
-- integration tests cover combined overrides, false boolean override, sort override and invalid params;
-- Discovery API quality gate checks an override smoke;
-- strict DoD under `--require-discovery-api` requires the new override checks.
-
-Status: done
+- Discovery API quality validator;
+- DoD gate through `--require-discovery-api`.
 
 Supported ranking override parameters:
 
@@ -655,34 +664,16 @@ Quality-gate override smoke:
 GET /discovery/ranking/recent_artifact_ready?top_k=5&min_year=2025&has_code=true
 ```
 
-Required checks include:
+Current Discovery API quality state:
 
 ```text
-discovery_api_ranking_overrides_endpoint_ok
-discovery_api_ranking_overrides_results_non_empty
-discovery_api_ranking_overrides_min_year_filter_echoed
-discovery_api_ranking_overrides_has_code_filter_echoed
-discovery_api_ranking_overrides_results_match_filters
-```
-
-Current strict discovery command:
-
-```bat
-set ML_RADAR_SEARCH_BACKEND=file
-python -m pytest tests/integration/test_api_discovery.py -q
-python -m scripts.validation.check_discovery_api --strict
-```
-
-Current full strict DoD command:
-
-```bat
-python -m scripts.update.check_refresh_definition_of_done --require-known-issues --require-artifacts --require-github-enrichment --require-huggingface-enrichment --require-paper-features --require-similar-papers --require-discovery-api
-```
-
-Current result:
-
-```text
-dod_passed = true
+profile_count = 9
+ranking_results_count = 5
+ranking_overrides_results_count = 5
+similar_semantic_results_count = 5
+similar_radar_adjusted_results_count = 5
+topic_cluster_count = 80
+topic_cluster_map_projection_algorithm = umap
 required_failed_count = 0
 ```
 
@@ -690,44 +681,42 @@ Impact:
 
 ```text
 ML Research Radar exposes a usable product/discovery API workflow:
-profile ranking + query overrides → paper card → similar papers
+profile ranking + query overrides → paper card → similar papers → cluster/topic navigation
 ```
 
 ---
 
-## 2.14 Streamlit Discovery UI v0.2
+### 2.12 Streamlit Discovery UI
+
+Status: **done / green**
 
 Completed:
 
 - old search-oriented UI replaced with discovery-oriented UI;
-- thin client over FastAPI `/discovery/*`;
+- thin client over FastAPI;
 - no local JSONL reading in Streamlit;
 - no embedding loading in Streamlit;
-- no ranking or similar-papers computation in Streamlit;
+- no ranking/similar/clustering computation in Streamlit;
+- Discovery ranking;
+- search tab;
 - profile selector;
-- top-k control;
-- title query;
-- source family filter;
-- min/max year filters;
-- tri-state boolean filters:
-  - profile default;
-  - true;
-  - false;
-- sort selector;
-- descending toggle;
-- reset filters button;
-- ranking cards/table;
-- paper detail tabs;
-- artifact/source evidence display;
-- similar papers tab;
+- filter controls;
+- sort controls;
+- paper workspace;
+- paper detail display;
+- similar papers display;
 - semantic vs radar-adjusted similar mode selector;
+- topic clusters;
+- topic map;
+- cluster detail filters;
+- artifact explorer;
+- artifact linked-papers navigation;
+- selected paper artifact navigation;
 - raw JSON expanders;
-- empty-state guidance;
 - API base URL input;
 - health/info/runtime status display;
-- API reload button.
-
-Status: done
+- API reload button;
+- static UI validator.
 
 Run FastAPI:
 
@@ -748,7 +737,7 @@ Open:
 http://localhost:8501
 ```
 
-Streamlit UI smoke validator:
+Streamlit UI validators:
 
 ```bat
 python -m scripts.validation.check_streamlit_discovery_ui --strict
@@ -764,7 +753,9 @@ Discovery API / radar_core = business logic layer
 
 ---
 
-## 2.15 Clustering / Topic Clusters v1
+### 2.13 Topic Clusters v1
+
+Status: **done / green**
 
 Completed:
 
@@ -774,23 +765,27 @@ Completed:
 - cluster assignments artifact;
 - cluster summary artifact;
 - heuristic label candidates artifact;
+- cluster label overrides;
 - latest pointer;
 - build report;
 - quality validator;
 - cluster inspect utility;
-- generated reports under `artifacts/reports/clusters/`.
+- generated reports under `artifacts/reports/clusters/`;
+- Discovery API cluster endpoints;
+- Streamlit topic cluster UI.
 
-Status: done / green as derived layer
-
-Inputs:
+Current topic cluster build:
 
 ```text
-artifacts/retrieval/manifests/latest.json
-dense_embeddings_path from retrieval manifest
-dense_ids_path from retrieval manifest
-data/analytics/reconciled/canonical_documents.jsonl
-data/features/paper_features_latest.jsonl
-configs/topic_clusters_v1.yaml
+cluster_build_id = 20260511T151842Z
+retrieval_build_id = 20260504T164021Z
+algorithm = minibatch_kmeans
+n_clusters = 80
+embedding_shape = [60954, 384]
+assigned_rows_count = 60954
+cluster_count = 80
+empty_cluster_count = 0
+largest_cluster_ratio = 0.024494
 ```
 
 Core implementation files:
@@ -815,77 +810,12 @@ artifacts/reports/clusters/topic_clusters_latest.json
 artifacts/reports/clusters/topic_clusters_latest.md
 artifacts/reports/clusters/topic_clusters_quality_latest.json
 artifacts/reports/clusters/topic_clusters_quality_latest.md
-artifacts/reports/clusters/topic_cluster_<cluster_id>_inspect_latest.json
-artifacts/reports/clusters/topic_cluster_<cluster_id>_inspect_latest.md
-```
-
-Current topic cluster build:
-
-```text
-cluster_build_id = 20260511T151842Z
-retrieval_build_id = 20260504T164021Z
-cluster_config_hash = 34bfa8908a6536cf
-algorithm = minibatch_kmeans
-n_clusters = 80
-random_state = 42
-batch_size = 4096
-max_iter = 100
-n_init = 3
-embedding_model = sentence-transformers/all-MiniLM-L6-v2
-embedding_shape = [60954, 384]
-assigned_rows_count = 60954
-cluster_count = 80
-empty_cluster_count = 0
-largest_cluster_size = 1493
-largest_cluster_ratio = 0.024494
-```
-
-Build command:
-
-```bat
-python -m scripts.analytics.build_topic_clusters
 ```
 
 Quality command:
 
 ```bat
 python -m scripts.validation.check_topic_clusters --strict
-```
-
-Current quality result:
-
-```text
-ok = true
-required_failed_count = 0
-assignment_count = 60954
-actual_cluster_count = 80
-empty_cluster_count = 0
-```
-
-Inspect examples:
-
-```bat
-python -m scripts.analytics.inspect_topic_cluster --cluster-id 41
-python -m scripts.analytics.inspect_topic_cluster --cluster-id 0
-python -m scripts.analytics.inspect_topic_cluster --cluster-id 57
-python -m scripts.analytics.inspect_topic_cluster --cluster-id 46
-python -m scripts.analytics.inspect_topic_cluster --cluster-id 32
-python -m scripts.analytics.inspect_topic_cluster --cluster-id 71
-python -m scripts.analytics.inspect_topic_cluster --cluster-id 79
-python -m scripts.analytics.inspect_topic_cluster --cluster-id 3
-```
-
-Observed topic examples from v1:
-
-```text
-cluster 41: computer vision / object detection / convolutional networks
-cluster 0: classical ML / anomaly detection / random forest / time series
-cluster 57: machine translation / multilingual NLP / low-resource languages / LLMs
-cluster 46: LLM reasoning / mathematical reasoning / question answering
-cluster 32: graph neural networks / graph convolutional networks / graph learning
-cluster 71: reinforcement learning / deep RL / imitation learning / control
-cluster 79: evolutionary / swarm / genetic optimization
-cluster 3: LLMs / transformers / language models / NLP
 ```
 
 Important semantics:
@@ -907,107 +837,211 @@ Important principles:
 - ranking = promising/useful/artifact-ready papers;
 - generated clustering artifacts should not be committed.
 
-Current limitation:
-
-```text
-No projection/UMAP artifact in v1.
-Cluster API endpoints are exposed through Discovery API v1.2.
-No Streamlit topic-map tab yet.
-No LLM-generated labels in v1.
-```
-
 ---
 
-## 2.16 Discovery API v1.2 — topic cluster endpoints
+### 2.14 Topic Projection / Topic Map v1
+
+Status: **done / green**
 
 Completed:
 
-- exposed topic cluster artifacts through `/discovery/*`;
-- kept topic cluster API file-first;
-- reused `artifacts/clusters/topic/latest.json` as the cluster latest pointer;
-- added cluster list endpoint;
-- added cluster detail endpoint;
-- added paper-to-cluster endpoint;
-- kept clustering fully offline/build-time;
-- added integration tests for cluster endpoints in `tests/integration/test_api_discovery.py`;
-- extended Discovery API quality validator with topic-cluster checks.
+- offline 2D projection artifact;
+- UMAP-based topic map;
+- projection summary;
+- topic map endpoint;
+- topic map UI support;
+- projection quality validator;
+- DoD gate through `--require-topic-projection`.
 
-Status: done / green
-
-Current endpoints:
+Current projection state:
 
 ```text
-GET /discovery/clusters
-GET /discovery/clusters/{cluster_id}
-GET /discovery/papers/{canonical_id}/cluster
+projection_build_id = 20260515T154038Z
+cluster_build_id = 20260511T151842Z
+retrieval_build_id = 20260504T164021Z
+projection_algorithm = umap
+projection_rows_count = 2080
+centroid_count = 80
+representative_count = 800
+sampled_count = 1200
 ```
 
-Current endpoint semantics:
+Quality state:
 
 ```text
-/discovery/clusters = list existing topic clusters from latest cluster artifact
-/discovery/clusters/{cluster_id} = inspect one existing cluster and return representative/top papers
-/discovery/papers/{canonical_id}/cluster = resolve one paper to its latest topic cluster assignment
-```
-
-Current implementation principle:
-
-```text
-API serves existing cluster artifacts.
-API does not trigger clustering.
-API does not recompute labels.
-API does not mutate canonical truth.
-```
-
-Current verified smoke examples:
-
-```bat
-python -c "from fastapi.testclient import TestClient; from services.api.app import app; c=TestClient(app); r=c.get('/discovery/clusters?limit=3'); print(r.status_code); print(r.json()['returned_count'])"
-python -c "from fastapi.testclient import TestClient; from services.api.app import app; c=TestClient(app); r=c.get('/discovery/clusters/41?top_k=5'); print(r.status_code); j=r.json(); print(j['cluster_id'], j['total_papers'], j['returned_papers_count'])"
-python -c "from fastapi.testclient import TestClient; from services.api.app import app; c=TestClient(app); r=c.get('/discovery/papers/bd3c9332f17370fa801e6ac9542f125a/cluster'); print(r.status_code); j=r.json(); print(j['canonical_id']); print(j['assignment']['cluster_id'])"
-```
-
-Current green validation result:
-
-```text
-python -m pytest tests/integration/test_api_discovery.py -q
-21 passed
-
-python -m scripts.validation.check_discovery_api --strict
-ok = true
+projection_enabled = true
+projection_exists = true
+projection_rows_non_empty = true
+projection_xy_finite = true
+one_centroid_per_cluster = true
+centroid_count_matches_cluster_count = true
+cluster_build_id_matches_topic_clusters = true
+retrieval_build_id_matches_manifest = true
 required_failed_count = 0
 ```
 
-Discovery API quality gate now checks:
+Important principle:
 
 ```text
-topic_clusters_endpoint_ok
-topic_clusters_results_non_empty
-topic_clusters_returned_count_matches
-topic_clusters_cluster_ids_present
-topic_clusters_label_candidates_present
-topic_cluster_detail_endpoint_ok
-topic_cluster_detail_found
-topic_cluster_detail_label_candidates_present
-topic_cluster_detail_papers_non_empty
-paper_topic_cluster_endpoint_ok
-paper_topic_cluster_found
-paper_topic_cluster_assignment_present
-paper_topic_cluster_cluster_present
-paper_topic_cluster_id_match
-```
-
-Important semantics:
-
-```text
-cluster_id is stable only inside cluster_build_id/config/input corpus
-label_candidates are heuristic hints, not curated taxonomy
-topic cluster endpoints expose a corpus-level navigation layer, not nearest-neighbor search
+Projection is an offline derived artifact.
+It is not computed on every API/UI request.
 ```
 
 ---
 
-## 3. Current System State
+### 2.15 Retrieval evaluation / search quality layer
+
+Status: **done / green**
+
+Completed:
+
+- golden query based retrieval evaluation;
+- lexical/dense/hybrid/hybrid_ranked comparison;
+- retrieval eval quality validator;
+- search-quality experiments;
+- controlled search-quality experiments;
+- golden labeling candidates export;
+- quality validators for all major evaluation reports.
+
+Current retrieval eval state:
+
+```text
+enabled_cases_count = 18
+executed_cases_count = 18
+expected modes = lexical / dense / hybrid / hybrid_ranked
+runtime_errors = 0
+
+hybrid_empty_result_rate = 0.0
+hybrid_hit_at_10 = 1.0
+hybrid_mrr_at_10 = 1.0
+hybrid_recall_at_10 = 0.80415
+hybrid_ndcg_at_10 = 0.852013
+```
+
+Current search-quality experiments:
+
+```text
+mode_table_count = 4
+pareto_frontier_count = 3
+recommendations_count = 10
+required_failed_count = 0
+```
+
+Current controlled experiments:
+
+```text
+enabled_cases_count = 18
+variants_count = 32
+hybrid_variants_count = 30
+runs_count = 576
+error_count = 0
+pareto_frontier_count = 4
+recommendations_count = 7
+required_failed_count = 0
+```
+
+Current golden labeling candidates:
+
+```text
+enabled_queries_count = 10
+queries_with_candidates_count = 10
+modes_count = 4
+total_candidates_count = 300
+mode_error_count = 0
+```
+
+Important principle:
+
+```text
+Do not change retrieval defaults purely by intuition.
+Use retrieval eval, controlled experiments and golden labeling expansion.
+```
+
+Current caveat:
+
+```text
+The golden set is still relatively small.
+Retrieval-quality conclusions are useful but should not be treated as final scientific benchmarking.
+```
+
+---
+
+### 2.16 Audit / diagnostics / validation / DoD layer
+
+Status: **done / green**
+
+Completed:
+
+- corpus audit;
+- source corpus audit;
+- overlap diagnostics;
+- source-to-canonical comparison;
+- source metadata diagnostics;
+- multisource inspection;
+- retrieval checks;
+- postpass audit;
+- known issues snapshot;
+- refresh Definition of Done;
+- provenance consistency checks;
+- canonical contract check;
+- artifact links quality check;
+- GitHub enrichment check;
+- Hugging Face enrichment check;
+- paper features quality check;
+- ranking profiles quality check;
+- ranking report quality check;
+- paper detail quality check;
+- similar papers quality check;
+- Discovery API quality check;
+- topic clusters quality check;
+- topic projection quality check;
+- Streamlit Discovery UI quality check.
+
+Current strict DoD command:
+
+```bat
+python -m scripts.update.check_refresh_definition_of_done --require-known-issues --require-artifacts --require-github-enrichment --require-huggingface-enrichment --require-paper-features --require-similar-papers --require-discovery-api --require-topic-clusters --require-topic-projection --require-streamlit-discovery-ui
+```
+
+Current expected result:
+
+```text
+dod_passed = true
+required_failed_count = 0
+```
+
+Current latest known-issues path:
+
+```text
+artifacts/reports/validation/known_issues_snapshot_latest.json
+```
+
+Important note:
+
+```text
+--require-similar-papers checks latest similar_papers_quality report.
+It does not create a corpus-wide all-pairs similar-papers artifact.
+```
+
+Before strict DoD with similar-papers requirement, generate/validate latest similar report when needed:
+
+```bat
+python -m scripts.ranking.demo_radar_ranking --profile huggingface_ready --top-k 5
+python -m scripts.details.build_paper_detail --from-latest-ranking-rank 1
+python -m scripts.retrieval.find_similar_papers --from-latest-detail --top-k 20
+python -m scripts.validation.check_similar_papers_report --strict
+```
+
+Important principle:
+
+```text
+Validation reports are not just logs.
+They are the operational evidence that a derived layer is aligned with canonical truth.
+```
+
+---
+
+## 3. Current system state summary
 
 The project is currently at this point:
 
@@ -1019,18 +1053,20 @@ The project is currently at this point:
 - Postgres paper serving layer is green;
 - artifact extraction is green;
 - artifact DB materialization is green;
-- GitHub artifact enrichment is green and optional in DoD/pipeline;
-- Hugging Face artifact enrichment is green and optional in DoD/pipeline;
+- GitHub artifact enrichment is green;
+- Hugging Face artifact enrichment is green with expected diagnostics;
 - paper features layer is green;
 - ranking profiles are green;
 - paper detail/card is green;
 - similar papers are green;
-- Discovery API v1 is green and DoD-gated;
-- Discovery API v1.1 ranking query overrides are green and DoD-gated;
-- Discovery API v1.2 topic cluster endpoints are green and covered by the Discovery API validator;
-- Streamlit Discovery UI v0.2 is green;
-- Streamlit UI smoke check is green;
+- Discovery API is green;
+- ranking query overrides are green;
+- topic cluster endpoints are green;
+- topic map endpoint is green;
+- Streamlit Discovery UI is green;
 - topic clusters v1 are green as file-first derived analytics artifacts;
+- topic projection / topic map v1 is green;
+- retrieval eval/search-quality/controlled experiments are green;
 - source viability gate exists;
 - Papers with Code live source remains blocked/archived;
 - canonical paper truth remains isolated from artifact enrichment and all derived discovery layers.
@@ -1048,196 +1084,220 @@ Current closed vertical slice:
 → ranking profiles + query overrides
 → paper detail/card
 → similar papers
+→ topic clusters
+→ topic projection / topic map
 → Discovery API
 → Streamlit Discovery UI
-→ topic clusters v1
-→ Discovery API topic cluster endpoints
+→ retrieval/search-quality evaluation
 → strict validation reports
-→ optional DoD gates
+→ full strict DoD
 ```
 
 ---
 
-## 4. Near-Term Roadmap
+## 4. Near-term roadmap
 
 Recommended next order:
 
 ```text
-1. Add a Streamlit topic/cluster tab over the new cluster API endpoints.
-2. Add optional topic-clusters gate to refresh DoD.
-3. Consider UMAP/PCA projection artifact for UI after cluster API/UI are stable.
-4. Consider stronger scientific embeddings / retrieval profiles.
-5. Consider vector serving / Qdrant for serving-time dense retrieval.
-6. Consider the next paper-source candidate, likely OpenReview.
+1. Documentation sync and runbook hardening.
+2. Retrieval evaluation / Golden Set Expansion v2.
+3. Controlled experiment group-level metrics and default-policy decision support.
+4. Topic cluster label/description improvement and UI polish.
+5. Qdrant/vector serving proof-of-concept.
+6. Stronger scientific embeddings / retrieval profiles.
+7. OpenReview candidate source.
+8. Future RAG/full-text layer.
 ```
 
 Rationale:
 
-The project has already closed the ingestion/reconcile/artifact/features/ranking/detail/similar/API/UI/topic-cluster vertical slices and has now exposed topic clusters through Discovery API. The next value is to make the topic landscape usable in the existing Streamlit product surface rather than continuing offline label tuning.
+The project has already closed ingestion/reconcile/artifact/features/ranking/detail/similar/API/UI/topic-cluster/topic-map vertical slices. The next risk is not lack of features, but loss of clarity, insufficient evaluation depth, and accidental duplication of already implemented functionality.
 
 ---
 
-## 4.1 Discovery API cluster endpoints v1
+### 4.1 Documentation sync and runbook hardening
 
-Completed:
+Status: **next**
 
-- exposed topic cluster artifacts through `/discovery/*`;
-- kept API file-first for cluster v1;
-- did not read clusters from Postgres in v1;
-- did not compute clustering at request time;
-- used `artifacts/clusters/topic/latest.json` as cluster latest pointer;
-- integrated cluster endpoint checks into Discovery API tests and strict validator.
-
-Endpoints:
+Goal:
 
 ```text
-GET /discovery/clusters
-GET /discovery/clusters/{cluster_id}
-GET /discovery/papers/{canonical_id}/cluster
+Make roadmap/docs/runbook match current code + latest reports + strict DoD.
 ```
 
-`GET /discovery/clusters` response content:
+Tasks:
 
-```text
-cluster_id
-size
-label_candidates
-artifact_ready_count
-code_artifact_count
-dataset_artifact_count
-model_artifact_count
-demo_artifact_count
-mean_radar_score
-mean_implementation_readiness_score
-mean_source_confidence_score
-mean_citation_signal_score
-top_source_families
-representative_papers
-```
-
-`GET /discovery/clusters/{cluster_id}` response content:
-
-```text
-cluster summary
-label candidates
-representative papers
-returned papers from the cluster
-cluster/build metadata
-```
-
-`GET /discovery/papers/{canonical_id}/cluster` response content:
-
-```text
-canonical_id
-assignment
-cluster
-cluster_id
-cluster_build_id
-retrieval_build_id
-rank_within_cluster
-distance_to_centroid
-similarity_to_centroid
-cluster label candidates
-```
-
-Status: done / green
+- update roadmap with the current checkpoint;
+- update architecture docs if they still describe implemented components as planned;
+- update API reference for current Discovery API/topic/artifact endpoints;
+- update source matrix to mark ACL as integrated and PWC as blocked/archived;
+- update merge policy with current source/identity semantics;
+- update refresh contract/runbook with current strict DoD flags;
+- document quick smoke vs full regression vs full strict DoD;
+- document that `known_issues_snapshot_latest.json` is the current known-issues snapshot filename.
 
 Important principle:
 
 ```text
-API serves existing cluster artifacts.
-API does not trigger clustering.
+Docs should not overrule fresh validation reports.
+Docs should explain them.
 ```
 
 ---
 
-## 4.2 Streamlit Topic/Cluster Tab v0.1
+### 4.2 Retrieval evaluation / Golden Set Expansion v2
 
-Planned next:
+Status: **near-term**
 
-- add topic/cluster tab to existing Streamlit Discovery UI;
-- cluster list/table;
-- label candidates display;
-- cluster size;
-- artifact-ready count;
-- mean radar score;
-- representative papers;
-- selected cluster detail;
-- top papers in cluster;
-- link from paper detail to its cluster;
-- no local JSONL/artifact loading in Streamlit;
-- no clustering computation in Streamlit.
+Goal:
 
-Status: planned after API cluster endpoints
+```text
+Expand evaluation coverage before changing retrieval defaults.
+```
+
+Tasks:
+
+- review `golden_labeling_candidates_latest.json`;
+- manually label selected candidates;
+- expand `data/eval/retrieval/golden_queries.jsonl`;
+- add more query groups:
+  - broad topics;
+  - method-specific;
+  - artifact-seeking;
+  - recent-work queries;
+  - ACL/NLP queries;
+  - edge/diagnostic queries;
+  - ambiguous queries;
+- rerun retrieval eval;
+- rerun search quality experiments;
+- rerun controlled experiments;
+- compare group-level behavior.
 
 Important principle:
 
 ```text
-Streamlit remains a thin API client.
+No retrieval default change without evidence.
 ```
 
 ---
 
-## 4.3 Topic clusters DoD hardening
+### 4.3 Controlled experiment group-level metrics
 
-Planned:
+Status: **near-term**
 
-- add optional `--require-topic-clusters` flag to `scripts/update/check_refresh_definition_of_done.py`;
-- require latest topic cluster quality report when the flag is passed;
-- verify cluster build is aligned with latest retrieval manifest/corpus count;
-- keep flag optional at first.
-
-Candidate command after integration:
-
-```bat
-python -m scripts.update.check_refresh_definition_of_done --require-known-issues --require-artifacts --require-github-enrichment --require-huggingface-enrichment --require-paper-features --require-similar-papers --require-discovery-api --require-topic-clusters
-```
-
-Status: planned hardening
-
----
-
-## 4.4 Projection / Topic Map Visualization Artifact
-
-Planned after cluster API/UI v0.1:
-
-- add 2D projection artifact for visualization;
-- prefer scalable approach first:
-  - PCA for full corpus smoke;
-  - UMAP for sampled or filtered subsets;
-- avoid t-SNE for full corpus;
-- do not compute projections on every API/UI request;
-- build projection offline as derived artifact;
-- keep projection optional and rebuildable.
-
-Possible outputs:
+Goal:
 
 ```text
-artifacts/clusters/topic/runs/<cluster_build_id>/projection_pca.jsonl
-artifacts/clusters/topic/runs/<cluster_build_id>/projection_sample_umap.jsonl
-artifacts/reports/clusters/topic_projection_quality_latest.json
+Understand which retrieval policy wins for which query families.
 ```
 
-Status: later, after API/UI cluster surfaces
+Candidate additions:
 
-Scalability principle:
+- metrics by query group;
+- metrics by query intent;
+- mode winners by group;
+- latency by group;
+- failure patterns by group;
+- ranked vs unranked effects by group;
+- candidate_k sensitivity by group;
+- hybrid weight sensitivity by group.
+
+Output:
 
 ```text
-Full-corpus clustering/projection is an offline build step.
-Interactive user-subset clustering/projection is a separate future feature with strict size limits.
+artifacts/reports/evaluation/search_quality_controlled_experiments_latest.json
+artifacts/reports/evaluation/search_quality_controlled_experiments_latest.md
+```
+
+Potential decision:
+
+```text
+Keep current default if evidence is not strong enough.
+Introduce named retrieval profiles instead of one universal default.
 ```
 
 ---
 
-## 4.5 Stronger embeddings / retrieval quality milestone
+### 4.4 Topic cluster labels / descriptions / UI polish
 
-Planned:
+Status: **near-term**
+
+Goal:
+
+```text
+Make topic clusters more interpretable and useful in the product UI.
+```
+
+Tasks:
+
+- expand `cluster_label_overrides.json`;
+- inspect high-value clusters;
+- add curated labels/descriptions where stable;
+- expose curated labels in API/UI;
+- improve cluster cards;
+- improve topic map interactions;
+- improve cluster → paper → artifact navigation;
+- keep label candidates as hints, not truth.
+
+Important principle:
+
+```text
+Cluster labels are discovery aids.
+They are not canonical taxonomy.
+```
+
+---
+
+### 4.5 Qdrant / vector serving proof-of-concept
+
+Status: **planned after docs/eval hardening**
+
+Goal:
+
+```text
+Add a serving-time vector path without changing canonical truth.
+```
+
+Candidate tasks:
+
+- create Qdrant collection for paper embeddings;
+- upsert canonical_id + vector + metadata payload;
+- add vector serving helper;
+- add API/backend mode for vector retrieval or similar papers;
+- compare file dense vs Qdrant dense:
+  - result parity;
+  - latency;
+  - filtering ergonomics;
+  - operational complexity;
+- add validator/regression checks.
+
+Important principle:
+
+```text
+Qdrant is a derived vector serving layer.
+It is not source of truth.
+```
+
+---
+
+### 4.6 Stronger embeddings / retrieval quality milestone
+
+Status: **planned**
+
+Goal:
+
+```text
+Improve semantic search/similar/clustering quality with scientific embeddings.
+```
+
+Candidate tasks:
 
 - research stronger scientific paper embedding models;
 - add retrieval profile config;
 - build alternate dense embedding index;
 - compare similar-papers and topic-cluster quality;
-- keep fast default profile with all-MiniLM-L6-v2;
+- keep fast default profile with all-MiniLM-L6-v2 unless evidence supports change;
 - add scientific semantic profile if quality justifies it.
 
 Possible future profiles:
@@ -1249,50 +1309,40 @@ citation_aware = dense similarity + citation graph signals
 hybrid = dense semantic + lexical BM25 + artifact/radar re-ranking
 ```
 
-Status: later; not a blocker for cluster API/UI v0.1
-
 ---
 
-## 4.6 Vector Serving Integration
+### 4.7 OpenReview candidate source
 
-Planned:
+Status: **planned later**
 
-- integrate vector-serving path;
-- move toward serving-time dense retrieval;
-- prepare for future hybrid serving.
+Goal:
 
-Possible directions:
+```text
+Add selected OpenReview venues carefully through the viability/candidate/stable pipeline.
+```
 
-- Qdrant-backed serving;
-- hybrid SQL + vector candidate generation;
-- serving-time dense search;
-- DB metadata filters + vector candidates + ranker;
-- Qdrant-backed similar papers endpoint after API contract stabilizes.
-
-Status: planned
-
-Important principle: dense/hybrid serving should likely be implemented through a vector-serving layer, not by forcing dense retrieval into the current Postgres DB backend.
-
----
-
-## 4.7 OpenReview candidate source
-
-Planned:
+Tasks:
 
 - ingest OpenReview papers by explicit venue/year scope;
 - start with selected ML venues;
 - use API v2 / Python client where appropriate;
 - preserve OpenReview identifiers;
-- keep reviews/ratings/decisions as separate review/signal layer, not canonical paper truth v1;
+- keep reviews/ratings/decisions as a separate review/signal layer, not canonical paper truth v1;
 - candidate-only until source audit and candidate reconcile impact checks are green.
 
-Status: planned after current product/discovery/topic-map slice
+Important principle:
+
+```text
+OpenReview review data should not directly mutate canonical paper identity.
+```
 
 ---
 
-## 4.8 Biomedical/domain sources
+### 4.8 Biomedical/domain sources
 
-Planned later:
+Status: **planned later**
+
+Candidates:
 
 - PubMed;
 - bioRxiv;
@@ -1304,82 +1354,40 @@ Purpose:
 - possible ML-for-biology / ML-for-medicine coverage;
 - separate domain-specific corpus slices.
 
-Status: later
-
 ---
 
-## 5. Search / API / Product hardening
+### 4.9 Full-text / RAG / analytics layers
 
-Planned:
-
-- expose topic clusters through Discovery API;
-- add Streamlit topic/cluster tab;
-- add optional topic-clusters DoD gate;
-- improve SQL search quality;
-- improve retrieval validation queries;
-- reduce gap between DB lexical search and file retrieval ergonomics;
-- handle modern ML query failures;
-- add richer artifact provider filters when provider metadata stabilizes;
-- add document/source/reference drilldown endpoints;
-- add Discovery API compact/detail response modes;
-- add Discovery API latency diagnostics / cache stats;
-- add cluster API latency diagnostics / cache stats.
-
-Hugging Face-specific API filters remain postponed until there is a clear product need.
-
----
-
-## 6. Later Product Layers
-
-These are intentionally postponed until corpus, artifact, discovery, topic-map and serving foundations are stronger.
-
-### 6.1 Full-text and chunking
+Status: **later**
 
 Planned:
 
 - full-text extraction;
-- chunk storage;
-- chunk-level retrieval.
-
-### 6.2 Structured extraction
-
-Planned:
-
-- NER / entity extraction;
-- richer paper metadata derivation;
-- structured research signals.
-
-### 6.3 LLM / RAG layer
-
-Planned:
-
-- summaries;
-- retrieval-augmented question answering;
-- citation-aware generation.
-
-### 6.4 Graph / analytics layer
-
-Planned:
-
+- section-aware chunking;
+- chunk-level retrieval;
+- citation-aware paper QA;
+- cluster summaries;
+- research brief generation;
 - reference graph;
 - artifact graph;
 - topic graph;
 - trend analytics;
-- related-paper surfaces.
+- dataset export track.
 
-### 6.5 Dataset release track
+Important principle:
 
-Planned:
+```text
+RAG is a future product layer over canonical/retrieval/evidence infrastructure.
+RAG is not the core project identity.
+```
 
-- clean metadata dataset;
-- paper-artifact graph exports;
-- topic/cluster exports;
-- dataset cards;
-- Kaggle / Hugging Face dataset release track if useful.
+---
 
-### 6.6 Full frontend / public product packaging
+### 4.10 Public product packaging / full frontend
 
-Planned later, after backend/product layers are mature:
+Status: **later**
+
+Planned after backend/product contracts are stable:
 
 - full web frontend, likely React/Next.js;
 - proper landing page;
@@ -1390,8 +1398,6 @@ Planned later, after backend/product layers are mature:
 - public demo packaging;
 - monitoring and observability.
 
-Status: later
-
 Important principle:
 
 ```text
@@ -1401,7 +1407,26 @@ Full frontend/site only after product workflow and backend contracts stabilize.
 
 ---
 
-## 7. Explicit Non-Goals for the Current Stage
+## 5. Search / API / product hardening backlog
+
+Planned improvements:
+
+- improve SQL search quality;
+- improve retrieval validation queries;
+- reduce gap between DB lexical search and file retrieval ergonomics;
+- handle modern ML query failures;
+- add richer artifact provider filters when provider metadata stabilizes;
+- add document/source/reference drilldown endpoints;
+- add Discovery API compact/detail response modes;
+- add Discovery API latency diagnostics / cache stats;
+- add cluster API latency diagnostics / cache stats;
+- add retrieval profile selection to API/UI if experiments justify it.
+
+Hugging Face-specific API filters remain postponed until there is a clear product need.
+
+---
+
+## 6. Explicit non-goals for the current stage
 
 Not part of the immediate next step:
 
@@ -1421,11 +1446,12 @@ Not part of the immediate next step:
 - treating topic cluster labels as curated taxonomy;
 - computing clustering or UMAP on every UI/API request;
 - replacing canonical truth with Postgres/materialized views;
-- full frontend before the Streamlit/API workflow is proven.
+- full frontend before the Streamlit/API workflow is proven;
+- changing retrieval defaults before expanding/validating the golden set.
 
 ---
 
-## 8. Guiding principle
+## 7. Guiding principle
 
 The roadmap is intentionally staged:
 
@@ -1439,11 +1465,12 @@ The roadmap is intentionally staged:
 8. harden discovery API ergonomics;
 9. build a thin local UI over Discovery API;
 10. add file-first topic clusters / topic map layer;
-11. expose topic clusters through Discovery API and Streamlit;
-12. add stronger embeddings / projection / vector serving carefully;
-13. add new paper/domain sources carefully;
-14. add richer product/RAG layers;
-15. package the project as a full web product only after the core is mature.
+11. validate discovery, search quality and UI through reports/DoD;
+12. strengthen evaluation before changing retrieval defaults;
+13. add vector serving carefully;
+14. add new paper/domain sources carefully;
+15. add richer product/RAG layers;
+16. package the project as a full web product only after the core is mature.
 
 The key engineering rule is:
 
@@ -1461,4 +1488,10 @@ The key analytics/discovery rule is:
 
 ```text
 Derived layers must be rebuildable, validated, and safe to delete/rebuild.
+```
+
+The key documentation rule is:
+
+```text
+Docs should describe the current validated system, not historical intentions.
 ```
