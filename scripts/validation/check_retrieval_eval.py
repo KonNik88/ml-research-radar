@@ -117,6 +117,65 @@ def primary_k_from_config(config: dict[str, Any]) -> int:
     return safe_int(defaults.get("primary_k"), default=10)
 
 
+def validate_group_summary(
+    *,
+    report: dict[str, Any],
+    expected_modes: list[str],
+    primary_k: int,
+    enabled_cases_count: int,
+) -> dict[str, bool]:
+    group_summary = report.get("group_summary") or {}
+    cases_count_sum = 0
+    modes_present = True
+    metrics_ok = True
+    best_modes_ok = True
+
+    for group, row in group_summary.items():
+        if not isinstance(row, dict):
+            metrics_ok = False
+            continue
+
+        cases_count = safe_int(row.get("cases_count"), default=0)
+        cases_count_sum += cases_count
+
+        modes = row.get("modes") or {}
+        if not isinstance(modes, dict):
+            modes_present = False
+            metrics_ok = False
+            continue
+
+        for mode in expected_modes:
+            mode_metrics = modes.get(mode)
+            if not isinstance(mode_metrics, dict):
+                modes_present = False
+                continue
+
+            for metric_name in (
+                f"hit_at_{primary_k}",
+                f"recall_at_{primary_k}",
+                f"mrr_at_{primary_k}",
+                f"ndcg_at_{primary_k}",
+                "quality_composite",
+            ):
+                value = mode_metrics.get(metric_name)
+                value_f = safe_float(value, default=-1.0)
+                if value_f < 0.0 or value_f > 1.0:
+                    metrics_ok = False
+
+        for key in ("best_by_recall", "best_by_ndcg", "best_by_composite"):
+            if row.get(key) not in expected_modes:
+                best_modes_ok = False
+
+    return {
+        "group_summary_present": bool(group_summary),
+        "group_summary_non_empty": bool(group_summary),
+        "group_summary_cases_cover_enabled": cases_count_sum == enabled_cases_count and enabled_cases_count > 0,
+        "group_summary_all_expected_modes_present": modes_present,
+        "group_summary_metrics_in_range": metrics_ok,
+        "group_summary_best_modes_present": best_modes_ok,
+    }
+
+
 def build_checks(
     *,
     report: dict[str, Any],
@@ -138,6 +197,12 @@ def build_checks(
 
     enabled_cases_count = safe_int(summary.get("enabled_cases_count"))
     executed_cases_count = safe_int(summary.get("executed_cases_count"))
+    group_checks = validate_group_summary(
+        report=report,
+        expected_modes=expected_modes,
+        primary_k=primary_k,
+        enabled_cases_count=enabled_cases_count,
+    )
 
     all_modes_present = all(mode in mode_summary for mode in expected_modes)
 
@@ -171,6 +236,7 @@ def build_checks(
         "comparison_query_diagnostics_present": bool(comparison_query_diagnostics),
         "comparison_pairwise_present": bool(comparison_pairwise),
         "comparison_mode_ranking_present": bool(comparison_mode_ranking),
+        **group_checks,
         "hybrid_empty_result_rate_within_threshold": empty_result_rate <= safe_float(thresholds.get("max_empty_result_rate"), default=1.0),
         f"hybrid_hit_at_{primary_k}_minimum_met": hybrid_hit >= safe_float(thresholds.get(f"min_hybrid_hit_at_{primary_k}"), default=0.0),
         f"hybrid_mrr_at_{primary_k}_minimum_met": hybrid_mrr >= safe_float(thresholds.get(f"min_hybrid_mrr_at_{primary_k}"), default=0.0),
@@ -193,6 +259,12 @@ def required_check_names(*, strict: bool, primary_k: int) -> list[str]:
         "comparison_query_diagnostics_present",
         "comparison_pairwise_present",
         "comparison_mode_ranking_present",
+        "group_summary_present",
+        "group_summary_non_empty",
+        "group_summary_cases_cover_enabled",
+        "group_summary_all_expected_modes_present",
+        "group_summary_metrics_in_range",
+        "group_summary_best_modes_present",
     ]
 
     if strict:
@@ -301,6 +373,8 @@ def main() -> None:
             "comparison_pairwise_count": len((report.get("comparison_summary") or {}).get("pairwise") or {}),
             "comparison_note_counts": (report.get("comparison_summary") or {}).get("note_counts") or {},
             "comparison_failed_mode_counts": (report.get("comparison_summary") or {}).get("failed_mode_counts") or {},
+            "group_summary_count": len((report.get("group_summary") or {})),
+            "group_summary_groups": sorted((report.get("group_summary") or {}).keys()),
         },
         "checks": checks,
         "required_checks": required,
