@@ -4,24 +4,18 @@
 
 This document describes the current public API surface of **ML Research Radar**.
 
-ML Research Radar is a paper-centric canonical corpus and discovery platform for ML/AI research.
-
-The API is built over distinct layers:
+ML Research Radar is a paper-centric canonical corpus platform for ML/AI research. The API is built over several distinct layers:
 
 ```text
 canonical JSONL truth
 → retrieval artifacts
 → Postgres materialized serving layer
 → artifact evidence/materialization layer
-→ GitHub / Hugging Face artifact enrichment
 → paper features
-→ ranking / paper detail / similar papers
-→ topic clusters / projection
-→ Discovery API
-→ Streamlit Discovery UI
+→ discovery API
 ```
 
-Main invariant:
+The key invariant is:
 
 ```text
 canonical_documents.jsonl = paper-level truth
@@ -29,26 +23,17 @@ Postgres = materialized serving layer
 retrieval artifacts = derived retrieval layer
 artifact DB = derived evidence/materialization layer
 paper_features / ranking / detail / similar / topic clusters = derived discovery layer
-Discovery API = product/discovery API over derived layers
-Streamlit UI = thin API client
 ```
 
 ---
 
 ## Current stable baseline
 
-Current checkpoint:
-
-```text
-Discovery Green Checkpoint — 2026-05
-```
-
-Current canonical baseline:
+Current green corpus baseline:
 
 ```text
 canonical_documents = 60954
 canonical_multisource_docs = 9192
-doi_count = 10183
 arXiv backbone = 60000
 ACL-family docs = 957
 ACL-only docs = 954
@@ -78,32 +63,24 @@ artifacts/retrieval/dense/ids_20260504T164021Z.json
 artifacts/retrieval/dense/meta_20260504T164021Z.json
 ```
 
-Current artifact/enrichment baseline:
+Current artifact/enrichment baseline, approximate:
 
 ```text
-artifact_entities_db_count = 7333
-artifact_observations_db_count = 38246
-paper_artifact_links_db_count = 7430
-
-github_entities_count ≈ 5953
-github_found_count ≈ 5339
-
-huggingface_entities_count ≈ 100
-huggingface_found_count ≈ 77
+artifact_entities ≈ 7333–7336
+artifact_observations ≈ 38246
+paper_artifact_links ≈ 7430
+GitHub enrichment = green
+Hugging Face enrichment = green
+artifact export DB = green
 ```
 
-Current feature/discovery baseline:
+Current retrieval evaluation / golden set baseline:
 
 ```text
-paper_features_rows_count = 60954
-ranking_profiles_count = 9
-topic_clusters_count = 80
-topic_assignments_count = 60954
-topic_projection_algorithm = umap
-topic_projection_rows_count = 2080
-strict_dod_required_checks = 132
-strict_dod_required_failed_count = 0
-strict_dod_passed = true
+golden_queries_enabled_cases_count = 22
+golden_queries_explicit_canonical_labeled_count = 15
+golden_queries_weak_pattern_count = 7
+golden_queries_required_failed_count = 0
 ```
 
 Current product/discovery chain:
@@ -113,10 +90,7 @@ ranking profile + query overrides
 → paper detail/card
 → similar papers
 → topic cluster navigation
-→ topic map
-→ artifact explorer
 → Discovery API
-→ Streamlit UI
 → validators
 → strict DoD
 ```
@@ -132,23 +106,32 @@ file
 db
 ```
 
-Backend mode is controlled by:
+The two backends intentionally expose the same top-level API shape where possible, but they are not fully symmetric.
+
+The backend mode is controlled by:
 
 ```text
 ML_RADAR_SEARCH_BACKEND
 ```
 
-Windows examples:
+Example on Windows CMD:
 
 ```bat
 set ML_RADAR_SEARCH_BACKEND=file
 ```
 
+or:
+
 ```bat
 set ML_RADAR_SEARCH_BACKEND=db
 ```
 
-The two backends intentionally expose the same top-level app where possible, but they are not fully symmetric.
+Valid values:
+
+```text
+file
+db
+```
 
 ---
 
@@ -185,6 +168,12 @@ dense
 hybrid
 ```
 
+Notes:
+
+- file backend is the current full retrieval path;
+- dense and hybrid search are not mirrored in Postgres DB backend v1;
+- Discovery API is file-first, but it is implemented as a separate product service rather than as a direct extension of `/search`.
+
 ---
 
 ## DB backend
@@ -197,10 +186,10 @@ materialized serving runtime over Postgres
 
 Current characteristics:
 
+- loads Postgres-backed runtime;
 - checks DB connectivity;
 - serves canonical documents from Postgres;
-- serves artifact entities from Postgres;
-- serves trusted paper-artifact links from Postgres;
+- serves artifact entities and paper-artifact links from Postgres;
 - supports browse/filter access;
 - supports DB lexical search v1.
 
@@ -209,8 +198,6 @@ DB-backed endpoints:
 ```text
 GET /documents
 GET /artifacts
-GET /artifacts/{artifact_id}
-GET /artifacts/{artifact_id}/papers
 GET /documents/{canonical_id}/artifacts
 GET /search?mode=lexical
 ```
@@ -234,7 +221,7 @@ Discovery API is exposed under:
 /discovery/*
 ```
 
-Discovery API is a product/discovery layer over validated file-first artifacts:
+Discovery API is a product/discovery layer over file-first derived artifacts:
 
 ```text
 configs/ranking_profiles_v1.yaml
@@ -249,7 +236,7 @@ artifacts/clusters/topic/latest.json
 artifacts/clusters/topic/runs/<cluster_build_id>/*
 ```
 
-Discovery API does not redefine canonical truth. It materializes user-facing discovery workflows over already validated derived layers.
+Discovery API does **not** redefine canonical truth. It materializes user-facing discovery workflows over already validated derived layers.
 
 Discovery API is separate from `SearchRuntime`:
 
@@ -264,14 +251,15 @@ Current DiscoveryService cache behavior:
 - paper feature rows are cached process-locally;
 - feature/canonical lookup maps are cached process-locally;
 - dense bundle, normalized embeddings and dense id index are cached process-locally for similar-paper API calls;
-- topic cluster latest pointer, summaries, labels, assignments and projection/map artifacts may be cached process-locally;
-- cache is runtime-only and is not a truth layer.
+- topic cluster latest pointer, summaries, labels and assignments may be loaded/cached process-locally for topic-cluster API calls;
+- cache is runtime-only and is not a truth layer;
+- `POST /reload` reloads the main API runtime; DiscoveryService exposes its own internal reload behavior where used by API code.
 
 ---
 
 ## Error response
 
-Structured API errors use this shape:
+Structured API errors use the following shape:
 
 ```json
 {
@@ -291,7 +279,7 @@ file_not_found
 internal_error
 ```
 
-Some FastAPI `HTTPException` responses may use the native FastAPI shape:
+Some explicit FastAPI `HTTPException` responses may return the native FastAPI shape:
 
 ```json
 {
@@ -308,8 +296,6 @@ invalid top_k / invalid query params -> 400 or 422 depending on validation path
 invalid discovery ranking sort_by -> 422
 invalid discovery ranking year range -> 400
 unsupported DB search mode -> 400
-unknown cluster_id -> 404
-unknown artifact_id -> 404
 ```
 
 ---
@@ -320,7 +306,11 @@ unknown artifact_id -> 404
 
 Backend-aware readiness check.
 
-Response fields:
+### Purpose
+
+Returns whether the current runtime is ready and which components are active.
+
+### Response fields
 
 ```text
 status
@@ -332,7 +322,7 @@ embedding_model_name
 checks
 ```
 
-DB backend example:
+### Example response: DB backend
 
 ```json
 {
@@ -354,13 +344,19 @@ DB backend example:
 }
 ```
 
+### Notes
+
+File backend readiness depends on file retrieval artifacts.
+
+DB backend readiness depends on Postgres store availability and DB connectivity.
+
 ---
 
 ## `GET /info`
 
-Returns API-level and runtime information.
+Returns API-level information and current runtime information.
 
-Response fields:
+### Response fields
 
 ```text
 api_title
@@ -379,7 +375,7 @@ loaded_components
 
 Returns a detailed runtime snapshot.
 
-Response fields:
+### Response fields
 
 ```text
 ready
@@ -397,13 +393,32 @@ model_reused
 current_model_name
 ```
 
+### File backend semantics
+
+```text
+build_id comes from retrieval manifest
+embedding_model_name is populated
+file retrieval components are loaded
+db_connected = false
+```
+
+### DB backend semantics
+
+```text
+build_id = db-runtime
+embedding_model_name = null
+db_store is loaded
+db_connected indicates DB reachability
+file retrieval components are not loaded
+```
+
 ---
 
 ## `POST /reload`
 
 Reloads the current runtime.
 
-File backend reloads:
+### File backend reloads
 
 ```text
 latest manifest
@@ -413,12 +428,27 @@ dense artifacts
 embedding model
 ```
 
-DB backend reloads:
+### DB backend reloads
 
 ```text
 Postgres-backed runtime
 DB store connectivity
 document count snapshot
+```
+
+### Example response
+
+```json
+{
+  "status": "reloaded",
+  "backend_mode": "db",
+  "message": "DB backend runtime reloaded successfully",
+  "build_id": "db-runtime",
+  "corpus_doc_count": 60954,
+  "embedding_model_name": null,
+  "model_reused": false,
+  "last_reload_at": "2026-05-09T16:00:00+00:00"
+}
 ```
 
 ---
@@ -429,7 +459,7 @@ document count snapshot
 
 Main relevance-search endpoint.
 
-Query parameters:
+### Query parameters
 
 ```text
 query
@@ -448,7 +478,7 @@ offset
 sort_by
 ```
 
-Parameter summary:
+### Parameter details
 
 | parameter | type | default | notes |
 |---|---:|---:|---|
@@ -467,7 +497,9 @@ Parameter summary:
 | `offset` | int | 0 | pagination offset |
 | `sort_by` | relevance / year_desc / year_asc | relevance | DB lexical search respects relevance/year sorting |
 
-File backend modes:
+### File backend support
+
+Supported modes:
 
 ```text
 lexical
@@ -475,30 +507,133 @@ dense
 hybrid
 ```
 
-DB backend mode:
+### DB backend support
+
+Supported mode:
 
 ```text
 lexical
 ```
 
-Example:
+Unsupported DB modes:
+
+```text
+dense
+hybrid
+```
+
+These return `400 Bad Request`.
+
+### Example
 
 ```http
 GET /search?query=graph%20neural%20networks&mode=lexical&top_k=5
+```
+
+### Response shape
+
+```json
+{
+  "query": "graph neural networks",
+  "mode": "lexical",
+  "top_k": 5,
+  "rank_applied": false,
+  "build_id": "db-runtime",
+  "meta": {
+    "build_id": "db-runtime",
+    "result_count": 5,
+    "rank_applied": false,
+    "timing_ms": {
+      "retrieve_ms": 3.1,
+      "total_ms": 3.8
+    },
+    "debug_enabled": true,
+    "applied_filters": {
+      "year_from": null,
+      "year_to": null,
+      "category": null,
+      "source": null,
+      "publication_type": null,
+      "venue": null,
+      "open_access": null,
+      "has_code_link": null
+    },
+    "retrieved_candidates_before_filters": 42,
+    "retrieved_candidates_after_filters": 42,
+    "offset": 0,
+    "returned_count": 5,
+    "sort_by": "relevance"
+  },
+  "results": [
+    {
+      "document": {
+        "canonical_id": "...",
+        "title": "...",
+        "abstract": "...",
+        "authors": [],
+        "year": 2024,
+        "doi": "...",
+        "arxiv_id": null,
+        "openalex_id": null,
+        "primary_category": null,
+        "categories": [],
+        "concepts": [],
+        "keywords": [],
+        "tags": [],
+        "venue": null,
+        "journal": null,
+        "conference": null,
+        "publisher": null,
+        "publication_type": null,
+        "language": "en",
+        "landing_page_url": null,
+        "pdf_url": null,
+        "repo_url": null,
+        "open_access": null,
+        "has_code_link": false,
+        "code_links": [],
+        "cited_by_count": null,
+        "references_count": null,
+        "source_count": 1,
+        "unique_source_count": 1,
+        "metadata_completeness_score": 0.7,
+        "is_preprint": false,
+        "is_review": false,
+        "is_survey": false,
+        "is_withdrawn": false
+      },
+      "retrieval": {
+        "score": 35.0,
+        "lexical_score": null,
+        "dense_score": null,
+        "hybrid_score": null
+      },
+      "ranking": null
+    }
+  ]
+}
 ```
 
 ---
 
 # Discovery API
 
-Discovery API exposes the product workflow:
+Discovery API exposes the current product workflow:
 
 ```text
 ranking profile + query overrides
 → paper detail/card
 → similar papers
-→ paper topic cluster
-→ topic cluster list/detail/map
+→ topic cluster navigation
+```
+
+It is intentionally separated from `/search`, `/documents`, and `/artifacts`:
+
+```text
+/search      = query retrieval
+/documents   = DB/materialized corpus browsing
+/artifacts   = artifact evidence browsing
+/discovery/* = product/research-radar workflow
 ```
 
 Current Discovery API endpoints:
@@ -508,10 +643,9 @@ GET /discovery/profiles
 GET /discovery/ranking/{profile_name}
 GET /discovery/papers/{canonical_id}
 GET /discovery/papers/{canonical_id}/similar
-GET /discovery/papers/{canonical_id}/cluster
 GET /discovery/clusters
 GET /discovery/clusters/{cluster_id}
-GET /discovery/clusters/map
+GET /discovery/papers/{canonical_id}/cluster
 ```
 
 Current quality gate:
@@ -520,11 +654,21 @@ Current quality gate:
 python -m scripts.validation.check_discovery_api --strict
 ```
 
+Current strict DoD with Discovery API gate:
+
+```bat
+python -m scripts.update.check_refresh_definition_of_done --require-known-issues --require-artifacts --require-github-enrichment --require-huggingface-enrichment --require-paper-features --require-similar-papers --require-discovery-api --require-topic-clusters --require-topic-projection --require-streamlit-discovery-ui --require-golden-queries
+```
+
 ---
 
 ## `GET /discovery/profiles`
 
 Lists configured ranking/discovery profiles.
+
+### Purpose
+
+Returns the product-level ranking profiles used by the radar workflow.
 
 Profiles are defined in:
 
@@ -546,19 +690,19 @@ recent_model_ready
 recent_transformer_radar
 ```
 
-Default profile:
+Current default profile:
 
 ```text
 recent_artifact_ready
 ```
 
-Example:
+### Example
 
 ```http
 GET /discovery/profiles
 ```
 
-Response shape:
+### Response shape
 
 ```json
 {
@@ -586,19 +730,23 @@ Response shape:
 
 Returns ranked papers for a configured discovery profile, optionally refined with query-level overrides.
 
-This is profile-based radar ranking over `paper_features_latest.jsonl`, not free-form retrieval.
+### Purpose
 
-Path parameter:
+Provides a product-ready ranked feed over `paper_features_latest.jsonl`.
+
+This is not free-form retrieval. It is profile-based radar ranking with controlled query overrides.
+
+### Path parameters
 
 ```text
 profile_name
 ```
 
-Query parameters:
+### Query parameters
 
 | parameter | type | default | notes |
 |---|---:|---:|---|
-| `top_k` | int | profile default | capped by API settings, current API cap is 100 |
+| `top_k` | int | profile default | capped by API settings, currently `max_top_k = 100` |
 | `min_year` | int | profile/default null | lower year bound |
 | `max_year` | int | profile/default null | upper year bound |
 | `query_title` | string | profile/default null | case-insensitive substring match over title |
@@ -636,7 +784,9 @@ hf_downloads_max
 hf_likes_max
 ```
 
-Override semantics:
+### Override semantics
+
+Profile filters are used as the base preset. Query parameters are explicit overrides or additions.
 
 ```text
 profile.filters = base profile filters
@@ -654,32 +804,127 @@ true = explicit true override
 false = explicit false override
 ```
 
-Examples:
+This means that even an override that weakens a profile constraint is allowed:
+
+```http
+GET /discovery/ranking/huggingface_ready?top_k=5&has_hf=false
+```
+
+In that case:
+
+```text
+profile.filters.has_hf = true
+filters.has_hf = false
+```
+
+### Examples
+
+Recent artifact-ready papers from 2025 onward:
 
 ```http
 GET /discovery/ranking/recent_artifact_ready?top_k=20&min_year=2025
+```
+
+Hugging Face-ready papers with title containing `speech`:
+
+```http
 GET /discovery/ranking/huggingface_ready?top_k=20&query_title=speech
+```
+
+Recent artifact-ready code papers from 2025 onward:
+
+```http
 GET /discovery/ranking/recent_artifact_ready?top_k=5&min_year=2025&has_code=true
+```
+
+Override a base profile filter:
+
+```http
 GET /discovery/ranking/huggingface_ready?top_k=5&has_hf=false
+```
+
+Override sorting:
+
+```http
 GET /discovery/ranking/recent_code_radar?top_k=20&sort_by=implementation_readiness_score
 ```
 
-Invalid profile:
+### Response shape
+
+```json
+{
+  "mode": "ranking",
+  "profile": {
+    "name": "huggingface_ready",
+    "description": "Papers with Hugging Face artifacts, ranked by implementation readiness.",
+    "sort_by": "implementation_readiness_score",
+    "top_k": 50,
+    "descending": true,
+    "filters": {
+      "has_hf": true
+    },
+    "loaded": true,
+    "profiles_path": "configs/ranking_profiles_v1.yaml"
+  },
+  "sort_by": "implementation_readiness_score",
+  "descending": true,
+  "top_k": 5,
+  "input_rows_count": 60954,
+  "filtered_rows_count": 85,
+  "returned_rows_count": 5,
+  "features_path": "data/features/paper_features_latest.jsonl",
+  "filters": {
+    "has_hf": true,
+    "min_year": null,
+    "max_year": null,
+    "query_title": null,
+    "source_family": null
+  },
+  "results": [
+    {
+      "rank": 1,
+      "canonical_id": "bd3c9332f17370fa801e6ac9542f125a",
+      "title": "FlashLabs Chroma 1.0: A Real-Time End-to-End Spoken Dialogue Model with Personalized Voice Cloning",
+      "year": 2026,
+      "radar_score": 0.658838,
+      "implementation_readiness_score": 0.768109,
+      "source_confidence_score": 0.45,
+      "citation_signal_score": 0.0,
+      "trusted_artifact_links_count": 2,
+      "has_code_artifact": true,
+      "hf_found_count": 1,
+      "github_found_repo_count": 1
+    }
+  ]
+}
+```
+
+### Missing profile
+
+Unknown profile names return:
 
 ```text
 404
 ```
 
-Invalid `sort_by`:
+### Invalid parameters
+
+Invalid `sort_by` values return FastAPI validation error:
 
 ```text
 422
 ```
 
-Invalid `min_year > max_year`:
+Invalid cross-field year range returns bad request:
 
 ```text
 400
+```
+
+Example invalid year range:
+
+```http
+GET /discovery/ranking/recent_artifact_ready?min_year=2026&max_year=2025
 ```
 
 ---
@@ -688,7 +933,9 @@ Invalid `min_year > max_year`:
 
 Returns a full paper detail/card payload.
 
-Combines:
+### Purpose
+
+Builds a paper detail view by combining:
 
 ```text
 canonical document
@@ -702,25 +949,74 @@ identifiers
 scores
 ```
 
-Path parameter:
+### Path parameters
 
 ```text
 canonical_id
 ```
 
-Query parameters:
+### Query parameters
 
 | parameter | type | default | notes |
 |---|---:|---:|---|
 | `view` | full | full | only `full` is supported in v1 |
 
-Example:
+`compact` view is postponed.
+
+### Example
 
 ```http
 GET /discovery/papers/bd3c9332f17370fa801e6ac9542f125a
 ```
 
-Missing paper:
+### Response shape
+
+```json
+{
+  "canonical_id": "bd3c9332f17370fa801e6ac9542f125a",
+  "found": true,
+  "inputs": {
+    "canonical_path": "data/analytics/reconciled/canonical_documents.jsonl",
+    "features_path": "data/features/paper_features_latest.jsonl"
+  },
+  "detail": {
+    "canonical_id": "bd3c9332f17370fa801e6ac9542f125a",
+    "found": true,
+    "canonical_found": true,
+    "features_found": true,
+    "title": "FlashLabs Chroma 1.0: A Real-Time End-to-End Spoken Dialogue Model with Personalized Voice Cloning",
+    "year": 2026,
+    "scores": {
+      "radar_score": 0.658838,
+      "implementation_readiness_score": 0.768109,
+      "source_confidence_score": 0.45,
+      "citation_signal_score": 0.0
+    },
+    "artifacts": [
+      {
+        "relation_type": "code",
+        "artifact": {
+          "provider": "github",
+          "artifact_type": "github_repository"
+        }
+      },
+      {
+        "relation_type": "model",
+        "artifact": {
+          "provider": "huggingface",
+          "artifact_type": "huggingface_model"
+        }
+      }
+    ],
+    "source_evidence": {},
+    "identifiers": {}
+  }
+}
+```
+
+### Missing paper
+
+If the canonical paper does not exist, the endpoint returns:
 
 ```text
 404
@@ -732,11 +1028,28 @@ Missing paper:
 
 Returns semantic nearest-neighbor papers for a target paper.
 
+### Purpose
+
+Finds similar papers over the current dense retrieval embeddings and enriches results with paper features/canonical metadata.
+
+Default mode:
+
+```text
+rank_by=semantic
+```
+
 Supported ranking modes:
 
 ```text
 semantic
 radar_adjusted
+```
+
+Semantics:
+
+```text
+semantic = pure dense cosine similarity
+radar_adjusted = semantic similarity + radar_score + implementation_readiness_score
 ```
 
 Current `radar_adjusted` formula:
@@ -747,13 +1060,13 @@ Current `radar_adjusted` formula:
 + 0.05 * implementation_readiness_score
 ```
 
-Path parameter:
+### Path parameters
 
 ```text
 canonical_id
 ```
 
-Query parameters:
+### Query parameters
 
 | parameter | type | default | notes |
 |---|---:|---:|---|
@@ -761,72 +1074,93 @@ Query parameters:
 | `rank_by` | semantic / radar_adjusted | semantic | result ranking mode |
 | `min_similarity` | float | null | optional cosine threshold |
 
-Examples:
+### Examples
+
+Semantic nearest papers:
 
 ```http
 GET /discovery/papers/bd3c9332f17370fa801e6ac9542f125a/similar?top_k=20
+```
+
+Radar-adjusted similar papers:
+
+```http
 GET /discovery/papers/bd3c9332f17370fa801e6ac9542f125a/similar?top_k=20&rank_by=radar_adjusted
 ```
 
-Runtime/cache note:
+### Response shape
+
+```json
+{
+  "mode": "similar_papers",
+  "target_canonical_id": "bd3c9332f17370fa801e6ac9542f125a",
+  "target_found": true,
+  "target": {
+    "canonical_id": "bd3c9332f17370fa801e6ac9542f125a",
+    "title": "FlashLabs Chroma 1.0: A Real-Time End-to-End Spoken Dialogue Model with Personalized Voice Cloning",
+    "year": 2026,
+    "radar_score": 0.658838,
+    "implementation_readiness_score": 0.768109
+  },
+  "rank_by": "semantic",
+  "top_k": 20,
+  "min_similarity": null,
+  "input_rows_count": 60954,
+  "returned_rows_count": 20,
+  "dense_artifacts": {
+    "manifest_path": "artifacts/retrieval/manifests/latest.json",
+    "embedding_path": "artifacts/retrieval/dense/embeddings_20260504T164021Z.npy",
+    "ids_path": "artifacts/retrieval/dense/ids_20260504T164021Z.json",
+    "meta_path": "artifacts/retrieval/dense/meta_20260504T164021Z.json",
+    "embedding_shape": [60954, 384],
+    "ids_count": 60954
+  },
+  "results": [
+    {
+      "canonical_id": "...",
+      "dense_index": 123,
+      "title": "StreamVC: Real-Time Low-Latency Voice Conversion",
+      "year": 2024,
+      "semantic_similarity": 0.7124,
+      "semantic_similarity_norm": 0.8562,
+      "radar_adjusted_similarity": 0.7548,
+      "rank_score": 0.7124,
+      "radar_score": 0.27,
+      "implementation_readiness_score": 0.0,
+      "trusted_artifact_links_count": 0
+    }
+  ]
+}
+```
+
+### Runtime/cache note
+
+Discovery API caches the dense runtime in process:
 
 ```text
-Discovery API caches the dense bundle, normalized embeddings, dense id index, features map and canonical map process-locally.
-The cache accelerates repeated calls and is not a truth layer.
+dense bundle
+normalized embeddings
+dense id index
+features lookup map
+canonical lookup map
 ```
+
+This accelerates repeated `/similar` calls within the same API process. It does not alter retrieval artifacts and is not a truth layer.
 
 ---
 
-## `GET /discovery/papers/{canonical_id}/cluster`
-
-Returns the latest topic-cluster assignment for one paper.
-
-Purpose:
-
-```text
-connect paper detail/similar workflows to the corpus-level topic landscape
-```
-
-Example:
-
-```http
-GET /discovery/papers/bd3c9332f17370fa801e6ac9542f125a/cluster
-```
-
-Response content:
-
-```text
-canonical_id
-assignment
-cluster_id
-cluster_build_id
-retrieval_build_id
-rank_within_cluster
-distance_to_centroid
-similarity_to_centroid
-cluster label candidates
-cluster summary
-```
-
-Missing paper or assignment:
-
-```text
-404
-```
-
----
 
 ## `GET /discovery/clusters`
 
-Lists current topic clusters from the latest topic-cluster artifact.
+Lists the current topic clusters from the latest topic-cluster artifact.
 
-Purpose:
+### Purpose
 
-```text
-corpus-level topic/navigation surface over validated topic clustering layer
-```
+Provides a corpus-level topic/navigation surface over the validated file-first topic clustering layer.
 
-Inputs:
+This endpoint reads existing artifacts. It does not run clustering, recompute labels or mutate canonical paper truth.
+
+### Inputs used by the service
 
 ```text
 artifacts/clusters/topic/latest.json
@@ -834,57 +1168,68 @@ artifacts/clusters/topic/runs/<cluster_build_id>/summary.json
 artifacts/clusters/topic/runs/<cluster_build_id>/label_candidates.json
 ```
 
-Current stable query parameters:
+### Query parameters
 
 | parameter | type | default | notes |
 |---|---:|---:|---|
-| `limit` | int | service default | number of clusters to return |
-| `sort_by` | string | implementation-supported | e.g. size/artifact-ready/score style sorting where enabled |
-| `min_size` | int | null | optional cluster size filter where enabled |
+| `limit` | int | service default | number of clusters to return; used for lightweight UI/API smoke calls |
 
-Stable smoke example:
+No public sort/filter contract is required for v1.2. The current stable smoke path only requires `limit`.
+
+### Example
 
 ```http
 GET /discovery/clusters?limit=5
 ```
 
-Current quality smoke also checks an artifact-ready variant:
+### Response shape
 
-```http
-GET /discovery/clusters?limit=1&sort_by=artifact_ready_desc&min_size=1
+```json
+{
+  "mode": "topic_clusters",
+  "cluster_build_id": "20260511T151842Z",
+  "retrieval_build_id": "20260504T164021Z",
+  "cluster_count": 80,
+  "returned_count": 5,
+  "results": [
+    {
+      "cluster_id": 41,
+      "size": 1493,
+      "label_candidates": [
+        "object detection",
+        "convolutional neural networks",
+        "deep convolutional",
+        "transfer learning",
+        "data augmentation"
+      ],
+      "artifact_ready_count": 277,
+      "code_artifact_count": 274,
+      "dataset_artifact_count": 2,
+      "model_artifact_count": 0,
+      "demo_artifact_count": 1,
+      "mean_radar_score": 0.198332,
+      "mean_implementation_readiness_score": 0.090706,
+      "mean_source_confidence_score": 0.501072,
+      "mean_citation_signal_score": 0.060151,
+      "top_source_families": [
+        ["arxiv", 1493],
+        ["openalex", 191]
+      ],
+      "representative_papers": [
+        {
+          "canonical_id": "b5db7b3c32a99cb303a7a5bd814c1ce0",
+          "title": "Training Vision Transformers with Only 2040 Images",
+          "year": 2022,
+          "distance_to_centroid": 0.581252,
+          "similarity_to_centroid": 0.826748
+        }
+      ]
+    }
+  ]
+}
 ```
 
-Response content:
-
-```text
-mode
-cluster_build_id
-retrieval_build_id
-cluster_count
-returned_count
-results[]
-```
-
-Each cluster row may include:
-
-```text
-cluster_id
-size
-label_candidates
-artifact_ready_count
-code_artifact_count
-dataset_artifact_count
-model_artifact_count
-demo_artifact_count
-mean_radar_score
-mean_implementation_readiness_score
-mean_source_confidence_score
-mean_citation_signal_score
-top_source_families
-representative_papers
-```
-
-Semantics:
+### Semantics
 
 ```text
 cluster_id is stable only inside a specific cluster_build_id/config/input corpus
@@ -898,68 +1243,71 @@ representative_papers are inspection/navigation aids, not canonical labels
 
 Returns detail for one topic cluster.
 
-Purpose:
+### Purpose
 
-```text
-cluster-level view for UI/API clients:
-summary + label candidates + representative papers + limited papers from cluster
-```
+Provides a cluster-level view for UI and API clients: summary, label candidates, representative papers and a limited set of papers from the cluster.
 
-Path parameter:
+### Path parameters
 
 ```text
 cluster_id
 ```
 
-Query parameters:
+### Query parameters
 
 | parameter | type | default | notes |
 |---|---:|---:|---|
 | `top_k` | int | service default | number of papers to return from the cluster |
-| `min_year` | int | null | optional lower year bound where enabled |
-| `max_year` | int | null | optional upper year bound where enabled |
-| `has_code` | bool | null | optional code-artifact filter where enabled |
-| `has_github` | bool | null | optional GitHub filter where enabled |
-| `min_radar_score` | float | null | optional score filter where enabled |
-| `min_implementation_readiness_score` | float | null | optional score filter where enabled |
-| `min_citation_signal_score` | float | null | optional score filter where enabled |
-| `sort_by` | string | rank | supported sort modes listed below |
 
-Current checked sort modes:
-
-```text
-rank
-similarity_desc
-radar_score
-implementation_readiness_score
-citation_signal_score
-year_desc
-```
-
-Examples:
+### Example
 
 ```http
 GET /discovery/clusters/41?top_k=5
-GET /discovery/clusters/41?top_k=5&sort_by=similarity_desc
-GET /discovery/clusters/39?top_k=5&min_year=2020&has_code=true&sort_by=radar_score
 ```
 
-Response content:
+### Response shape
 
-```text
-mode
-cluster_id
-cluster_build_id
-retrieval_build_id
-found
-total_papers
-returned_papers_count
-summary
-papers[]
-effective filters where applicable
+```json
+{
+  "mode": "topic_cluster_detail",
+  "cluster_id": 41,
+  "cluster_build_id": "20260511T151842Z",
+  "retrieval_build_id": "20260504T164021Z",
+  "found": true,
+  "total_papers": 1493,
+  "returned_papers_count": 5,
+  "summary": {
+    "cluster_id": 41,
+    "size": 1493,
+    "label_candidates": [
+      "object detection",
+      "convolutional neural networks",
+      "deep convolutional",
+      "transfer learning",
+      "data augmentation"
+    ],
+    "mean_radar_score": 0.198332,
+    "artifact_ready_count": 277
+  },
+  "papers": [
+    {
+      "canonical_id": "b5db7b3c32a99cb303a7a5bd814c1ce0",
+      "title": "Training Vision Transformers with Only 2040 Images",
+      "year": 2022,
+      "rank_within_cluster": 1,
+      "distance_to_centroid": 0.581252,
+      "similarity_to_centroid": 0.826748,
+      "radar_score": 0.15,
+      "implementation_readiness_score": 0.0,
+      "has_code_artifact": false
+    }
+  ]
+}
 ```
 
-Missing cluster:
+### Missing cluster
+
+Unknown cluster IDs return an error response, typically:
 
 ```text
 404
@@ -967,102 +1315,61 @@ Missing cluster:
 
 ---
 
-## `GET /discovery/clusters/map`
+## `GET /discovery/papers/{canonical_id}/cluster`
 
-Returns topic-map projection points from the latest projection artifact.
+Returns the latest topic-cluster assignment for one paper.
 
-Purpose:
+### Purpose
 
-```text
-serve precomputed corpus-level topic projection to UI/API clients
-```
+Connects paper detail/similar-paper workflows to the corpus-level topic landscape.
 
-This endpoint reads existing projection artifacts. It does not compute UMAP/PCA at request time.
+This endpoint is useful for linking from a paper card to its broader topic cluster.
 
-Inputs:
-
-```text
-artifacts/clusters/topic/latest.json
-artifacts/clusters/topic/runs/<cluster_build_id>/projection_2d.jsonl
-artifacts/clusters/topic/runs/<cluster_build_id>/projection_summary.json
-```
-
-Current projection baseline:
-
-```text
-projection_algorithm = umap
-projection_build_id = 20260515T154038Z
-cluster_build_id = 20260511T151842Z
-retrieval_build_id = 20260504T164021Z
-rows_count = 2080
-centroid_count = 80
-representative_count = 800
-sampled_count = 1200
-```
-
-Query parameters:
-
-| parameter | type | default | notes |
-|---|---:|---:|---|
-| `include_papers` | bool | false | false returns centroids only; true can include paper points |
-| `max_points` | int | service default/cap | caps returned point count for UI performance |
-
-Examples:
-
-```http
-GET /discovery/clusters/map
-GET /discovery/clusters/map?include_papers=true&max_points=500
-```
-
-Default behavior:
-
-```text
-include_papers=false returns cluster centroid points only
-```
-
-Response content:
-
-```text
-mode
-cluster_build_id
-retrieval_build_id
-projection_build_id
-projection_algorithm
-counts
-returned_count
-points[]
-```
-
-Each point includes:
-
-```text
-x
-y
-cluster_id
-point_type
-cluster_build_id
-retrieval_build_id
-```
-
-Paper points may also include:
+### Path parameters
 
 ```text
 canonical_id
-title
-year
-is_representative
-is_sampled
-radar_score
-implementation_readiness_score
 ```
 
-Semantics:
+### Example
 
-```text
-projection is a derived visualization artifact
-projection does not change canonical truth
-coordinates are stable only for a specific projection_build_id / cluster_build_id / retrieval_build_id
+```http
+GET /discovery/papers/bd3c9332f17370fa801e6ac9542f125a/cluster
 ```
+
+### Response shape
+
+```json
+{
+  "mode": "paper_topic_cluster",
+  "canonical_id": "bd3c9332f17370fa801e6ac9542f125a",
+  "found": true,
+  "assignment": {
+    "canonical_id": "bd3c9332f17370fa801e6ac9542f125a",
+    "cluster_id": 22,
+    "cluster_build_id": "20260511T151842Z",
+    "retrieval_build_id": "20260504T164021Z",
+    "rank_within_cluster": 1,
+    "distance_to_centroid": 0.548,
+    "similarity_to_centroid": 0.82
+  },
+  "cluster": {
+    "cluster_id": 22,
+    "size": 936,
+    "label_candidates": [
+      "automatic speech recognition",
+      "large language models",
+      "natural language processing",
+      "word error rate",
+      "speaker verification"
+    ]
+  }
+}
+```
+
+### Missing paper / assignment
+
+If the paper does not exist or has no assignment in the current topic-cluster artifact, the endpoint returns an error response.
 
 ---
 
@@ -1074,27 +1381,25 @@ Browse/filter endpoint for canonical documents stored in Postgres.
 
 DB backend only.
 
-Purpose:
+### Purpose
 
-```text
-deterministic browse/filter access over canonical documents
-```
+Provides deterministic browse/filter access over canonical documents.
 
-It is not the primary relevance-search endpoint. Use:
+It is not a relevance-search endpoint.
+
+For relevance search, use:
 
 ```text
 GET /search
 ```
 
-for relevance search and:
+For profile-based product discovery, use:
 
 ```text
 GET /discovery/ranking/{profile_name}
 ```
 
-for profile-based discovery.
-
-Query parameters:
+### Query parameters
 
 ```text
 query
@@ -1118,7 +1423,53 @@ artifact_type
 sort_by
 ```
 
-Trusted artifact filters use:
+### Parameter details
+
+| parameter | type | default | notes |
+|---|---:|---:|---|
+| `query` | string | null | simple text query over title/abstract/venue/publisher |
+| `limit` | int | 10 | max 100 |
+| `offset` | int | 0 | pagination offset |
+| `year_from` | int | null | lower year bound |
+| `year_to` | int | null | upper year bound |
+| `category` | string | null | matches `categories` JSONB |
+| `source` | string | null | source family filter through canonical source links |
+| `publication_type` | string | null | publication type |
+| `venue` | string | null | normalized venue equality |
+| `open_access` | bool | null | `is_open_access` DB field |
+| `has_code_link` | bool | null | legacy canonical/source-layer code link flag |
+| `has_trusted_artifact` | bool | null | any trusted artifact link |
+| `has_trusted_code_artifact` | bool | null | trusted artifact relation `code` |
+| `has_trusted_dataset_artifact` | bool | null | trusted artifact relation `dataset` |
+| `has_trusted_model_artifact` | bool | null | trusted artifact relation `model` |
+| `has_trusted_demo_artifact` | bool | null | trusted artifact relation `demo` |
+| `artifact_provider` | string | null | trusted artifact provider filter |
+| `artifact_type` | string | null | trusted artifact type filter |
+| `sort_by` | year_desc / year_asc / title_asc | year_desc | deterministic ordering |
+
+### Legacy vs trusted artifact filters
+
+Legacy field:
+
+```text
+has_code_link
+```
+
+This uses canonical/source-layer fields.
+
+Trusted artifact-layer filters:
+
+```text
+has_trusted_artifact
+has_trusted_code_artifact
+has_trusted_dataset_artifact
+has_trusted_model_artifact
+has_trusted_demo_artifact
+artifact_provider
+artifact_type
+```
+
+These use:
 
 ```text
 paper_artifact_links
@@ -1126,6 +1477,38 @@ JOIN artifact_entities
 ```
 
 Do not treat `has_code_link` and `has_trusted_code_artifact` as equivalent.
+
+### Examples
+
+Documents with any trusted artifact:
+
+```http
+GET /documents?has_trusted_artifact=true&limit=10
+```
+
+Documents with trusted code artifacts:
+
+```http
+GET /documents?has_trusted_code_artifact=true&limit=10
+```
+
+Documents with trusted GitHub artifacts:
+
+```http
+GET /documents?artifact_provider=github&limit=10
+```
+
+Documents with trusted GitHub code artifacts:
+
+```http
+GET /documents?has_trusted_code_artifact=true&artifact_provider=github&limit=10
+```
+
+Documents without trusted artifacts:
+
+```http
+GET /documents?has_trusted_artifact=false&limit=10
+```
 
 ---
 
@@ -1137,7 +1520,11 @@ Browse/filter endpoint for artifact entities stored in Postgres.
 
 DB backend only.
 
-Query parameters:
+### Purpose
+
+Provides deterministic browse/filter access over artifact entities and their trusted paper-link summary.
+
+### Query parameters
 
 ```text
 provider
@@ -1158,206 +1545,86 @@ offset
 sort_by
 ```
 
-Supported sort examples:
-
-```text
-linked_papers_desc
-provider_asc
-type_asc
-owner_asc
-last_seen_desc
-stars_desc
-forks_desc
-```
-
-Examples:
-
-```http
-GET /artifacts?limit=20
-GET /artifacts?provider=github&limit=20
-GET /artifacts?relation_type=code&limit=20
-GET /artifacts?has_paper_links=true&limit=20
-GET /artifacts?provider=github&min_stars=100&language=Python&sort_by=stars_desc&limit=20
-GET /artifacts?provider=github&github_status=found&limit=20
-GET /artifacts?provider=github&archived=false&has_github_metadata=true&limit=20
-```
-
----
-
-## `GET /artifacts/{artifact_id}`
-
-Returns detail for one artifact entity.
-
-DB backend only.
-
-Purpose:
-
-```text
-show artifact metadata, provider-specific enrichment metadata and paper-link summary
-```
-
-Path parameter:
-
-```text
-artifact_id
-```
-
-Example:
-
-```http
-GET /artifacts/7e51675b8ad752fbf617dced0315d3bd
-```
-
-Typical response content:
-
-```text
-artifact_id
-provider
-artifact_type
-canonical_url
-normalized_url
-owner
-name
-external_id
-license
-metadata
-github metadata where present
-huggingface metadata where present
-paper link summary
-```
-
-Missing artifact:
-
-```text
-404
-```
-
----
-
-## `GET /artifacts/{artifact_id}/papers`
-
-Returns papers linked to one artifact.
-
-DB backend only.
-
-Purpose:
-
-```text
-navigate from an artifact to canonical papers that cite/link it
-```
-
-Path parameter:
-
-```text
-artifact_id
-```
-
-Query parameters:
+### Parameter details
 
 | parameter | type | default | notes |
 |---|---:|---:|---|
-| `limit` | int | service default | max rows |
-| `offset` | int | 0 | pagination offset |
-| `relation_type` | string | null | code/dataset/model/demo |
+| `provider` | string | null | e.g. github, huggingface, figshare, zenodo |
+| `artifact_type` | string | null | e.g. github_repository, huggingface_model |
+| `relation_type` | string | null | code, dataset, model, demo |
+| `owner` | string | null | namespace/owner when available |
 | `min_confidence` | float | null | trusted link confidence threshold |
-| `sort_by` | string | confidence_desc | sorting mode where enabled |
+| `has_paper_links` | bool | null | whether artifact participates in trusted links |
+| `min_stars` | int | null | minimum GitHub stars; applies to materialized artifact metadata |
+| `max_stars` | int | null | maximum GitHub stars; applies to materialized artifact metadata |
+| `language` | string | null | GitHub repository language, case-insensitive; uses `metadata.github.language` |
+| `license` | string | null | artifact/GitHub license, case-insensitive; uses `artifact_entities.license` |
+| `archived` | bool | null | GitHub archived flag; matches only explicit `metadata.github.archived` rows |
+| `github_status` | found / not_found / forbidden / rate_limited / error / skipped_invalid_external_id | null | GitHub enrichment status from `metadata.github.status` |
+| `has_github_metadata` | bool | null | whether `artifact_entities.metadata` contains a `github` object |
+| `limit` | int | 20 | max 100 |
+| `offset` | int | 0 | pagination offset |
+| `sort_by` | linked_papers_desc / provider_asc / type_asc / owner_asc / last_seen_desc / stars_desc / forks_desc | linked_papers_desc | deterministic ordering |
 
-Examples:
+### Examples
 
-```http
-GET /artifacts/7e51675b8ad752fbf617dced0315d3bd/papers
-GET /artifacts/7e51675b8ad752fbf617dced0315d3bd/papers?relation_type=code&sort_by=confidence_desc
-```
-
-Typical response content:
-
-```text
-artifact
-total
-returned_count
-results[]
-```
-
-Each linked paper row may include:
-
-```text
-canonical_id
-title
-year
-relation_type
-confidence
-source_fields
-radar_score
-implementation_readiness_score
-```
-
-Missing artifact:
-
-```text
-404
-```
-
----
-
-## `GET /documents/{canonical_id}/artifacts`
-
-Returns trusted artifacts linked to one canonical document.
-
-DB backend only.
-
-Path parameter:
-
-```text
-canonical_id
-```
-
-Query parameters:
-
-```text
-relation_type
-provider
-artifact_type
-min_confidence
-limit
-offset
-```
-
-Examples:
+List artifacts:
 
 ```http
-GET /documents/<canonical_id>/artifacts
-GET /documents/<canonical_id>/artifacts?relation_type=dataset
-GET /documents/<canonical_id>/artifacts?provider=github
+GET /artifacts?limit=20
 ```
 
-Missing document:
+GitHub artifacts:
 
-```json
-{
-  "detail": "Document not found: <canonical_id>"
-}
+```http
+GET /artifacts?provider=github&limit=20
 ```
 
-with status:
+Code artifacts:
 
-```text
-404
+```http
+GET /artifacts?relation_type=code&limit=20
 ```
 
----
+Artifacts with trusted paper links:
 
-# Provider metadata semantics
+```http
+GET /artifacts?has_paper_links=true&limit=20
+```
 
-## GitHub artifact metadata
+GitHub repositories with at least 100 stars, Python as primary language, sorted by stars:
 
-GitHub Artifact Enrichment v1 enriches GitHub repository artifacts.
+```http
+GET /artifacts?provider=github&min_stars=100&language=Python&sort_by=stars_desc&limit=20
+```
+
+GitHub repositories by enrichment status:
+
+```http
+GET /artifacts?provider=github&github_status=found&limit=20
+GET /artifacts?provider=github&github_status=not_found&limit=20
+```
+
+Non-archived GitHub repositories with explicit GitHub metadata:
+
+```http
+GET /artifacts?provider=github&archived=false&has_github_metadata=true&limit=20
+```
+
+GitHub artifacts sorted by forks:
+
+```http
+GET /artifacts?provider=github&has_github_metadata=true&sort_by=forks_desc&limit=20
+```
+
+### GitHub artifact metadata semantics
+
+GitHub Artifact Enrichment v1 enriches GitHub repository artifacts and exposes metadata through existing artifact endpoints.
 
 Relevant endpoints:
 
 ```text
 GET /artifacts?provider=github
-GET /artifacts/{artifact_id}
-GET /artifacts/{artifact_id}/papers
 GET /documents/{canonical_id}/artifacts
 GET /discovery/papers/{canonical_id}
 ```
@@ -1384,13 +1651,16 @@ Semantics:
 
 - GitHub metadata is artifact metadata, not paper truth.
 - GitHub stars/forks/language/license/status must not be used as canonical paper identity signals.
-- `not_found` repositories are preserved as historical artifact evidence.
-- `archived=false` matches only rows with explicit GitHub metadata.
+- `has_code_link` remains the legacy canonical/source-layer field.
+- `has_trusted_code_artifact` remains the trusted artifact-layer filter.
+- `not_found` GitHub repositories are preserved as historical artifact evidence.
+- `archived=false` matches only rows with explicit GitHub metadata; non-GitHub artifacts are not treated as non-archived.
+- `has_github_metadata=false` means `metadata` does not contain a `github` object; for diagnostics, prefer `provider=github&has_github_metadata=false`.
 - GitHub enrichment is optional and not required for base artifact API operation.
 
-## Hugging Face artifact metadata
+### Hugging Face artifact metadata semantics
 
-Hugging Face Artifact Enrichment v1 enriches Hugging Face model/dataset/space artifacts.
+Hugging Face Artifact Enrichment v1 enriches Hugging Face model/dataset/space artifacts and exposes metadata in artifact entities and paper detail cards.
 
 Semantics:
 
@@ -1398,7 +1668,79 @@ Semantics:
 - `forbidden` rows are provider/access states and remain diagnostic.
 - `skipped_invalid_external_id` rows are recognized extraction/noise states and remain diagnostic.
 - These states do not fail the strict gate unless policy changes later.
-- Provider-specific HF API filters remain postponed until there is a clear product need.
+- Provider-specific HF API filters remain postponed.
+
+---
+
+## `GET /documents/{canonical_id}/artifacts`
+
+Returns trusted artifacts linked to one canonical document.
+
+DB backend only.
+
+### Path parameters
+
+```text
+canonical_id
+```
+
+### Query parameters
+
+```text
+relation_type
+provider
+artifact_type
+min_confidence
+limit
+offset
+```
+
+### Parameter details
+
+| parameter | type | default | notes |
+|---|---:|---:|---|
+| `relation_type` | string | null | code, dataset, model, demo |
+| `provider` | string | null | e.g. github, huggingface, figshare, zenodo |
+| `artifact_type` | string | null | e.g. github_repository, huggingface_model |
+| `min_confidence` | float | null | link confidence threshold |
+| `limit` | int | 100 | max 500 |
+| `offset` | int | 0 | pagination offset |
+
+### Examples
+
+All artifacts for a document:
+
+```http
+GET /documents/<canonical_id>/artifacts
+```
+
+Only dataset artifacts:
+
+```http
+GET /documents/<canonical_id>/artifacts?relation_type=dataset
+```
+
+Only GitHub artifacts:
+
+```http
+GET /documents/<canonical_id>/artifacts?provider=github
+```
+
+### Missing document
+
+If the canonical document does not exist, the endpoint returns:
+
+```json
+{
+  "detail": "Document not found: <canonical_id>"
+}
+```
+
+with status:
+
+```text
+404
+```
 
 ---
 
@@ -1415,17 +1757,14 @@ Semantics:
 | `GET /search?mode=hybrid` | yes | no | use file backend |
 | `GET /documents` | no | yes | Postgres materialized serving layer |
 | `GET /artifacts` | no | yes | artifact DB layer |
-| `GET /artifacts/{artifact_id}` | no | yes | artifact DB layer |
-| `GET /artifacts/{artifact_id}/papers` | no | yes | artifact DB layer |
 | `GET /documents/{canonical_id}/artifacts` | no | yes | artifact DB layer |
-| `GET /discovery/profiles` | yes | yes* | file-first DiscoveryService |
-| `GET /discovery/ranking/{profile_name}` | yes | yes* | file-first DiscoveryService |
+| `GET /discovery/profiles` | yes | yes* | file-first DiscoveryService; app startup still follows backend mode |
+| `GET /discovery/ranking/{profile_name}` | yes | yes* | file-first DiscoveryService; supports profile + query overrides |
 | `GET /discovery/papers/{canonical_id}` | yes | yes* | file-first DiscoveryService |
-| `GET /discovery/papers/{canonical_id}/similar` | yes | yes* | file-first DiscoveryService with dense cache |
-| `GET /discovery/papers/{canonical_id}/cluster` | yes | yes* | file-first DiscoveryService over topic artifacts |
-| `GET /discovery/clusters` | yes | yes* | file-first DiscoveryService over topic artifacts |
-| `GET /discovery/clusters/{cluster_id}` | yes | yes* | file-first DiscoveryService over topic artifacts |
-| `GET /discovery/clusters/map` | yes | yes* | file-first DiscoveryService over projection artifact |
+| `GET /discovery/papers/{canonical_id}/similar` | yes | yes* | file-first DiscoveryService with dense runtime cache |
+| `GET /discovery/clusters` | yes | yes* | file-first DiscoveryService over topic cluster artifacts |
+| `GET /discovery/clusters/{cluster_id}` | yes | yes* | file-first DiscoveryService over topic cluster artifacts |
+| `GET /discovery/papers/{canonical_id}/cluster` | yes | yes* | file-first DiscoveryService over topic cluster artifacts |
 
 `yes*` means the endpoint itself is served by file-first DiscoveryService. The enclosing app runtime still starts according to `ML_RADAR_SEARCH_BACKEND`.
 
@@ -1441,40 +1780,53 @@ python -m pytest tests/integration/test_api_discovery.py -q
 python -m scripts.validation.check_discovery_api --strict
 ```
 
-Discovery quality currently checks:
+The Discovery API quality gate checks the base ranking endpoint, the v1.1 ranking override smoke and the v1.2 topic-cluster endpoint smoke:
+
+```http
+GET /discovery/ranking/recent_artifact_ready?top_k=5&min_year=2025&has_code=true
+```
+
+Required v1.1 ranking override checks include:
 
 ```text
-profiles
-ranking
-ranking overrides
-paper detail
-similar semantic
-similar radar-adjusted
-paper topic cluster
-topic clusters
-topic cluster detail
-topic cluster detail filters/sorts
-topic cluster map
-topic cluster map with paper points
+discovery_api_ranking_overrides_endpoint_ok
+discovery_api_ranking_overrides_results_non_empty
+discovery_api_ranking_overrides_min_year_filter_echoed
+discovery_api_ranking_overrides_has_code_filter_echoed
+discovery_api_ranking_overrides_results_match_filters
 ```
 
-## Streamlit UI checks
+Required v1.2 topic-cluster checks include:
 
-```bat
-python -m scripts.validation.check_streamlit_discovery_ui --strict
+```text
+topic_clusters_endpoint_ok
+topic_clusters_results_non_empty
+topic_clusters_returned_count_matches
+topic_clusters_cluster_ids_present
+topic_clusters_label_candidates_present
+topic_cluster_detail_endpoint_ok
+topic_cluster_detail_found
+topic_cluster_detail_label_candidates_present
+topic_cluster_detail_papers_non_empty
+paper_topic_cluster_endpoint_ok
+paper_topic_cluster_found
+paper_topic_cluster_assignment_present
+paper_topic_cluster_cluster_present
+paper_topic_cluster_id_match
 ```
 
-Optional live API check:
-
-```bat
-python -m scripts.validation.check_streamlit_discovery_ui --strict --check-api
-```
-
-## Topic cluster/projection checks
+## Topic cluster checks
 
 ```bat
 python -m scripts.validation.check_topic_clusters --strict
-python -m scripts.validation.check_topic_projection --strict
+```
+
+Topic-cluster API endpoint checks are included in:
+
+```bat
+set ML_RADAR_SEARCH_BACKEND=file
+python -m pytest tests/integration/test_api_discovery.py -q
+python -m scripts.validation.check_discovery_api --strict
 ```
 
 ## Similar papers checks
@@ -1498,6 +1850,38 @@ python -m pytest tests/integration/test_api_artifacts_github_filters_db.py -q
 python -m pytest tests/integration/test_api_github_enrichment_db.py -q
 ```
 
+
+## Golden queries / retrieval evaluation checks
+
+Golden queries are the small human-reviewed retrieval quality contract used for regression checks.
+They are not a production default-tuning result; they are a stable evaluation harness for corpus growth, embedding changes, reranking, Qdrant/vector-serving experiments, and search-quality changes.
+
+```bat
+python -m scripts.validation.check_golden_queries --strict
+python -m scripts.evaluation.run_retrieval_eval
+python -m scripts.validation.check_retrieval_eval --strict
+python -m scripts.evaluation.run_search_quality_experiments
+python -m scripts.validation.check_search_quality_experiments --strict
+python -m scripts.evaluation.run_search_quality_controlled_experiments
+python -m scripts.validation.check_search_quality_controlled_experiments --strict
+```
+
+Current expected golden-query quality state:
+
+```text
+rows_count = 22
+enabled_cases_count = 22
+explicit_canonical_labeled_enabled_count = 15
+weak_pattern_enabled_count = 7
+required_failed_count = 0
+```
+
+Generated quality report:
+
+```text
+artifacts/reports/validation/golden_queries_quality_latest.json
+```
+
 ## Discovery API regression
 
 ```bat
@@ -1505,79 +1889,58 @@ set ML_RADAR_SEARCH_BACKEND=file
 python -m scripts.validation.run_discovery_api_regression
 ```
 
-Common variants:
-
-```bat
-python -m scripts.validation.run_discovery_api_regression --skip-similar-rebuild
-python -m scripts.validation.run_discovery_api_regression --include-retrieval-eval
-python -m scripts.validation.run_discovery_api_regression --include-retrieval-eval --include-search-quality-experiments
-python -m scripts.validation.run_discovery_api_regression --include-retrieval-eval --include-search-quality-experiments --include-controlled-search-quality-experiments
-python -m scripts.validation.run_discovery_api_regression --include-db-smoke --include-dod
-python -m scripts.validation.run_discovery_api_regression --include-live-ui-check
-```
-
-Supported runner flags:
+The runner starts with:
 
 ```text
---skip-similar-rebuild
---similar-top-k
---include-retrieval-eval
---include-search-quality-experiments
---include-controlled-search-quality-experiments
---include-db-smoke
---include-dod
---include-live-ui-check
+[RUN] check_golden_queries
+```
+
+Full variant with DB smoke and strict DoD. The `--include-dod` path uses the current `DEFAULT_DOD_FLAGS`, including `--require-golden-queries`:
+
+```bat
+python -m scripts.validation.run_discovery_api_regression --include-db-smoke --include-dod
 ```
 
 ## Full strict DoD
 
-Current checkpoint DoD includes:
-
-```text
-known issues
-artifacts
-GitHub enrichment
-Hugging Face enrichment
-paper features
-similar papers
-Discovery API
-topic clusters
-topic projection
-Streamlit Discovery UI
-```
-
-Current full strict DoD command should include all active required gates supported by the current project codebase:
-
 ```bat
-python -m scripts.update.check_refresh_definition_of_done --require-known-issues --require-artifacts --require-github-enrichment --require-huggingface-enrichment --require-paper-features --require-similar-papers --require-discovery-api --require-topic-clusters --require-topic-projection --require-streamlit-discovery-ui
+python -m scripts.update.check_refresh_definition_of_done ^
+  --require-known-issues ^
+  --require-artifacts ^
+  --require-github-enrichment ^
+  --require-huggingface-enrichment ^
+  --require-paper-features ^
+  --require-similar-papers ^
+  --require-discovery-api ^
+  --require-topic-clusters ^
+  --require-topic-projection ^
+  --require-streamlit-discovery-ui ^
+  --require-golden-queries
 ```
 
-Expected:
+Expected result:
 
 ```text
-dod_passed = true
-required_failed_count = 0
+dod_passed=True
+required_failed_count=0
 ```
-
-If local `--help` does not show these gates, sync the DoD script before treating local docs as current.
 
 ---
 
 # Design notes
 
-The current API reflects project architecture:
+The current API reflects the project architecture:
 
-- canonical JSONL remains paper source of truth;
+- canonical JSONL remains the paper source of truth;
 - Postgres is a materialized serving layer;
-- retrieval artifacts are file-based derived artifacts;
+- retrieval artifacts remain file-based derived artifacts;
 - artifact layer is a separate DB-backed evidence/materialization plane;
 - feature/ranking/detail/similar/topic-cluster layers are derived discovery/product layers;
 - file and DB backends are intentionally asymmetric;
 - artifact API is DB-only in v1;
 - Discovery API is file-first;
 - Discovery ranking uses profiles as base presets and query parameters as explicit overrides;
-- Discovery topic-cluster endpoints serve existing validated artifacts and do not compute clustering at request time;
-- Discovery topic-map endpoint serves precomputed projection artifacts and does not compute UMAP at request time;
+- Discovery topic-cluster endpoints serve existing validated cluster artifacts and do not compute clustering at request time;
 - `has_code_link` remains a legacy canonical/source field;
 - trusted artifact filters operate through `paper_artifact_links`;
 - GitHub/HF enrichment is artifact metadata, not paper truth;
@@ -1590,12 +1953,26 @@ The current API reflects project architecture:
 Near-term:
 
 ```text
-docs / runbook / API reference sync with current checkpoint
-small API/UI polish only after docs sync
-more explicit cache diagnostics if needed
-cluster map UX improvements
-artifact explorer UX improvements
-Golden Set Expansion v2 support in evaluation docs
+Streamlit Topic/Cluster Tab v0.1:
+  thin Streamlit client over /discovery/clusters*
+  cluster list/table
+  label candidates
+  cluster size and artifact-ready signals
+  selected cluster detail
+  representative/top papers in cluster
+  link from paper detail to its topic cluster
+```
+
+Possible follow-up Discovery API ergonomics:
+
+```text
+compact paper detail view
+smaller artifact metadata view
+cluster endpoint examples for UI
+cluster API latency/cache diagnostics
+better latency diagnostics
+explicit DiscoveryService cache stats
+lighter discovery validator startup path if needed
 ```
 
 Later:
@@ -1610,10 +1987,4 @@ full-text/chunk endpoints
 RAG endpoints
 watchlist/bookmark endpoints
 dataset release endpoints
-```
-
-Non-goal right now:
-
-```text
-do not start Qdrant/RAG/Airflow until current checkpoint docs and regression commands are stable
 ```

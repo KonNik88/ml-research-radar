@@ -20,6 +20,7 @@ DEFAULT_DOD_FLAGS = [
     "--require-topic-clusters",
     "--require-topic-projection",
     "--require-streamlit-discovery-ui",
+    "--require-golden-queries",
 ]
 
 
@@ -59,6 +60,11 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
     file_env = {"ML_RADAR_SEARCH_BACKEND": "file"}
 
     steps = [
+        Step(
+            name="check_golden_queries",
+            cmd=python_cmd("scripts.validation.check_golden_queries", "--strict"),
+            env=file_env,
+        ),
         Step(
             name="pytest_discovery_api",
             cmd=python_cmd("pytest", "tests/integration/test_api_discovery.py", "-q"),
