@@ -450,3 +450,30 @@ class DiscoveryTopicClusterMapResponse(BaseModel):
 
     inputs: dict[str, Any] = Field(default_factory=dict)
     points: list[DiscoveryTopicClusterMapPoint] = Field(default_factory=list)
+
+class QdrantSearchMeta(BaseModel):
+    build_id: str
+    collection_name: str
+    result_count: int
+    timing_ms: dict[str, float] = Field(default_factory=dict)
+    vector_backend: str = "qdrant"
+    source_backend: str = "file_runtime"
+
+
+class QdrantSearchResultItem(BaseModel):
+    rank: int
+    document: SearchResultDocument
+    retrieval: RetrievalScores
+    point_id: int | str | None = None
+    dense_index: int | None = None
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class QdrantSearchResponse(BaseModel):
+    query: str
+    mode: Literal["dense_qdrant"] = "dense_qdrant"
+    top_k: int
+    build_id: str
+    collection_name: str
+    meta: QdrantSearchMeta
+    results: list[QdrantSearchResultItem]

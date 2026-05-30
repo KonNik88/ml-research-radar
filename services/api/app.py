@@ -31,8 +31,13 @@ from services.api.schemas import (
     SearchResponse,
     ArtifactDetailResponse,
     ArtifactLinkedPapersResponse,
+    QdrantSearchResponse,
 )
-from services.api.search_service import db_row_to_schema, run_search
+from services.api.search_service import (
+    db_row_to_schema,
+    run_qdrant_experimental_search,
+    run_search,
+)
 from services.api.settings import get_settings
 
 DiscoveryRankingSortBy = Literal[
@@ -282,6 +287,29 @@ def search(
         sort_by=sort_by,
     )
 
+@app.get("/experimental/search/qdrant", response_model=QdrantSearchResponse)
+def experimental_qdrant_search(
+    query: str = Query(..., min_length=1, description="Search query"),
+    top_k: int | None = Query(None, ge=1),
+) -> QdrantSearchResponse:
+    runtime = get_runtime()
+    if not runtime.is_ready():
+        raise RuntimeError("Runtime is not ready")
+
+    if runtime.backend_mode != "file":
+        raise RuntimeError("Experimental Qdrant search requires file backend runtime")
+
+    resolved_top_k = top_k if top_k is not None else settings.default_top_k
+    if resolved_top_k > settings.max_top_k:
+        raise ValueError(
+            f"top_k={resolved_top_k} exceeds max_top_k={settings.max_top_k}"
+        )
+
+    return run_qdrant_experimental_search(
+        runtime=runtime,
+        query=query,
+        top_k=resolved_top_k,
+    )
 
 @app.get("/documents", response_model=DocumentListResponse)
 def list_documents(
