@@ -738,6 +738,35 @@ This benchmark:
 
 It is evaluation-only. It does not change `canonical_documents.jsonl`, retrieval manifests, `/search` defaults, `SearchRuntime`, or the Discovery API.
 
+### Qdrant serving POC checks
+
+Use this after a Qdrant benchmark has already created the benchmark collection.
+
+```bat
+python -m scripts.validation.check_qdrant_collection --strict
+python -m scripts.evaluation.compare_qdrant_file_dense
+python -m scripts.validation.check_qdrant_file_dense_comparison --strict
+```
+
+Current-green state:
+
+```text
+collection_name = ml_radar_dense_benchmark_v1
+collection_exists = true
+points_count = 60954
+corpus_doc_count = 60954
+enabled_queries_count = 22
+query_count = 22
+error_count = 0
+mean_overlap_ratio_at_k = 1.0
+min_overlap_ratio_at_k = 1.0
+required_failed_count = 0
+```
+
+These checks are lightweight compared with the full Qdrant benchmark. They do not recreate the collection and do not upload vectors. They validate the existing Qdrant collection and compare Qdrant dense retrieval against the current file-dense retrieval artifacts.
+
+This is still a POC / evaluation layer. It does not change `/search`, `SearchRuntime`, retrieval manifests, canonical truth, or Discovery API defaults.
+
 ### Golden queries quality gate
 
 ```bat
@@ -811,6 +840,18 @@ Include Qdrant benchmark together with retrieval/search-quality checks:
 python -m scripts.validation.run_discovery_api_regression --include-qdrant-benchmark --include-retrieval-eval --include-search-quality-experiments --skip-similar-rebuild
 ```
 
+Include lightweight Qdrant serving POC checks over an existing collection:
+
+```bat
+python -m scripts.validation.run_discovery_api_regression --include-qdrant-serving-poc --skip-similar-rebuild
+```
+
+Include both full Qdrant benchmark and lightweight Qdrant serving POC checks:
+
+```bat
+python -m scripts.validation.run_discovery_api_regression --include-qdrant-benchmark --include-qdrant-serving-poc --skip-similar-rebuild
+```
+
 Include DB smoke and DoD:
 
 ```bat
@@ -832,6 +873,7 @@ Supported runner flags:
 --include-search-quality-experiments
 --include-controlled-search-quality-experiments
 --include-qdrant-benchmark
+--include-qdrant-serving-poc
 --include-db-smoke
 --include-dod
 --include-live-ui-check

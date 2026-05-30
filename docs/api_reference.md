@@ -1527,6 +1527,33 @@ required_failed_count = 0
 
 The benchmark reads current dense artifacts from the retrieval manifest, creates a Qdrant collection, uploads paper vectors, runs enabled golden queries, and compares Qdrant dense retrieval with current file-dense retrieval.
 
+## Qdrant serving POC checks
+
+Qdrant serving POC checks validate an existing Qdrant collection without recreating it or uploading vectors. They are intended as a lightweight validation layer after the benchmark collection already exists.
+
+```bat
+python -m scripts.validation.check_qdrant_collection --strict
+python -m scripts.evaluation.compare_qdrant_file_dense
+python -m scripts.validation.check_qdrant_file_dense_comparison --strict
+```
+
+Current-green POC state:
+
+```text
+collection_name = ml_radar_dense_benchmark_v1
+collection_exists = true
+points_count = 60954
+corpus_doc_count = 60954
+enabled_queries_count = 22
+query_count = 22
+error_count = 0
+mean_overlap_ratio_at_k = 1.0
+min_overlap_ratio_at_k = 1.0
+required_failed_count = 0
+```
+
+The POC layer uses `radar_core/retrieval/qdrant_store.py` as a read-only Qdrant adapter. It validates collection health and compares Qdrant dense search with current file-dense search. It is not a public API backend yet and does not introduce `/search?mode=dense_qdrant`.
+
 
 ## Discovery API regression
 
@@ -1544,6 +1571,8 @@ python -m scripts.validation.run_discovery_api_regression --include-retrieval-ev
 python -m scripts.validation.run_discovery_api_regression --include-retrieval-eval --include-search-quality-experiments --include-controlled-search-quality-experiments
 python -m scripts.validation.run_discovery_api_regression --include-qdrant-benchmark --skip-similar-rebuild
 python -m scripts.validation.run_discovery_api_regression --include-qdrant-benchmark --include-retrieval-eval --include-search-quality-experiments --skip-similar-rebuild
+python -m scripts.validation.run_discovery_api_regression --include-qdrant-serving-poc --skip-similar-rebuild
+python -m scripts.validation.run_discovery_api_regression --include-qdrant-benchmark --include-qdrant-serving-poc --skip-similar-rebuild
 python -m scripts.validation.run_discovery_api_regression --include-db-smoke --include-dod
 python -m scripts.validation.run_discovery_api_regression --include-live-ui-check
 ```
@@ -1557,6 +1586,7 @@ Supported runner flags:
 --include-search-quality-experiments
 --include-controlled-search-quality-experiments
 --include-qdrant-benchmark
+--include-qdrant-serving-poc
 --include-db-smoke
 --include-dod
 --include-live-ui-check
