@@ -1554,6 +1554,50 @@ required_failed_count = 0
 
 The POC layer uses `radar_core/retrieval/qdrant_store.py` as a read-only Qdrant adapter. It validates collection health and compares Qdrant dense search with current file-dense search. It is not a public API backend yet and does not introduce `/search?mode=dense_qdrant`.
 
+## Experimental Qdrant API endpoint
+
+The experimental Qdrant API endpoint exposes Qdrant dense retrieval through a separate endpoint without changing the stable `/search` contract.
+
+```text
+GET /experimental/search/qdrant?query=protein+language+models&top_k=5
+```
+
+Expected response contract:
+
+```text
+mode = dense_qdrant
+collection_name = ml_radar_dense_benchmark_v1
+results[].document.canonical_id
+results[].document.title
+results[].retrieval.score
+results[].retrieval.dense_score
+results[].rank
+```
+
+Validation command:
+
+```bash
+python -m scripts.validation.check_qdrant_api_experimental --strict
+```
+
+Expected strict result:
+
+```text
+status_code = 200
+mode = dense_qdrant
+collection_name = ml_radar_dense_benchmark_v1
+result_count > 0
+required_failed_count = 0
+```
+
+Important boundaries:
+
+- `/search` remains unchanged and still supports only `lexical`, `dense`, and `hybrid`.
+- `SearchRuntime` and `ML_RADAR_SEARCH_BACKEND` are not changed.
+- Qdrant is not the production default backend.
+- The endpoint requires file runtime, the current embedding model, a running Qdrant container, and an existing benchmark collection.
+- The endpoint is intentionally placed under `/experimental/*` until the Qdrant serving path is promoted.
+
 
 ## Discovery API regression
 
@@ -1572,7 +1616,8 @@ python -m scripts.validation.run_discovery_api_regression --include-retrieval-ev
 python -m scripts.validation.run_discovery_api_regression --include-qdrant-benchmark --skip-similar-rebuild
 python -m scripts.validation.run_discovery_api_regression --include-qdrant-benchmark --include-retrieval-eval --include-search-quality-experiments --skip-similar-rebuild
 python -m scripts.validation.run_discovery_api_regression --include-qdrant-serving-poc --skip-similar-rebuild
-python -m scripts.validation.run_discovery_api_regression --include-qdrant-benchmark --include-qdrant-serving-poc --skip-similar-rebuild
+python -m scripts.validation.run_discovery_api_regression --include-qdrant-api --include-qdrant-serving-poc --skip-similar-rebuild
+python -m scripts.validation.run_discovery_api_regression --include-qdrant-benchmark --include-qdrant-serving-poc --include-qdrant-api --skip-similar-rebuild
 python -m scripts.validation.run_discovery_api_regression --include-db-smoke --include-dod
 python -m scripts.validation.run_discovery_api_regression --include-live-ui-check
 ```
@@ -1587,6 +1632,7 @@ Supported runner flags:
 --include-controlled-search-quality-experiments
 --include-qdrant-benchmark
 --include-qdrant-serving-poc
+--include-qdrant-api
 --include-db-smoke
 --include-dod
 --include-live-ui-check

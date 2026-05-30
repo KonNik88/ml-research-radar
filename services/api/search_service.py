@@ -19,15 +19,22 @@ from services.api.schemas import (
     SearchResponse,
     SearchResultDocument,
     SearchResultItem,
+    QdrantSearchMeta,
+    QdrantSearchResponse,
+    QdrantSearchResultItem,
 )
 from services.api.settings import get_settings
+from radar_core.retrieval.qdrant_store import QdrantRetrievalStore
 
 
 logger = get_logger(__name__)
 
 SearchMode = Literal["lexical", "dense", "hybrid"]
 SearchSortBy = Literal["relevance", "year_desc", "year_asc"]
-
+DEFAULT_QDRANT_HOST = "localhost"
+DEFAULT_QDRANT_PORT = 6333
+DEFAULT_QDRANT_COLLECTION_NAME = "ml_radar_dense_benchmark_v1"
+DEFAULT_QDRANT_TIMEOUT_SEC = 120
 
 @dataclass
 class SearchFilterParams:
@@ -181,6 +188,17 @@ def _normalize_query(query: str) -> str:
 
     return normalized
 
+def _encode_query_embedding(runtime: ApiRuntime, query: str) -> np.ndarray:
+    if runtime.embedding_model is None:
+        raise RuntimeError("Embedding model is not loaded")
+
+    query_embedding = runtime.embedding_model.encode(
+        [query],
+        convert_to_numpy=True,
+        normalize_embeddings=True,
+    )[0].astype(np.float32)
+
+    return query_embedding
 
 def _dense_search_with_model(
     *,
@@ -975,6 +993,102 @@ def run_db_search(
         results=items,
     )
 
+def run_qdrant_experimental_search(
+    *,
+    runtime: ApiRuntime,
+    query: str,
+    top_k: int,
+    collection_name: str = DEFAULT_QDRANT_COLLECTION_NAME,
+    host: str = DEFAULT_QDRANT_HOST,
+    port: int = DEFAULT_QDRANT_PORT,
+    timeout_sec: int = DEFAULT_QDRANT_TIMEOUT_SEC,
+) -> QdrantSearchResponse:
+    if runtime.backend_mode != "file":
+        raise RuntimeError("Experimental Qdrant search requires file backend runtime")
+
+    query = _normalize_query(query)
+
+    if runtime.manifest is None:
+        raise RuntimeError("Retrieval manifest is not loaded")
+
+    if not runtime.documents:
+        raise RuntimeError("Canonical documents are not loaded")
+
+    if runtime.embedding_model is None:
+        raise RuntimeError("Embedding model is not loaded")
+
+    t0 = time.perf_counter()
+    timings: dict[str, float] = {}
+
+    t_encode = time.perf_counter()
+    query_embedding = _encode_query_embedding(runtime, query)
+    timings["encode_ms"] = round((time.perf_counter() - t_encode) * 1000, 3)
+
+    store = QdrantRetrievalStore(
+        host=host,
+        port=port,
+        collection_name=collection_name,
+        timeout_sec=timeout_sec,
+        check_compatibility=False,
+    )
+
+    if not store.collection_exists():
+        raise RuntimeError(f"Qdrant collection does not exist: {collection_name}")
+
+    t_search = time.perf_counter()
+    qdrant_results = store.search_vector(
+        vector=query_embedding.tolist(),
+        top_k=top_k,
+    )
+    timings["qdrant_search_ms"] = round((time.perf_counter() - t_search) * 1000, 3)
+
+    t_hydrate = time.perf_counter()
+    id_to_doc = {doc.canonical_id: doc for doc in runtime.documents}
+
+    items: list[QdrantSearchResultItem] = []
+    for rank, result in enumerate(qdrant_results, start=1):
+        doc = id_to_doc.get(result.canonical_id)
+        if doc is None:
+            continue
+
+        payload = dict(result.payload or {})
+        dense_index = payload.get("dense_index")
+        if dense_index is not None:
+            try:
+                dense_index = int(dense_index)
+            except (TypeError, ValueError):
+                dense_index = None
+
+        items.append(
+            QdrantSearchResultItem(
+                rank=rank,
+                document=_doc_to_schema(doc),
+                retrieval=RetrievalScores(
+                    score=float(result.score),
+                    dense_score=float(result.score),
+                ),
+                point_id=result.point_id,
+                dense_index=dense_index,
+                payload=payload,
+            )
+        )
+
+    timings["hydrate_ms"] = round((time.perf_counter() - t_hydrate) * 1000, 3)
+    timings["total_ms"] = round((time.perf_counter() - t0) * 1000, 3)
+
+    return QdrantSearchResponse(
+        query=query,
+        top_k=top_k,
+        build_id=runtime.manifest.build_id,
+        collection_name=collection_name,
+        meta=QdrantSearchMeta(
+            build_id=runtime.manifest.build_id,
+            collection_name=collection_name,
+            result_count=len(items),
+            timing_ms=timings,
+        ),
+        results=items,
+    )
 
 def run_search(
     *,

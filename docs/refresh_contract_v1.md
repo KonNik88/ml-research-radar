@@ -765,6 +765,27 @@ required_failed_count = 0
 
 These checks are lightweight compared with the full Qdrant benchmark. They do not recreate the collection and do not upload vectors. They validate the existing Qdrant collection and compare Qdrant dense retrieval against the current file-dense retrieval artifacts.
 
+### Experimental Qdrant API endpoint
+
+Use this after the Qdrant benchmark collection exists and the lightweight Qdrant serving POC checks are green.
+
+```bash
+python -m scripts.validation.check_qdrant_api_experimental --strict
+```
+
+This validates:
+
+- FastAPI endpoint `GET /experimental/search/qdrant`;
+- file backend runtime availability;
+- Qdrant collection availability;
+- query embedding through the current runtime embedding model;
+- Qdrant dense search response shape;
+- `mode=dense_qdrant`;
+- non-empty results with `canonical_id`, `title`, `rank`, and dense score;
+- strict `required_failed_count=0`.
+
+This endpoint is experimental and must not be treated as the default production `/search` path. It does not change canonical truth, retrieval manifests, `/search` modes, or `ML_RADAR_SEARCH_BACKEND`.
+
 This is still a POC / evaluation layer. It does not change `/search`, `SearchRuntime`, retrieval manifests, canonical truth, or Discovery API defaults.
 
 ### Golden queries quality gate
@@ -844,12 +865,18 @@ Include lightweight Qdrant serving POC checks over an existing collection:
 
 ```bat
 python -m scripts.validation.run_discovery_api_regression --include-qdrant-serving-poc --skip-similar-rebuild
+
+Include experimental Qdrant API endpoint check:
+
+```bash
+python -m scripts.validation.run_discovery_api_regression --include-qdrant-api --include-qdrant-serving-poc --skip-similar-rebuild
+```
 ```
 
 Include both full Qdrant benchmark and lightweight Qdrant serving POC checks:
 
 ```bat
-python -m scripts.validation.run_discovery_api_regression --include-qdrant-benchmark --include-qdrant-serving-poc --skip-similar-rebuild
+python -m scripts.validation.run_discovery_api_regression --include-qdrant-benchmark --include-qdrant-serving-poc --include-qdrant-api --skip-similar-rebuild
 ```
 
 Include DB smoke and DoD:
@@ -874,6 +901,7 @@ Supported runner flags:
 --include-controlled-search-quality-experiments
 --include-qdrant-benchmark
 --include-qdrant-serving-poc
+--include-qdrant-api
 --include-db-smoke
 --include-dod
 --include-live-ui-check
