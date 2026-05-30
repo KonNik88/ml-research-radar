@@ -178,6 +178,13 @@ def fetch_runtime(base_url: str) -> dict[str, Any]:
 def fetch_search(base_url: str, params: dict[str, Any]) -> dict[str, Any]:
     return api_get(base_url, "/search", params=params)
 
+
+def fetch_qdrant_experimental_search(
+    base_url: str,
+    params: dict[str, Any],
+) -> dict[str, Any]:
+    return api_get(base_url, "/experimental/search/qdrant", params=params)
+
 @st.cache_data(ttl=30, show_spinner=False)
 def fetch_profiles(base_url: str) -> dict[str, Any]:
     return api_get(base_url, "/discovery/profiles")
@@ -401,6 +408,9 @@ def init_ui_state() -> None:
         "search_offset": 0,
         "search_sort_by": "relevance",
         "search_payload": None,
+        "qdrant_search_query": "",
+        "qdrant_search_top_k": 10,
+        "qdrant_search_payload": None,
         "ranking_payload": None,
         "selected_canonical_id": None,
         "selected_paper_canonical_id": None,
@@ -618,6 +628,17 @@ def build_search_params() -> dict[str, Any]:
         params["has_code_link"] = "false"
 
     return params
+
+def build_qdrant_experimental_search_params() -> dict[str, Any]:
+    query = st.session_state.get("qdrant_search_query", "").strip()
+    if not query:
+        raise ValueError("Experimental Qdrant search query is empty.")
+
+    return {
+        "query": query,
+        "top_k": int(st.session_state["qdrant_search_top_k"]),
+    }
+
 
 def build_cluster_detail_params(*, top_k: int, sort_by: str) -> dict[str, Any]:
     params: dict[str, Any] = {
@@ -1367,6 +1388,146 @@ def render_sidebar(base_url: str, profiles_payload: dict[str, Any]) -> tuple[str
 # Rendering ranking
 # --------------------------------------------------------------------------------------
 
+def render_qdrant_search_results(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    st.markdown("#### Experimental Qdrant results")
+
+    results = payload.get("results") or []
+    meta = payload.get("meta") or {}
+
+    cols = st.columns(6)
+    cols[0].metric("Query", payload.get("query", "—"))
+    cols[1].metric("Mode", payload.get("mode", "—"))
+    cols[2].metric("Top K", payload.get("top_k", "—"))
+    cols[3].metric("Returned", len(results))
+    cols[4].metric("Backend", meta.get("vector_backend", "qdrant"))
+    cols[5].metric("Build", compact_id(payload.get("build_id"), n=6))
+
+    if meta:
+        with st.expander("Experimental Qdrant search meta", expanded=False):
+            st.json(meta)
+
+    if not results:
+        st.warning("No experimental Qdrant results returned.")
+        with st.expander("Raw experimental Qdrant response", expanded=False):
+            st.json(payload)
+        return []
+
+    st.dataframe(
+        pd.DataFrame(
+            [search_result_to_table_row(item, idx) for idx, item in enumerate(results, start=1)]
+        ),
+        hide_index=True,
+        width="stretch",
+    )
+
+    for idx, item in enumerate(results, start=1):
+        document = item.get("document") or {}
+        retrieval = item.get("retrieval") or {}
+
+        if not isinstance(document, dict):
+            document = {}
+        if not isinstance(retrieval, dict):
+            retrieval = {}
+
+        canonical_id = document.get("canonical_id")
+        title = document.get("title") or "Untitled"
+
+        with st.container(border=True):
+            st.markdown(f"### {idx}. {title}")
+
+            cols = st.columns(5)
+            cols[0].metric("Year", dash(document.get("year")))
+            cols[1].metric("Sources", dash(document.get("source_count")))
+            cols[2].metric("Qdrant score", fmt_score(retrieval.get("score"), 4))
+            cols[3].metric("Dense score", fmt_score(retrieval.get("dense_score"), 4))
+            cols[4].metric("Point ID", dash(item.get("point_id")))
+
+            st.caption(
+                f"ID: `{compact_id(canonical_id)}` · "
+                f"arXiv: `{dash(document.get('arxiv_id'))}` · "
+                f"dense_index: `{dash(item.get('dense_index'))}`"
+            )
+
+            if canonical_id:
+                if st.button(
+                    "Open Qdrant result in Paper workspace",
+                    key=f"open_qdrant_result_workspace_{idx}_{canonical_id}",
+                    width="stretch",
+                ):
+                    select_paper(canonical_id)
+                    st.success("Selected paper updated. Open the Paper workspace tab.")
+
+            abstract = document.get("abstract")
+            if abstract:
+                preview = abstract if len(abstract) <= 600 else abstract[:600].rstrip() + "…"
+                st.write(preview)
+
+            with st.expander("Experimental Qdrant result JSON", expanded=False):
+                st.json(item)
+
+    with st.expander("Raw experimental Qdrant response", expanded=False):
+        st.json(payload)
+
+    return results
+
+
+def render_qdrant_experimental_search_block(base_url: str) -> None:
+    st.markdown("---")
+    with st.expander("Experimental Qdrant dense search", expanded=False):
+        st.caption(
+            "Optional vector-serving smoke over `GET /experimental/search/qdrant`. "
+            "Expected response mode: `dense_qdrant`. "
+            "This does not change the main `/search` tab, `/search` defaults, "
+            "or `ML_RADAR_SEARCH_BACKEND`."
+        )
+
+        qdrant_cols = st.columns([3, 1])
+        with qdrant_cols[0]:
+            st.text_input(
+                "Qdrant search query",
+                key="qdrant_search_query",
+                placeholder="protein language models, multimodal retrieval, diffusion models...",
+            )
+        with qdrant_cols[1]:
+            st.number_input(
+                "Qdrant top K",
+                min_value=1,
+                max_value=MAX_TOP_K,
+                step=1,
+                key="qdrant_search_top_k",
+            )
+
+        if st.button(
+            "Run experimental Qdrant search",
+            type="secondary",
+            width="stretch",
+        ):
+            try:
+                params = build_qdrant_experimental_search_params()
+                with st.spinner("Running experimental Qdrant search..."):
+                    st.session_state["qdrant_search_payload"] = (
+                        fetch_qdrant_experimental_search(base_url, params)
+                    )
+            except ValueError as exc:
+                st.error(str(exc))
+            except Exception as exc:
+                st.error(str(exc))
+                st.info(
+                    "Experimental Qdrant search requires the API file runtime and "
+                    "a populated Qdrant collection, for example "
+                    "`ml_radar_dense_benchmark_v1`."
+                )
+
+        qdrant_payload = st.session_state.get("qdrant_search_payload")
+        if qdrant_payload:
+            render_qdrant_search_results(qdrant_payload)
+        else:
+            st.info(
+                "Optional check: run Qdrant dense search after the API and Qdrant "
+                "collection are available."
+            )
+
+
 def render_search_tab(base_url: str) -> None:
     st.subheader("Search")
     st.caption(
@@ -1442,6 +1603,8 @@ def render_search_tab(base_url: str) -> None:
                 "DB backend currently supports lexical search only."
             )
             return
+
+    render_qdrant_experimental_search_block(base_url)
 
     payload = st.session_state.get("search_payload")
     if not payload:

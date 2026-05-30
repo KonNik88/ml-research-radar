@@ -82,6 +82,21 @@ SEARCH_UI_SNIPPETS = [
     "/search",
 ]
 
+QDRANT_EXPERIMENTAL_UI_SNIPPETS = [
+    "Experimental Qdrant dense search",
+    "fetch_qdrant_experimental_search",
+    "build_qdrant_experimental_search_params",
+    "render_qdrant_experimental_search_block",
+    "render_qdrant_search_results",
+    "qdrant_search_query",
+    "qdrant_search_top_k",
+    "qdrant_search_payload",
+    "Run experimental Qdrant search",
+    "Open Qdrant result in Paper workspace",
+    "/experimental/search/qdrant",
+    "dense_qdrant",
+]
+
 TOPIC_CLUSTER_UI_SNIPPETS = [
     "Topic clusters",
     "fetch_topic_clusters",
@@ -936,6 +951,10 @@ def build_report(
     missing_discovery = missing_snippets(app_text, DISCOVERY_ENDPOINT_STRINGS)
     missing_similar = missing_snippets(app_text, SIMILAR_MODE_SNIPPETS)
     missing_search = missing_snippets(app_text, SEARCH_UI_SNIPPETS)
+    missing_qdrant_experimental = missing_snippets(
+        app_text,
+        QDRANT_EXPERIMENTAL_UI_SNIPPETS,
+    )
     missing_topic = missing_snippets(app_text, TOPIC_CLUSTER_UI_SNIPPETS)
     missing_cluster_detail_filters = missing_snippets(
         app_text,
@@ -965,6 +984,9 @@ def build_report(
     checks["discovery_endpoint_strings_present"] = not missing_discovery
     checks["similar_modes_present"] = not missing_similar
     checks["search_tab_ui_snippets_present"] = not missing_search
+    checks["qdrant_experimental_ui_snippets_present"] = (
+        not missing_qdrant_experimental
+    )
     checks["topic_cluster_ui_snippets_present"] = not missing_topic
     checks["cluster_detail_filter_ui_snippets_present"] = (
         not missing_cluster_detail_filters
@@ -988,6 +1010,9 @@ def build_report(
     extracted_values["missing_discovery_endpoint_strings"] = missing_discovery
     extracted_values["missing_similar_mode_snippets"] = missing_similar
     extracted_values["missing_search_ui_snippets"] = missing_search
+    extracted_values["missing_qdrant_experimental_ui_snippets"] = (
+        missing_qdrant_experimental
+    )
     extracted_values["missing_topic_cluster_ui_snippets"] = missing_topic
     extracted_values["missing_cluster_detail_filter_ui_snippets"] = (
         missing_cluster_detail_filters
@@ -1021,6 +1046,7 @@ def build_report(
         "discovery_endpoint_strings_present",
         "similar_modes_present",
         "search_tab_ui_snippets_present",
+        "qdrant_experimental_ui_snippets_present",
         "topic_cluster_ui_snippets_present",
         "cluster_detail_filter_ui_snippets_present",
         "reset_button_present",
