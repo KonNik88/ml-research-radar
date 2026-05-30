@@ -114,6 +114,33 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
             ]
         )
 
+    if args.include_qdrant_serving_poc:
+        steps.extend(
+            [
+                Step(
+                    name="check_qdrant_collection",
+                    cmd=python_cmd(
+                        "scripts.validation.check_qdrant_collection",
+                        "--strict",
+                    ),
+                    env=file_env,
+                ),
+                Step(
+                    name="compare_qdrant_file_dense",
+                    cmd=python_cmd("scripts.evaluation.compare_qdrant_file_dense"),
+                    env=file_env,
+                ),
+                Step(
+                    name="check_qdrant_file_dense_comparison",
+                    cmd=python_cmd(
+                        "scripts.validation.check_qdrant_file_dense_comparison",
+                        "--strict",
+                    ),
+                    env=file_env,
+                ),
+            ]
+        )
+
     if args.include_retrieval_eval:
         steps.extend(
             [
@@ -282,6 +309,16 @@ def build_parser() -> argparse.ArgumentParser:
             "Also run Qdrant retrieval benchmark and strict benchmark validator. "
             "Requires Qdrant container and current dense retrieval artifacts. "
             "This is evaluation-only and does not change API defaults."
+        ),
+    )
+    parser.add_argument(
+        "--include-qdrant-serving-poc",
+        action="store_true",
+        help=(
+            "Also run lightweight Qdrant serving POC checks over an existing "
+            "Qdrant collection: collection validator, file-dense comparison, "
+            "and strict comparison validator. Requires Qdrant container and a "
+            "previously built collection, but does not recreate or upload vectors."
         ),
     )
     parser.add_argument(
