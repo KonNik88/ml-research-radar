@@ -1,0 +1,39 @@
+schema_version: qdrant_benchmark_v1
+
+qdrant:
+  host: localhost
+  port: 6333
+  collection_name: ml_radar_dense_benchmark_v1
+  recreate_collection: true
+  prefer_grpc: false
+  # The local setup may have qdrant-client 1.17.x and server 1.14.x.
+  # This suppresses the compatibility warning for benchmark-only usage.
+  check_compatibility: false
+  # Full 60k upload can exceed the default HTTP timeout on local Docker.
+  timeout_sec: 120
+
+retrieval:
+  manifest_path: artifacts/retrieval/manifests/latest.json
+  golden_queries_path: data/eval/retrieval/golden_queries.jsonl
+  top_k: 20
+  compare_file_dense: true
+
+upload:
+  # 512 timed out on local Docker/Qdrant during full upload; 128 is safer for HTTP.
+  batch_size: 128
+  # For local benchmark, async upsert is less prone to read timeouts.
+  wait: false
+  retry_count: 2
+  retry_sleep_sec: 2.0
+  count_wait_timeout_sec: 180
+  count_wait_poll_sec: 2.0
+  # Keep null for a full benchmark. Set a small integer only for local smoke debugging.
+  max_vectors: null
+
+quality:
+  min_uploaded_ratio: 1.0
+  max_error_count: 0
+  require_all_queries_return_results: true
+
+output:
+  output_dir: artifacts/reports/evaluation
