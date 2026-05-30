@@ -141,6 +141,18 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
             ]
         )
 
+    if args.include_qdrant_api:
+        steps.append(
+            Step(
+                name="check_qdrant_api_experimental",
+                cmd=python_cmd(
+                    "scripts.validation.check_qdrant_api_experimental",
+                    "--strict",
+                ),
+                env=file_env,
+            )
+        )
+
     if args.include_retrieval_eval:
         steps.extend(
             [
@@ -319,6 +331,16 @@ def build_parser() -> argparse.ArgumentParser:
             "Qdrant collection: collection validator, file-dense comparison, "
             "and strict comparison validator. Requires Qdrant container and a "
             "previously built collection, but does not recreate or upload vectors."
+        ),
+    )
+    parser.add_argument(
+        "--include-qdrant-api",
+        action="store_true",
+        help=(
+            "Also validate the experimental Qdrant API endpoint "
+            "GET /experimental/search/qdrant. Requires file backend runtime, "
+            "Qdrant container, and an existing benchmark collection. This does "
+            "not change /search defaults or SearchRuntime backend selection."
         ),
     )
     parser.add_argument(
