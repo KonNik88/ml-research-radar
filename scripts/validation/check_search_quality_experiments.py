@@ -100,6 +100,7 @@ def build_checks(
     pairwise = report.get("pairwise_summary") or []
     query_signal = report.get("query_signal_summary") or {}
     recommendations = report.get("recommendations") or []
+    group_recommendations = report.get("group_mode_recommendations") or []
     input_eval = report.get("input_retrieval_eval") or {}
 
     min_modes_count = safe_int(thresholds.get("min_modes_count"), 1)
@@ -117,6 +118,15 @@ def build_checks(
         "pairwise_summary_present": bool(pairwise),
         "query_signal_summary_present": bool(query_signal),
         "recommendations_present": bool(recommendations),
+        "group_mode_recommendations_present": bool(group_recommendations),
+        "group_mode_recommendations_non_empty": bool(group_recommendations),
+        "group_mode_recommendations_have_best_modes": all(
+            bool(item.get("group"))
+            and bool(item.get("best_mode_by_composite"))
+            and bool(item.get("best_mode_by_recall"))
+            for item in group_recommendations
+            if isinstance(item, dict)
+        ),
         "metrics_finite": all_numbers_finite(report),
     }
 
@@ -140,6 +150,9 @@ def required_check_names(*, strict: bool) -> list[str]:
             [
                 "pareto_frontier_present",
                 "recommendations_present",
+                "group_mode_recommendations_present",
+                "group_mode_recommendations_non_empty",
+                "group_mode_recommendations_have_best_modes",
             ]
         )
 
@@ -203,6 +216,7 @@ def main() -> None:
     mode_table = report.get("mode_table") or []
     pareto = report.get("pareto_frontier") or []
     recommendations = report.get("recommendations") or []
+    group_recommendations = report.get("group_mode_recommendations") or []
     input_eval = report.get("input_retrieval_eval") or {}
     query_signal = report.get("query_signal_summary") or {}
 
@@ -225,6 +239,7 @@ def main() -> None:
             "mode_table_count": len(mode_table),
             "pareto_frontier_count": len(pareto),
             "recommendations_count": len(recommendations),
+            "group_mode_recommendations_count": len(group_recommendations),
             "failed_mode_counts": query_signal.get("failed_mode_counts") or {},
             "note_counts": query_signal.get("note_counts") or {},
         },

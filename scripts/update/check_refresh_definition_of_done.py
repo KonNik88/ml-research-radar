@@ -62,6 +62,9 @@ DEFAULT_TOPIC_PROJECTION_QUALITY_PATH = Path(
 DEFAULT_STREAMLIT_DISCOVERY_UI_QUALITY_PATH = Path(
     "artifacts/reports/ui/streamlit_discovery_ui_quality_latest.json"
 )
+DEFAULT_GOLDEN_QUERIES_QUALITY_PATH = Path(
+    "artifacts/reports/validation/golden_queries_quality_latest.json"
+)
 
 DEFAULT_REPORTS_DIR = Path("artifacts/reports/update")
 
@@ -546,6 +549,90 @@ def extract_streamlit_discovery_ui_values(
             "legacy_search_endpoint_absent"
         ),
     }
+
+def extract_golden_queries_values(
+    golden_queries_quality: dict[str, Any] | None,
+) -> dict[str, Any]:
+    report = golden_queries_quality or {}
+    extracted = (
+        report.get("extracted_values")
+        if isinstance(report.get("extracted_values"), dict)
+        else {}
+    )
+    checks = report.get("checks") if isinstance(report.get("checks"), dict) else {}
+
+    rows_count = first_present(
+        report,
+        [
+            ("rows_count",),
+            ("summary", "rows_count"),
+            ("extracted_values", "rows_count"),
+        ],
+    )
+    enabled_cases_count = first_present(
+        report,
+        [
+            ("enabled_cases_count",),
+            ("summary", "enabled_cases_count"),
+            ("extracted_values", "enabled_cases_count"),
+        ],
+    )
+    explicit_cases_count = first_present(
+        report,
+        [
+            ("explicit_canonical_labeled_enabled_count",),
+            ("summary", "explicit_canonical_labeled_enabled_count"),
+            ("extracted_values", "explicit_canonical_labeled_enabled_count"),
+        ],
+    )
+    weak_pattern_cases_count = first_present(
+        report,
+        [
+            ("weak_pattern_enabled_count",),
+            ("summary", "weak_pattern_enabled_count"),
+            ("extracted_values", "weak_pattern_enabled_count"),
+        ],
+    )
+
+    return {
+        "golden_queries_quality_ok": report_ok(golden_queries_quality),
+        "golden_queries_schema_version": report.get("schema_version"),
+        "golden_queries_required_failed_count": first_present(
+            report,
+            [
+                ("required_failed_count",),
+                ("verdict", "required_failed_count"),
+            ],
+        ),
+        "golden_queries_required_failed_checks": first_present(
+            report,
+            [
+                ("required_failed_checks",),
+                ("verdict", "required_failed_checks"),
+            ],
+        ),
+        "golden_queries_rows_count": rows_count,
+        "golden_queries_enabled_cases_count": enabled_cases_count,
+        "golden_queries_explicit_canonical_labeled_enabled_count": explicit_cases_count,
+        "golden_queries_weak_pattern_enabled_count": weak_pattern_cases_count,
+        "golden_queries_duplicate_or_schema_errors_count": safe_int(
+            extracted.get("duplicate_or_schema_errors_count")
+            or extracted.get("duplicate_query_id_count")
+            or extracted.get("schema_error_count")
+            or 0
+        ),
+        "golden_queries_bad_enabled_cases_count": safe_int(
+            extracted.get("bad_enabled_cases_count")
+            or extracted.get("enabled_without_explicit_or_weak_relevance_count")
+            or 0
+        ),
+        "golden_queries_metrics_finite": (
+            checks.get("metrics_finite")
+            if "metrics_finite" in checks
+            else True
+        ),
+    }
+
 
 def extract_known_issues_values(known_issues: dict[str, Any] | None) -> dict[str, Any]:
     if known_issues is None:
@@ -1105,6 +1192,17 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Treat Streamlit Discovery UI static quality report as a required DoD condition.",
     )
+    parser.add_argument(
+        "--golden-queries-quality-path",
+        type=Path,
+        default=DEFAULT_GOLDEN_QUERIES_QUALITY_PATH,
+        help="Golden queries quality validation report path.",
+    )
+    parser.add_argument(
+        "--require-golden-queries",
+        action="store_true",
+        help="Treat golden queries quality report as a required DoD condition.",
+    )
 
     return parser
 
@@ -1160,6 +1258,9 @@ def main() -> None:
     streamlit_discovery_ui_values = extract_streamlit_discovery_ui_values(
         streamlit_discovery_ui_quality
     )
+
+    golden_queries_quality = load_json_if_exists(args.golden_queries_quality_path)
+    golden_queries_values = extract_golden_queries_values(golden_queries_quality)
 
     huggingface_enrichment_check = load_json_if_exists(
         args.huggingface_enrichment_check_path
@@ -1710,6 +1811,43 @@ def main() -> None:
                 "streamlit_discovery_ui_no_deprecated_use_container_width"
             ]
         ),
+
+        # optional golden queries / retrieval eval seed quality block
+        "golden_queries_quality_exists": args.golden_queries_quality_path.exists(),
+        "golden_queries_quality_ok": golden_queries_values[
+            "golden_queries_quality_ok"
+        ],
+        "golden_queries_required_failed_count_zero": (
+            safe_int(
+                golden_queries_values["golden_queries_required_failed_count"],
+                default=999999,
+            )
+            == 0
+        ),
+        "golden_queries_enabled_cases_positive": (
+            safe_int(golden_queries_values["golden_queries_enabled_cases_count"]) > 0
+        ),
+        "golden_queries_explicit_cases_positive": (
+            safe_int(
+                golden_queries_values[
+                    "golden_queries_explicit_canonical_labeled_enabled_count"
+                ]
+            )
+            > 0
+        ),
+        "golden_queries_relevance_cases_cover_enabled": (
+            safe_int(golden_queries_values["golden_queries_enabled_cases_count"])
+            == safe_int(
+                golden_queries_values[
+                    "golden_queries_explicit_canonical_labeled_enabled_count"
+                ]
+            )
+            + safe_int(golden_queries_values["golden_queries_weak_pattern_enabled_count"])
+            and safe_int(golden_queries_values["golden_queries_enabled_cases_count"]) > 0
+        ),
+        "golden_queries_no_bad_enabled_cases": (
+            safe_int(golden_queries_values["golden_queries_bad_enabled_cases_count"]) == 0
+        ),
     }
 
     required_check_names = [
@@ -1909,6 +2047,19 @@ def main() -> None:
             ]
         )
 
+    if args.require_golden_queries:
+        required_check_names.extend(
+            [
+                "golden_queries_quality_exists",
+                "golden_queries_quality_ok",
+                "golden_queries_required_failed_count_zero",
+                "golden_queries_enabled_cases_positive",
+                "golden_queries_explicit_cases_positive",
+                "golden_queries_relevance_cases_cover_enabled",
+                "golden_queries_no_bad_enabled_cases",
+            ]
+        )
+
     required_failed = [name for name in required_check_names if not checks.get(name, False)]
 
     verdict = {
@@ -1926,6 +2077,7 @@ def main() -> None:
         "topic_clusters_required": bool(args.require_topic_clusters),
         "topic_projection_required": bool(args.require_topic_projection),
         "streamlit_discovery_ui_required": bool(args.require_streamlit_discovery_ui),
+        "golden_queries_required": bool(args.require_golden_queries),
     }
 
     report = {
@@ -1959,6 +2111,9 @@ def main() -> None:
             "streamlit_discovery_ui_quality_path": normalize_path(
                 args.streamlit_discovery_ui_quality_path
             ),
+            "golden_queries_quality_path": normalize_path(
+                args.golden_queries_quality_path
+            ),
         },
         "canonical_summary": canonical_summary,
         "extracted_values": {
@@ -1980,6 +2135,7 @@ def main() -> None:
             **discovery_api_values,
             **topic_clusters_values,
             **streamlit_discovery_ui_values,
+            **golden_queries_values,
             "topic_projection_build_id": topic_projection_values[
                 "topic_projection_build_id"
             ],
@@ -2054,6 +2210,7 @@ def main() -> None:
         f"[OK] streamlit_discovery_ui_required="
         f"{verdict['streamlit_discovery_ui_required']}"
     )
+    print(f"[OK] golden_queries_required={verdict['golden_queries_required']}")
 
 if __name__ == "__main__":
     main()

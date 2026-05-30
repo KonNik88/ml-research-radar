@@ -334,6 +334,105 @@ def build_query_signal_summary(retrieval_eval: dict[str, Any]) -> dict[str, Any]
     }
 
 
+
+def build_group_mode_recommendations(
+    *,
+    retrieval_eval: dict[str, Any],
+    primary_k: int,
+) -> list[dict[str, Any]]:
+    """Build lightweight group-level recommendations from retrieval_eval.group_summary.
+
+    This is diagnostic only: it should guide inspection and future experiments,
+    not silently change production defaults.
+    """
+    group_summary = retrieval_eval.get("group_summary") or {}
+    out: list[dict[str, Any]] = []
+
+    for group, row in sorted(group_summary.items()):
+        modes = row.get("modes") or {}
+        if not isinstance(modes, dict) or not modes:
+            continue
+
+        mode_rows: list[dict[str, Any]] = []
+        for mode, metrics in modes.items():
+            if not isinstance(metrics, dict):
+                continue
+            recall = safe_float(metrics.get(f"recall_at_{primary_k}"))
+            ndcg = safe_float(metrics.get(f"ndcg_at_{primary_k}"))
+            mrr = safe_float(metrics.get(f"mrr_at_{primary_k}"))
+            composite = safe_float(
+                metrics.get("quality_composite"),
+                (0.4 * recall) + (0.4 * ndcg) + (0.2 * mrr),
+            )
+            mode_rows.append(
+                {
+                    "mode": mode,
+                    f"recall_at_{primary_k}": round(recall, 6),
+                    f"ndcg_at_{primary_k}": round(ndcg, 6),
+                    f"mrr_at_{primary_k}": round(mrr, 6),
+                    "quality_composite": round(composite, 6),
+                }
+            )
+
+        if not mode_rows:
+            continue
+
+        by_composite = sorted(
+            mode_rows,
+            key=lambda item: (
+                safe_float(item.get("quality_composite")),
+                safe_float(item.get(f"recall_at_{primary_k}")),
+                safe_float(item.get(f"ndcg_at_{primary_k}")),
+            ),
+            reverse=True,
+        )
+        by_recall = sorted(
+            mode_rows,
+            key=lambda item: (
+                safe_float(item.get(f"recall_at_{primary_k}")),
+                safe_float(item.get(f"ndcg_at_{primary_k}")),
+                safe_float(item.get(f"mrr_at_{primary_k}")),
+            ),
+            reverse=True,
+        )
+        best = by_composite[0]
+        best_recall = by_recall[0]
+
+        dense = next((item for item in mode_rows if item["mode"] == "dense"), None)
+        lexical = next((item for item in mode_rows if item["mode"] == "lexical"), None)
+        hybrid = next((item for item in mode_rows if item["mode"] == "hybrid"), None)
+        hybrid_ranked = next((item for item in mode_rows if item["mode"] == "hybrid_ranked"), None)
+
+        notes: list[str] = []
+        if dense and lexical and safe_float(dense.get(f"recall_at_{primary_k}")) > safe_float(lexical.get(f"recall_at_{primary_k}")):
+            notes.append("dense_recall_gt_lexical")
+        if lexical and dense and safe_float(lexical.get(f"recall_at_{primary_k}")) > safe_float(dense.get(f"recall_at_{primary_k}")):
+            notes.append("lexical_recall_gt_dense")
+        if hybrid and dense and safe_float(hybrid.get(f"recall_at_{primary_k}")) > safe_float(dense.get(f"recall_at_{primary_k}")):
+            notes.append("hybrid_recall_gt_dense")
+        if hybrid and lexical and safe_float(hybrid.get(f"recall_at_{primary_k}")) > safe_float(lexical.get(f"recall_at_{primary_k}")):
+            notes.append("hybrid_recall_gt_lexical")
+        if hybrid_ranked and hybrid:
+            if safe_float(hybrid_ranked.get(f"recall_at_{primary_k}")) > safe_float(hybrid.get(f"recall_at_{primary_k}")):
+                notes.append("hybrid_ranked_recall_gt_hybrid")
+            if safe_float(hybrid_ranked.get(f"ndcg_at_{primary_k}")) < safe_float(hybrid.get(f"ndcg_at_{primary_k}")):
+                notes.append("hybrid_ranked_ndcg_lt_hybrid")
+
+        out.append(
+            {
+                "group": group,
+                "cases_count": safe_int(row.get("cases_count")),
+                "best_mode_by_composite": best["mode"],
+                "best_mode_by_recall": best_recall["mode"],
+                "best_composite": best.get("quality_composite"),
+                f"best_recall_at_{primary_k}": best_recall.get(f"recall_at_{primary_k}"),
+                "mode_metrics": mode_rows,
+                "notes": notes,
+            }
+        )
+
+    return out
+
 def build_recommendations(
     *,
     rankings: dict[str, list[dict[str, Any]]],
@@ -594,6 +693,28 @@ def build_markdown(report: dict[str, Any]) -> str:
         lines.append("- none")
     lines.append("")
 
+    lines.append("## Group-level mode recommendations")
+    lines.append("")
+    group_recs = report.get("group_mode_recommendations") or []
+    if group_recs:
+        lines.append(
+            "| Group | Cases | Best composite | Best recall | Composite | Recall@K | Notes |"
+        )
+        lines.append("|---|---:|---|---|---:|---:|---|")
+        for item in group_recs:
+            notes = ", ".join(f"`{x}`" for x in item.get("notes", [])) or "-"
+            lines.append(
+                f"| `{item.get('group')}` | {item.get('cases_count', 0)} | "
+                f"`{item.get('best_mode_by_composite')}` | "
+                f"`{item.get('best_mode_by_recall')}` | "
+                f"{safe_float(item.get('best_composite')):.3f} | "
+                f"{safe_float(item.get(f'best_recall_at_{primary_k}')):.3f} | "
+                f"{notes} |"
+            )
+    else:
+        lines.append("- none")
+    lines.append("")
+
     lines.append("## Recommendations")
     lines.append("")
     if report["recommendations"]:
@@ -676,6 +797,10 @@ def main() -> None:
         primary_k=primary_k,
     )
     query_signal_summary = build_query_signal_summary(retrieval_eval)
+    group_mode_recommendations = build_group_mode_recommendations(
+        retrieval_eval=retrieval_eval,
+        primary_k=primary_k,
+    )
     recommendations = build_recommendations(
         rankings=rankings,
         pareto_frontier=pareto_frontier,
@@ -716,6 +841,7 @@ def main() -> None:
         "pareto_frontier": pareto_frontier,
         "pairwise_summary": pairwise_summary,
         "query_signal_summary": query_signal_summary,
+        "group_mode_recommendations": group_mode_recommendations,
         "recommendations": recommendations,
     }
 
@@ -735,6 +861,7 @@ def main() -> None:
     print(f"[OK] corpus_doc_count={report['input_retrieval_eval']['corpus_doc_count']}")
     print(f"[OK] modes_count={len(mode_table)}")
     print(f"[OK] pareto_frontier_count={len(pareto_frontier)}")
+    print(f"[OK] group_mode_recommendations_count={len(group_mode_recommendations)}")
     print(f"[OK] recommendations_count={len(recommendations)}")
     print(f"[OK] latest JSON: {latest_json}")
     print(f"[OK] latest Markdown: {latest_md}")

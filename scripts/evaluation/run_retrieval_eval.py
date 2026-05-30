@@ -532,6 +532,18 @@ def summarize_mode(
     return summary
 
 
+def quality_composite_from_metrics(metrics: dict[str, Any], primary_k: int) -> float:
+    """Small diagnostic composite used only for group-level summaries.
+
+    This intentionally mirrors the simple recall/nDCG/MRR emphasis used by
+    search-quality reports, but keeps retrieval_eval self-contained.
+    """
+    recall = float(metrics.get(f"recall_at_{primary_k}", 0.0) or 0.0)
+    ndcg = float(metrics.get(f"ndcg_at_{primary_k}", 0.0) or 0.0)
+    mrr = float(metrics.get(f"mrr_at_{primary_k}", 0.0) or 0.0)
+    return round((0.4 * recall) + (0.4 * ndcg) + (0.2 * mrr), 6)
+
+
 def summarize_groups(
     *,
     case_runs: list[dict[str, Any]],
@@ -546,7 +558,11 @@ def summarize_groups(
     for group, cases in sorted(by_group.items()):
         group_summary: dict[str, Any] = {
             "cases_count": len(cases),
+            "case_ids": [str(case.get("query_id") or "") for case in cases],
             "modes": {},
+            "best_by_recall": None,
+            "best_by_ndcg": None,
+            "best_by_composite": None,
         }
 
         for mode in modes:
@@ -559,12 +575,40 @@ def summarize_groups(
                     if isinstance(m, dict):
                         metrics.append(m)
 
-            group_summary["modes"][mode] = {
+            mode_metrics = {
                 f"hit_at_{primary_k}": mean([float(m.get("hit", 0.0)) for m in metrics]),
                 f"recall_at_{primary_k}": mean([float(m.get("recall", 0.0)) for m in metrics]),
                 f"mrr_at_{primary_k}": mean([float(m.get("mrr", 0.0)) for m in metrics]),
                 f"ndcg_at_{primary_k}": mean([float(m.get("ndcg", 0.0)) for m in metrics]),
             }
+            mode_metrics["quality_composite"] = quality_composite_from_metrics(mode_metrics, primary_k)
+            group_summary["modes"][mode] = mode_metrics
+
+        if group_summary["modes"]:
+            group_summary["best_by_recall"] = max(
+                group_summary["modes"].items(),
+                key=lambda item: (
+                    float(item[1].get(f"recall_at_{primary_k}", 0.0) or 0.0),
+                    float(item[1].get(f"mrr_at_{primary_k}", 0.0) or 0.0),
+                    float(item[1].get(f"ndcg_at_{primary_k}", 0.0) or 0.0),
+                ),
+            )[0]
+            group_summary["best_by_ndcg"] = max(
+                group_summary["modes"].items(),
+                key=lambda item: (
+                    float(item[1].get(f"ndcg_at_{primary_k}", 0.0) or 0.0),
+                    float(item[1].get(f"recall_at_{primary_k}", 0.0) or 0.0),
+                    float(item[1].get(f"mrr_at_{primary_k}", 0.0) or 0.0),
+                ),
+            )[0]
+            group_summary["best_by_composite"] = max(
+                group_summary["modes"].items(),
+                key=lambda item: (
+                    float(item[1].get("quality_composite", 0.0) or 0.0),
+                    float(item[1].get(f"recall_at_{primary_k}", 0.0) or 0.0),
+                    float(item[1].get(f"ndcg_at_{primary_k}", 0.0) or 0.0),
+                ),
+            )[0]
 
         out[group] = group_summary
 
@@ -874,6 +918,32 @@ def build_markdown(report: dict[str, Any]) -> str:
             f"{row.get('empty_result_rate', 0):.3f} | "
             f"{lat.get('p50')} | {lat.get('p95')} |"
         )
+    lines.append("")
+
+
+    group_summary = report.get("group_summary") or {}
+    lines.append("## Group-level mode summary")
+    lines.append("")
+    if group_summary:
+        lines.append(
+            "| Group | Cases | Best recall | Best nDCG | Best composite | "
+            "Lex recall | Dense recall | Hybrid recall | Hybrid ranked recall |"
+        )
+        lines.append("|---|---:|---|---|---|---:|---:|---:|---:|")
+        for group, row in group_summary.items():
+            modes_row = row.get("modes") or {}
+            lines.append(
+                f"| `{group}` | {row.get('cases_count', 0)} | "
+                f"`{row.get('best_by_recall')}` | "
+                f"`{row.get('best_by_ndcg')}` | "
+                f"`{row.get('best_by_composite')}` | "
+                f"{(modes_row.get('lexical') or {}).get(f'recall_at_{primary_k}', 0):.3f} | "
+                f"{(modes_row.get('dense') or {}).get(f'recall_at_{primary_k}', 0):.3f} | "
+                f"{(modes_row.get('hybrid') or {}).get(f'recall_at_{primary_k}', 0):.3f} | "
+                f"{(modes_row.get('hybrid_ranked') or {}).get(f'recall_at_{primary_k}', 0):.3f} |"
+            )
+    else:
+        lines.append("- none")
     lines.append("")
 
     comparison = report.get("comparison_summary") or {}
