@@ -24,13 +24,14 @@ services:
       retries: 10
 
   qdrant:
-    image: qdrant/qdrant:latest
+    image: qdrant/qdrant:v1.17.0
     container_name: ml_radar_qdrant
     restart: unless-stopped
     ports:
       - "6333:6333"
       - "6334:6334"
     volumes:
-      - type: bind
-        source: D:/ML/docker_data/ml_radar/qdrant
-        target: /qdrant/storage
+      - qdrant_storage:/qdrant/storage
+
+volumes:
+  qdrant_storage:
