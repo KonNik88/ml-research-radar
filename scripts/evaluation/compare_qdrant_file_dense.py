@@ -22,6 +22,7 @@ import numpy as np
 import yaml
 from sentence_transformers import SentenceTransformer
 
+from services.api.settings import get_settings
 from radar_core.retrieval.qdrant_store import QdrantRetrievalStore
 
 SCHEMA_VERSION = "qdrant_file_dense_comparison_v1"
@@ -188,6 +189,7 @@ def main(argv: list[str] | None = None) -> None:
     config = load_yaml(args.config_path)
     retrieval_cfg = config.get("retrieval", {})
     qdrant_cfg = config.get("qdrant", {})
+    settings = get_settings()
 
     manifest_path = Path(retrieval_cfg.get("manifest_path", "artifacts/retrieval/manifests/latest.json"))
     golden_queries_path = Path(retrieval_cfg.get("golden_queries_path", "data/eval/retrieval/golden_queries.jsonl"))
@@ -208,12 +210,20 @@ def main(argv: list[str] | None = None) -> None:
         queries = queries[: args.max_queries]
 
     model = SentenceTransformer(str(manifest["embedding_model_name"]))
+    collection_name = str(
+        qdrant_cfg.get("collection_name", settings.qdrant_collection_name)
+    )
     store = QdrantRetrievalStore(
-        host=str(qdrant_cfg.get("host", "localhost")),
-        port=int(qdrant_cfg.get("port", 6333)),
-        collection_name=str(qdrant_cfg.get("collection_name", "ml_radar_dense_benchmark_v1")),
-        timeout_sec=int(qdrant_cfg.get("timeout_sec", 120)),
-        check_compatibility=bool(qdrant_cfg.get("check_compatibility", False)),
+        host=str(qdrant_cfg.get("host", settings.qdrant_host)),
+        port=int(qdrant_cfg.get("port", settings.qdrant_port)),
+        collection_name=collection_name,
+        timeout_sec=float(qdrant_cfg.get("timeout_sec", settings.qdrant_timeout_sec)),
+        check_compatibility=bool(
+            qdrant_cfg.get(
+                "check_compatibility",
+                settings.qdrant_check_compatibility,
+            )
+        ),
     )
 
     query_results: list[dict[str, Any]] = []

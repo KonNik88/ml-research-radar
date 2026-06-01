@@ -18,6 +18,7 @@ from typing import Any
 import numpy as np
 import yaml
 
+from services.api.settings import get_settings
 from radar_core.retrieval.qdrant_store import QdrantRetrievalStore
 
 SCHEMA_VERSION = "qdrant_collection_quality_v1"
@@ -111,13 +112,21 @@ def main(argv: list[str] | None = None) -> None:
         corpus_doc_count = int(manifest["corpus_doc_count"])
 
         qdrant_cfg = config.get("qdrant", {})
-        collection_name = str(qdrant_cfg.get("collection_name", "ml_radar_dense_benchmark_v1"))
+        settings = get_settings()
+        collection_name = str(
+            qdrant_cfg.get("collection_name", settings.qdrant_collection_name)
+        )
         store = QdrantRetrievalStore(
-            host=str(qdrant_cfg.get("host", "localhost")),
-            port=int(qdrant_cfg.get("port", 6333)),
+            host=str(qdrant_cfg.get("host", settings.qdrant_host)),
+            port=int(qdrant_cfg.get("port", settings.qdrant_port)),
             collection_name=collection_name,
-            timeout_sec=int(qdrant_cfg.get("timeout_sec", 120)),
-            check_compatibility=bool(qdrant_cfg.get("check_compatibility", False)),
+            timeout_sec=float(qdrant_cfg.get("timeout_sec", settings.qdrant_timeout_sec)),
+            check_compatibility=bool(
+                qdrant_cfg.get(
+                    "check_compatibility",
+                    settings.qdrant_check_compatibility,
+                )
+            ),
         )
 
         collection_exists = store.collection_exists()

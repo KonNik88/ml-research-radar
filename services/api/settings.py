@@ -32,6 +32,13 @@ class ApiSettings(BaseSettings):
     # backend mode
     search_backend: str = Field(default="file")  # file | db
 
+    # qdrant settings
+    qdrant_host: str = Field(default="localhost")
+    qdrant_port: int = Field(default=6333)
+    qdrant_collection_name: str = Field(default="ml_radar_dense_benchmark_v1")
+    qdrant_timeout_sec: float = Field(default=120.0)
+    qdrant_check_compatibility: bool = Field(default=True)
+
     # postgres settings
     postgres_host: str = Field(default="127.0.0.1")
     postgres_port: int = Field(default=15432)

@@ -31,10 +31,6 @@ logger = get_logger(__name__)
 
 SearchMode = Literal["lexical", "dense", "hybrid"]
 SearchSortBy = Literal["relevance", "year_desc", "year_asc"]
-DEFAULT_QDRANT_HOST = "localhost"
-DEFAULT_QDRANT_PORT = 6333
-DEFAULT_QDRANT_COLLECTION_NAME = "ml_radar_dense_benchmark_v1"
-DEFAULT_QDRANT_TIMEOUT_SEC = 120
 
 @dataclass
 class SearchFilterParams:
@@ -998,15 +994,13 @@ def run_qdrant_experimental_search(
     runtime: ApiRuntime,
     query: str,
     top_k: int,
-    collection_name: str = DEFAULT_QDRANT_COLLECTION_NAME,
-    host: str = DEFAULT_QDRANT_HOST,
-    port: int = DEFAULT_QDRANT_PORT,
-    timeout_sec: int = DEFAULT_QDRANT_TIMEOUT_SEC,
 ) -> QdrantSearchResponse:
     if runtime.backend_mode != "file":
         raise RuntimeError("Experimental Qdrant search requires file backend runtime")
 
     query = _normalize_query(query)
+    settings = get_settings()
+    collection_name = settings.qdrant_collection_name
 
     if runtime.manifest is None:
         raise RuntimeError("Retrieval manifest is not loaded")
@@ -1025,11 +1019,11 @@ def run_qdrant_experimental_search(
     timings["encode_ms"] = round((time.perf_counter() - t_encode) * 1000, 3)
 
     store = QdrantRetrievalStore(
-        host=host,
-        port=port,
+        host=settings.qdrant_host,
+        port=settings.qdrant_port,
         collection_name=collection_name,
-        timeout_sec=timeout_sec,
-        check_compatibility=False,
+        timeout_sec=settings.qdrant_timeout_sec,
+        check_compatibility=settings.qdrant_check_compatibility,
     )
 
     if not store.collection_exists():

@@ -39,8 +39,8 @@ class QdrantRetrievalStore:
         host: str = "localhost",
         port: int = 6333,
         collection_name: str,
-        timeout_sec: int = 120,
-        check_compatibility: bool = False,
+        timeout_sec: float = 120.0,
+        check_compatibility: bool = True,
     ) -> None:
         from qdrant_client import QdrantClient
 

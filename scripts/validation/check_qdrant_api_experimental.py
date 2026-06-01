@@ -79,6 +79,7 @@ def run_check(*, strict: bool, output_dir: Path, query: str, top_k: int) -> dict
     from services.api.settings import get_settings
 
     get_settings.cache_clear()
+    settings = get_settings()
     runtime = get_runtime()
     runtime.load()
 
@@ -101,6 +102,7 @@ def run_check(*, strict: bool, output_dir: Path, query: str, top_k: int) -> dict
         results = payload.get("results") or []
 
     first_result = results[0] if results else {}
+    expected_collection_name = settings.qdrant_collection_name
 
     summary = {
         "status_code": response.status_code,
@@ -110,6 +112,7 @@ def run_check(*, strict: bool, output_dir: Path, query: str, top_k: int) -> dict
         "mode": payload.get("mode") if isinstance(payload, dict) else None,
         "build_id": payload.get("build_id") if isinstance(payload, dict) else None,
         "collection_name": payload.get("collection_name") if isinstance(payload, dict) else None,
+        "expected_collection_name": expected_collection_name,
         "result_count": len(results),
         "first_canonical_id": (
             first_result.get("document", {}).get("canonical_id")
@@ -128,13 +131,11 @@ def run_check(*, strict: bool, output_dir: Path, query: str, top_k: int) -> dict
         ),
     }
 
-    expected_collection_name = "ml_radar_dense_benchmark_v1"
-
     checks = {
         "status_code_ok": response.status_code == 200,
         "response_json_ok": response_json_ok,
         "mode_dense_qdrant": summary["mode"] == "dense_qdrant",
-        "collection_name_expected": summary["collection_name"] == expected_collection_name,
+        "collection_name_expected": summary["collection_name"] == summary["expected_collection_name"],
         "result_count_positive": summary["result_count"] > 0,
         "result_count_le_top_k": summary["result_count"] <= top_k,
         "first_result_has_canonical_id": bool(summary["first_canonical_id"]),
