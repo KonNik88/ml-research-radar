@@ -143,6 +143,27 @@ class SearchResponse(BaseModel):
     meta: SearchMeta | None = None
     results: list[SearchResultItem]
 
+class QdrantRuntimeDiagnostics(BaseModel):
+    configured: bool = True
+    ok: bool = False
+
+    host: str
+    port: int
+    collection_name: str
+    timeout_sec: float
+    check_compatibility: bool
+
+    collection_exists: bool = False
+    points_count: int | None = None
+    expected_corpus_doc_count: int | None = None
+    points_match_corpus: bool | None = None
+
+    vector_size: int | None = None
+    distance: str | None = None
+    status: str | None = None
+    optimizer_status: str | None = None
+
+    error: str | None = None
 
 class RuntimeSnapshotResponse(BaseModel):
     ready: bool
@@ -153,6 +174,7 @@ class RuntimeSnapshotResponse(BaseModel):
     artifacts_root: str
     loaded_components: dict[str, bool] = Field(default_factory=dict)
     db_connected: bool = False
+    qdrant: QdrantRuntimeDiagnostics | None = None
     last_load_error: str | None = None
     last_loaded_at: str | None = None
     last_reload_at: str | None = None

@@ -360,6 +360,12 @@ DB backend example:
 }
 ```
 
+Notes:
+
+- In `file` mode, readiness is based on loaded manifest, documents, lexical artifacts, dense artifacts, and embedding model.
+- In `db` mode, readiness is based on DB store availability and DB connectivity.
+- Qdrant is not required for `/health` readiness.
+
 ---
 
 ## `GET /info`
@@ -396,12 +402,72 @@ embedding_model_name
 artifacts_root
 loaded_components
 db_connected
+qdrant
 last_load_error
 last_loaded_at
 last_reload_at
 model_reused
 current_model_name
 ```
+
+### Qdrant diagnostics
+
+`/runtime` includes an optional `qdrant` diagnostics block. This block reports the configured Qdrant endpoint and current benchmark collection state.
+
+Qdrant runtime diagnostics fields:
+
+```text
+configured
+ok
+host
+port
+collection_name
+timeout_sec
+check_compatibility
+collection_exists
+points_count
+expected_corpus_doc_count
+points_match_corpus
+vector_size
+distance
+status
+optimizer_status
+error
+```
+
+Current expected healthy file-backend example:
+
+```json
+{
+  "qdrant": {
+    "configured": true,
+    "ok": true,
+    "host": "localhost",
+    "port": 6333,
+    "collection_name": "ml_radar_dense_benchmark_v1",
+    "timeout_sec": 120.0,
+    "check_compatibility": true,
+    "collection_exists": true,
+    "points_count": 60954,
+    "expected_corpus_doc_count": 60954,
+    "points_match_corpus": true,
+    "vector_size": 384,
+    "distance": "Cosine",
+    "status": "green",
+    "optimizer_status": "ok",
+    "error": null
+  }
+}
+```
+
+Semantics:
+
+- Qdrant diagnostics are informational.
+- Qdrant remains an optional derived vector-serving layer.
+- Qdrant is not canonical truth.
+- Qdrant is not required for `/health` readiness.
+- Qdrant diagnostics do not change `/search` backend semantics.
+- If Qdrant is unavailable, `/runtime` still returns `200 OK`; `qdrant.ok` is `false` and `qdrant.error` contains the diagnostic error.
 
 ---
 
@@ -425,6 +491,21 @@ DB backend reloads:
 Postgres-backed runtime
 DB store connectivity
 document count snapshot
+```
+
+Response shape:
+
+```json
+{
+  "status": "reloaded",
+  "backend_mode": "file",
+  "message": "File backend runtime and Discovery caches reloaded successfully",
+  "build_id": "20260504T164021Z",
+  "corpus_doc_count": 60954,
+  "embedding_model_name": "sentence-transformers/all-MiniLM-L6-v2",
+  "model_reused": true,
+  "last_reload_at": "2026-06-02T08:13:44.973350+00:00"
+}
 ```
 
 ---
@@ -491,6 +572,90 @@ Example:
 
 ```http
 GET /search?query=graph%20neural%20networks&mode=lexical&top_k=5
+```
+
+Search response shape:
+
+```json
+{
+  "query": "graph neural networks",
+  "mode": "lexical",
+  "top_k": 5,
+  "rank_applied": false,
+  "build_id": "20260504T164021Z",
+  "meta": {
+    "build_id": "20260504T164021Z",
+    "result_count": 5,
+    "rank_applied": false,
+    "timing_ms": {
+      "retrieve_ms": 3.1,
+      "total_ms": 3.8
+    },
+    "debug_enabled": true,
+    "applied_filters": {
+      "year_from": null,
+      "year_to": null,
+      "category": null,
+      "source": null,
+      "publication_type": null,
+      "venue": null,
+      "open_access": null,
+      "has_code_link": null
+    },
+    "retrieved_candidates_before_filters": 42,
+    "retrieved_candidates_after_filters": 42,
+    "offset": 0,
+    "returned_count": 5,
+    "sort_by": "relevance"
+  },
+  "results": [
+    {
+      "document": {
+        "canonical_id": "...",
+        "title": "...",
+        "abstract": "...",
+        "authors": [],
+        "year": 2024,
+        "doi": "...",
+        "arxiv_id": null,
+        "openalex_id": null,
+        "primary_category": null,
+        "categories": [],
+        "concepts": [],
+        "keywords": [],
+        "tags": [],
+        "venue": null,
+        "journal": null,
+        "conference": null,
+        "publisher": null,
+        "publication_type": null,
+        "language": "en",
+        "landing_page_url": null,
+        "pdf_url": null,
+        "repo_url": null,
+        "open_access": null,
+        "has_code_link": false,
+        "code_links": [],
+        "cited_by_count": null,
+        "references_count": null,
+        "source_count": 1,
+        "unique_source_count": 1,
+        "metadata_completeness_score": 0.7,
+        "is_preprint": false,
+        "is_review": false,
+        "is_survey": false,
+        "is_withdrawn": false
+      },
+      "retrieval": {
+        "score": 35.0,
+        "lexical_score": null,
+        "dense_score": null,
+        "hybrid_score": null
+      },
+      "ranking": null
+    }
+  ]
+}
 ```
 
 ---
@@ -1412,9 +1577,9 @@ Semantics:
 
 | Endpoint | file backend | db backend | notes |
 |---|---:|---:|---|
-| `GET /health` | yes | yes | runtime readiness |
+| `GET /health` | yes | yes | runtime readiness; Qdrant not required |
 | `GET /info` | yes | yes | runtime/API info |
-| `GET /runtime` | yes | yes | detailed runtime state |
+| `GET /runtime` | yes | yes | detailed runtime state; includes optional Qdrant diagnostics |
 | `POST /reload` | yes | yes | reload current backend runtime |
 | `GET /search?mode=lexical` | yes | yes | DB supports lexical only |
 | `GET /search?mode=dense` | yes | no | use file backend |
@@ -1432,6 +1597,7 @@ Semantics:
 | `GET /discovery/clusters` | yes | yes* | file-first DiscoveryService over topic artifacts |
 | `GET /discovery/clusters/{cluster_id}` | yes | yes* | file-first DiscoveryService over topic artifacts |
 | `GET /discovery/clusters/map` | yes | yes* | file-first DiscoveryService over projection artifact |
+| `GET /experimental/search/qdrant` | yes | no | experimental file-runtime-only Qdrant endpoint |
 
 `yes*` means the endpoint itself is served by file-first DiscoveryService. The enclosing app runtime still starts according to `ML_RADAR_SEARCH_BACKEND`.
 
@@ -1443,6 +1609,7 @@ Semantics:
 
 ```bat
 set ML_RADAR_SEARCH_BACKEND=file
+python -m pytest tests/integration/test_api_smoke.py -q
 python -m pytest tests/integration/test_api_discovery.py -q
 python -m scripts.validation.check_discovery_api --strict
 ```
@@ -1503,6 +1670,30 @@ python -m pytest tests/integration/test_api_documents_artifact_filters_db.py -q
 python -m pytest tests/integration/test_api_artifacts_github_filters_db.py -q
 python -m pytest tests/integration/test_api_github_enrichment_db.py -q
 ```
+
+## Qdrant runtime diagnostics smoke
+
+`/runtime` Qdrant diagnostics are lightweight and informational. They can be checked manually with a running API:
+
+```bat
+set ML_RADAR_SEARCH_BACKEND=file
+python -m uvicorn services.api.app:app --host 127.0.0.1 --port 8000 --reload
+curl http://127.0.0.1:8000/runtime
+```
+
+Expected healthy diagnostics:
+
+```text
+qdrant.ok = true
+qdrant.collection_exists = true
+qdrant.points_count = 60954
+qdrant.expected_corpus_doc_count = 60954
+qdrant.points_match_corpus = true
+qdrant.vector_size = 384
+qdrant.distance = Cosine
+```
+
+If Qdrant is unavailable, `/runtime` should still return `200 OK`; the `qdrant` block should report `ok=false` and a diagnostic `error`.
 
 ## Qdrant vector-serving benchmark
 
@@ -1598,6 +1789,7 @@ Important boundaries:
 - The endpoint requires file runtime, the current embedding model, a running Qdrant container, and an existing benchmark collection.
 - The endpoint is intentionally placed under `/experimental/*` until the Qdrant serving path is promoted.
 
+---
 
 ## Discovery API regression
 
@@ -1690,8 +1882,9 @@ The current API reflects project architecture:
 - `has_code_link` remains a legacy canonical/source field;
 - trusted artifact filters operate through `paper_artifact_links`;
 - GitHub/HF enrichment is artifact metadata, not paper truth;
-- process-local caches are runtime accelerators, not truth layers.
-- Qdrant benchmark is evaluation-only in the current checkpoint and is not yet a production search backend.
+- process-local caches are runtime accelerators, not truth layers;
+- Qdrant benchmark is evaluation-only in the current checkpoint and is not yet a production search backend;
+- Qdrant runtime diagnostics are informational and must not turn Qdrant into a readiness dependency.
 
 ---
 
