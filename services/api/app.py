@@ -205,7 +205,7 @@ def info() -> ApiInfoResponse:
 @app.get("/runtime", response_model=RuntimeSnapshotResponse)
 def runtime_snapshot() -> RuntimeSnapshotResponse:
     runtime = get_runtime()
-    return RuntimeSnapshotResponse(**runtime.runtime_snapshot())
+    return RuntimeSnapshotResponse(**runtime.runtime_snapshot(include_qdrant=True))
 
 
 @app.post("/reload", response_model=ReloadResponse)

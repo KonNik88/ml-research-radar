@@ -52,6 +52,18 @@ def test_runtime_smoke():
         assert payload["db_connected"] is False
         assert "model_reused" in payload
         assert "current_model_name" in payload
+        assert "qdrant" in payload
+        assert isinstance(payload["qdrant"], dict)
+
+        qdrant = payload["qdrant"]
+        assert qdrant["configured"] is True
+        assert qdrant["collection_name"] == "ml_radar_dense_benchmark_v1"
+        assert qdrant["expected_corpus_doc_count"] == payload["corpus_doc_count"]
+        assert "ok" in qdrant
+        assert "collection_exists" in qdrant
+        assert "points_count" in qdrant
+        assert "points_match_corpus" in qdrant
+        assert "error" in qdrant
 
 
 def test_search_lexical_smoke():
