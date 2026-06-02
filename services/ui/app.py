@@ -1514,8 +1514,9 @@ def render_qdrant_experimental_search_block(base_url: str) -> None:
                 st.error(str(exc))
                 st.info(
                     "Experimental Qdrant search requires the API file runtime and "
-                    "a populated Qdrant collection, for example "
-                    "`ml_radar_dense_benchmark_v1`."
+                    "a populated Qdrant collection configured via "
+                    "`ML_RADAR_QDRANT_COLLECTION_NAME` "
+                    "(default: `ml_radar_dense_benchmark_v1`)."
                 )
 
         qdrant_payload = st.session_state.get("qdrant_search_payload")
@@ -2137,7 +2138,7 @@ def render_similar_papers(base_url: str, canonical_id: str) -> None:
 
     st.dataframe(pd.DataFrame([similar_row_to_table(row) for row in results]), hide_index=True, width="stretch")
 
-    for row in results:
+    for idx, row in enumerate(results, start=1):
         with st.container(border=True):
             st.markdown(f"### {row.get('rank')}. {row.get('title', 'Untitled')}")
             render_badges(row)
@@ -2147,7 +2148,18 @@ def render_similar_papers(base_url: str, canonical_id: str) -> None:
             metric_cols[2].metric("Adjusted", fmt_score(row.get("radar_adjusted_similarity"), 4))
             metric_cols[3].metric("Radar", fmt_score(row.get("radar_score")))
             metric_cols[4].metric("Impl", fmt_score(row.get("implementation_readiness_score")))
-            st.caption(f"ID: `{compact_id(row.get('canonical_id'))}`")
+
+            similar_canonical_id = str(row.get("canonical_id") or "").strip()
+            st.caption(f"ID: `{compact_id(similar_canonical_id)}`")
+
+            if similar_canonical_id:
+                if st.button(
+                        "Open similar paper in Paper workspace",
+                        key=f"open_similar_paper_workspace_{idx}_{similar_canonical_id}",
+                        width="stretch",
+                ):
+                    select_paper(similar_canonical_id)
+                    st.rerun()
 
     with st.expander("Raw similar response", expanded=False):
         st.json(payload)
@@ -2179,7 +2191,7 @@ def render_similar_papers_payload(payload: dict[str, Any]) -> None:
         width="stretch",
     )
 
-    for row in results:
+    for idx, row in enumerate(results, start=1):
         with st.container(border=True):
             st.markdown(f"### {row.get('rank')}. {row.get('title', 'Untitled')}")
             render_badges(row)
@@ -2197,7 +2209,17 @@ def render_similar_papers_payload(payload: dict[str, Any]) -> None:
                 fmt_score(row.get("implementation_readiness_score")),
             )
 
-            st.caption(f"ID: `{compact_id(row.get('canonical_id'))}`")
+            similar_canonical_id = str(row.get("canonical_id") or "").strip()
+            st.caption(f"ID: `{compact_id(similar_canonical_id)}`")
+
+            if similar_canonical_id:
+                if st.button(
+                        "Open similar paper in Paper workspace",
+                        key=f"open_selected_similar_paper_workspace_{idx}_{similar_canonical_id}",
+                        width="stretch",
+                ):
+                    select_paper(similar_canonical_id)
+                    st.rerun()
 
     with st.expander("Raw linked paper similar response", expanded=False):
         st.json(payload)

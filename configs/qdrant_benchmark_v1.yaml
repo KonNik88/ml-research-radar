@@ -8,7 +8,7 @@ qdrant:
   prefer_grpc: false
   # The local setup may have qdrant-client 1.17.x and server 1.14.x.
   # This suppresses the compatibility warning for benchmark-only usage.
-  check_compatibility: false
+  check_compatibility: true
   # Full 60k upload can exceed the default HTTP timeout on local Docker.
   timeout_sec: 120
 

@@ -14,7 +14,7 @@ import yaml
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qmodels
 from sentence_transformers import SentenceTransformer
-
+from services.api.settings import get_settings
 
 DEFAULT_CONFIG_PATH = Path("configs/qdrant_benchmark_v1.yaml")
 DEFAULT_OUTPUT_DIR = Path("artifacts/reports/evaluation")
@@ -669,6 +669,7 @@ def main() -> None:
 
     config = load_yaml(args.config)
     qdrant_cfg = config.get("qdrant") or {}
+    settings = get_settings()
     retrieval_cfg = config.get("retrieval") or {}
     upload_cfg = config.get("upload") or {}
     output_cfg = config.get("output") or {}
@@ -721,14 +722,29 @@ def main() -> None:
     golden_query_summary = summarize_golden_queries(golden_query_rows)
     docs = load_canonical_docs(corpus_path)
 
-    client = QdrantClient(
-        host=str(qdrant_cfg.get("host", "localhost")),
-        port=int(qdrant_cfg.get("port", 6333)),
-        prefer_grpc=bool(qdrant_cfg.get("prefer_grpc", False)),
-        timeout=float(qdrant_cfg.get("timeout_sec", 120.0) or 120.0),
-        check_compatibility=bool(qdrant_cfg.get("check_compatibility", False)),
+    qdrant_host = str(qdrant_cfg.get("host", settings.qdrant_host))
+    qdrant_port = int(qdrant_cfg.get("port", settings.qdrant_port))
+    qdrant_timeout_sec = float(
+        qdrant_cfg.get("timeout_sec", settings.qdrant_timeout_sec)
+        or settings.qdrant_timeout_sec
     )
-    collection_name = str(qdrant_cfg.get("collection_name", "ml_radar_dense_benchmark_v1"))
+    qdrant_check_compatibility = bool(
+        qdrant_cfg.get(
+            "check_compatibility",
+            settings.qdrant_check_compatibility,
+        )
+    )
+    collection_name = str(
+        qdrant_cfg.get("collection_name", settings.qdrant_collection_name)
+    )
+
+    client = QdrantClient(
+        host=qdrant_host,
+        port=qdrant_port,
+        prefer_grpc=bool(qdrant_cfg.get("prefer_grpc", False)),
+        timeout=qdrant_timeout_sec,
+        check_compatibility=qdrant_check_compatibility,
+    )
 
     collection_summary = recreate_collection(
         client=client,
@@ -858,9 +874,11 @@ def main() -> None:
             "is_partial": is_partial,
         },
         "qdrant": {
-            "host": qdrant_cfg.get("host", "localhost"),
-            "port": qdrant_cfg.get("port", 6333),
+            "host": qdrant_host,
+            "port": qdrant_port,
             "collection_name": collection_name,
+            "timeout_sec": qdrant_timeout_sec,
+            "check_compatibility": qdrant_check_compatibility,
             "collection_summary": collection_summary,
         },
         "upload_summary": upload_summary,
