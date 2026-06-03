@@ -1251,6 +1251,45 @@ def get_profiles_or_stop(base_url: str) -> dict[str, Any]:
 # Sidebar
 # --------------------------------------------------------------------------------------
 
+def render_qdrant_runtime_status(runtime: dict[str, Any]) -> None:
+    qdrant = runtime.get("qdrant")
+
+    st.sidebar.markdown("### Qdrant runtime")
+
+    if not isinstance(qdrant, dict):
+        st.sidebar.info("Qdrant diagnostics are unavailable in the runtime snapshot.")
+        return
+
+    qdrant_ok = bool(qdrant.get("ok"))
+    if qdrant_ok:
+        st.sidebar.success("Qdrant: OK")
+    else:
+        st.sidebar.warning("Qdrant: unavailable")
+
+    render_kv("Collection", qdrant.get("collection_name"))
+
+    points_count = qdrant.get("points_count")
+    expected_count = qdrant.get("expected_corpus_doc_count")
+    points_text = f"{dash(points_count)} / {dash(expected_count)}"
+    render_kv("Points", points_text)
+
+    render_kv("Points match corpus", qdrant.get("points_match_corpus"))
+    render_kv("Vector size", qdrant.get("vector_size"))
+    render_kv("Distance", qdrant.get("distance"))
+
+    error = qdrant.get("error")
+    if error:
+        with st.sidebar.expander("Qdrant diagnostic error", expanded=False):
+            st.code(str(error))
+
+    with st.sidebar.expander("Qdrant runtime details", expanded=False):
+        render_kv("Host", qdrant.get("host"))
+        render_kv("Port", qdrant.get("port"))
+        render_kv("Timeout sec", qdrant.get("timeout_sec"))
+        render_kv("Check compatibility", qdrant.get("check_compatibility"))
+        render_kv("Collection exists", qdrant.get("collection_exists"))
+        render_kv("Status", qdrant.get("status"))
+        render_kv("Optimizer status", qdrant.get("optimizer_status"))
 
 def render_status_sidebar(base_url: str) -> None:
     st.sidebar.markdown("### API status")
@@ -1266,6 +1305,8 @@ def render_status_sidebar(base_url: str) -> None:
         render_kv("Corpus docs", health.get("corpus_doc_count"))
         render_kv("Embedding model", health.get("embedding_model_name"))
         render_kv("API version", info.get("api_version"))
+
+        render_qdrant_runtime_status(runtime)
 
         with st.sidebar.expander("Runtime details", expanded=False):
             render_kv("Ready", runtime.get("ready"))

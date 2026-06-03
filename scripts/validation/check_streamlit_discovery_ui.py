@@ -97,6 +97,19 @@ QDRANT_EXPERIMENTAL_UI_SNIPPETS = [
     "dense_qdrant",
 ]
 
+QDRANT_RUNTIME_STATUS_UI_SNIPPETS = [
+    "Qdrant runtime",
+    "render_qdrant_runtime_status",
+    "Qdrant diagnostics are unavailable in the runtime snapshot.",
+    "Qdrant: OK",
+    "Qdrant: unavailable",
+    "Qdrant diagnostic error",
+    "Qdrant runtime details",
+    "points_match_corpus",
+    "expected_corpus_doc_count",
+    "collection_name",
+]
+
 TOPIC_CLUSTER_UI_SNIPPETS = [
     "Topic clusters",
     "fetch_topic_clusters",
@@ -955,6 +968,10 @@ def build_report(
         app_text,
         QDRANT_EXPERIMENTAL_UI_SNIPPETS,
     )
+    missing_qdrant_runtime_status = missing_snippets(
+        app_text,
+        QDRANT_RUNTIME_STATUS_UI_SNIPPETS,
+    )
     missing_topic = missing_snippets(app_text, TOPIC_CLUSTER_UI_SNIPPETS)
     missing_cluster_detail_filters = missing_snippets(
         app_text,
@@ -987,6 +1004,9 @@ def build_report(
     checks["qdrant_experimental_ui_snippets_present"] = (
         not missing_qdrant_experimental
     )
+    checks["qdrant_runtime_status_ui_snippets_present"] = (
+        not missing_qdrant_runtime_status
+    )
     checks["topic_cluster_ui_snippets_present"] = not missing_topic
     checks["cluster_detail_filter_ui_snippets_present"] = (
         not missing_cluster_detail_filters
@@ -1012,6 +1032,9 @@ def build_report(
     extracted_values["missing_search_ui_snippets"] = missing_search
     extracted_values["missing_qdrant_experimental_ui_snippets"] = (
         missing_qdrant_experimental
+    )
+    extracted_values["missing_qdrant_runtime_status_ui_snippets"] = (
+        missing_qdrant_runtime_status
     )
     extracted_values["missing_topic_cluster_ui_snippets"] = missing_topic
     extracted_values["missing_cluster_detail_filter_ui_snippets"] = (
@@ -1047,6 +1070,7 @@ def build_report(
         "similar_modes_present",
         "search_tab_ui_snippets_present",
         "qdrant_experimental_ui_snippets_present",
+        "qdrant_runtime_status_ui_snippets_present",
         "topic_cluster_ui_snippets_present",
         "cluster_detail_filter_ui_snippets_present",
         "reset_button_present",
