@@ -1695,6 +1695,42 @@ qdrant.distance = Cosine
 
 If Qdrant is unavailable, `/runtime` should still return `200 OK`; the `qdrant` block should report `ok=false` and a diagnostic `error`.
 
+## Streamlit Qdrant runtime status
+
+The Streamlit Discovery UI is a thin client over FastAPI. It reads `/runtime` in the sidebar and shows the optional `qdrant` diagnostics block as an informational status panel.
+
+Expected healthy UI state:
+
+```text
+Qdrant runtime
+Qdrant: OK
+Collection: ml_radar_dense_benchmark_v1
+Points: 60954 / 60954
+Points match corpus: True
+Vector size: 384
+Distance: Cosine
+```
+
+If Qdrant is unavailable, the UI should remain usable and show:
+
+```text
+Qdrant: unavailable
+Qdrant diagnostic error
+```
+
+Static UI validation includes the Qdrant runtime status snippets:
+
+```bat
+python -m scripts.validation.check_streamlit_discovery_ui --strict
+```
+
+Expected:
+
+```text
+qdrant_runtime_status_ui_snippets_present = true
+required_failed_count = 0
+```
+
 ## Qdrant vector-serving benchmark
 
 Qdrant is currently validated as an evaluation-only vector-serving benchmark layer. It is not yet a production `/search` backend and does not change file/db runtime defaults.
