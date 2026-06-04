@@ -9,6 +9,10 @@ import streamlit as st
 
 DEFAULT_API_BASE_URL = os.getenv("ML_RADAR_API_BASE_URL", "http://127.0.0.1:8000")
 REQUEST_TIMEOUT_SECONDS = 30
+API_STATUS_CACHE_TTL_SECONDS = 30
+API_DATA_CACHE_TTL_SECONDS = 10
+API_POST_CACHE_TTL_SECONDS = 5
+API_PROFILES_CACHE_TTL_SECONDS = 30
 MAX_TOP_K = 100
 
 TRISTATE_OPTIONS = ["Profile default", "True", "False"]
@@ -147,31 +151,31 @@ def _handle_response(response: requests.Response) -> dict[str, Any]:
     raise RuntimeError(f"{error_code}: {message}{detail_text}")
 
 
-@st.cache_data(ttl=10, show_spinner=False)
+@st.cache_data(ttl=API_DATA_CACHE_TTL_SECONDS, show_spinner=False)
 def api_get(base_url: str, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
     url = f"{_clean_base_url(base_url)}{path}"
     response = requests.get(url, params=params, timeout=REQUEST_TIMEOUT_SECONDS)
     return _handle_response(response)
 
 
-@st.cache_data(ttl=5, show_spinner=False)
+@st.cache_data(ttl=API_POST_CACHE_TTL_SECONDS, show_spinner=False)
 def api_post(base_url: str, path: str) -> dict[str, Any]:
     url = f"{_clean_base_url(base_url)}{path}"
     response = requests.post(url, timeout=REQUEST_TIMEOUT_SECONDS)
     return _handle_response(response)
 
 
-@st.cache_data(ttl=10, show_spinner=False)
+@st.cache_data(ttl=API_STATUS_CACHE_TTL_SECONDS, show_spinner=False)
 def fetch_health(base_url: str) -> dict[str, Any]:
     return api_get(base_url, "/health")
 
 
-@st.cache_data(ttl=10, show_spinner=False)
+@st.cache_data(ttl=API_STATUS_CACHE_TTL_SECONDS, show_spinner=False)
 def fetch_info(base_url: str) -> dict[str, Any]:
     return api_get(base_url, "/info")
 
 
-@st.cache_data(ttl=10, show_spinner=False)
+@st.cache_data(ttl=API_STATUS_CACHE_TTL_SECONDS, show_spinner=False)
 def fetch_runtime(base_url: str) -> dict[str, Any]:
     return api_get(base_url, "/runtime")
 
@@ -542,6 +546,32 @@ def select_paper(canonical_id: str | None) -> None:
     if previous != canonical_id:
         reset_selected_paper_payloads()
 
+def select_paper_from_ui(canonical_id: str | None) -> bool:
+    canonical_id = str(canonical_id or "").strip()
+    if not canonical_id:
+        return False
+
+    select_paper(canonical_id)
+    return True
+
+
+def render_open_paper_workspace_button(
+    canonical_id: str | None,
+    *,
+    label: str,
+    key: str,
+    rerun: bool = False,
+) -> None:
+    canonical_id = str(canonical_id or "").strip()
+    if not canonical_id:
+        return
+
+    if st.button(label, key=key, width="stretch"):
+        selected = select_paper_from_ui(canonical_id)
+        if selected and rerun:
+            st.rerun()
+        if selected:
+            st.success("Selected paper updated. Open the Paper workspace tab.")
 
 def clear_selected_paper() -> None:
     st.session_state["selected_paper_canonical_id"] = None
@@ -956,14 +986,12 @@ def render_artifact_linked_papers(payload: dict[str, Any]) -> None:
             render_kv("Evidence field", row.get("source_field"))
 
             canonical_id = str(row.get("canonical_id") or "").strip()
-            if canonical_id:
-                if st.button(
-                        "Open this paper in Paper workspace",
-                        key=f"open_artifact_linked_paper_workspace_{canonical_id}_{idx}",
-                        width="stretch",
-                ):
-                    select_paper(canonical_id)
-                    st.rerun()
+            render_open_paper_workspace_button(
+                canonical_id,
+                label="Open this paper in Paper workspace",
+                key=f"open_artifact_linked_paper_workspace_{canonical_id}_{idx}",
+                rerun=True,
+            )
 
             evidence_url = row.get("evidence_url")
             if evidence_url:
@@ -1308,6 +1336,11 @@ def render_status_sidebar(base_url: str) -> None:
 
         render_qdrant_runtime_status(runtime)
 
+        selected_paper_id = st.session_state.get("selected_paper_canonical_id")
+        if selected_paper_id:
+            st.sidebar.markdown("### Paper workspace")
+            render_kv("Selected paper", compact_id(str(selected_paper_id), n=8))
+
         with st.sidebar.expander("Runtime details", expanded=False):
             render_kv("Ready", runtime.get("ready"))
             render_kv("Last loaded", runtime.get("last_loaded_at"))
@@ -1489,14 +1522,11 @@ def render_qdrant_search_results(payload: dict[str, Any]) -> list[dict[str, Any]
                 f"dense_index: `{dash(item.get('dense_index'))}`"
             )
 
-            if canonical_id:
-                if st.button(
-                    "Open Qdrant result in Paper workspace",
-                    key=f"open_qdrant_result_workspace_{idx}_{canonical_id}",
-                    width="stretch",
-                ):
-                    select_paper(canonical_id)
-                    st.success("Selected paper updated. Open the Paper workspace tab.")
+            render_open_paper_workspace_button(
+                canonical_id,
+                label="Open Qdrant result in Paper workspace",
+                key=f"open_qdrant_result_workspace_{idx}_{canonical_id}",
+            )
 
             abstract = document.get("abstract")
             if abstract:
@@ -1771,14 +1801,12 @@ def render_result_card(row: dict[str, Any], rank: int) -> None:
         st.caption(f"Sources: {source_families} · ID: `{compact_id(canonical_id)}`")
 
         if canonical_id:
-            if st.button(
-                    "Open in Paper workspace",
-                    key=f"open_ranking_paper_workspace_{rank}_{canonical_id}",
-                    width="stretch",
-            ):
-                st.session_state["selected_canonical_id"] = canonical_id
-                select_paper(canonical_id)
-                st.success("Selected paper updated. Open the Paper workspace tab.")
+            st.session_state["selected_canonical_id"] = canonical_id
+            render_open_paper_workspace_button(
+                canonical_id,
+                label="Open in Paper workspace",
+                key=f"open_ranking_paper_workspace_{rank}_{canonical_id}",
+            )
 
         abstract = row.get("abstract") or row.get("abstract_preview")
         if abstract:
@@ -1874,14 +1902,11 @@ def render_search_results(payload: dict[str, Any]) -> list[dict[str, Any]]:
                 f"arXiv: `{dash(document.get('arxiv_id'))}`"
             )
 
-            if canonical_id:
-                if st.button(
-                    "Open search result in Paper workspace",
-                    key=f"open_search_result_workspace_{idx}_{canonical_id}",
-                    width="stretch",
-                ):
-                    select_paper(canonical_id)
-                    st.success("Selected paper updated. Open the Paper workspace tab.")
+            render_open_paper_workspace_button(
+                canonical_id,
+                label="Open search result in Paper workspace",
+                key=f"open_search_result_workspace_{idx}_{canonical_id}",
+            )
 
             abstract = document.get("abstract")
             if abstract:
@@ -2193,14 +2218,12 @@ def render_similar_papers(base_url: str, canonical_id: str) -> None:
             similar_canonical_id = str(row.get("canonical_id") or "").strip()
             st.caption(f"ID: `{compact_id(similar_canonical_id)}`")
 
-            if similar_canonical_id:
-                if st.button(
-                        "Open similar paper in Paper workspace",
-                        key=f"open_similar_paper_workspace_{idx}_{similar_canonical_id}",
-                        width="stretch",
-                ):
-                    select_paper(similar_canonical_id)
-                    st.rerun()
+            render_open_paper_workspace_button(
+                similar_canonical_id,
+                label="Open similar paper in Paper workspace",
+                key=f"open_similar_paper_workspace_{idx}_{similar_canonical_id}",
+                rerun=True,
+            )
 
     with st.expander("Raw similar response", expanded=False):
         st.json(payload)
@@ -2253,14 +2276,12 @@ def render_similar_papers_payload(payload: dict[str, Any]) -> None:
             similar_canonical_id = str(row.get("canonical_id") or "").strip()
             st.caption(f"ID: `{compact_id(similar_canonical_id)}`")
 
-            if similar_canonical_id:
-                if st.button(
-                        "Open similar paper in Paper workspace",
-                        key=f"open_selected_similar_paper_workspace_{idx}_{similar_canonical_id}",
-                        width="stretch",
-                ):
-                    select_paper(similar_canonical_id)
-                    st.rerun()
+            render_open_paper_workspace_button(
+                similar_canonical_id,
+                label="Open similar paper in Paper workspace",
+                key=f"open_selected_similar_paper_workspace_{idx}_{similar_canonical_id}",
+                rerun=True,
+            )
 
     with st.expander("Raw linked paper similar response", expanded=False):
         st.json(payload)
@@ -2668,14 +2689,12 @@ def render_topic_cluster_detail(
                     f"ID: `{compact_id(row.get('canonical_id'))}`"
                 )
                 canonical_id = str(row.get("canonical_id") or "").strip()
-                if canonical_id:
-                    if st.button(
-                            "Open in Paper workspace",
-                            key=f"open_cluster_paper_workspace_{cluster_id}_{idx}_{canonical_id}",
-                            width="stretch",
-                    ):
-                        select_paper(canonical_id)
-                        st.rerun()
+                render_open_paper_workspace_button(
+                    canonical_id,
+                    label="Open in Paper workspace",
+                    key=f"open_cluster_paper_workspace_{cluster_id}_{idx}_{canonical_id}",
+                    rerun=True,
+                )
     else:
         st.warning("No papers returned for this cluster.")
 
@@ -3281,13 +3300,11 @@ def main() -> None:
                 )
 
                 if selected:
-                    if st.button(
-                            "Open selected paper in Paper workspace",
-                            key="open_selected_ranking_paper_workspace",
-                            width="stretch",
-                    ):
-                        select_paper(selected)
-                        st.success("Selected paper updated. Open the Paper workspace tab.")
+                    render_open_paper_workspace_button(
+                        selected,
+                        label="Open selected paper in Paper workspace",
+                        key="open_selected_ranking_paper_workspace",
+                    )
 
                 if selected:
                     detail_tab, similar_tab, paper_cluster_tab, raw_tab = st.tabs(

@@ -211,6 +211,17 @@ PAPER_WORKSPACE_UI_SNIPPETS = [
     "Open in Paper workspace",
 ]
 
+PAPER_NAVIGATION_POLISH_UI_SNIPPETS = [
+    "select_paper_from_ui",
+    "render_open_paper_workspace_button",
+    "Selected paper updated. Open the Paper workspace tab.",
+    "Open search result in Paper workspace",
+    "Open Qdrant result in Paper workspace",
+    "Open similar paper in Paper workspace",
+    "Open selected paper in Paper workspace",
+    "Open this paper in Paper workspace",
+]
+
 PAPER_WORKSPACE_ARTIFACT_UI_SNIPPETS = [
     "Selected paper artifacts",
     "selected_paper_selected_artifact_id",
@@ -992,6 +1003,11 @@ def build_report(
         PAPER_WORKSPACE_UI_SNIPPETS,
     )
 
+    missing_paper_navigation_polish = missing_snippets(
+        app_text,
+        PAPER_NAVIGATION_POLISH_UI_SNIPPETS,
+    )
+
     missing_paper_workspace_artifact = missing_snippets(
         app_text,
         PAPER_WORKSPACE_ARTIFACT_UI_SNIPPETS,
@@ -1022,6 +1038,9 @@ def build_report(
         not missing_artifact_linked_paper_navigation
     )
     checks["paper_workspace_ui_snippets_present"] = not missing_paper_workspace
+    checks["paper_navigation_polish_ui_snippets_present"] = (
+        not missing_paper_navigation_polish
+    )
     checks["paper_workspace_artifact_ui_snippets_present"] = (
         not missing_paper_workspace_artifact
     )
@@ -1045,6 +1064,9 @@ def build_report(
         missing_artifact_linked_paper_navigation
     )
     extracted_values["missing_paper_workspace_ui_snippets"] = missing_paper_workspace
+    extracted_values["missing_paper_navigation_polish_ui_snippets"] = (
+        missing_paper_navigation_polish
+    )
     extracted_values["missing_paper_workspace_artifact_ui_snippets"] = (
         missing_paper_workspace_artifact
     )
@@ -1079,6 +1101,7 @@ def build_report(
         "artifact_explorer_ui_snippets_present",
         "artifact_linked_paper_navigation_snippets_present",
         "paper_workspace_ui_snippets_present",
+        "paper_navigation_polish_ui_snippets_present",
         "paper_workspace_artifact_ui_snippets_present",
     ]
 
