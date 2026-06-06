@@ -141,6 +141,27 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
             ]
         )
 
+    if args.include_qdrant_profile_sweep:
+        steps.extend(
+            [
+                Step(
+                    name="run_qdrant_search_profile_sweep",
+                    cmd=python_cmd(
+                        "scripts.evaluation.run_qdrant_search_profile_sweep"
+                    ),
+                    env=file_env,
+                ),
+                Step(
+                    name="check_qdrant_search_profile_sweep",
+                    cmd=python_cmd(
+                        "scripts.validation.check_qdrant_search_profile_sweep",
+                        "--strict",
+                    ),
+                    env=file_env,
+                ),
+            ]
+        )
+
     if args.include_qdrant_api:
         steps.append(
             Step(
@@ -331,6 +352,17 @@ def build_parser() -> argparse.ArgumentParser:
             "Qdrant collection: collection validator, file-dense comparison, "
             "and strict comparison validator. Requires Qdrant container and a "
             "previously built collection, but does not recreate or upload vectors."
+        ),
+    )
+    parser.add_argument(
+        "--include-qdrant-profile-sweep",
+        action="store_true",
+        help=(
+            "Also run the full Qdrant search-profile sweep and strict validator "
+            "over all enabled golden queries. This compares default, ef_128, "
+            "ef_256, ef_512, and exact profiles against the exact file-dense "
+            "reference. It is evaluation-only, requires an existing Qdrant "
+            "collection, and does not change API defaults."
         ),
     )
     parser.add_argument(

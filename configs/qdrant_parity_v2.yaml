@@ -1,0 +1,57 @@
+schema_version: qdrant_parity_v2
+
+qdrant:
+  host: localhost
+  port: 6333
+  collection_name: ml_radar_dense_benchmark_v1
+  prefer_grpc: false
+  check_compatibility: false
+  timeout_sec: 120
+
+retrieval:
+  manifest_path: artifacts/retrieval/manifests/latest.json
+  golden_queries_path: data/eval/retrieval/golden_queries.jsonl
+  external_top_k: 20
+  boundary_window: 10
+
+profiles:
+  - name: default
+    exact: false
+    hnsw_ef: null
+
+  - name: ef_128
+    exact: false
+    hnsw_ef: 128
+
+  - name: ef_256
+    exact: false
+    hnsw_ef: 256
+
+  - name: ef_512
+    exact: false
+    hnsw_ef: 512
+
+  - name: exact
+    exact: true
+    hnsw_ef: null
+
+comparison:
+  selected_profile_name: ef_256
+  exact_profile_name: exact
+
+diagnostics:
+  warmup_runs: 1
+  repeated_runs: 5
+  repeat_only_mismatches: true
+  audit_mapping: true
+  require_point_id_equals_dense_index: true
+
+quality:
+  max_error_count: 0
+  require_selected_profile_full_match: true
+  require_exact_profile_full_match: true
+  min_mean_overlap_at_k: 0.99
+  min_query_overlap_at_k: 0.95
+
+output:
+  output_dir: artifacts/reports/evaluation
