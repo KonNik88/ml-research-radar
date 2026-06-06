@@ -1,37 +1,65 @@
-"""Compare existing Qdrant dense retrieval against file-based dense retrieval.
+"""Compare a selected Qdrant ANN profile with exact file-dense retrieval.
 
-This script is intentionally read-only with respect to Qdrant: it does not
-create collections and does not upload vectors. Use the full benchmark first:
+The report has two independent Qdrant paths:
 
-    python -m scripts.evaluation.run_qdrant_retrieval_benchmark
+* ``selected_profile`` — the ANN profile chosen by the profile sweep;
+* ``exact_profile`` — a diagnostic exact Qdrant search that must match the
+  exact file reference.
 
-Then use this script for fast Qdrant-vs-file-dense parity checks.
+The script is read-only with respect to Qdrant. It does not create collections,
+upload vectors, mutate canonical data, or change API runtime defaults.
+
+Run from the project root::
+
+    python -m scripts.evaluation.compare_qdrant_file_dense
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import math
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 import numpy as np
 import yaml
+from qdrant_client import QdrantClient
+from qdrant_client.http import models as qmodels
 from sentence_transformers import SentenceTransformer
 
-from services.api.settings import get_settings
-from radar_core.retrieval.qdrant_store import QdrantRetrievalStore
+from radar_core.retrieval.parity import (
+    audit_qdrant_mapping,
+    build_mismatch_details,
+    check_repeat_determinism,
+    classify_profile_difference,
+    compare_ranked_results,
+    exact_file_dense_search,
+    query_vector_metadata,
+    summarize_latencies,
+)
+from radar_core.retrieval.qdrant_store import extract_distance, extract_vector_size
 
-SCHEMA_VERSION = "qdrant_file_dense_comparison_v1"
-DEFAULT_CONFIG_PATH = Path("configs/qdrant_benchmark_v1.yaml")
+
+SCHEMA_VERSION = "qdrant_file_dense_comparison_v2"
+CONFIG_SCHEMA_VERSION = "qdrant_parity_v2"
+DEFAULT_CONFIG_PATH = Path("configs/qdrant_parity_v2.yaml")
 DEFAULT_OUTPUT_DIR = Path("artifacts/reports/evaluation")
 
 
 def utc_ts() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+
+
+def utc_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def normalize_path(path: str | Path | None) -> str | None:
+    if path is None:
+        return None
+    return str(path).replace("\\", "/")
 
 
 def dump_json(path: Path, payload: dict[str, Any]) -> None:
@@ -45,308 +73,693 @@ def dump_text(path: Path, text: str) -> None:
 
 
 def load_yaml(path: Path) -> dict[str, Any]:
-    return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    if not path.exists():
+        raise FileNotFoundError(f"Config not found: {path}")
+    payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    if not isinstance(payload, dict):
+        raise ValueError(f"Expected YAML mapping in {path}")
+    return payload
 
 
 def load_json(path: Path) -> Any:
+    if not path.exists():
+        raise FileNotFoundError(f"JSON file not found: {path}")
     return json.loads(path.read_text(encoding="utf-8"))
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
+    if not path.exists():
+        raise FileNotFoundError(f"JSONL file not found: {path}")
+
     rows: list[dict[str, Any]] = []
-    for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-        if not line.strip():
-            continue
-        row = json.loads(line)
-        if not isinstance(row, dict):
-            raise ValueError(f"JSONL row {line_no} is not an object: {path}")
-        rows.append(row)
+    with path.open("r", encoding="utf-8") as handle:
+        for line_no, line in enumerate(handle, start=1):
+            text = line.strip()
+            if not text:
+                continue
+            try:
+                row = json.loads(text)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"Invalid JSONL at {path}:{line_no}: {exc}") from exc
+            if not isinstance(row, dict):
+                raise ValueError(f"Expected JSON object at {path}:{line_no}")
+            rows.append(row)
     return rows
+
+
+def load_ids(path: Path) -> list[str]:
+    payload = load_json(path)
+    if isinstance(payload, list):
+        return [str(value) for value in payload]
+    if isinstance(payload, dict):
+        for key in ("ids", "canonical_ids", "document_ids"):
+            values = payload.get(key)
+            if isinstance(values, list):
+                return [str(value) for value in values]
+    raise ValueError(f"Unsupported dense IDs JSON shape: {path}")
 
 
 def enabled_queries(path: Path) -> list[dict[str, Any]]:
     return [row for row in read_jsonl(path) if row.get("enabled") is True]
 
 
-def normalize_vector(vector: np.ndarray) -> np.ndarray:
-    vector = vector.astype("float32", copy=False)
-    norm = float(np.linalg.norm(vector))
-    if norm == 0.0 or not math.isfinite(norm):
-        return vector
-    return vector / norm
+def resolve_query_text(row: Mapping[str, Any]) -> str:
+    for key in ("query", "query_text", "text"):
+        value = str(row.get(key) or "").strip()
+        if value:
+            return value
+    raise ValueError(f"Golden query row has no query text: {row.get('query_id')}")
 
 
-def normalize_matrix(matrix: np.ndarray) -> np.ndarray:
-    matrix = matrix.astype("float32", copy=False)
-    norms = np.linalg.norm(matrix, axis=1, keepdims=True)
-    norms[norms == 0] = 1.0
-    return matrix / norms
+def validate_profiles(raw_profiles: Any) -> list[dict[str, Any]]:
+    if not isinstance(raw_profiles, list) or not raw_profiles:
+        raise ValueError("Config must contain a non-empty profiles list")
 
+    profiles: list[dict[str, Any]] = []
+    names: set[str] = set()
+    for index, raw in enumerate(raw_profiles):
+        if not isinstance(raw, dict):
+            raise ValueError(f"profiles[{index}] must be a mapping")
+        name = str(raw.get("name") or "").strip()
+        if not name:
+            raise ValueError(f"profiles[{index}].name is required")
+        if name in names:
+            raise ValueError(f"Duplicate profile name: {name}")
+        names.add(name)
 
-def file_dense_search(
-    *,
-    query_vector: np.ndarray,
-    embeddings_norm: np.ndarray,
-    ids: list[str],
-    top_k: int,
-) -> list[dict[str, Any]]:
-    scores = embeddings_norm @ query_vector.astype("float32")
-    if top_k >= scores.shape[0]:
-        top_indices = np.argsort(-scores)
-    else:
-        candidate = np.argpartition(-scores, top_k - 1)[:top_k]
-        top_indices = candidate[np.argsort(-scores[candidate])]
+        hnsw_ef = raw.get("hnsw_ef")
+        if hnsw_ef is not None:
+            hnsw_ef = int(hnsw_ef)
+            if hnsw_ef <= 0:
+                raise ValueError(f"Profile {name}: hnsw_ef must be positive")
 
-    results: list[dict[str, Any]] = []
-    for idx in top_indices[:top_k]:
-        dense_index = int(idx)
-        results.append(
+        profiles.append(
             {
-                "dense_index": dense_index,
-                "canonical_id": ids[dense_index],
-                "score": round(float(scores[dense_index]), 8),
+                "name": name,
+                "exact": bool(raw.get("exact", False)),
+                "hnsw_ef": hnsw_ef,
             }
         )
-    return results
+    return profiles
 
 
-def overlap_at_k(left_ids: list[str], right_ids: list[str], top_k: int) -> dict[str, Any]:
-    left = left_ids[:top_k]
-    right = right_ids[:top_k]
-    overlap_count = len(set(left) & set(right))
-    denom = max(1, min(top_k, len(left), len(right)))
-    return {
-        "overlap_count_at_k": overlap_count,
-        "overlap_ratio_at_k": round(overlap_count / denom, 6),
-        "exact_same_order": left == right,
-    }
-
-
-def percentile(values: list[float], q: float) -> float | None:
-    if not values:
+def make_search_params(profile: Mapping[str, Any]) -> qmodels.SearchParams | None:
+    exact = bool(profile.get("exact"))
+    hnsw_ef = profile.get("hnsw_ef")
+    if not exact and hnsw_ef is None:
         return None
-    return round(float(np.percentile(np.asarray(values, dtype="float64"), q)), 3)
+    return qmodels.SearchParams(
+        exact=exact,
+        hnsw_ef=int(hnsw_ef) if hnsw_ef is not None else None,
+    )
 
 
-def summarize_latency(values: list[float]) -> dict[str, Any]:
+def qdrant_search(
+    client: QdrantClient,
+    *,
+    collection_name: str,
+    query_vector: np.ndarray,
+    limit: int,
+    profile: Mapping[str, Any],
+) -> tuple[list[dict[str, Any]], float]:
+    query_values = np.asarray(query_vector, dtype=np.float32).astype(float).tolist()
+    search_params = make_search_params(profile)
+
+    started = time.perf_counter()
+    if hasattr(client, "query_points"):
+        kwargs: dict[str, Any] = {
+            "collection_name": collection_name,
+            "query": query_values,
+            "limit": limit,
+            "with_payload": True,
+            "with_vectors": False,
+        }
+        if search_params is not None:
+            kwargs["search_params"] = search_params
+        response = client.query_points(**kwargs)
+        raw_points = getattr(response, "points", response)
+    else:
+        kwargs = {
+            "collection_name": collection_name,
+            "query_vector": query_values,
+            "limit": limit,
+            "with_payload": True,
+            "with_vectors": False,
+        }
+        if search_params is not None:
+            kwargs["search_params"] = search_params
+        raw_points = client.search(**kwargs)
+    latency_ms = (time.perf_counter() - started) * 1000.0
+
+    rows: list[dict[str, Any]] = []
+    for rank, point in enumerate(raw_points or [], start=1):
+        payload = getattr(point, "payload", None) or {}
+        if not isinstance(payload, dict):
+            payload = dict(payload)
+
+        point_id = getattr(point, "id", None)
+        if point_id is None:
+            point_id = getattr(point, "point_id", None)
+
+        canonical_id = payload.get("canonical_id")
+        score = getattr(point, "score", None)
+        rows.append(
+            {
+                "rank": rank,
+                "point_id": point_id,
+                "canonical_id": str(canonical_id) if canonical_id is not None else None,
+                "dense_index": payload.get("dense_index"),
+                "build_id": payload.get("build_id"),
+                "score": float(score) if score is not None else None,
+                "payload": payload,
+            }
+        )
+    return rows, latency_ms
+
+
+def collection_summary(client: QdrantClient, collection_name: str) -> dict[str, Any]:
+    info = client.get_collection(collection_name=collection_name)
     return {
-        "count": len(values),
-        "mean_ms": round(float(np.mean(values)), 3) if values else None,
-        "p50_ms": percentile(values, 50),
-        "p95_ms": percentile(values, 95),
-        "max_ms": round(max(values), 3) if values else None,
+        "collection_name": collection_name,
+        "status": str(getattr(info, "status", None)),
+        "optimizer_status": str(getattr(info, "optimizer_status", None)),
+        "points_count": getattr(info, "points_count", None),
+        "indexed_vectors_count": getattr(info, "indexed_vectors_count", None),
+        "vector_size": extract_vector_size(info),
+        "distance": extract_distance(info),
     }
 
 
 def build_markdown(report: dict[str, Any]) -> str:
     summary = report["summary"]
-    overlap = report["overlap_summary"]
+    selected = report["selected_profile_summary"]
+    exact = report["exact_profile_summary"]
     latency = report["latency_summary"]
-    verdict = report["verdict"]
+
     lines = [
-        "# Qdrant vs File Dense Comparison",
+        "# Qdrant vs File Dense Comparison v2",
         "",
         f"- schema_version: `{report['schema_version']}`",
+        f"- generated_at_utc: `{report['generated_at_utc']}`",
         f"- build_id: `{summary.get('build_id')}`",
         f"- collection_name: `{summary.get('collection_name')}`",
         f"- query_count: `{summary.get('query_count')}`",
         f"- error_count: `{summary.get('error_count')}`",
-        f"- ok: `{verdict.get('ok')}`",
+        f"- selected_profile: `{summary.get('selected_profile_name')}`",
+        f"- exact_profile: `{summary.get('exact_profile_name')}`",
+        f"- selected_profile_full_match: `{summary.get('selected_profile_full_match')}`",
+        f"- exact_profile_full_match: `{summary.get('exact_profile_full_match')}`",
+        f"- blocking_classification_count: `{summary.get('blocking_classification_count')}`",
         "",
-        "## Overlap",
+        "## Selected ANN profile",
         "",
-        f"- mean_overlap_ratio_at_k: `{overlap.get('mean_overlap_ratio_at_k')}`",
-        f"- min_overlap_ratio_at_k: `{overlap.get('min_overlap_ratio_at_k')}`",
-        f"- exact_same_order_count: `{overlap.get('exact_same_order_count')}`",
-        f"- queries_count: `{overlap.get('queries_count')}`",
+        f"- profile: `{selected.get('profile')}`",
+        f"- mean_overlap_at_k: `{selected.get('mean_overlap_at_k')}`",
+        f"- min_overlap_at_k: `{selected.get('min_overlap_at_k')}`",
+        f"- exact_same_order_count: `{selected.get('exact_same_order_count')}`",
+        f"- mismatch_count: `{selected.get('mismatch_count')}`",
+        f"- mapping_failure_count: `{selected.get('mapping_failure_count')}`",
+        f"- latency: `{latency.get('selected_profile')}`",
         "",
-        "## Latency",
+        "## Exact diagnostic profile",
         "",
-        f"- qdrant: `{latency.get('qdrant')}`",
-        f"- file_dense: `{latency.get('file_dense')}`",
+        f"- profile: `{exact.get('profile')}`",
+        f"- mean_overlap_at_k: `{exact.get('mean_overlap_at_k')}`",
+        f"- min_overlap_at_k: `{exact.get('min_overlap_at_k')}`",
+        f"- exact_same_order_count: `{exact.get('exact_same_order_count')}`",
+        f"- mismatch_count: `{exact.get('mismatch_count')}`",
+        f"- mapping_failure_count: `{exact.get('mapping_failure_count')}`",
+        f"- latency: `{latency.get('exact_profile')}`",
         "",
-        "## Worst overlap queries",
-        "",
+        f"- file_reference_latency: `{latency.get('file_reference')}`",
     ]
-    for row in report.get("worst_overlap_queries", [])[:10]:
-        lines.append(
-            f"- `{row.get('query_id')}`: overlap={row.get('overlap_ratio_at_k')} "
-            f"exact_same_order={row.get('exact_same_order')}"
-        )
+
+    mismatches = report.get("mismatch_queries", [])
+    if mismatches:
+        lines.extend(["", "## Mismatch queries", ""])
+        for row in mismatches:
+            lines.append(
+                f"- `{row.get('query_id')}`: classification=`{row.get('classification')}`, "
+                f"severity=`{row.get('severity')}`, overlap=`{row.get('overlap_ratio')}`, "
+                f"best_missed_reference_rank=`{row.get('best_missed_reference_rank')}`"
+            )
+
+    errors = report.get("errors", [])
+    if errors:
+        lines.extend(["", "## Errors", ""])
+        for error in errors:
+            lines.append(f"- `{error}`")
+
     lines.append("")
     return "\n".join(lines)
+
+
+def profile_summary(
+    *,
+    profile: Mapping[str, Any],
+    query_results: list[dict[str, Any]],
+    result_key: str,
+) -> dict[str, Any]:
+    rows = [row[result_key] for row in query_results if result_key in row]
+    overlaps = [float(row["comparison"]["overlap_ratio"]) for row in rows]
+    exact_count = sum(bool(row["comparison"]["exact_same_order"]) for row in rows)
+    mismatches = [row for row in rows if not row["comparison"]["exact_same_order"]]
+    mapping_failures = sum(int(row["mapping_audit"]["failure_count"]) for row in rows)
+    return {
+        "profile": dict(profile),
+        "query_count": len(rows),
+        "mean_overlap_at_k": float(np.mean(overlaps)) if overlaps else None,
+        "min_overlap_at_k": min(overlaps) if overlaps else None,
+        "exact_same_order_count": exact_count,
+        "mismatch_count": len(mismatches),
+        "mismatch_query_ids": [row["query_id"] for row in mismatches],
+        "mapping_failure_count": mapping_failures,
+    }
 
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config-path", type=Path, default=DEFAULT_CONFIG_PATH)
-    parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
-    parser.add_argument("--top-k", type=int, default=None)
+    parser.add_argument("--output-dir", type=Path, default=None)
     parser.add_argument("--max-queries", type=int, default=None)
     args = parser.parse_args(argv)
 
     run_ts = utc_ts()
     config = load_yaml(args.config_path)
-    retrieval_cfg = config.get("retrieval", {})
-    qdrant_cfg = config.get("qdrant", {})
-    settings = get_settings()
+    if config.get("schema_version") != CONFIG_SCHEMA_VERSION:
+        raise ValueError(
+            f"Expected config schema {CONFIG_SCHEMA_VERSION!r}, "
+            f"got {config.get('schema_version')!r}"
+        )
 
-    manifest_path = Path(retrieval_cfg.get("manifest_path", "artifacts/retrieval/manifests/latest.json"))
-    golden_queries_path = Path(retrieval_cfg.get("golden_queries_path", "data/eval/retrieval/golden_queries.jsonl"))
-    top_k = int(args.top_k or retrieval_cfg.get("top_k", retrieval_cfg.get("query_top_k", 20)))
+    qdrant_cfg = config.get("qdrant") or {}
+    retrieval_cfg = config.get("retrieval") or {}
+    comparison_cfg = config.get("comparison") or {}
+    diagnostics_cfg = config.get("diagnostics") or {}
+    quality_cfg = config.get("quality") or {}
+    output_cfg = config.get("output") or {}
 
+    profiles = validate_profiles(config.get("profiles"))
+    profile_by_name = {str(profile["name"]): profile for profile in profiles}
+    selected_profile_name = str(
+        comparison_cfg.get("selected_profile_name", "ef_256")
+    )
+    exact_profile_name = str(comparison_cfg.get("exact_profile_name", "exact"))
+    if selected_profile_name not in profile_by_name:
+        raise ValueError(f"Selected profile not found: {selected_profile_name}")
+    if exact_profile_name not in profile_by_name:
+        raise ValueError(f"Exact profile not found: {exact_profile_name}")
+
+    selected_profile = profile_by_name[selected_profile_name]
+    exact_profile = profile_by_name[exact_profile_name]
+    if bool(selected_profile.get("exact")):
+        raise ValueError("Selected ANN profile must not be exact")
+    if not bool(exact_profile.get("exact")):
+        raise ValueError("Exact diagnostic profile must have exact=true")
+
+    external_top_k = int(retrieval_cfg.get("external_top_k", 20))
+    boundary_window = int(retrieval_cfg.get("boundary_window", 10))
+    if external_top_k <= 0:
+        raise ValueError("external_top_k must be positive")
+    if boundary_window < 0:
+        raise ValueError("boundary_window must be non-negative")
+    internal_top_k = external_top_k + boundary_window
+
+    warmup_runs = int(diagnostics_cfg.get("warmup_runs", 1))
+    repeated_runs = int(diagnostics_cfg.get("repeated_runs", 5))
+    audit_mapping = bool(diagnostics_cfg.get("audit_mapping", True))
+    require_point_id_equals_dense_index = bool(
+        diagnostics_cfg.get("require_point_id_equals_dense_index", True)
+    )
+
+    manifest_path = Path(
+        retrieval_cfg.get("manifest_path", "artifacts/retrieval/manifests/latest.json")
+    )
+    golden_queries_path = Path(
+        retrieval_cfg.get(
+            "golden_queries_path", "data/eval/retrieval/golden_queries.jsonl"
+        )
+    )
     manifest = load_json(manifest_path)
+    if not isinstance(manifest, dict):
+        raise ValueError(f"Expected manifest object: {manifest_path}")
+
     embeddings_path = Path(manifest["dense_embeddings_path"])
     ids_path = Path(manifest["dense_ids_path"])
-    ids = load_json(ids_path)
-    embeddings = np.load(embeddings_path)
+    meta_path = Path(manifest["dense_meta_path"])
+    dense_meta = load_json(meta_path)
+    if not isinstance(dense_meta, dict):
+        raise ValueError(f"Expected dense meta object: {meta_path}")
+    if dense_meta.get("normalized") is not True:
+        raise ValueError("Exact file reference requires dense meta normalized=true")
 
+    embeddings = np.load(embeddings_path, mmap_mode="r")
+    ids = load_ids(ids_path)
+    if embeddings.ndim != 2:
+        raise ValueError(f"Expected 2D dense embeddings, got {embeddings.shape}")
     if len(ids) != int(embeddings.shape[0]):
         raise ValueError(f"dense ids count {len(ids)} != embeddings rows {embeddings.shape[0]}")
 
-    embeddings_norm = normalize_matrix(embeddings)
     queries = enabled_queries(golden_queries_path)
     if args.max_queries is not None:
+        if args.max_queries <= 0:
+            raise ValueError("--max-queries must be positive")
         queries = queries[: args.max_queries]
 
     model = SentenceTransformer(str(manifest["embedding_model_name"]))
+    client = QdrantClient(
+        host=str(qdrant_cfg.get("host", "localhost")),
+        port=int(qdrant_cfg.get("port", 6333)),
+        prefer_grpc=bool(qdrant_cfg.get("prefer_grpc", False)),
+        timeout=float(qdrant_cfg.get("timeout_sec", 120)),
+        check_compatibility=bool(qdrant_cfg.get("check_compatibility", False)),
+    )
     collection_name = str(
-        qdrant_cfg.get("collection_name", settings.qdrant_collection_name)
+        qdrant_cfg.get("collection_name", "ml_radar_dense_benchmark_v1")
     )
-    store = QdrantRetrievalStore(
-        host=str(qdrant_cfg.get("host", settings.qdrant_host)),
-        port=int(qdrant_cfg.get("port", settings.qdrant_port)),
-        collection_name=collection_name,
-        timeout_sec=float(qdrant_cfg.get("timeout_sec", settings.qdrant_timeout_sec)),
-        check_compatibility=bool(
-            qdrant_cfg.get(
-                "check_compatibility",
-                settings.qdrant_check_compatibility,
-            )
-        ),
-    )
+    collection = collection_summary(client, collection_name)
 
     query_results: list[dict[str, Any]] = []
     errors: list[dict[str, Any]] = []
-    qdrant_latencies: list[float] = []
     file_latencies: list[float] = []
-    overlaps: list[float] = []
-    exact_same_order_count = 0
+    selected_latencies: list[float] = []
+    exact_latencies: list[float] = []
 
-    for row in queries:
-        query_id = str(row.get("query_id"))
-        query_text = str(row.get("query", "")).strip()
-        if not query_text:
-            errors.append({"query_id": query_id, "error": "empty query text"})
-            continue
-
+    for index, row in enumerate(queries, start=1):
+        query_id = str(row.get("query_id") or f"query_{index}")
         try:
-            query_vector = model.encode(query_text, normalize_embeddings=True)
-            query_vector = normalize_vector(np.asarray(query_vector, dtype="float32"))
+            query_text = resolve_query_text(row)
+            print(f"[{index}/{len(queries)}] {query_id}: {query_text}")
 
-            t0 = time.perf_counter()
-            qdrant_results_raw = store.search_vector(query_vector.tolist(), top_k=top_k)
-            qdrant_latency_ms = (time.perf_counter() - t0) * 1000.0
+            query_vector = model.encode(
+                [query_text],
+                convert_to_numpy=True,
+                normalize_embeddings=True,
+                show_progress_bar=False,
+            )[0].astype(np.float32)
+            vector_meta = query_vector_metadata(query_vector)
 
-            t1 = time.perf_counter()
-            file_results = file_dense_search(
-                query_vector=query_vector,
-                embeddings_norm=embeddings_norm,
+            started = time.perf_counter()
+            file_rows = exact_file_dense_search(
+                embeddings=embeddings,
                 ids=ids,
-                top_k=top_k,
+                query_vector=query_vector,
+                limit=internal_top_k,
             )
-            file_latency_ms = (time.perf_counter() - t1) * 1000.0
+            file_latency_ms = (time.perf_counter() - started) * 1000.0
 
-            qdrant_results = [result.to_dict() for result in qdrant_results_raw]
-            qdrant_ids = [str(result.get("canonical_id")) for result in qdrant_results if result.get("canonical_id")]
-            file_ids = [str(result.get("canonical_id")) for result in file_results if result.get("canonical_id")]
-            overlap = overlap_at_k(qdrant_ids, file_ids, top_k=top_k)
+            selected_rows, selected_latency_ms = qdrant_search(
+                client,
+                collection_name=collection_name,
+                query_vector=query_vector,
+                limit=internal_top_k,
+                profile=selected_profile,
+            )
+            exact_rows, exact_latency_ms = qdrant_search(
+                client,
+                collection_name=collection_name,
+                query_vector=query_vector,
+                limit=internal_top_k,
+                profile=exact_profile,
+            )
 
-            qdrant_latencies.append(qdrant_latency_ms)
-            file_latencies.append(file_latency_ms)
-            overlaps.append(float(overlap["overlap_ratio_at_k"]))
-            if overlap["exact_same_order"]:
-                exact_same_order_count += 1
+            selected_comparison = compare_ranked_results(
+                reference_rows=file_rows,
+                candidate_rows=selected_rows,
+                top_k=external_top_k,
+            )
+            exact_comparison = compare_ranked_results(
+                reference_rows=file_rows,
+                candidate_rows=exact_rows,
+                top_k=external_top_k,
+            )
+
+            if audit_mapping:
+                selected_mapping = audit_qdrant_mapping(
+                    rows=selected_rows,
+                    ids=ids,
+                    expected_build_id=str(manifest["build_id"]),
+                    require_point_id_equals_dense_index=require_point_id_equals_dense_index,
+                )
+                exact_mapping = audit_qdrant_mapping(
+                    rows=exact_rows,
+                    ids=ids,
+                    expected_build_id=str(manifest["build_id"]),
+                    require_point_id_equals_dense_index=require_point_id_equals_dense_index,
+                )
+            else:
+                selected_mapping = {"checked_count": 0, "failure_count": 0, "failures": []}
+                exact_mapping = {"checked_count": 0, "failure_count": 0, "failures": []}
+
+            determinism: dict[str, Any] | None = None
+            if not bool(selected_comparison["exact_same_order"]):
+                for _ in range(max(0, warmup_runs)):
+                    qdrant_search(
+                        client,
+                        collection_name=collection_name,
+                        query_vector=query_vector,
+                        limit=internal_top_k,
+                        profile=selected_profile,
+                    )
+                repeated_rows: list[list[dict[str, Any]]] = []
+                for _ in range(max(1, repeated_runs)):
+                    repeat_rows, _ = qdrant_search(
+                        client,
+                        collection_name=collection_name,
+                        query_vector=query_vector,
+                        limit=internal_top_k,
+                        profile=selected_profile,
+                    )
+                    repeated_rows.append(repeat_rows)
+                determinism = check_repeat_determinism(
+                    repeated_runs=repeated_rows,
+                    top_k=internal_top_k,
+                )
+
+            selected_classification = classify_profile_difference(
+                comparison=selected_comparison,
+                exact_comparison=exact_comparison,
+                mapping_audit=selected_mapping,
+                determinism=determinism,
+                is_exact_profile=False,
+            )
+            exact_classification = classify_profile_difference(
+                comparison=exact_comparison,
+                exact_comparison=exact_comparison,
+                mapping_audit=exact_mapping,
+                determinism=None,
+                is_exact_profile=True,
+            )
+
+            selected_result = {
+                "query_id": query_id,
+                "profile": dict(selected_profile),
+                "latency_ms": selected_latency_ms,
+                "returned_count": len(selected_rows),
+                "comparison": selected_comparison,
+                "mismatch_details": build_mismatch_details(
+                    comparison=selected_comparison,
+                    reference_rows=file_rows,
+                    candidate_rows=selected_rows,
+                ),
+                "mapping_audit": selected_mapping,
+                "determinism": determinism,
+                "classification": selected_classification,
+                "results": selected_rows,
+            }
+            exact_result = {
+                "query_id": query_id,
+                "profile": dict(exact_profile),
+                "latency_ms": exact_latency_ms,
+                "returned_count": len(exact_rows),
+                "comparison": exact_comparison,
+                "mismatch_details": build_mismatch_details(
+                    comparison=exact_comparison,
+                    reference_rows=file_rows,
+                    candidate_rows=exact_rows,
+                ),
+                "mapping_audit": exact_mapping,
+                "determinism": None,
+                "classification": exact_classification,
+                "results": exact_rows,
+            }
 
             query_results.append(
                 {
                     "query_id": query_id,
                     "query": query_text,
                     "group": row.get("group"),
-                    "qdrant_latency_ms": round(qdrant_latency_ms, 3),
-                    "file_dense_latency_ms": round(file_latency_ms, 3),
-                    "qdrant_returned_count": len(qdrant_results),
-                    "file_dense_returned_count": len(file_results),
-                    "overlap": overlap,
-                    "qdrant_results": qdrant_results,
-                    "file_dense_results": file_results,
+                    "query_vector": vector_meta,
+                    "file_reference": {
+                        "semantics": {
+                            "query_normalization": (
+                                "SentenceTransformer normalize_embeddings=True once"
+                            ),
+                            "query_dtype": "float32",
+                            "stored_embeddings": "used_as_saved",
+                            "score": "embeddings @ query_vector",
+                            "ordering": "np.argsort(scores)[::-1]",
+                        },
+                        "latency_ms": file_latency_ms,
+                        "returned_count": len(file_rows),
+                        "results": file_rows,
+                    },
+                    "selected_profile": selected_result,
+                    "exact_profile": exact_result,
                 }
             )
-        except Exception as exc:  # noqa: BLE001 - benchmark should report all query failures
-            errors.append({"query_id": query_id, "query": query_text, "error": repr(exc)})
+            file_latencies.append(file_latency_ms)
+            selected_latencies.append(selected_latency_ms)
+            exact_latencies.append(exact_latency_ms)
+        except Exception as exc:  # noqa: BLE001 - report all query failures
+            errors.append(
+                {
+                    "query_id": query_id,
+                    "query": row.get("query"),
+                    "error": repr(exc),
+                }
+            )
 
-    overlap_summary = {
-        "queries_count": len(query_results),
-        "mean_overlap_ratio_at_k": round(float(np.mean(overlaps)), 6) if overlaps else None,
-        "min_overlap_ratio_at_k": round(float(np.min(overlaps)), 6) if overlaps else None,
-        "exact_same_order_count": exact_same_order_count,
-    }
-    latency_summary = {
-        "qdrant": summarize_latency(qdrant_latencies),
-        "file_dense": summarize_latency(file_latencies),
-    }
-    worst_overlap_queries = sorted(
-        [
-            {
-                "query_id": row["query_id"],
-                "query": row["query"],
-                "overlap_ratio_at_k": row["overlap"]["overlap_ratio_at_k"],
-                "exact_same_order": row["overlap"]["exact_same_order"],
-            }
-            for row in query_results
-        ],
-        key=lambda item: (item["overlap_ratio_at_k"], item["query_id"]),
-    )[:10]
+    selected_summary = profile_summary(
+        profile=selected_profile,
+        query_results=query_results,
+        result_key="selected_profile",
+    )
+    exact_summary = profile_summary(
+        profile=exact_profile,
+        query_results=query_results,
+        result_key="exact_profile",
+    )
+
+    mismatch_queries: list[dict[str, Any]] = []
+    blocking_classifications: list[dict[str, Any]] = []
+    for row in query_results:
+        selected_result = row["selected_profile"]
+        classification = selected_result["classification"]
+        if not selected_result["comparison"]["exact_same_order"]:
+            mismatch_queries.append(
+                {
+                    "query_id": row["query_id"],
+                    "query": row["query"],
+                    "classification": classification["classification"],
+                    "severity": classification["severity"],
+                    "overlap_ratio": selected_result["comparison"]["overlap_ratio"],
+                    "best_missed_reference_rank": selected_result["mismatch_details"].get(
+                        "best_missed_reference_rank"
+                    ),
+                    "reference_only": selected_result["comparison"]["reference_only"],
+                    "candidate_only": selected_result["comparison"]["candidate_only"],
+                }
+            )
+        for result_key in ("selected_profile", "exact_profile"):
+            result = row[result_key]
+            if result["classification"].get("severity") == "blocking":
+                blocking_classifications.append(
+                    {
+                        "query_id": row["query_id"],
+                        "profile_role": result_key,
+                        **result["classification"],
+                    }
+                )
+
+    query_count = len(query_results)
+    selected_full_match = (
+        query_count > 0
+        and selected_summary["exact_same_order_count"] == query_count
+        and selected_summary["mismatch_count"] == 0
+    )
+    exact_full_match = (
+        query_count > 0
+        and exact_summary["exact_same_order_count"] == query_count
+        and exact_summary["mismatch_count"] == 0
+    )
 
     summary = {
         "build_id": manifest.get("build_id"),
         "corpus_doc_count": manifest.get("corpus_doc_count"),
         "embedding_model_name": manifest.get("embedding_model_name"),
-        "collection_name": store.collection_name,
-        "top_k": top_k,
+        "embedding_shape": list(embeddings.shape),
+        "collection_name": collection_name,
+        "external_top_k": external_top_k,
+        "boundary_window": boundary_window,
+        "internal_top_k": internal_top_k,
         "enabled_queries_count": len(queries),
-        "query_count": len(query_results),
+        "query_count": query_count,
         "error_count": len(errors),
+        "selected_profile_name": selected_profile_name,
+        "exact_profile_name": exact_profile_name,
+        "selected_profile_full_match": selected_full_match,
+        "exact_profile_full_match": exact_full_match,
+        "blocking_classification_count": len(blocking_classifications),
     }
-    verdict = {
-        "ok": len(errors) == 0,
-        "error_count": len(errors),
+
+    quality_policy = {
+        "max_error_count": int(quality_cfg.get("max_error_count", 0)),
+        "require_selected_profile_full_match": bool(
+            quality_cfg.get("require_selected_profile_full_match", True)
+        ),
+        "require_exact_profile_full_match": bool(
+            quality_cfg.get("require_exact_profile_full_match", True)
+        ),
+        "min_mean_overlap_at_k": float(
+            quality_cfg.get("min_mean_overlap_at_k", 0.99)
+        ),
+        "min_query_overlap_at_k": float(
+            quality_cfg.get("min_query_overlap_at_k", 0.95)
+        ),
     }
 
     report = {
         "schema_version": SCHEMA_VERSION,
-        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "generated_at_utc": utc_iso(),
         "run_ts": run_ts,
-        "config_path": str(args.config_path),
+        "config_path": normalize_path(args.config_path),
+        "config": config,
         "inputs": {
-            "manifest_path": str(manifest_path),
-            "golden_queries_path": str(golden_queries_path),
-            "dense_embeddings_path": str(embeddings_path),
-            "dense_ids_path": str(ids_path),
+            "manifest_path": normalize_path(manifest_path),
+            "golden_queries_path": normalize_path(golden_queries_path),
+            "dense_embeddings_path": normalize_path(embeddings_path),
+            "dense_ids_path": normalize_path(ids_path),
+            "dense_meta_path": normalize_path(meta_path),
         },
         "summary": summary,
-        "overlap_summary": overlap_summary,
-        "latency_summary": latency_summary,
-        "worst_overlap_queries": worst_overlap_queries,
+        "quality_policy": quality_policy,
+        "collection": collection,
+        "dense_meta": dense_meta,
+        "selected_profile_summary": selected_summary,
+        "exact_profile_summary": exact_summary,
+        "latency_summary": {
+            "file_reference": summarize_latencies(file_latencies),
+            "selected_profile": summarize_latencies(selected_latencies),
+            "exact_profile": summarize_latencies(exact_latencies),
+        },
+        "mismatch_queries": mismatch_queries,
+        "blocking_classifications": blocking_classifications,
         "query_results": query_results,
         "errors": errors,
-        "verdict": verdict,
+        "verdict": {
+            "ok": (
+                len(errors) == 0
+                and exact_full_match
+                and len(blocking_classifications) == 0
+                and (
+                    selected_full_match
+                    or not quality_policy["require_selected_profile_full_match"]
+                )
+            ),
+            "error_count": len(errors),
+        },
     }
 
-    latest_json = args.output_dir / "qdrant_file_dense_comparison_latest.json"
-    latest_md = args.output_dir / "qdrant_file_dense_comparison_latest.md"
-    history_json = args.output_dir / "history" / f"qdrant_file_dense_comparison_{run_ts}.json"
-    history_md = args.output_dir / "history" / f"qdrant_file_dense_comparison_{run_ts}.md"
+    output_dir = Path(
+        args.output_dir
+        or output_cfg.get("output_dir")
+        or DEFAULT_OUTPUT_DIR
+    )
+    latest_json = output_dir / "qdrant_file_dense_comparison_latest.json"
+    latest_md = output_dir / "qdrant_file_dense_comparison_latest.md"
+    history_json = output_dir / "history" / f"qdrant_file_dense_comparison_{run_ts}.json"
+    history_md = output_dir / "history" / f"qdrant_file_dense_comparison_{run_ts}.md"
 
     dump_json(latest_json, report)
     dump_json(history_json, report)
@@ -354,14 +767,26 @@ def main(argv: list[str] | None = None) -> None:
     dump_text(latest_md, markdown)
     dump_text(history_md, markdown)
 
+    print()
     print(f"[OK] schema_version={SCHEMA_VERSION}")
-    print(f"[OK] build_id={manifest.get('build_id')}")
-    print(f"[OK] collection_name={store.collection_name}")
+    print(f"[OK] build_id={summary['build_id']}")
+    print(f"[OK] collection_name={collection_name}")
     print(f"[OK] enabled_queries_count={len(queries)}")
-    print(f"[OK] query_count={len(query_results)}")
+    print(f"[OK] query_count={query_count}")
     print(f"[OK] error_count={len(errors)}")
-    print(f"[OK] mean_overlap_ratio_at_k={overlap_summary['mean_overlap_ratio_at_k']}")
-    print(f"[OK] min_overlap_ratio_at_k={overlap_summary['min_overlap_ratio_at_k']}")
+    print(f"[OK] selected_profile_name={selected_profile_name}")
+    print(f"[OK] selected_profile_full_match={selected_full_match}")
+    print(f"[OK] exact_profile_name={exact_profile_name}")
+    print(f"[OK] exact_profile_full_match={exact_full_match}")
+    print(f"[OK] blocking_classification_count={len(blocking_classifications)}")
+    print(
+        "[OK] selected_mean_overlap_at_k="
+        f"{selected_summary['mean_overlap_at_k']}"
+    )
+    print(
+        "[OK] selected_min_overlap_at_k="
+        f"{selected_summary['min_overlap_at_k']}"
+    )
     print(f"[OK] latest JSON: {latest_json}")
     print(f"[OK] latest Markdown: {latest_md}")
 
