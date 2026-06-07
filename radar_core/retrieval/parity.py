@@ -22,6 +22,10 @@ from typing import Any, Iterable, Mapping, Sequence
 
 import numpy as np
 
+from radar_core.retrieval.dense_backend import (
+    DenseSearchBackendResult,
+    exact_file_dense_candidates,
+)
 
 ResultRow = dict[str, Any]
 
@@ -77,47 +81,100 @@ def exact_file_dense_search(
 ) -> list[ResultRow]:
     """Run exact file-dense search with production ordering semantics.
 
-    The query is expected to be prepared and normalized by the caller. The
-    stored matrix is used as-is. Full ``np.argsort`` is deliberate: this is the
-    reference oracle, not an optimized ANN implementation.
+    The authoritative exact candidate kernel lives in
+    ``radar_core.retrieval.dense_backend``. This function remains as a
+    compatibility adapter for parity reports and existing callers.
+
+    The query is expected to be prepared and normalized by the caller. Stored
+    embeddings are used as persisted.
     """
 
     limit = _positive_int(limit, name="limit")
-    matrix = np.asarray(embeddings)
-    query = np.asarray(query_vector, dtype=np.float32)
 
-    if matrix.ndim != 2:
-        raise ValueError(f"embeddings must be two-dimensional, got shape={matrix.shape}")
-    if query.ndim != 1:
-        raise ValueError(f"query_vector must be one-dimensional, got shape={query.shape}")
-    if matrix.shape[0] != len(ids):
-        raise ValueError(
-            f"dense ids count {len(ids)} != embeddings rows {matrix.shape[0]}"
-        )
-    if matrix.shape[1] != query.shape[0]:
-        raise ValueError(
-            f"query dimension {query.shape[0]} != embedding dimension {matrix.shape[1]}"
-        )
-    if not np.isfinite(query).all():
-        raise ValueError("query_vector contains non-finite values")
+    candidates = exact_file_dense_candidates(
+        embeddings=embeddings,
+        ids=ids,
+        query_vector=query_vector,
+        top_k=limit,
+    )
 
-    scores = np.asarray(matrix @ query, dtype=np.float32)
-    order = np.argsort(scores)[::-1]
-    effective_limit = min(limit, int(order.shape[0]))
+    return [
+        {
+            "rank": candidate.rank,
+            "canonical_id": candidate.canonical_id,
+            "dense_index": candidate.dense_index,
+            "score": candidate.score,
+        }
+        for candidate in candidates
+    ]
+
+def file_backend_result_to_rows(
+    result: DenseSearchBackendResult,
+) -> list[ResultRow]:
+    """Convert a file backend result to the legacy parity row contract."""
+
+    if result.backend.backend_name != "file":
+        raise ValueError(
+            "Expected file dense backend result, got "
+            f"{result.backend.backend_name!r}"
+        )
+
+    return [
+        {
+            "rank": candidate.rank,
+            "canonical_id": candidate.canonical_id,
+            "dense_index": candidate.dense_index,
+            "score": candidate.score,
+        }
+        for candidate in result.candidates
+    ]
+
+
+def qdrant_backend_result_to_rows(
+    result: DenseSearchBackendResult,
+) -> list[ResultRow]:
+    """Convert a Qdrant backend result to the legacy parity row contract.
+
+    Payload and mapping fields remain available for the existing mapping audit,
+    mismatch diagnostics, report schemas, and validators.
+    """
+
+    if result.backend.backend_name != "qdrant":
+        raise ValueError(
+            "Expected Qdrant dense backend result, got "
+            f"{result.backend.backend_name!r}"
+        )
 
     rows: list[ResultRow] = []
-    for rank, raw_index in enumerate(order[:effective_limit], start=1):
-        dense_index = int(raw_index)
+
+    for candidate in result.candidates:
+        metadata = candidate.backend_metadata
+        raw_payload = metadata.get("payload") or {}
+
+        if not isinstance(raw_payload, Mapping):
+            raise ValueError(
+                "Qdrant candidate payload metadata must be a mapping: "
+                f"canonical_id={candidate.canonical_id}"
+            )
+
+        payload = dict(raw_payload)
+        build_id = metadata.get("build_id")
+        if build_id is None:
+            build_id = payload.get("build_id")
+
         rows.append(
             {
-                "rank": rank,
-                "canonical_id": str(ids[dense_index]),
-                "dense_index": dense_index,
-                "score": float(scores[dense_index]),
+                "rank": candidate.rank,
+                "point_id": candidate.backend_point_id,
+                "canonical_id": candidate.canonical_id,
+                "dense_index": candidate.dense_index,
+                "build_id": build_id,
+                "score": candidate.score,
+                "payload": payload,
             }
         )
-    return rows
 
+    return rows
 
 def build_rank_map(rows: Sequence[Mapping[str, Any]]) -> dict[str, int]:
     """Map canonical ID to first one-based rank."""

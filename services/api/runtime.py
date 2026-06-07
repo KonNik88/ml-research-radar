@@ -16,6 +16,10 @@ from radar_core.retrieval.artifacts import (
     read_latest_manifest,
 )
 from radar_core.retrieval.builders import load_canonical_documents
+from radar_core.retrieval.dense_backend import (
+    QdrantDenseBackend,
+    QdrantSearchProfile,
+)
 from radar_core.retrieval.qdrant_store import QdrantRetrievalStore
 from services.api.db import PostgresConfig, PostgresDocumentStore
 from services.api.logging import get_logger
@@ -37,6 +41,7 @@ class ApiRuntime:
     dense_artifacts: DenseArtifacts | None = None
     embedding_model: SentenceTransformer | None = None
     db_store: PostgresDocumentStore | None = None
+    qdrant_dense_backend: QdrantDenseBackend | None = None
 
     last_load_error: str | None = None
 
@@ -85,6 +90,7 @@ class ApiRuntime:
         total_docs = db_store.count_documents()
 
         self.db_store = db_store
+        self.qdrant_dense_backend = None
         self.manifest = None
         self.documents = []
         self.lexical_artifacts = None
@@ -146,6 +152,7 @@ class ApiRuntime:
         self.lexical_artifacts = lexical_artifacts
         self.dense_artifacts = dense_artifacts
         self.embedding_model = embedding_model
+        self.qdrant_dense_backend = None
         self.current_model_name = requested_model_name
         self.db_store = None
 
@@ -161,6 +168,83 @@ class ApiRuntime:
         logger.info("Reloading API runtime for backend=%s", self.backend_mode)
         self.load()
         self.last_reload_at = _utc_now_iso()
+
+    def get_qdrant_dense_backend(self) -> QdrantDenseBackend:
+        """Return the cached experimental Qdrant dense backend.
+
+        The backend is created lazily so Qdrant remains optional for normal
+        file-runtime readiness. Runtime reload invalidates the cached backend.
+        """
+
+        if self.backend_mode != "file":
+            raise RuntimeError(
+                "Experimental Qdrant search requires file backend runtime"
+            )
+
+        if self.qdrant_dense_backend is not None:
+            return self.qdrant_dense_backend
+
+        if self.manifest is None:
+            raise RuntimeError("Retrieval manifest is not loaded")
+
+        if self.dense_artifacts is None:
+            raise RuntimeError("Dense retrieval artifacts are not loaded")
+
+        embeddings = self.dense_artifacts.embeddings
+        dense_ids = self.dense_artifacts.ids
+        dense_meta = self.dense_artifacts.meta
+
+        if embeddings.ndim != 2:
+            raise RuntimeError(
+                "Dense embeddings must be two-dimensional: "
+                f"shape={embeddings.shape}"
+            )
+
+        if dense_meta.get("normalized") is not True:
+            raise RuntimeError(
+                "Experimental Qdrant search requires normalized dense artifacts"
+            )
+
+        settings = get_settings()
+
+        store = QdrantRetrievalStore(
+            host=settings.qdrant_host,
+            port=settings.qdrant_port,
+            collection_name=settings.qdrant_collection_name,
+            timeout_sec=settings.qdrant_timeout_sec,
+            check_compatibility=settings.qdrant_check_compatibility,
+        )
+
+        profile = QdrantSearchProfile(
+            name=settings.qdrant_search_profile_name,
+            exact=settings.qdrant_search_exact,
+            hnsw_ef=settings.qdrant_search_hnsw_ef,
+        )
+
+        backend = QdrantDenseBackend(
+            store=store,
+            profile=profile,
+            expected_build_id=self.manifest.build_id,
+            expected_corpus_count=self.manifest.corpus_doc_count,
+            expected_vector_size=int(embeddings.shape[1]),
+            expected_distance="Cosine",
+            dense_ids=dense_ids,
+            require_point_id_equals_dense_index=True,
+        )
+
+        self.qdrant_dense_backend = backend
+
+        logger.info(
+            "Created experimental Qdrant dense backend: "
+            "collection=%s profile=%s exact=%s hnsw_ef=%s build_id=%s",
+            settings.qdrant_collection_name,
+            profile.name,
+            profile.exact,
+            profile.hnsw_ef,
+            self.manifest.build_id,
+        )
+
+        return backend
 
     def _db_connected(self) -> bool:
         if self.db_store is None:

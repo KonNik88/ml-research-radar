@@ -18,28 +18,31 @@ from __future__ import annotations
 
 import argparse
 import json
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
 import numpy as np
 import yaml
-from qdrant_client import QdrantClient
-from qdrant_client.http import models as qmodels
 from sentence_transformers import SentenceTransformer
-
+from radar_core.retrieval.dense_backend import (
+    DenseSearchRequest,
+    FileDenseBackend,
+    QdrantDenseBackend,
+    QdrantSearchProfile,
+)
 from radar_core.retrieval.parity import (
     audit_qdrant_mapping,
     build_mismatch_details,
     check_repeat_determinism,
     classify_profile_difference,
     compare_ranked_results,
-    exact_file_dense_search,
+    file_backend_result_to_rows,
+    qdrant_backend_result_to_rows,
     query_vector_metadata,
     summarize_latencies,
 )
-from radar_core.retrieval.qdrant_store import extract_distance, extract_vector_size
+from radar_core.retrieval.qdrant_store import QdrantRetrievalStore
 
 
 SCHEMA_VERSION = "qdrant_file_dense_comparison_v2"
@@ -163,90 +166,21 @@ def validate_profiles(raw_profiles: Any) -> list[dict[str, Any]]:
     return profiles
 
 
-def make_search_params(profile: Mapping[str, Any]) -> qmodels.SearchParams | None:
-    exact = bool(profile.get("exact"))
-    hnsw_ef = profile.get("hnsw_ef")
-    if not exact and hnsw_ef is None:
-        return None
-    return qmodels.SearchParams(
-        exact=exact,
-        hnsw_ef=int(hnsw_ef) if hnsw_ef is not None else None,
-    )
+def collection_summary(
+    store: QdrantRetrievalStore,
+) -> dict[str, Any]:
+    """Return the existing comparison-report collection shape."""
 
+    info = store.get_collection_info()
 
-def qdrant_search(
-    client: QdrantClient,
-    *,
-    collection_name: str,
-    query_vector: np.ndarray,
-    limit: int,
-    profile: Mapping[str, Any],
-) -> tuple[list[dict[str, Any]], float]:
-    query_values = np.asarray(query_vector, dtype=np.float32).astype(float).tolist()
-    search_params = make_search_params(profile)
-
-    started = time.perf_counter()
-    if hasattr(client, "query_points"):
-        kwargs: dict[str, Any] = {
-            "collection_name": collection_name,
-            "query": query_values,
-            "limit": limit,
-            "with_payload": True,
-            "with_vectors": False,
-        }
-        if search_params is not None:
-            kwargs["search_params"] = search_params
-        response = client.query_points(**kwargs)
-        raw_points = getattr(response, "points", response)
-    else:
-        kwargs = {
-            "collection_name": collection_name,
-            "query_vector": query_values,
-            "limit": limit,
-            "with_payload": True,
-            "with_vectors": False,
-        }
-        if search_params is not None:
-            kwargs["search_params"] = search_params
-        raw_points = client.search(**kwargs)
-    latency_ms = (time.perf_counter() - started) * 1000.0
-
-    rows: list[dict[str, Any]] = []
-    for rank, point in enumerate(raw_points or [], start=1):
-        payload = getattr(point, "payload", None) or {}
-        if not isinstance(payload, dict):
-            payload = dict(payload)
-
-        point_id = getattr(point, "id", None)
-        if point_id is None:
-            point_id = getattr(point, "point_id", None)
-
-        canonical_id = payload.get("canonical_id")
-        score = getattr(point, "score", None)
-        rows.append(
-            {
-                "rank": rank,
-                "point_id": point_id,
-                "canonical_id": str(canonical_id) if canonical_id is not None else None,
-                "dense_index": payload.get("dense_index"),
-                "build_id": payload.get("build_id"),
-                "score": float(score) if score is not None else None,
-                "payload": payload,
-            }
-        )
-    return rows, latency_ms
-
-
-def collection_summary(client: QdrantClient, collection_name: str) -> dict[str, Any]:
-    info = client.get_collection(collection_name=collection_name)
     return {
-        "collection_name": collection_name,
-        "status": str(getattr(info, "status", None)),
-        "optimizer_status": str(getattr(info, "optimizer_status", None)),
-        "points_count": getattr(info, "points_count", None),
-        "indexed_vectors_count": getattr(info, "indexed_vectors_count", None),
-        "vector_size": extract_vector_size(info),
-        "distance": extract_distance(info),
+        "collection_name": store.collection_name,
+        "status": info.get("status"),
+        "optimizer_status": info.get("optimizer_status"),
+        "points_count": info.get("points_count"),
+        "indexed_vectors_count": info.get("indexed_vectors_count"),
+        "vector_size": info.get("vector_size"),
+        "distance": info.get("distance"),
     }
 
 
@@ -427,17 +361,78 @@ def main(argv: list[str] | None = None) -> None:
         queries = queries[: args.max_queries]
 
     model = SentenceTransformer(str(manifest["embedding_model_name"]))
-    client = QdrantClient(
+
+    if bool(qdrant_cfg.get("prefer_grpc", False)):
+        raise ValueError(
+            "compare_qdrant_file_dense does not support prefer_grpc=true "
+            "through QdrantRetrievalStore"
+        )
+
+    collection_name = str(
+        qdrant_cfg.get(
+            "collection_name",
+            "ml_radar_dense_benchmark_v1",
+        )
+    )
+
+    store = QdrantRetrievalStore(
         host=str(qdrant_cfg.get("host", "localhost")),
         port=int(qdrant_cfg.get("port", 6333)),
-        prefer_grpc=bool(qdrant_cfg.get("prefer_grpc", False)),
-        timeout=float(qdrant_cfg.get("timeout_sec", 120)),
-        check_compatibility=bool(qdrant_cfg.get("check_compatibility", False)),
+        collection_name=collection_name,
+        timeout_sec=float(qdrant_cfg.get("timeout_sec", 120)),
+        check_compatibility=bool(
+            qdrant_cfg.get("check_compatibility", False)
+        ),
     )
-    collection_name = str(
-        qdrant_cfg.get("collection_name", "ml_radar_dense_benchmark_v1")
+
+    build_id = str(manifest["build_id"])
+    corpus_doc_count = int(manifest["corpus_doc_count"])
+    vector_size = int(embeddings.shape[1])
+
+    file_backend = FileDenseBackend(
+        embeddings=embeddings,
+        ids=ids,
+        build_id=build_id,
+        normalized=True,
     )
-    collection = collection_summary(client, collection_name)
+
+    selected_qdrant_profile = QdrantSearchProfile(
+        name=str(selected_profile["name"]),
+        exact=bool(selected_profile["exact"]),
+        hnsw_ef=selected_profile.get("hnsw_ef"),
+    )
+    exact_qdrant_profile = QdrantSearchProfile(
+        name=str(exact_profile["name"]),
+        exact=bool(exact_profile["exact"]),
+        hnsw_ef=exact_profile.get("hnsw_ef"),
+    )
+
+    selected_backend = QdrantDenseBackend(
+        store=store,
+        profile=selected_qdrant_profile,
+        expected_build_id=build_id,
+        expected_corpus_count=corpus_doc_count,
+        expected_vector_size=vector_size,
+        expected_distance="Cosine",
+        dense_ids=ids,
+        require_point_id_equals_dense_index=(
+            require_point_id_equals_dense_index
+        ),
+    )
+    exact_backend = QdrantDenseBackend(
+        store=store,
+        profile=exact_qdrant_profile,
+        expected_build_id=build_id,
+        expected_corpus_count=corpus_doc_count,
+        expected_vector_size=vector_size,
+        expected_distance="Cosine",
+        dense_ids=ids,
+        require_point_id_equals_dense_index=(
+            require_point_id_equals_dense_index
+        ),
+    )
+
+    collection = collection_summary(store)
 
     query_results: list[dict[str, Any]] = []
     errors: list[dict[str, Any]] = []
@@ -459,28 +454,42 @@ def main(argv: list[str] | None = None) -> None:
             )[0].astype(np.float32)
             vector_meta = query_vector_metadata(query_vector)
 
-            started = time.perf_counter()
-            file_rows = exact_file_dense_search(
-                embeddings=embeddings,
-                ids=ids,
+            request = DenseSearchRequest(
                 query_vector=query_vector,
-                limit=internal_top_k,
+                top_k=internal_top_k,
             )
-            file_latency_ms = (time.perf_counter() - started) * 1000.0
 
-            selected_rows, selected_latency_ms = qdrant_search(
-                client,
-                collection_name=collection_name,
-                query_vector=query_vector,
-                limit=internal_top_k,
-                profile=selected_profile,
+            file_backend_result = file_backend.search(request)
+            file_rows = file_backend_result_to_rows(
+                file_backend_result
             )
-            exact_rows, exact_latency_ms = qdrant_search(
-                client,
-                collection_name=collection_name,
-                query_vector=query_vector,
-                limit=internal_top_k,
-                profile=exact_profile,
+            file_latency_ms = float(
+                file_backend_result.timing_ms.get(
+                    "backend_search_ms",
+                    0.0,
+                )
+            )
+
+            selected_backend_result = selected_backend.search(request)
+            selected_rows = qdrant_backend_result_to_rows(
+                selected_backend_result
+            )
+            selected_latency_ms = float(
+                selected_backend_result.timing_ms.get(
+                    "backend_search_ms",
+                    0.0,
+                )
+            )
+
+            exact_backend_result = exact_backend.search(request)
+            exact_rows = qdrant_backend_result_to_rows(
+                exact_backend_result
+            )
+            exact_latency_ms = float(
+                exact_backend_result.timing_ms.get(
+                    "backend_search_ms",
+                    0.0,
+                )
             )
 
             selected_comparison = compare_ranked_results(
@@ -514,23 +523,17 @@ def main(argv: list[str] | None = None) -> None:
             determinism: dict[str, Any] | None = None
             if not bool(selected_comparison["exact_same_order"]):
                 for _ in range(max(0, warmup_runs)):
-                    qdrant_search(
-                        client,
-                        collection_name=collection_name,
-                        query_vector=query_vector,
-                        limit=internal_top_k,
-                        profile=selected_profile,
-                    )
+                    selected_backend.search(request)
+
                 repeated_rows: list[list[dict[str, Any]]] = []
                 for _ in range(max(1, repeated_runs)):
-                    repeat_rows, _ = qdrant_search(
-                        client,
-                        collection_name=collection_name,
-                        query_vector=query_vector,
-                        limit=internal_top_k,
-                        profile=selected_profile,
+                    repeat_result = selected_backend.search(request)
+                    repeated_rows.append(
+                        qdrant_backend_result_to_rows(
+                            repeat_result
+                        )
                     )
-                    repeated_rows.append(repeat_rows)
+
                 determinism = check_repeat_determinism(
                     repeated_runs=repeated_rows,
                     top_k=internal_top_k,

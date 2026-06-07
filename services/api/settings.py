@@ -39,6 +39,13 @@ class ApiSettings(BaseSettings):
     qdrant_timeout_sec: float = Field(default=120.0)
     qdrant_check_compatibility: bool = Field(default=True)
 
+    # Experimental Qdrant dense-search profile.
+    # These settings configure an internal implementation backend and do not
+    # change the public /search mode contract.
+    qdrant_search_profile_name: str = Field(default="ef_256")
+    qdrant_search_exact: bool = Field(default=False)
+    qdrant_search_hnsw_ef: int | None = Field(default=256, gt=0)
+
     # postgres settings
     postgres_host: str = Field(default="127.0.0.1")
     postgres_port: int = Field(default=15432)
