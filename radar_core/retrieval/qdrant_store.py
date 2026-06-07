@@ -86,38 +86,81 @@ class QdrantRetrievalStore:
         }
 
     def search_vector(
-        self,
-        vector: Iterable[float],
-        *,
-        top_k: int = 20,
-        with_payload: bool = True,
-        with_vectors: bool = False,
+            self,
+            vector: Iterable[float],
+            *,
+            top_k: int = 20,
+            with_payload: bool = True,
+            with_vectors: bool = False,
+            exact: bool = False,
+            hnsw_ef: int | None = None,
     ) -> list[QdrantSearchResult]:
-        """Search an existing Qdrant collection with a dense query vector.
+        """Search an existing Qdrant collection with an explicit profile.
+
+        ``exact=False`` and ``hnsw_ef=None`` preserve the previous default
+        Qdrant search behavior.
 
         Uses ``query_points`` on newer clients and falls back to ``search`` on
         older client/server combinations.
         """
 
+        if not isinstance(top_k, int) or isinstance(top_k, bool) or top_k <= 0:
+            raise ValueError(
+                f"top_k must be a positive integer, got {top_k!r}"
+            )
+
+        if not isinstance(exact, bool):
+            raise ValueError(
+                f"exact must be a boolean, got {exact!r}"
+            )
+
+        if hnsw_ef is not None:
+            if (
+                    not isinstance(hnsw_ef, int)
+                    or isinstance(hnsw_ef, bool)
+                    or hnsw_ef <= 0
+            ):
+                raise ValueError(
+                    f"hnsw_ef must be a positive integer or None, "
+                    f"got {hnsw_ef!r}"
+                )
+
         query_vector = [float(x) for x in vector]
 
-        if hasattr(self.client, "query_points"):
-            response = self.client.query_points(
-                collection_name=self.collection_name,
-                query=query_vector,
-                limit=top_k,
-                with_payload=with_payload,
-                with_vectors=with_vectors,
+        search_params = None
+        if exact or hnsw_ef is not None:
+            from qdrant_client.http import models as qmodels
+
+            search_params = qmodels.SearchParams(
+                exact=exact,
+                hnsw_ef=hnsw_ef,
             )
+
+        if hasattr(self.client, "query_points"):
+            kwargs: dict[str, Any] = {
+                "collection_name": self.collection_name,
+                "query": query_vector,
+                "limit": top_k,
+                "with_payload": with_payload,
+                "with_vectors": with_vectors,
+            }
+            if search_params is not None:
+                kwargs["search_params"] = search_params
+
+            response = self.client.query_points(**kwargs)
             raw_results = getattr(response, "points", response)
         else:
-            raw_results = self.client.search(
-                collection_name=self.collection_name,
-                query_vector=query_vector,
-                limit=top_k,
-                with_payload=with_payload,
-                with_vectors=with_vectors,
-            )
+            kwargs = {
+                "collection_name": self.collection_name,
+                "query_vector": query_vector,
+                "limit": top_k,
+                "with_payload": with_payload,
+                "with_vectors": with_vectors,
+            }
+            if search_params is not None:
+                kwargs["search_params"] = search_params
+
+            raw_results = self.client.search(**kwargs)
 
         return [normalize_search_result(point) for point in raw_results or []]
 
