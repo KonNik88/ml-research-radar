@@ -8,6 +8,7 @@ import numpy as np
 
 from radar_core.config import load_scoring_config
 from radar_core.contracts.canonical_document import CanonicalDocument
+from radar_core.retrieval.dense_backend import DenseSearchRequest
 from radar_core.ranking.scoring import rank_results
 from services.api.logging import get_logger
 from services.api.runtime import ApiRuntime
@@ -24,7 +25,6 @@ from services.api.schemas import (
     QdrantSearchResultItem,
 )
 from services.api.settings import get_settings
-from radar_core.retrieval.qdrant_store import QdrantRetrievalStore
 
 
 logger = get_logger(__name__)
@@ -995,12 +995,19 @@ def run_qdrant_experimental_search(
     query: str,
     top_k: int,
 ) -> QdrantSearchResponse:
+    """Run the explicit experimental Qdrant dense-search path.
+
+    Query encoding and document hydration remain API-service concerns.
+    QdrantDenseBackend owns only dense candidate retrieval and backend
+    compatibility/result validation.
+    """
+
     if runtime.backend_mode != "file":
-        raise RuntimeError("Experimental Qdrant search requires file backend runtime")
+        raise RuntimeError(
+            "Experimental Qdrant search requires file backend runtime"
+        )
 
     query = _normalize_query(query)
-    settings = get_settings()
-    collection_name = settings.qdrant_collection_name
 
     if runtime.manifest is None:
         raise RuntimeError("Retrieval manifest is not loaded")
@@ -1016,59 +1023,79 @@ def run_qdrant_experimental_search(
 
     t_encode = time.perf_counter()
     query_embedding = _encode_query_embedding(runtime, query)
-    timings["encode_ms"] = round((time.perf_counter() - t_encode) * 1000, 3)
-
-    store = QdrantRetrievalStore(
-        host=settings.qdrant_host,
-        port=settings.qdrant_port,
-        collection_name=collection_name,
-        timeout_sec=settings.qdrant_timeout_sec,
-        check_compatibility=settings.qdrant_check_compatibility,
+    timings["encode_ms"] = round(
+        (time.perf_counter() - t_encode) * 1000,
+        3,
     )
 
-    if not store.collection_exists():
-        raise RuntimeError(f"Qdrant collection does not exist: {collection_name}")
+    backend = runtime.get_qdrant_dense_backend()
 
-    t_search = time.perf_counter()
-    qdrant_results = store.search_vector(
-        vector=query_embedding.tolist(),
-        top_k=top_k,
+    backend_result = backend.search(
+        DenseSearchRequest(
+            query_vector=query_embedding,
+            top_k=top_k,
+        )
     )
-    timings["qdrant_search_ms"] = round((time.perf_counter() - t_search) * 1000, 3)
+
+    timings["qdrant_search_ms"] = round(
+        float(
+            backend_result.timing_ms.get(
+                "backend_search_ms",
+                0.0,
+            )
+        ),
+        3,
+    )
+
+    backend_diagnostics = backend_result.backend.diagnostics
+    collection_name = str(
+        backend_diagnostics.get("collection_name")
+        or get_settings().qdrant_collection_name
+    )
 
     t_hydrate = time.perf_counter()
-    id_to_doc = {doc.canonical_id: doc for doc in runtime.documents}
+    id_to_doc = {
+        doc.canonical_id: doc
+        for doc in runtime.documents
+    }
 
     items: list[QdrantSearchResultItem] = []
-    for rank, result in enumerate(qdrant_results, start=1):
-        doc = id_to_doc.get(result.canonical_id)
+
+    for candidate in backend_result.candidates:
+        doc = id_to_doc.get(candidate.canonical_id)
         if doc is None:
             continue
 
-        payload = dict(result.payload or {})
-        dense_index = payload.get("dense_index")
-        if dense_index is not None:
-            try:
-                dense_index = int(dense_index)
-            except (TypeError, ValueError):
-                dense_index = None
+        metadata = candidate.backend_metadata
+        payload_value = metadata.get("payload") or {}
+        payload = (
+            dict(payload_value)
+            if isinstance(payload_value, dict)
+            else {}
+        )
 
         items.append(
             QdrantSearchResultItem(
-                rank=rank,
+                rank=candidate.rank,
                 document=_doc_to_schema(doc),
                 retrieval=RetrievalScores(
-                    score=float(result.score),
-                    dense_score=float(result.score),
+                    score=candidate.score,
+                    dense_score=candidate.score,
                 ),
-                point_id=result.point_id,
-                dense_index=dense_index,
+                point_id=candidate.backend_point_id,
+                dense_index=candidate.dense_index,
                 payload=payload,
             )
         )
 
-    timings["hydrate_ms"] = round((time.perf_counter() - t_hydrate) * 1000, 3)
-    timings["total_ms"] = round((time.perf_counter() - t0) * 1000, 3)
+    timings["hydrate_ms"] = round(
+        (time.perf_counter() - t_hydrate) * 1000,
+        3,
+    )
+    timings["total_ms"] = round(
+        (time.perf_counter() - t0) * 1000,
+        3,
+    )
 
     return QdrantSearchResponse(
         query=query,
