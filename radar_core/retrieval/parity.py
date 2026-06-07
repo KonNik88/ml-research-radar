@@ -23,6 +23,7 @@ from typing import Any, Iterable, Mapping, Sequence
 import numpy as np
 
 from radar_core.retrieval.dense_backend import (
+    DenseSearchBackendResult,
     exact_file_dense_candidates,
 )
 
@@ -107,6 +108,73 @@ def exact_file_dense_search(
         for candidate in candidates
     ]
 
+def file_backend_result_to_rows(
+    result: DenseSearchBackendResult,
+) -> list[ResultRow]:
+    """Convert a file backend result to the legacy parity row contract."""
+
+    if result.backend.backend_name != "file":
+        raise ValueError(
+            "Expected file dense backend result, got "
+            f"{result.backend.backend_name!r}"
+        )
+
+    return [
+        {
+            "rank": candidate.rank,
+            "canonical_id": candidate.canonical_id,
+            "dense_index": candidate.dense_index,
+            "score": candidate.score,
+        }
+        for candidate in result.candidates
+    ]
+
+
+def qdrant_backend_result_to_rows(
+    result: DenseSearchBackendResult,
+) -> list[ResultRow]:
+    """Convert a Qdrant backend result to the legacy parity row contract.
+
+    Payload and mapping fields remain available for the existing mapping audit,
+    mismatch diagnostics, report schemas, and validators.
+    """
+
+    if result.backend.backend_name != "qdrant":
+        raise ValueError(
+            "Expected Qdrant dense backend result, got "
+            f"{result.backend.backend_name!r}"
+        )
+
+    rows: list[ResultRow] = []
+
+    for candidate in result.candidates:
+        metadata = candidate.backend_metadata
+        raw_payload = metadata.get("payload") or {}
+
+        if not isinstance(raw_payload, Mapping):
+            raise ValueError(
+                "Qdrant candidate payload metadata must be a mapping: "
+                f"canonical_id={candidate.canonical_id}"
+            )
+
+        payload = dict(raw_payload)
+        build_id = metadata.get("build_id")
+        if build_id is None:
+            build_id = payload.get("build_id")
+
+        rows.append(
+            {
+                "rank": candidate.rank,
+                "point_id": candidate.backend_point_id,
+                "canonical_id": candidate.canonical_id,
+                "dense_index": candidate.dense_index,
+                "build_id": build_id,
+                "score": candidate.score,
+                "payload": payload,
+            }
+        )
+
+    return rows
 
 def build_rank_map(rows: Sequence[Mapping[str, Any]]) -> dict[str, int]:
     """Map canonical ID to first one-based rank."""

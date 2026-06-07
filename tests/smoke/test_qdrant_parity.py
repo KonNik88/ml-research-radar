@@ -11,8 +11,14 @@ from radar_core.retrieval.parity import (
     compare_ranked_results,
     exact_file_dense_search,
     query_vector_metadata,
+    file_backend_result_to_rows,
+    qdrant_backend_result_to_rows,
 )
-
+from radar_core.retrieval.dense_backend import (
+    DenseSearchBackendInfo,
+    DenseSearchBackendResult,
+    DenseSearchCandidate,
+)
 
 def _row(
     canonical_id: str,
@@ -286,3 +292,75 @@ def test_query_vector_metadata_is_reproducible() -> None:
     assert first["norm"] == 1.0
     assert first["all_finite"] is True
     assert len(first["sha256"]) == 64
+
+def test_file_backend_result_adapter_preserves_legacy_shape() -> None:
+    result = DenseSearchBackendResult(
+        candidates=(
+            DenseSearchCandidate(
+                canonical_id="a",
+                score=0.9,
+                rank=1,
+                dense_index=4,
+            ),
+        ),
+        backend=DenseSearchBackendInfo(
+            backend_name="file",
+            implementation="FileDenseBackend",
+            build_id="build-1",
+            ready=True,
+        ),
+    )
+
+    rows = file_backend_result_to_rows(result)
+
+    assert rows == [
+        {
+            "rank": 1,
+            "canonical_id": "a",
+            "dense_index": 4,
+            "score": 0.9,
+        }
+    ]
+
+
+def test_qdrant_backend_result_adapter_preserves_audit_fields() -> None:
+    payload = {
+        "canonical_id": "a",
+        "dense_index": 4,
+        "build_id": "build-1",
+    }
+    result = DenseSearchBackendResult(
+        candidates=(
+            DenseSearchCandidate(
+                canonical_id="a",
+                score=0.9,
+                rank=1,
+                dense_index=4,
+                backend_point_id=4,
+                backend_metadata={
+                    "build_id": "build-1",
+                    "payload": payload,
+                },
+            ),
+        ),
+        backend=DenseSearchBackendInfo(
+            backend_name="qdrant",
+            implementation="QdrantDenseBackend",
+            build_id="build-1",
+            ready=True,
+        ),
+    )
+
+    rows = qdrant_backend_result_to_rows(result)
+
+    assert rows == [
+        {
+            "rank": 1,
+            "point_id": 4,
+            "canonical_id": "a",
+            "dense_index": 4,
+            "build_id": "build-1",
+            "score": 0.9,
+            "payload": payload,
+        }
+    ]
