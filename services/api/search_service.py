@@ -8,7 +8,10 @@ import numpy as np
 
 from radar_core.config import load_scoring_config
 from radar_core.contracts.canonical_document import CanonicalDocument
-from radar_core.retrieval.dense_backend import DenseSearchRequest
+from radar_core.retrieval.dense_backend import (
+    DenseBackendResultError,
+    DenseSearchRequest,
+)
 from radar_core.ranking.scoring import rank_results
 from services.api.logging import get_logger
 from services.api.runtime import ApiRuntime
@@ -1064,7 +1067,11 @@ def run_qdrant_experimental_search(
     for candidate in backend_result.candidates:
         doc = id_to_doc.get(candidate.canonical_id)
         if doc is None:
-            continue
+            raise DenseBackendResultError(
+                "Qdrant candidate is missing from active runtime documents "
+                "during hydration: "
+                f"canonical_id={candidate.canonical_id!r}"
+            )
 
         metadata = candidate.backend_metadata
         payload_value = metadata.get("payload") or {}

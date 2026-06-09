@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from typing import Any
 
 import numpy as np
+import pytest
 
 import services.api.runtime as runtime_module
 from radar_core.contracts.canonical_document import (
@@ -15,6 +16,8 @@ from radar_core.retrieval.artifacts import (
     RetrievalBuildManifest,
 )
 from radar_core.retrieval.dense_backend import (
+    DenseBackendResultError,
+    DenseBackendUnavailableError,
     DenseSearchBackendInfo,
     DenseSearchBackendResult,
     DenseSearchCandidate,
@@ -138,8 +141,9 @@ class FakeEmbeddingModel:
 
 
 class FakeDenseBackend:
-    def __init__(self) -> None:
+    def __init__(self, *, canonical_id: str = "a") -> None:
         self.request = None
+        self.canonical_id = canonical_id
 
     def search(self, request):
         self.request = request
@@ -147,14 +151,14 @@ class FakeDenseBackend:
         return DenseSearchBackendResult(
             candidates=(
                 DenseSearchCandidate(
-                    canonical_id="a",
+                    canonical_id=self.canonical_id,
                     score=0.91,
                     rank=1,
                     dense_index=0,
                     backend_point_id=0,
                     backend_metadata={
                         "payload": {
-                            "canonical_id": "a",
+                            "canonical_id": self.canonical_id,
                             "dense_index": 0,
                             "build_id": "build-1",
                         }
@@ -180,6 +184,14 @@ class FakeDenseBackend:
             },
         )
 
+class FailingDenseBackend:
+    def __init__(self, error: Exception) -> None:
+        self.error = error
+        self.request = None
+
+    def search(self, request):
+        self.request = request
+        raise self.error
 
 class FakeRuntime:
     def __init__(self) -> None:
@@ -231,3 +243,36 @@ def test_experimental_service_uses_backend_neutral_candidates() -> None:
         request.query_vector,
         np.asarray([1.0, 0.0], dtype=np.float32),
     )
+
+def test_experimental_service_propagates_backend_failure_without_fallback() -> None:
+    runtime = FakeRuntime()
+    runtime.backend = FailingDenseBackend(
+        DenseBackendUnavailableError("Qdrant is unavailable")
+    )
+
+    with pytest.raises(
+        DenseBackendUnavailableError,
+        match="Qdrant is unavailable",
+    ):
+        run_qdrant_experimental_search(
+            runtime=runtime,
+            query="dense retrieval",
+            top_k=5,
+        )
+
+    assert runtime.backend.request is not None
+
+
+def test_experimental_service_rejects_candidate_missing_during_hydration() -> None:
+    runtime = FakeRuntime()
+    runtime.backend = FakeDenseBackend(canonical_id="missing-canonical-id")
+
+    with pytest.raises(
+        DenseBackendResultError,
+        match="during hydration",
+    ):
+        run_qdrant_experimental_search(
+            runtime=runtime,
+            query="dense retrieval",
+            top_k=5,
+        )

@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from services.api.app import app
+from services.api.runtime import get_runtime
 
 
 def test_reload_smoke():
@@ -48,3 +49,22 @@ def test_runtime_contains_reload_state():
         assert "model_reused" in payload
         assert "current_model_name" in payload
         assert "backend_mode" in payload
+
+def test_reload_recreates_cached_qdrant_backend():
+    with TestClient(app) as client:
+        runtime = get_runtime()
+
+        assert runtime.backend_mode == "file"
+
+        first_backend = runtime.get_qdrant_dense_backend()
+        assert runtime.qdrant_dense_backend is first_backend
+
+        response = client.post("/reload")
+        assert response.status_code == 200
+
+        assert runtime.qdrant_dense_backend is None
+
+        second_backend = runtime.get_qdrant_dense_backend()
+
+        assert second_backend is runtime.qdrant_dense_backend
+        assert second_backend is not first_backend

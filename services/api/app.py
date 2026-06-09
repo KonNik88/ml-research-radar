@@ -8,6 +8,12 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from radar_core.ranking.profiles import RankingProfileError
+from radar_core.retrieval.dense_backend import (
+    DenseBackendCompatibilityError,
+    DenseBackendRequestError,
+    DenseBackendResultError,
+    DenseBackendUnavailableError,
+)
 from services.api.discovery_service import get_discovery_service
 from services.api.logging import get_logger
 from services.api.runtime import get_runtime
@@ -94,6 +100,83 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+@app.exception_handler(DenseBackendRequestError)
+async def handle_dense_backend_request_error(
+    _: Request,
+    exc: DenseBackendRequestError,
+):
+    logger.warning(
+        "Dense backend request error: %s",
+        exc,
+    )
+    return JSONResponse(
+        status_code=400,
+        content=ErrorResponse(
+            error_code="dense_backend_bad_request",
+            message=str(exc),
+            details=None,
+        ).model_dump(),
+    )
+
+
+@app.exception_handler(DenseBackendUnavailableError)
+async def handle_dense_backend_unavailable_error(
+    _: Request,
+    exc: DenseBackendUnavailableError,
+):
+    logger.error(
+        "Dense backend unavailable: %s",
+        exc,
+        exc_info=(type(exc), exc, exc.__traceback__),
+    )
+    return JSONResponse(
+        status_code=503,
+        content=ErrorResponse(
+            error_code="dense_backend_unavailable",
+            message=str(exc),
+            details=None,
+        ).model_dump(),
+    )
+
+
+@app.exception_handler(DenseBackendCompatibilityError)
+async def handle_dense_backend_compatibility_error(
+    _: Request,
+    exc: DenseBackendCompatibilityError,
+):
+    logger.error(
+        "Dense backend compatibility error: %s",
+        exc,
+        exc_info=(type(exc), exc, exc.__traceback__),
+    )
+    return JSONResponse(
+        status_code=503,
+        content=ErrorResponse(
+            error_code="dense_backend_incompatible",
+            message=str(exc),
+            details=None,
+        ).model_dump(),
+    )
+
+
+@app.exception_handler(DenseBackendResultError)
+async def handle_dense_backend_result_error(
+    _: Request,
+    exc: DenseBackendResultError,
+):
+    logger.error(
+        "Dense backend result error: %s",
+        exc,
+        exc_info=(type(exc), exc, exc.__traceback__),
+    )
+    return JSONResponse(
+        status_code=503,
+        content=ErrorResponse(
+            error_code="dense_backend_invalid_result",
+            message=str(exc),
+            details=None,
+        ).model_dump(),
+    )
 
 @app.exception_handler(ValueError)
 async def handle_value_error(_: Request, exc: ValueError):

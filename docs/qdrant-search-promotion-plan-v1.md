@@ -5,14 +5,15 @@
 ```text
 version: v1
 status: active promotion-gate and implementation-tracking document
-last updated: 2026-06-07
+last updated: 2026-06-09
 
 internal DenseSearchBackend abstraction: implemented / green
 experimental API adoption: implemented / green
 evaluation tooling adoption: implemented / green
+Qdrant failure contract: implemented / green
 
 public /search backend change: none
-public API change: none
+public API strategy change: none
 Qdrant required for /health: no
 public promotion decision: not made
 ```
@@ -503,7 +504,16 @@ This is intentional.
 
 ### Experimental endpoint
 
-Failures are explicit:
+Failures are explicit and retain stable machine-readable categories:
+
+| Internal exception | HTTP status | API error code |
+|---|---:|---|
+| `DenseBackendRequestError` | 400 | `dense_backend_bad_request` |
+| `DenseBackendUnavailableError` | 503 | `dense_backend_unavailable` |
+| `DenseBackendCompatibilityError` | 503 | `dense_backend_incompatible` |
+| `DenseBackendResultError` | 503 | `dense_backend_invalid_result` |
+
+Covered backend failure classes include:
 
 - Qdrant unavailable;
 - collection missing;
@@ -514,21 +524,33 @@ Failures are explicit:
 - invalid payload;
 - build mismatch;
 - mapping mismatch;
-- invalid result score.
+- invalid or non-finite result score.
+
+A candidate whose `canonical_id` cannot be hydrated from the active canonical runtime now fails explicitly as an invalid backend result instead of being silently skipped.
 
 The experimental endpoint never silently serves file dense.
+
+### Current recovery semantics
+
+Transient failures are not sticky:
+
+```text
+Qdrant unavailable
+→ structured 503
+
+Qdrant restored
+→ next experimental request may succeed
+```
+
+Runtime reload also clears the cached Qdrant backend and causes the next request to construct a new instance.
+
+No circuit breaker, retry framework, or persistent failed state is introduced.
 
 ### Future public selection
 
 A future explicit Qdrant request should initially fail explicitly when unavailable.
 
-Candidate future semantic:
-
-```text
-vector_backend_unavailable
-```
-
-The exact public error contract requires a separate API decision.
+The exact public selection contract requires a separate API decision.
 
 ### Optional future fallback
 
@@ -558,6 +580,19 @@ file runtime ready + Qdrant unavailable
 → /health remains ready
 ```
 
+Verified live behavior:
+
+```text
+Qdrant stopped
+→ /health = 200, ready = true
+→ /runtime = 200, qdrant.ok = false
+→ /experimental/search/qdrant = 503 dense_backend_unavailable
+→ public file dense /search = 200
+
+Qdrant restarted
+→ next experimental request = 200
+```
+
 Qdrant remains optional.
 
 Operational diagnostics belong in `/runtime` and logs.
@@ -579,24 +614,32 @@ Public response-schema expansion is not part of the internal abstraction PR.
 
 ## 16. Validation evidence
 
-Feature-branch tests:
+Qdrant Failure Contract v1 targeted tests:
 
 ```text
-backend/parity/regression smoke = 69 passed
-retrieval smoke = 4 passed
-retrieval artifact smoke = 5 passed
+Qdrant backend contract = 17 passed
+API Qdrant composition = 4 passed
+API error contract = 4 passed
+API reload lifecycle = 4 passed
 API smoke = 6 passed
-API errors = 3 passed
-API reload = 3 passed
 Discovery integration = 34 passed, 4 expected DB-only skips
 ```
+
+The tests verify:
+
+- stable typed API error mapping;
+- backend exception propagation;
+- explicit hydration mismatch failure;
+- no hidden fallback;
+- Qdrant-independent general health;
+- public file dense availability;
+- backend recreation after runtime reload.
 
 Strict validators passed:
 
 - Qdrant collection;
 - experimental Qdrant API;
 - 34-query file/Qdrant comparison;
-- 34-query profile sweep;
 - Golden Set;
 - Discovery API;
 - topic clusters;
@@ -604,7 +647,7 @@ Strict validators passed:
 - Streamlit static validation;
 - integrated Discovery regression.
 
-Full comparison:
+Current comparison:
 
 ```text
 selected profile = ef_256
@@ -614,16 +657,25 @@ errors = 0
 blocking classifications = 0
 ```
 
-Full profile sweep:
+Live stop/start smoke:
 
 ```text
-default = 33/34
-ef_128 = 33/34
-ef_256 = 34/34
-ef_512 = 34/34
-exact = 34/34
-errors = 0
-strict required failures = 0
+Qdrant stopped
+→ structured 503 dense_backend_unavailable
+→ /health remains ready
+→ public file dense remains available
+
+Qdrant restarted
+→ next experimental request succeeds
+```
+
+Full strict Definition of Done:
+
+```text
+canonical documents = 60954
+multisource documents = 9192
+dod_passed = true
+required_failed_count = 0
 ```
 
 ---
@@ -672,13 +724,9 @@ Internal abstraction is complete. Public promotion is still blocked on the follo
 
 ### Reliability
 
-- timeout failure injection;
-- unavailable Qdrant;
-- collection missing;
-- incompatible build/count/dimension;
-- invalid payload and mapping;
-- restart/reconnect behavior;
-- deployment rollback procedure.
+- explicit timeout-specific failure injection;
+- deployment rollback procedure;
+- longer-running restart/recovery evidence if required by deployment design.
 
 ### Observability
 
@@ -893,7 +941,23 @@ Status: **complete / green**
 - legacy report adapters;
 - strict validators.
 
-### Phase 4 — reliability, observability, performance, hybrid evidence
+### Phase 4a — failure contract
+
+Status: **complete / green**
+
+Completed:
+
+- typed backend failures preserved through FastAPI;
+- stable machine-readable API error codes;
+- explicit hydration mismatch failure;
+- no hidden fallback;
+- general health remains Qdrant-independent;
+- public file search remains available;
+- transient Qdrant stop/start recovery verified;
+- runtime reload recreates the cached backend;
+- targeted tests, integrated regression, strict validators and full DoD green.
+
+### Phase 4b — observability, performance and hybrid evidence
 
 Status: **next**
 
@@ -936,7 +1000,7 @@ Status: **not planned until Phase 5 is stable**
 - [x] Payload build ID checked.
 - [x] Dense index and optional dense-ID mapping checked.
 - [x] Collection mismatch fails explicitly.
-- [ ] Compatibility behavior tested in deployment failure injection.
+- [x] Compatibility behavior tested through deterministic API failure injection.
 
 ### Quality
 
@@ -954,10 +1018,14 @@ Status: **not planned until Phase 5 is stable**
 - [x] Missing collection behavior covered by backend tests.
 - [x] Count/dimension/distance mismatch covered.
 - [x] Invalid payload/mapping covered.
+- [x] Stable API failure categories implemented.
+- [x] Hydration mismatch fails explicitly.
 - [x] No implicit fallback exists.
-- [ ] Timeout and reconnect behavior tested.
-- [ ] Production-like restart behavior tested.
-- [ ] Rollback procedure documented and exercised.
+- [x] Unavailable Qdrant tested with a live stop/start smoke.
+- [x] Reconnect/recovery after Qdrant restart verified.
+- [x] Runtime reload backend recreation verified.
+- [ ] Explicit timeout failure injection completed.
+- [ ] Deployment rollback procedure documented and exercised.
 
 ### Observability
 
@@ -976,7 +1044,7 @@ Status: **not planned until Phase 5 is stable**
 - [x] Discovery strict regression passes.
 - [x] Topic validators pass.
 - [x] Streamlit static validator passes.
-- [ ] Milestone-level strict DoD rerun if required by merge policy.
+- [x] Milestone-level strict DoD rerun completed.
 
 ---
 
@@ -1011,26 +1079,28 @@ File dense remains available throughout the promotion path.
 
 ## 27. Current PR boundary
 
-The current abstraction PR includes:
+The current Qdrant Failure Contract v1 PR includes:
 
-- backend contracts;
-- FileDenseBackend;
-- QdrantDenseBackend;
-- explicit Qdrant profiles;
-- runtime composition;
-- experimental endpoint adoption;
-- comparison migration;
-- profile-sweep migration;
-- tests;
+- stable FastAPI mappings for typed dense-backend failures;
+- explicit Qdrant hydration mismatch failure;
+- deterministic API failure tests;
+- no-fallback verification;
+- health-isolation verification;
+- runtime reload lifecycle verification;
+- live Qdrant stop/start recovery evidence;
+- integrated regression and strict DoD closure;
 - checkpoint documentation.
 
 It does not include:
 
 - public backend selection;
-- public response metadata;
+- public success-response metadata;
 - hybrid Qdrant serving;
 - similar-paper migration;
-- fallback;
+- fallback orchestration;
+- persistent observability state;
+- metrics or tracing platform;
+- performance/concurrency benchmarks;
 - new embeddings;
 - source or canonical changes.
 
@@ -1038,18 +1108,17 @@ It does not include:
 
 ## 28. Final recommendation
 
-Merge the internal abstraction after final review and documentation.
+Merge Qdrant Failure Contract v1 after final documentation review.
 
 Then proceed with:
 
 ```text
-failure injection
-→ observability design
+runtime observability and diagnostics
 → warm/cold and concurrency evidence
 → controlled hybrid evaluation
 → explicit promotion decision
 ```
 
-Do not promote Qdrant merely because parity is green.
+Do not promote Qdrant merely because parity and failure handling are green.
 
-The correct question is whether Qdrant produces enough operational and scaling value to justify a public or deployment-level backend choice while remaining observable, reversible, and compatible with the active retrieval build.
+The correct question remains whether Qdrant produces enough operational and scaling value to justify a public or deployment-level backend choice while remaining observable, reversible, and compatible with the active retrieval build.
