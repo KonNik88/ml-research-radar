@@ -4,9 +4,10 @@
 
 ```text
 document: primary living roadmap
-checkpoint: Dense Search Backend Abstraction v1
-checkpoint date: 2026-06-07
+checkpoint: Qdrant Failure Contract v1
+checkpoint date: 2026-06-09
 implementation state: green on feature branch, pending PR merge
+implementation commit: 7f90785
 public Qdrant promotion: not performed
 ```
 
@@ -460,7 +461,7 @@ Public `/search` was intentionally not switched to Qdrant.
 
 ### 4.12 Dense Search Backend Abstraction v1
 
-Status: **implemented / green on feature branch; pending PR merge**
+Status: **done / green; merged into `main` in PR #16**
 
 Implemented internal architecture:
 
@@ -534,53 +535,88 @@ Discovery API       → unchanged
 Streamlit           → unchanged
 ```
 
+### 4.13 Qdrant Failure Contract v1
+
+Status: **implemented / green on feature branch; pending PR merge**
+
+The API/runtime boundary now preserves the existing typed dense-backend failure categories:
+
+```text
+DenseBackendRequestError       → 400 dense_backend_bad_request
+DenseBackendUnavailableError   → 503 dense_backend_unavailable
+DenseBackendCompatibilityError → 503 dense_backend_incompatible
+DenseBackendResultError        → 503 dense_backend_invalid_result
+```
+
+Additional guarantees:
+
+- Qdrant candidates that cannot be hydrated from the active canonical runtime now fail explicitly;
+- no hidden fallback to file dense exists;
+- general `/health` remains independent of optional Qdrant availability;
+- public `/search?mode=dense` and `/search?mode=hybrid` remain file-backed;
+- transient Qdrant stop/start recovery succeeds without an API restart;
+- runtime reload clears and recreates the cached Qdrant backend;
+- successful experimental Qdrant responses remain compatible.
+
+The slice does not add public backend selection, observability state, performance benchmarks, hybrid Qdrant serving, or fallback orchestration.
 ---
 
 ## 5. Validation evidence for the current feature branch
 
-Green test evidence:
+Qdrant Failure Contract v1 targeted tests:
 
 ```text
-backend / parity / regression smoke: 69 passed
-retrieval smoke: 4 passed
-retrieval artifact smoke: 5 passed
-API smoke: 6 passed
-API error tests: 3 passed
-API reload tests: 3 passed
-Discovery integration: 34 passed, 4 expected DB-only skips
+Qdrant backend contract = 17 passed
+API Qdrant composition = 4 passed
+API error contract = 4 passed
+API reload lifecycle = 4 passed
+API smoke = 6 passed
+Discovery integration = 34 passed, 4 expected DB-only skips
 ```
 
-Green validators:
+Verified failure semantics:
+
+```text
+Qdrant stopped
+→ /health = 200, ready = true
+→ /runtime = 200, qdrant.ok = false
+→ /experimental/search/qdrant = 503 dense_backend_unavailable
+→ public file dense /search = 200
+
+Qdrant restarted
+→ next experimental request = 200
+```
+
+Green validators and integrated checks:
 
 - Qdrant collection strict validator;
 - experimental Qdrant API strict validator;
 - file/Qdrant comparison strict validator;
-- Qdrant profile sweep strict validator;
 - Golden Set strict validator;
 - Discovery API strict validator;
 - topic clusters strict validator;
 - topic projection strict validator;
 - Streamlit static strict validator;
-- integrated Discovery regression.
+- integrated Discovery regression;
+- full strict Definition of Done.
 
-Full 34-query comparison:
+Current comparison evidence:
 
 ```text
-ef_256 full_match = true
-exact full_match = true
+enabled queries = 34
+selected profile = ef_256
+selected full match = true
+exact full match = true
 error_count = 0
 blocking_classification_count = 0
 ```
 
-Full profile sweep:
+Milestone closure:
 
 ```text
-default = 33/34
-ef_128 = 33/34
-ef_256 = 34/34
-ef_512 = 34/34
-exact = 34/34
-error_count = 0
+canonical_doc_count = 60954
+canonical_multisource_docs = 9192
+dod_passed = true
 required_failed_count = 0
 ```
 
@@ -588,10 +624,10 @@ required_failed_count = 0
 
 ## 6. Near-term roadmap
 
-Recommended next order after merge of the abstraction PR:
+Recommended next order after merge of the failure-contract PR:
 
 ```text
-1. Backend observability and failure-semantics hardening.
+1. Runtime observability and diagnostics.
 2. Integration-test memory/lifecycle hardening.
 3. Warm/cold latency and concurrency evidence.
 4. Controlled hybrid file-vs-Qdrant evaluation.
@@ -602,20 +638,23 @@ Recommended next order after merge of the abstraction PR:
 9. Full text / RAG / personalization / dataset releases.
 ```
 
-### 6.1 Backend observability and failure semantics
+### 6.1 Runtime observability and diagnostics
 
 Status: **next**
 
-Goals:
+The Qdrant failure contract is complete.
 
-- retain typed internal errors;
-- add failure-injection tests;
-- verify missing collection, timeout, incompatible build, invalid payload, and unavailable Qdrant;
-- expose richer internal runtime diagnostics;
-- keep general health independent of optional Qdrant;
-- define future requested/effective backend metadata before any public exposure.
+Next goals:
 
-No hidden fallback is allowed.
+- define stable backend/profile/build runtime diagnostics;
+- distinguish configured, requested, and effective backend semantics;
+- expose bounded last-failure information if justified;
+- improve stage-level timing and structured log fields;
+- avoid uncontrolled repeated network probes;
+- keep Qdrant outside general health readiness;
+- keep public dense/hybrid file-backed.
+
+No public backend promotion, hidden fallback, circuit breaker, or broad tracing platform is included in this slice.
 
 ### 6.2 Integration-test memory/lifecycle hardening
 
@@ -818,18 +857,21 @@ Avoid technology-driven architecture.
 
 ## 8. Explicit non-goals of the current checkpoint
 
-Not part of the Dense Search Backend Abstraction PR:
+Not part of the Qdrant Failure Contract v1 PR:
 
 - public `vector_backend` parameter;
 - public Qdrant promotion;
-- hidden fallback;
-- public response-schema expansion;
+- hidden or explicit fallback orchestration;
+- public success-response schema expansion;
 - switching public dense/hybrid to Qdrant;
 - DB-native dense or hybrid;
 - lexical backend abstraction;
 - similar-paper migration;
 - filter pushdown;
-- collection creation or upload in request handling;
+- circuit breaker or retry framework;
+- persistent last-failure state;
+- Prometheus/OpenTelemetry integration;
+- latency or concurrency benchmarking;
 - embedding-model replacement;
 - reranking redesign;
 - canonical refresh;
