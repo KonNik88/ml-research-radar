@@ -162,8 +162,41 @@ class QdrantRuntimeDiagnostics(BaseModel):
     distance: str | None = None
     status: str | None = None
     optimizer_status: str | None = None
-
     error: str | None = None
+
+    probe_cached: bool = False
+    probe_checked_at: str | None = None
+    probe_cache_age_sec: float | None = None
+    probe_ttl_sec: float = 0.0
+
+    profile_name: str
+    exact: bool = False
+    hnsw_ef: int | None = None
+    build_id: str | None = None
+
+    backend_created: bool = False
+    compatibility_checked: bool = False
+    compatibility_ok: bool | None = None
+
+    request_count: int = 0
+    success_count: int = 0
+    failure_count: int = 0
+
+    last_status: Literal["never", "ok", "error"] = "never"
+    last_request_at: str | None = None
+    last_success_at: str | None = None
+    last_failure_at: str | None = None
+
+    last_failure_category: str | None = None
+    last_failure_stage: str | None = None
+    last_failure_message: str | None = None
+
+    last_result_count: int | None = None
+    last_timing_ms: dict[str, float] = Field(default_factory=dict)
+
+    requested_vector_backend: str | None = None
+    effective_vector_backend: str | None = None
+    fallback_applied: bool = False
 
 class RuntimeSnapshotResponse(BaseModel):
     ready: bool

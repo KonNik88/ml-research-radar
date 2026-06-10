@@ -9,7 +9,11 @@ import numpy as np
 from radar_core.config import load_scoring_config
 from radar_core.contracts.canonical_document import CanonicalDocument
 from radar_core.retrieval.dense_backend import (
+    DenseBackendCompatibilityError,
+    DenseBackendError,
+    DenseBackendRequestError,
     DenseBackendResultError,
+    DenseBackendUnavailableError,
     DenseSearchRequest,
 )
 from radar_core.ranking.scoring import rank_results
@@ -992,6 +996,21 @@ def run_db_search(
         results=items,
     )
 
+def _qdrant_failure_category(exc: DenseBackendError) -> str:
+    if isinstance(exc, DenseBackendRequestError):
+        return "dense_backend_bad_request"
+
+    if isinstance(exc, DenseBackendUnavailableError):
+        return "dense_backend_unavailable"
+
+    if isinstance(exc, DenseBackendCompatibilityError):
+        return "dense_backend_incompatible"
+
+    if isinstance(exc, DenseBackendResultError):
+        return "dense_backend_invalid_result"
+
+    return "dense_backend_error"
+
 def run_qdrant_experimental_search(
     *,
     runtime: ApiRuntime,
@@ -1021,102 +1040,144 @@ def run_qdrant_experimental_search(
     if runtime.embedding_model is None:
         raise RuntimeError("Embedding model is not loaded")
 
+    runtime.record_qdrant_request_started()
+
     t0 = time.perf_counter()
     timings: dict[str, float] = {}
+    stage = "encode"
 
-    t_encode = time.perf_counter()
-    query_embedding = _encode_query_embedding(runtime, query)
-    timings["encode_ms"] = round(
-        (time.perf_counter() - t_encode) * 1000,
-        3,
-    )
-
-    backend = runtime.get_qdrant_dense_backend()
-
-    backend_result = backend.search(
-        DenseSearchRequest(
-            query_vector=query_embedding,
-            top_k=top_k,
-        )
-    )
-
-    timings["qdrant_search_ms"] = round(
-        float(
-            backend_result.timing_ms.get(
-                "backend_search_ms",
-                0.0,
-            )
-        ),
-        3,
-    )
-
-    backend_diagnostics = backend_result.backend.diagnostics
-    collection_name = str(
-        backend_diagnostics.get("collection_name")
-        or get_settings().qdrant_collection_name
-    )
-
-    t_hydrate = time.perf_counter()
-    id_to_doc = {
-        doc.canonical_id: doc
-        for doc in runtime.documents
-    }
-
-    items: list[QdrantSearchResultItem] = []
-
-    for candidate in backend_result.candidates:
-        doc = id_to_doc.get(candidate.canonical_id)
-        if doc is None:
-            raise DenseBackendResultError(
-                "Qdrant candidate is missing from active runtime documents "
-                "during hydration: "
-                f"canonical_id={candidate.canonical_id!r}"
-            )
-
-        metadata = candidate.backend_metadata
-        payload_value = metadata.get("payload") or {}
-        payload = (
-            dict(payload_value)
-            if isinstance(payload_value, dict)
-            else {}
+    try:
+        t_encode = time.perf_counter()
+        query_embedding = _encode_query_embedding(runtime, query)
+        timings["encode_ms"] = round(
+            (time.perf_counter() - t_encode) * 1000,
+            3,
         )
 
-        items.append(
-            QdrantSearchResultItem(
-                rank=candidate.rank,
-                document=_doc_to_schema(doc),
-                retrieval=RetrievalScores(
-                    score=candidate.score,
-                    dense_score=candidate.score,
-                ),
-                point_id=candidate.backend_point_id,
-                dense_index=candidate.dense_index,
-                payload=payload,
+        stage = "backend_init"
+        backend = runtime.get_qdrant_dense_backend()
+
+        stage = "backend_search"
+        backend_result = backend.search(
+            DenseSearchRequest(
+                query_vector=query_embedding,
+                top_k=top_k,
             )
         )
 
-    timings["hydrate_ms"] = round(
-        (time.perf_counter() - t_hydrate) * 1000,
-        3,
-    )
-    timings["total_ms"] = round(
-        (time.perf_counter() - t0) * 1000,
-        3,
-    )
+        timings["qdrant_search_ms"] = round(
+            float(
+                backend_result.timing_ms.get(
+                    "backend_search_ms",
+                    0.0,
+                )
+            ),
+            3,
+        )
 
-    return QdrantSearchResponse(
-        query=query,
-        top_k=top_k,
-        build_id=runtime.manifest.build_id,
-        collection_name=collection_name,
-        meta=QdrantSearchMeta(
-            build_id=runtime.manifest.build_id,
-            collection_name=collection_name,
+        backend_diagnostics = backend_result.backend.diagnostics
+        collection_name = str(
+            backend_diagnostics.get("collection_name")
+            or get_settings().qdrant_collection_name
+        )
+
+        stage = "hydration"
+        t_hydrate = time.perf_counter()
+
+        id_to_doc = {
+            doc.canonical_id: doc
+            for doc in runtime.documents
+        }
+
+        items: list[QdrantSearchResultItem] = []
+
+        for candidate in backend_result.candidates:
+            doc = id_to_doc.get(candidate.canonical_id)
+
+            if doc is None:
+                raise DenseBackendResultError(
+                    "Qdrant candidate is missing from active runtime documents "
+                    "during hydration: "
+                    f"canonical_id={candidate.canonical_id!r}"
+                )
+
+            metadata = candidate.backend_metadata
+            payload_value = metadata.get("payload") or {}
+            payload = (
+                dict(payload_value)
+                if isinstance(payload_value, dict)
+                else {}
+            )
+
+            items.append(
+                QdrantSearchResultItem(
+                    rank=candidate.rank,
+                    document=_doc_to_schema(doc),
+                    retrieval=RetrievalScores(
+                        score=candidate.score,
+                        dense_score=candidate.score,
+                    ),
+                    point_id=candidate.backend_point_id,
+                    dense_index=candidate.dense_index,
+                    payload=payload,
+                )
+            )
+
+        timings["hydrate_ms"] = round(
+            (time.perf_counter() - t_hydrate) * 1000,
+            3,
+        )
+        timings["total_ms"] = round(
+            (time.perf_counter() - t0) * 1000,
+            3,
+        )
+
+        runtime.record_qdrant_success(
             result_count=len(items),
             timing_ms=timings,
-        ),
-        results=items,
-    )
+        )
+
+        return QdrantSearchResponse(
+            query=query,
+            top_k=top_k,
+            build_id=runtime.manifest.build_id,
+            collection_name=collection_name,
+            meta=QdrantSearchMeta(
+                build_id=runtime.manifest.build_id,
+                collection_name=collection_name,
+                result_count=len(items),
+                timing_ms=timings,
+            ),
+            results=items,
+        )
+
+    except DenseBackendError as exc:
+        timings["total_ms"] = round(
+            (time.perf_counter() - t0) * 1000,
+            3,
+        )
+
+        runtime.record_qdrant_failure(
+            category=_qdrant_failure_category(exc),
+            stage=stage,
+            message=str(exc),
+            timing_ms=timings,
+        )
+        raise
+
+    except Exception as exc:
+        timings["total_ms"] = round(
+            (time.perf_counter() - t0) * 1000,
+            3,
+        )
+
+        runtime.record_qdrant_failure(
+            category="internal_error",
+            stage=stage,
+            message=str(exc),
+            timing_ms=timings,
+        )
+        raise
 
 def run_search(
     *,

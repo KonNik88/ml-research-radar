@@ -45,6 +45,12 @@ class ApiSettings(BaseSettings):
     qdrant_search_profile_name: str = Field(default="ef_256")
     qdrant_search_exact: bool = Field(default=False)
     qdrant_search_hnsw_ef: int | None = Field(default=256, gt=0)
+    # Cache TTL for live Qdrant diagnostics exposed by /runtime.
+    # A forced refresh remains available through the runtime endpoint.
+    qdrant_runtime_diagnostics_ttl_sec: float = Field(
+        default=30.0,
+        ge=0.0,
+    )
 
     # postgres settings
     postgres_host: str = Field(default="127.0.0.1")
