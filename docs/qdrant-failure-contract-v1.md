@@ -6,7 +6,8 @@
 slice: retrieval/qdrant-failure-contract-v1
 checkpoint date: 2026-06-09
 implementation commit: 7f90785
-implementation state: green on feature branch, pending PR merge
+merge commit: 7539dd4
+implementation state: merged into main in PR #17
 public Qdrant promotion: not performed
 public /search behavior changed: no
 ```
@@ -446,24 +447,31 @@ These remain promotion gates or follow-up engineering work.
 
 ---
 
-## 15. Next slice
+## 15. Follow-up
 
-Recommended next slice:
+The recommended follow-up slice was:
 
 ```text
 retrieval/qdrant-runtime-observability-v1
 ```
 
-Possible scope:
+That follow-up has now been implemented on feature branch commit:
 
-- stable backend/profile/build diagnostics;
-- configured, requested, and effective backend semantics;
+```text
+f89574e api: add Qdrant runtime observability
+```
+
+It adds:
+
+- bounded live-probe caching;
+- forced runtime refresh;
+- requested/effective backend state;
 - bounded last-failure visibility;
-- stage-level timing fields;
-- structured metrics/log fields;
-- no public promotion.
+- stage-level timings;
+- success/failure/recovery counters;
+- reload reset.
 
-After observability:
+The next promotion gate is:
 
 ```text
 performance and concurrency evidence

@@ -5,12 +5,14 @@
 ```text
 version: v1
 status: active promotion-gate and implementation-tracking document
-last updated: 2026-06-09
+last updated: 2026-06-11
 
 internal DenseSearchBackend abstraction: implemented / green
 experimental API adoption: implemented / green
 evaluation tooling adoption: implemented / green
-Qdrant failure contract: implemented / green
+Qdrant failure contract: merged / green
+Qdrant runtime observability: implemented / green on feature branch
+observability implementation commit: f89574e
 
 public /search backend change: none
 public API strategy change: none
@@ -571,13 +573,82 @@ Hidden fallback is prohibited.
 
 ---
 
+
 ## 15. Health and runtime diagnostics
 
-Current health rule:
+General health rule:
 
 ```text
 file runtime ready + Qdrant unavailable
 → /health remains ready
+```
+
+Qdrant remains optional and outside general readiness.
+
+Runtime observability now distinguishes two bounded data planes.
+
+### Cached live probe
+
+```text
+GET /runtime?refresh_qdrant=true
+→ forced live Qdrant probe
+
+GET /runtime
+→ cached probe while cache age <= configured TTL
+
+default TTL
+→ 30 seconds
+```
+
+The probe exposes:
+
+- availability;
+- collection existence;
+- point count and corpus-count match;
+- vector size;
+- distance;
+- collection and optimizer status;
+- selected profile;
+- `exact` and `hnsw_ef`;
+- retrieval build ID;
+- probe timestamp, cache age, and TTL.
+
+### Bounded operational state
+
+The runtime records:
+
+- request, success, and failure counters;
+- last request, success, and failure timestamps;
+- current last status;
+- bounded last-failure category, stage, and message;
+- result count from the latest successful operation;
+- encode, Qdrant search, hydration, and total timings;
+- requested and effective backend;
+- explicit fallback status;
+- backend-created and compatibility-checked state.
+
+The runtime does not store:
+
+- query text;
+- query vectors;
+- full result payloads;
+- traceback objects;
+- unbounded history.
+
+### Recovery and reset
+
+```text
+failure
+→ last_status = error
+
+successful recovery
+→ last_status = ok
+→ last_failure_* evidence retained
+
+runtime load or reload
+→ backend cache reset
+→ live-probe cache reset
+→ operational state reset
 ```
 
 Verified live behavior:
@@ -591,49 +662,68 @@ Qdrant stopped
 
 Qdrant restarted
 → next experimental request = 200
+→ last_status returns to ok
+→ previous last-failure evidence remains available
 ```
 
-Qdrant remains optional.
+Public `/search` response metadata is still unchanged. Runtime observability does
+not authorize public promotion or fallback.
 
-Operational diagnostics belong in `/runtime` and logs.
-
-A future promotion should expose:
-
-- requested backend;
-- effective backend;
-- collection name;
-- profile;
-- build compatibility;
-- fallback status;
-- Qdrant availability;
-- stage-level latency.
-
-Public response-schema expansion is not part of the internal abstraction PR.
-
----
 
 ## 16. Validation evidence
 
-Qdrant Failure Contract v1 targeted tests:
+Qdrant Runtime Observability v1 targeted tests:
 
 ```text
-Qdrant backend contract = 17 passed
-API Qdrant composition = 4 passed
+Qdrant backend composition / observability = 6 passed
+API runtime smoke = 7 passed
 API error contract = 4 passed
 API reload lifecycle = 4 passed
-API smoke = 6 passed
 Discovery integration = 34 passed, 4 expected DB-only skips
 ```
 
 The tests verify:
 
-- stable typed API error mapping;
-- backend exception propagation;
-- explicit hydration mismatch failure;
+- TTL probe cache;
+- explicit forced refresh;
+- bounded operational state;
+- success and failure counters;
+- failure category and stage;
+- stage timings;
 - no hidden fallback;
 - Qdrant-independent general health;
-- public file dense availability;
-- backend recreation after runtime reload.
+- operational-state and probe-cache reset on reload.
+
+Live observability smoke verified:
+
+```text
+forced probe
+→ probe_cached = false
+
+repeated probe within TTL
+→ probe_cached = true
+
+successful Qdrant search
+→ request_count = 1
+→ success_count = 1
+→ last_status = ok
+→ compatibility_ok = true
+
+Qdrant unavailable
+→ 503 dense_backend_unavailable
+→ failure_count = 1
+→ last_status = error
+→ effective backend = null
+→ fallback_applied = false
+
+Qdrant restored
+→ next request succeeds without API reload
+→ request_count = 3
+→ success_count = 2
+→ failure_count = 1
+→ last_status = ok
+→ last_failure evidence retained
+```
 
 Strict validators passed:
 
@@ -657,18 +747,6 @@ errors = 0
 blocking classifications = 0
 ```
 
-Live stop/start smoke:
-
-```text
-Qdrant stopped
-→ structured 503 dense_backend_unavailable
-→ /health remains ready
-→ public file dense remains available
-
-Qdrant restarted
-→ next experimental request succeeds
-```
-
 Full strict Definition of Done:
 
 ```text
@@ -678,7 +756,12 @@ dod_passed = true
 required_failed_count = 0
 ```
 
----
+Non-blocking limitation:
+
+- low-level Windows socket text in the best-effort probe `error` field may be
+  locale-encoded poorly;
+- stable API classification, bounded failure category, and server logs remain
+  correct.
 
 ## 17. Memory and test-process observation
 
@@ -718,9 +801,11 @@ This is technical debt, not a public-promotion gate by itself unless production-
 
 ---
 
+
 ## 18. Remaining promotion gates
 
-Internal abstraction is complete. Public promotion is still blocked on the following evidence.
+Internal abstraction, failure handling, and experimental runtime observability
+are complete. Public promotion is still blocked on the following evidence.
 
 ### Reliability
 
@@ -730,10 +815,14 @@ Internal abstraction is complete. Public promotion is still blocked on the follo
 
 ### Observability
 
-- requested/effective backend metadata;
-- stage-level latency;
-- backend/profile runtime diagnostics;
-- explicit fallback metadata if fallback is ever introduced.
+Experimental runtime observability is complete.
+
+Still open for a future public or deployment-level backend choice:
+
+- public requested/effective backend metadata;
+- explicit fallback reason metadata if fallback is ever approved;
+- production metrics and tracing only if deployment complexity justifies them;
+- longer-running operational dashboards or alerts if needed.
 
 ### Performance
 
@@ -747,8 +836,8 @@ Internal abstraction is complete. Public promotion is still blocked on the follo
 ### Hybrid evaluation
 
 - common lexical component;
-- file vs Qdrant dense component;
-- unchanged merge/ranking;
+- file versus Qdrant dense component;
+- unchanged merge and ranking;
 - query-level quality;
 - latency;
 - failure semantics.
@@ -765,9 +854,8 @@ Decide whether Qdrant provides enough value in:
 - deployment topology;
 - operational tooling.
 
-It does not need to beat local NumPy at 60k documents, but value must be demonstrated.
-
----
+It does not need to beat local NumPy at 60,954 documents, but value must be
+demonstrated.
 
 ## 19. Future public API direction
 
@@ -957,7 +1045,23 @@ Completed:
 - runtime reload recreates the cached backend;
 - targeted tests, integrated regression, strict validators and full DoD green.
 
-### Phase 4b — observability, performance and hybrid evidence
+### Phase 4b — runtime observability
+
+Status: **complete / green on feature branch**
+
+Completed:
+
+- 30-second live-probe TTL cache;
+- explicit forced refresh;
+- profile/build/compatibility diagnostics;
+- requested/effective backend state;
+- bounded last-failure state;
+- stage timings;
+- success/failure/recovery counters and timestamps;
+- reload reset;
+- no public promotion or fallback.
+
+### Phase 4c — performance and hybrid evidence
 
 Status: **next**
 
@@ -1030,11 +1134,17 @@ Status: **not planned until Phase 5 is stable**
 ### Observability
 
 - [x] Experimental endpoint exposes collection and build.
-- [x] Backend info exposes profile and compatibility diagnostics.
-- [x] Backend search timing is recorded.
-- [ ] Public requested/effective backend metadata designed.
-- [ ] Fallback metadata designed if fallback is approved.
-- [ ] Production metrics and tracing implemented.
+- [x] Runtime exposes profile and compatibility diagnostics.
+- [x] Runtime live probe uses a bounded TTL cache.
+- [x] Forced live probe refresh is explicit.
+- [x] Requested/effective backend state is recorded for the experimental path.
+- [x] Stage timings are recorded.
+- [x] Bounded last-failure category, stage, message, and timestamps are recorded.
+- [x] Recovery retains last-failure evidence.
+- [x] Runtime reload resets backend, probe cache, and operational state.
+- [ ] Public `/search` requested/effective backend metadata designed.
+- [ ] Fallback reason metadata designed if fallback is approved.
+- [ ] Production metrics and tracing implemented only if justified.
 
 ### Regression
 
@@ -1077,48 +1187,55 @@ File dense remains available throughout the promotion path.
 
 ---
 
+
 ## 27. Current PR boundary
 
-The current Qdrant Failure Contract v1 PR includes:
+The current Qdrant Runtime Observability v1 PR includes:
 
-- stable FastAPI mappings for typed dense-backend failures;
-- explicit Qdrant hydration mismatch failure;
-- deterministic API failure tests;
-- no-fallback verification;
-- health-isolation verification;
-- runtime reload lifecycle verification;
-- live Qdrant stop/start recovery evidence;
-- integrated regression and strict DoD closure;
+- bounded Qdrant live-probe caching with a 30-second default TTL;
+- explicit `/runtime?refresh_qdrant=true` forced refresh;
+- profile, build, collection, and compatibility diagnostics;
+- request, success, and failure counters;
+- last request, success, and failure timestamps;
+- bounded last-failure category, stage, and message;
+- encode, backend-search, hydration, and total timings;
+- requested and effective backend state;
+- explicit `fallback_applied=false`;
+- success/failure/recovery lifecycle;
+- backend, probe-cache, and operational-state reset on reload;
+- targeted tests, live smoke, integrated regression, and strict DoD closure;
 - checkpoint documentation.
 
 It does not include:
 
 - public backend selection;
-- public success-response metadata;
+- public `/search` success-response metadata;
 - hybrid Qdrant serving;
 - similar-paper migration;
 - fallback orchestration;
-- persistent observability state;
-- metrics or tracing platform;
-- performance/concurrency benchmarks;
+- persistent or unbounded telemetry history;
+- Prometheus, OpenTelemetry, or tracing platform;
+- performance/concurrency benchmark results;
 - new embeddings;
 - source or canonical changes.
 
----
 
 ## 28. Final recommendation
 
-Merge Qdrant Failure Contract v1 after final documentation review.
+Merge Qdrant Runtime Observability v1 after final documentation review.
 
 Then proceed with:
 
 ```text
-runtime observability and diagnostics
-→ warm/cold and concurrency evidence
+warm/cold and concurrency evidence
 → controlled hybrid evaluation
 → explicit promotion decision
 ```
 
-Do not promote Qdrant merely because parity and failure handling are green.
+Do not promote Qdrant merely because parity, failure handling, and runtime
+observability are green.
 
-The correct question remains whether Qdrant produces enough operational and scaling value to justify a public or deployment-level backend choice while remaining observable, reversible, and compatible with the active retrieval build.
+The remaining question is whether Qdrant provides enough operational, scaling,
+filtering, isolation, or concurrency value to justify a public or
+deployment-level backend choice while remaining observable, reversible, and
+compatible with the active retrieval build.

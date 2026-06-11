@@ -286,9 +286,22 @@ def info() -> ApiInfoResponse:
 
 
 @app.get("/runtime", response_model=RuntimeSnapshotResponse)
-def runtime_snapshot() -> RuntimeSnapshotResponse:
+def runtime_snapshot(
+    refresh_qdrant: bool = Query(
+        False,
+        description=(
+            "Force a fresh live Qdrant diagnostics probe instead of "
+            "using the bounded runtime cache."
+        ),
+    ),
+) -> RuntimeSnapshotResponse:
     runtime = get_runtime()
-    return RuntimeSnapshotResponse(**runtime.runtime_snapshot(include_qdrant=True))
+    return RuntimeSnapshotResponse(
+        **runtime.runtime_snapshot(
+            include_qdrant=True,
+            refresh_qdrant=refresh_qdrant,
+        )
+    )
 
 
 @app.post("/reload", response_model=ReloadResponse)

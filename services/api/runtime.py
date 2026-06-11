@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import time
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
+from threading import Lock
 from typing import Any
 
 from sentence_transformers import SentenceTransformer
@@ -32,6 +34,35 @@ logger = get_logger(__name__)
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
+def _bounded_message(value: object, *, max_length: int = 500) -> str:
+    text = str(value).strip()
+
+    if len(text) <= max_length:
+        return text
+
+    return text[: max_length - 3] + "..."
+
+@dataclass
+class QdrantOperationalState:
+    request_count: int = 0
+    success_count: int = 0
+    failure_count: int = 0
+
+    last_status: str = "never"
+    last_request_at: str | None = None
+    last_success_at: str | None = None
+    last_failure_at: str | None = None
+
+    last_failure_category: str | None = None
+    last_failure_stage: str | None = None
+    last_failure_message: str | None = None
+
+    last_result_count: int | None = None
+    last_timing_ms: dict[str, float] = field(default_factory=dict)
+
+    requested_vector_backend: str | None = None
+    effective_vector_backend: str | None = None
+    fallback_applied: bool = False
 
 @dataclass
 class ApiRuntime:
@@ -42,6 +73,31 @@ class ApiRuntime:
     embedding_model: SentenceTransformer | None = None
     db_store: PostgresDocumentStore | None = None
     qdrant_dense_backend: QdrantDenseBackend | None = None
+    qdrant_operational_state: QdrantOperationalState = field(
+        default_factory=QdrantOperationalState,
+        init=False,
+    )
+
+    _qdrant_state_lock: Any = field(
+        default_factory=Lock,
+        init=False,
+        repr=False,
+    )
+    _qdrant_diagnostics_cache: dict[str, Any] | None = field(
+        default=None,
+        init=False,
+        repr=False,
+    )
+    _qdrant_diagnostics_cached_at_monotonic: float | None = field(
+        default=None,
+        init=False,
+        repr=False,
+    )
+    _qdrant_diagnostics_checked_at: str | None = field(
+        default=None,
+        init=False,
+        repr=False,
+    )
 
     last_load_error: str | None = None
 
@@ -62,6 +118,8 @@ class ApiRuntime:
                 self._load_db_runtime()
             else:
                 self._load_file_runtime()
+
+            self._reset_qdrant_runtime_state()
 
             self.last_load_error = None
             self.last_loaded_at = _utc_now_iso()
@@ -169,6 +227,67 @@ class ApiRuntime:
         self.load()
         self.last_reload_at = _utc_now_iso()
 
+    def _reset_qdrant_runtime_state(self) -> None:
+        with self._qdrant_state_lock:
+            self.qdrant_operational_state = QdrantOperationalState()
+            self._qdrant_diagnostics_cache = None
+            self._qdrant_diagnostics_cached_at_monotonic = None
+            self._qdrant_diagnostics_checked_at = None
+
+    def record_qdrant_request_started(self) -> None:
+        with self._qdrant_state_lock:
+            state = self.qdrant_operational_state
+            state.request_count += 1
+            state.last_request_at = _utc_now_iso()
+            state.requested_vector_backend = "qdrant"
+            state.effective_vector_backend = None
+            state.fallback_applied = False
+
+    def record_qdrant_success(
+        self,
+        *,
+        result_count: int,
+        timing_ms: dict[str, float],
+    ) -> None:
+        with self._qdrant_state_lock:
+            state = self.qdrant_operational_state
+            state.success_count += 1
+            state.last_status = "ok"
+            state.last_success_at = _utc_now_iso()
+            state.last_result_count = int(result_count)
+            state.last_timing_ms = {
+                str(name): float(value)
+                for name, value in timing_ms.items()
+            }
+            state.requested_vector_backend = "qdrant"
+            state.effective_vector_backend = "qdrant"
+            state.fallback_applied = False
+
+    def record_qdrant_failure(
+        self,
+        *,
+        category: str,
+        stage: str,
+        message: str,
+        timing_ms: dict[str, float],
+    ) -> None:
+        with self._qdrant_state_lock:
+            state = self.qdrant_operational_state
+            state.failure_count += 1
+            state.last_status = "error"
+            state.last_failure_at = _utc_now_iso()
+            state.last_failure_category = str(category)
+            state.last_failure_stage = str(stage)
+            state.last_failure_message = _bounded_message(message)
+            state.last_result_count = None
+            state.last_timing_ms = {
+                str(name): float(value)
+                for name, value in timing_ms.items()
+            }
+            state.requested_vector_backend = "qdrant"
+            state.effective_vector_backend = None
+            state.fallback_applied = False
+
     def get_qdrant_dense_backend(self) -> QdrantDenseBackend:
         """Return the cached experimental Qdrant dense backend.
 
@@ -265,7 +384,11 @@ class ApiRuntime:
             "db_store": self.db_store is not None,
         }
 
-    def _qdrant_diagnostics(self, *, expected_corpus_doc_count: int | None) -> dict[str, Any]:
+    def _probe_qdrant_diagnostics(
+            self,
+            *,
+            expected_corpus_doc_count: int | None,
+    ) -> dict[str, Any]:
         settings = get_settings()
 
         diagnostics: dict[str, Any] = {
@@ -328,9 +451,102 @@ class ApiRuntime:
 
         except Exception as exc:  # noqa: BLE001 - optional diagnostics must not break /runtime
             logger.warning("Qdrant runtime diagnostics failed: %s", exc)
-            diagnostics["error"] = repr(exc)
+            diagnostics["error"] = _bounded_message(
+                f"{type(exc).__name__}: {exc}"
+            )
 
         return diagnostics
+
+    def _qdrant_diagnostics(
+        self,
+        *,
+        expected_corpus_doc_count: int | None,
+        force_refresh: bool = False,
+    ) -> dict[str, Any]:
+        settings = get_settings()
+
+        ttl_sec = float(settings.qdrant_runtime_diagnostics_ttl_sec)
+        now_monotonic = time.monotonic()
+
+        with self._qdrant_state_lock:
+            cached_payload = (
+                dict(self._qdrant_diagnostics_cache)
+                if self._qdrant_diagnostics_cache is not None
+                else None
+            )
+            cached_at_monotonic = self._qdrant_diagnostics_cached_at_monotonic
+            checked_at = self._qdrant_diagnostics_checked_at
+
+        cache_age_sec: float | None = None
+        if cached_at_monotonic is not None:
+            cache_age_sec = max(
+                0.0,
+                now_monotonic - cached_at_monotonic,
+            )
+
+        use_cache = bool(
+            not force_refresh
+            and cached_payload is not None
+            and cache_age_sec is not None
+            and cache_age_sec <= ttl_sec
+        )
+
+        if use_cache:
+            diagnostics = cached_payload
+            probe_cached = True
+        else:
+            diagnostics = self._probe_qdrant_diagnostics(
+                expected_corpus_doc_count=expected_corpus_doc_count,
+            )
+            checked_at = _utc_now_iso()
+            cache_age_sec = 0.0
+            probe_cached = False
+
+            with self._qdrant_state_lock:
+                self._qdrant_diagnostics_cache = dict(diagnostics)
+                self._qdrant_diagnostics_cached_at_monotonic = now_monotonic
+                self._qdrant_diagnostics_checked_at = checked_at
+
+        with self._qdrant_state_lock:
+            operational_state = asdict(self.qdrant_operational_state)
+
+        backend_created = self.qdrant_dense_backend is not None
+        compatibility_checked = False
+        compatibility_ok: bool | None = None
+
+        if self.qdrant_dense_backend is not None:
+            backend_info = self.qdrant_dense_backend.info()
+            backend_diagnostics = backend_info.diagnostics
+            compatibility_checked = bool(
+                backend_diagnostics.get("compatibility_checked")
+            )
+            compatibility_ok = (
+                bool(backend_info.ready)
+                if compatibility_checked
+                else None
+            )
+
+        build_id = self.manifest.build_id if self.manifest else None
+
+        return {
+            **diagnostics,
+            "probe_cached": probe_cached,
+            "probe_checked_at": checked_at,
+            "probe_cache_age_sec": (
+                round(cache_age_sec, 3)
+                if cache_age_sec is not None
+                else None
+            ),
+            "probe_ttl_sec": ttl_sec,
+            "profile_name": settings.qdrant_search_profile_name,
+            "exact": settings.qdrant_search_exact,
+            "hnsw_ef": settings.qdrant_search_hnsw_ef,
+            "build_id": build_id,
+            "backend_created": backend_created,
+            "compatibility_checked": compatibility_checked,
+            "compatibility_ok": compatibility_ok,
+            **operational_state,
+        }
 
     def is_ready(self) -> bool:
         if self.backend_mode == "db":
@@ -344,7 +560,12 @@ class ApiRuntime:
             and self.embedding_model is not None
         )
 
-    def runtime_snapshot(self, *, include_qdrant: bool = False) -> dict:
+    def runtime_snapshot(
+            self,
+            *,
+            include_qdrant: bool = False,
+            refresh_qdrant: bool = False,
+    ) -> dict:
         settings = get_settings()
         loaded_components = self._loaded_components()
 
@@ -387,6 +608,7 @@ class ApiRuntime:
         if include_qdrant:
             snapshot["qdrant"] = self._qdrant_diagnostics(
                 expected_corpus_doc_count=corpus_doc_count,
+                force_refresh=refresh_qdrant,
             )
 
         return snapshot
