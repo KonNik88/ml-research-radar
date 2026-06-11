@@ -162,6 +162,29 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
             ]
         )
 
+    if args.include_qdrant_serving_performance:
+        steps.extend(
+            [
+                Step(
+                    name="run_qdrant_serving_performance",
+                    cmd=python_cmd(
+                        "scripts.evaluation.run_qdrant_serving_performance",
+                        "--preset",
+                        "full",
+                    ),
+                    env=file_env,
+                ),
+                Step(
+                    name="check_qdrant_serving_performance",
+                    cmd=python_cmd(
+                        "scripts.validation.check_qdrant_serving_performance",
+                        "--strict",
+                    ),
+                    env=file_env,
+                ),
+            ]
+        )
+
     if args.include_qdrant_api:
         steps.append(
             Step(
@@ -363,6 +386,18 @@ def build_parser() -> argparse.ArgumentParser:
             "ef_256, ef_512, and exact profiles against the exact file-dense "
             "reference. It is evaluation-only, requires an existing Qdrant "
             "collection, and does not change API defaults."
+        ),
+    )
+    parser.add_argument(
+        "--include-qdrant-serving-performance",
+        action="store_true",
+        help=(
+            "Also run the full read-only Qdrant serving-performance benchmark "
+            "and strict evidence validator. This measures backend-only and API "
+            "serving latency, concurrency, resource usage, and result parity "
+            "over all enabled golden queries. It requires an existing compatible "
+            "Qdrant collection, does not recreate or upload vectors, does not "
+            "change public search defaults, and does not promote Qdrant."
         ),
     )
     parser.add_argument(
