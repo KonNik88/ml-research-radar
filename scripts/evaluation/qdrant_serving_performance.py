@@ -44,6 +44,79 @@ def utc_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def exception_chain(
+    exc: BaseException,
+    *,
+    max_depth: int = 8,
+) -> list[dict[str, Any]]:
+    """Return a compact, cycle-safe exception cause/context chain."""
+
+    if (
+        not isinstance(max_depth, int)
+        or isinstance(max_depth, bool)
+        or max_depth <= 0
+    ):
+        raise ValueError("max_depth must be a positive integer")
+
+    chain: list[dict[str, Any]] = []
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    relation = "raised"
+
+    while current is not None and len(chain) < max_depth:
+        identity = id(current)
+        if identity in seen:
+            chain.append(
+                {
+                    "relation": relation,
+                    "type": type(current).__name__,
+                    "module": type(current).__module__,
+                    "message": str(current),
+                    "cycle_detected": True,
+                }
+            )
+            break
+
+        seen.add(identity)
+        chain.append(
+            {
+                "relation": relation,
+                "type": type(current).__name__,
+                "module": type(current).__module__,
+                "message": str(current),
+                "cycle_detected": False,
+            }
+        )
+
+        if current.__cause__ is not None:
+            current = current.__cause__
+            relation = "cause"
+        elif (
+            current.__context__ is not None
+            and not current.__suppress_context__
+        ):
+            current = current.__context__
+            relation = "context"
+        else:
+            current = None
+
+    return chain
+
+
+def exception_details(
+    exc: BaseException,
+) -> dict[str, Any]:
+    """Serialize an exception without losing its root cause chain."""
+
+    return {
+        "error": f"{type(exc).__name__}: {exc}",
+        "error_type": type(exc).__name__,
+        "error_module": type(exc).__module__,
+        "error_message": str(exc),
+        "error_chain": exception_chain(exc),
+    }
+
+
 def normalize_path(path: str | Path | None) -> str | None:
     if path is None:
         return None
@@ -1106,6 +1179,7 @@ def run_threaded_calls(
     callables: Sequence[Callable[[], T]],
     *,
     max_workers: int,
+    task_contexts: Sequence[Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     max_workers = _require_positive_int(
         max_workers,
@@ -1113,6 +1187,16 @@ def run_threaded_calls(
     )
 
     tasks = list(callables)
+
+    if task_contexts is None:
+        contexts = [{} for _ in tasks]
+    else:
+        contexts = [dict(context) for context in task_contexts]
+        if len(contexts) != len(tasks):
+            raise ValueError(
+                "task_contexts length must match callables length"
+            )
+
     if not tasks:
         return {
             "concurrency": max_workers,
@@ -1129,10 +1213,11 @@ def run_threaded_calls(
         None for _ in tasks
     ]
 
-    def invoke(index: int, callback: Callable[[], T]) -> tuple[
-        int,
-        dict[str, Any],
-    ]:
+    def invoke(
+        index: int,
+        callback: Callable[[], T],
+        context: Mapping[str, Any],
+    ) -> tuple[int, dict[str, Any]]:
         started = time.perf_counter()
         try:
             value = callback()
@@ -1140,27 +1225,40 @@ def run_threaded_calls(
                 time.perf_counter() - started
             ) * 1000
             return index, {
+                "task_index": index,
+                "task_context": dict(context),
                 "ok": True,
                 "latency_ms": latency_ms,
                 "value": value,
                 "error": None,
+                "error_type": None,
+                "error_module": None,
+                "error_message": None,
+                "error_chain": [],
             }
         except Exception as exc:
             latency_ms = (
                 time.perf_counter() - started
             ) * 1000
             return index, {
+                "task_index": index,
+                "task_context": dict(context),
                 "ok": False,
                 "latency_ms": latency_ms,
                 "value": None,
-                "error": f"{type(exc).__name__}: {exc}",
+                **exception_details(exc),
             }
 
     wall_started = time.perf_counter()
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = [
-            executor.submit(invoke, index, callback)
+            executor.submit(
+                invoke,
+                index,
+                callback,
+                contexts[index],
+            )
             for index, callback in enumerate(tasks)
         ]
 
@@ -1209,3 +1307,4 @@ def run_threaded_calls(
         ),
         "records": completed_records,
     }
+

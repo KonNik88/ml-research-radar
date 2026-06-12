@@ -14,6 +14,7 @@ from scripts.evaluation.qdrant_serving_performance import (
     compare_id_lists,
     derive_api_timings,
     docker_container_snapshot,
+    exception_chain,
     gpu_snapshot,
     parse_size_to_bytes,
     resolve_preset,
@@ -320,6 +321,14 @@ def test_run_threaded_calls_records_success_and_failure() -> None:
             lambda: 1 / 0,
         ],
         max_workers=2,
+        task_contexts=[
+            {"query_id": "ok-query"},
+            {
+                "query_id": "failed-query",
+                "round": 2,
+                "top_k": 20,
+            },
+        ],
     )
 
     assert result["task_count"] == 2
@@ -327,11 +336,67 @@ def test_run_threaded_calls_records_success_and_failure() -> None:
     assert result["error_count"] == 1
     assert result["latency"]["count"] == 2
     assert result["throughput_rps"] >= 0.0
-    assert result["records"][0]["ok"] is True
-    assert result["records"][0]["value"] == "ok"
-    assert result["records"][1]["ok"] is False
-    assert "ZeroDivisionError" in result["records"][1]["error"]
 
+    success = result["records"][0]
+    failure = result["records"][1]
+
+    assert success["ok"] is True
+    assert success["value"] == "ok"
+    assert success["task_context"] == {
+        "query_id": "ok-query"
+    }
+    assert success["error_chain"] == []
+
+    assert failure["ok"] is False
+    assert failure["task_context"] == {
+        "query_id": "failed-query",
+        "round": 2,
+        "top_k": 20,
+    }
+    assert failure["error_type"] == "ZeroDivisionError"
+    assert failure["error_module"] == "builtins"
+    assert failure["error_message"] == "division by zero"
+    assert failure["error_chain"][0]["type"] == (
+        "ZeroDivisionError"
+    )
+
+
+def test_exception_chain_retains_explicit_root_cause() -> None:
+    try:
+        try:
+            raise OSError("connection reset by peer")
+        except OSError as exc:
+            raise RuntimeError("backend unavailable") from exc
+    except RuntimeError as exc:
+        chain = exception_chain(exc)
+
+    assert [
+        (row["relation"], row["type"], row["message"])
+        for row in chain
+    ] == [
+        (
+            "raised",
+            "RuntimeError",
+            "backend unavailable",
+        ),
+        (
+            "cause",
+            "OSError",
+            "connection reset by peer",
+        ),
+    ]
+
+
+def test_run_threaded_calls_rejects_context_length_mismatch() -> None:
+    with pytest.raises(
+        ValueError,
+        match="task_contexts length",
+    ):
+        run_threaded_calls(
+            [lambda: "ok"],
+            max_workers=1,
+            task_contexts=[],
+        )
 
 
 def test_derive_api_timings_exposes_unattributed_and_client_overhead() -> None:

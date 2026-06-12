@@ -716,6 +716,7 @@ def _run_backend_concurrent(
 
     for concurrency in concurrency_levels:
         callbacks: list[Callable[[], dict[str, Any]]] = []
+        task_contexts: list[dict[str, Any]] = []
 
         for round_index in range(measured_rounds):
             for top_k in top_k_values:
@@ -735,6 +736,15 @@ def _run_backend_concurrent(
                         return row
 
                     callbacks.append(callback)
+                    task_contexts.append(
+                        {
+                            "backend": backend_name,
+                            "concurrency": int(concurrency),
+                            "round": round_index + 1,
+                            "query_id": workload.query_id,
+                            "top_k": int(top_k),
+                        }
+                    )
 
         with sampled_resources(
             pid=os.getpid(),
@@ -743,6 +753,7 @@ def _run_backend_concurrent(
             threaded = run_threaded_calls(
                 callbacks,
                 max_workers=int(concurrency),
+                task_contexts=task_contexts,
             )
             resource_summary = sampler.stop()
 
@@ -754,9 +765,14 @@ def _run_backend_concurrent(
         ]
         errors = [
             {
-                "backend": backend_name,
-                "error": row["error"],
+                **dict(row.get("task_context") or {}),
+                "task_index": row.get("task_index"),
                 "latency_ms": row["latency_ms"],
+                "error": row["error"],
+                "error_type": row.get("error_type"),
+                "error_module": row.get("error_module"),
+                "error_message": row.get("error_message"),
+                "error_chain": row.get("error_chain") or [],
             }
             for row in threaded["records"]
             if row["ok"] is False
@@ -1437,6 +1453,7 @@ def _run_api_concurrent(
 
     for concurrency in concurrency_levels:
         callbacks: list[Callable[[], dict[str, Any]]] = []
+        task_contexts: list[dict[str, Any]] = []
 
         for round_index in range(measured_rounds):
             for top_k in top_k_values:
@@ -1470,6 +1487,15 @@ def _run_api_concurrent(
                         return result
 
                     callbacks.append(callback)
+                    task_contexts.append(
+                        {
+                            "target": target_name,
+                            "concurrency": int(concurrency),
+                            "round": round_index + 1,
+                            "query_id": query_id,
+                            "top_k": int(top_k),
+                        }
+                    )
 
         with sampled_resources(
             pid=api_process.process.pid,
@@ -1478,6 +1504,7 @@ def _run_api_concurrent(
             threaded = run_threaded_calls(
                 callbacks,
                 max_workers=int(concurrency),
+                task_contexts=task_contexts,
             )
             resource_summary = sampler.stop()
 
@@ -1489,9 +1516,14 @@ def _run_api_concurrent(
         ]
         errors = [
             {
-                "target": target_name,
-                "error": row["error"],
+                **dict(row.get("task_context") or {}),
+                "task_index": row.get("task_index"),
                 "latency_ms": row["latency_ms"],
+                "error": row["error"],
+                "error_type": row.get("error_type"),
+                "error_module": row.get("error_module"),
+                "error_message": row.get("error_message"),
+                "error_chain": row.get("error_chain") or [],
             }
             for row in threaded["records"]
             if row["ok"] is False
