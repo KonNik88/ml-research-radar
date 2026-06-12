@@ -34,6 +34,8 @@ def _valid_config() -> dict:
         "qdrant": {
             "host": "localhost",
             "port": 6333,
+            "grpc_port": 6334,
+            "prefer_grpc": True,
             "collection_name": "collection",
             "timeout_sec": 120,
             "check_compatibility": False,
@@ -289,6 +291,26 @@ def test_valid_config_and_preset_pass() -> None:
     assert preset["max_queries"] == 2
     assert preset["backend"]["concurrency_levels"] == [1, 2]
 
+def test_config_rejects_invalid_grpc_port() -> None:
+    config = _valid_config()
+    config["qdrant"]["grpc_port"] = 0
+
+    with pytest.raises(
+        ValueError,
+        match="grpc_port",
+    ):
+        validate_benchmark_config(config)
+
+
+def test_config_rejects_non_boolean_prefer_grpc() -> None:
+    config = _valid_config()
+    config["qdrant"]["prefer_grpc"] = "true"
+
+    with pytest.raises(
+        ValueError,
+        match="prefer_grpc",
+    ):
+        validate_benchmark_config(config)
 
 def test_config_rejects_wrong_schema() -> None:
     config = _valid_config()

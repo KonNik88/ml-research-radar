@@ -321,6 +321,21 @@ def validate_benchmark_config(
 
     _require_positive_int(qdrant.get("port"), name="qdrant.port")
 
+    grpc_port = _require_positive_int(
+        qdrant.get("grpc_port"),
+        name="qdrant.grpc_port",
+    )
+
+    if grpc_port > 65535:
+        raise ValueError(
+            "qdrant.grpc_port must be <= 65535"
+        )
+
+    if not isinstance(qdrant.get("prefer_grpc"), bool):
+        raise ValueError(
+            "qdrant.prefer_grpc must be boolean"
+        )
+
     timeout_sec = qdrant.get("timeout_sec")
     if (
         not isinstance(timeout_sec, (int, float))

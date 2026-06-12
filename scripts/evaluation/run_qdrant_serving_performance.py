@@ -181,6 +181,10 @@ def _collection_summary(
 
     return {
         "collection_name": store.collection_name,
+        "transport": store.transport,
+        "rest_port": store.port,
+        "grpc_port": store.grpc_port,
+        "prefer_grpc": store.prefer_grpc,
         "status": info.get("status"),
         "optimizer_status": info.get("optimizer_status"),
         "points_count": info.get("points_count"),
@@ -2155,6 +2159,8 @@ def run_benchmark(
     store = QdrantRetrievalStore(
         host=str(qdrant_cfg["host"]),
         port=int(qdrant_cfg["port"]),
+        grpc_port=int(qdrant_cfg["grpc_port"]),
+        prefer_grpc=bool(qdrant_cfg["prefer_grpc"]),
         collection_name=str(
             qdrant_cfg["collection_name"]
         ),
@@ -2884,6 +2890,9 @@ def run_benchmark(
             "profile_name": str(
                 qdrant_cfg["profile"]["name"]
             ),
+            "qdrant_transport": store.transport,
+            "qdrant_rest_port": store.port,
+            "qdrant_grpc_port": store.grpc_port,
             "error_count": total_error_count,
             "quality_ok": verdict["ok"],
         },

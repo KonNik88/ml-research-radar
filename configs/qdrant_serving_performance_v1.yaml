@@ -3,6 +3,9 @@ schema_version: qdrant_serving_performance_config_v1
 qdrant:
   host: localhost
   port: 6333
+  grpc_port: 6334
+  prefer_grpc: true
+
   collection_name: ml_radar_dense_benchmark_v1
   timeout_sec: 120
   check_compatibility: false
