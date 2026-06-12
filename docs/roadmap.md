@@ -4,18 +4,22 @@
 
 ```text
 document: primary living roadmap
-checkpoint: Qdrant Runtime Observability v1
-checkpoint date: 2026-06-11
-implementation state: green on feature branch, pending PR merge
-implementation commit: f89574e
-previous checkpoint: Qdrant Failure Contract v1 merged in PR #17
-main merge commit before current branch: 7539dd4
+checkpoint: Qdrant Serving Performance v1
+checkpoint date: 2026-06-12
+implementation state: implemented / validated on feature branch, pending PR merge
+feature branch: retrieval/qdrant-serving-performance-v1
+previous checkpoint: Qdrant Runtime Observability v1 merged in PR #18
 public Qdrant promotion: not performed
+public dense/hybrid backend: file
+experimental Qdrant transport: gRPC
 ```
 
-This roadmap describes the current validated state of **ML Research Radar**, the architectural invariants that must remain stable, and the recommended order of future work.
+This roadmap describes the current validated state of **ML Research Radar**,
+the architectural invariants that must remain stable, and the recommended order
+of future work.
 
-The project prefers complete, validated vertical slices over broad feature expansion.
+The project prefers complete, validated vertical slices over broad feature
+expansion.
 
 ---
 
@@ -36,7 +40,10 @@ It is not:
 - a RAG demo;
 - a collection of unrelated scripts.
 
-The platform collects partially overlapping observations from multiple sources, reconciles them into paper-level canonical entities, and builds rebuildable retrieval, serving, evidence, analytics, API, and UI layers above the canonical corpus.
+The platform collects partially overlapping observations from multiple
+sources, reconciles them into paper-level canonical entities, and builds
+rebuildable retrieval, serving, evidence, analytics, API, and UI layers above
+the canonical corpus.
 
 High-level architecture:
 
@@ -72,7 +79,7 @@ data/analytics/reconciled/canonical_documents.jsonl
 
 `CanonicalDocument` is the central paper-level entity.
 
-The following layers are derived and rebuildable:
+Derived and rebuildable layers:
 
 - Postgres serving tables;
 - lexical and dense retrieval artifacts;
@@ -88,17 +95,38 @@ The following layers are derived and rebuildable:
 
 None of these layers may redefine paper identity.
 
-### 2.2 Postgres
+### 2.2 Identity separation
+
+```text
+source_doc_id = source-level observation identity
+canonical_id = reconciled paper-level identity
+artifact_id = normalized artifact identity
+```
+
+Paper identity priority remains:
+
+```text
+DOI
+→ external DOI
+→ arXiv ID
+→ external arXiv ID
+→ normalized title + year fallback
+```
+
+A canonical URL is useful metadata but is not the sole paper identity rule.
+
+### 2.3 Postgres
 
 ```text
 Postgres = rebuildable materialized serving layer
 ```
 
-It supports browse/filter, DB lexical search, source/reference inspection, artifact serving, and API queries.
+It supports browse/filter, DB lexical search, source/reference inspection,
+artifact serving, and API queries.
 
 It is not canonical paper truth.
 
-### 2.3 Retrieval
+### 2.4 Retrieval
 
 ```text
 retrieval artifacts = derived retrieval layer
@@ -113,9 +141,10 @@ The active retrieval build is tied to:
 - embedding model;
 - normalized-vector contract.
 
-### 2.4 Artifact evidence
+### 2.5 Artifact evidence
 
-GitHub, Hugging Face, datasets, models, demos, and repositories are separate artifact entities linked to papers through evidence.
+GitHub, Hugging Face, datasets, models, demos, and repositories are separate
+artifact entities linked to papers through evidence.
 
 ```text
 CanonicalDocument
@@ -123,9 +152,9 @@ CanonicalDocument
 ArtifactEntity
 ```
 
-Artifact metadata must not overwrite paper bibliography or paper identity.
+Artifact metadata must not overwrite paper bibliography or identity.
 
-### 2.5 Qdrant
+### 2.6 Qdrant
 
 ```text
 Qdrant = optional derived dense-serving backend
@@ -138,7 +167,7 @@ Qdrant is not:
 - a retrieval strategy;
 - a required dependency of general service health.
 
-The public retrieval strategies remain:
+Public retrieval strategies remain:
 
 ```text
 lexical
@@ -146,26 +175,27 @@ dense
 hybrid
 ```
 
-The dense implementation backend is an internal concern:
+Dense implementation is an internal concern:
 
 ```text
 file
 qdrant
 ```
 
-### 2.6 Streamlit
+### 2.7 Streamlit
 
 ```text
 Streamlit = thin client over FastAPI
 ```
 
-Business logic, retrieval, ranking, canonical merge, artifact normalization, and clustering remain outside the UI.
+Business logic, retrieval, ranking, canonical merge, artifact normalization,
+and clustering remain outside the UI.
 
 ---
 
 ## 3. Current green checkpoint
 
-Current corpus and retrieval baseline:
+### Corpus and retrieval
 
 ```text
 canonical_doc_count = 60954
@@ -183,7 +213,7 @@ embedding_shape = [60954, 384]
 dense_vectors_normalized = true
 ```
 
-Current Qdrant collection:
+### Qdrant collection
 
 ```text
 collection = ml_radar_dense_benchmark_v1
@@ -192,9 +222,11 @@ vector_size = 384
 distance = Cosine
 status = green
 optimizer_status = ok
+experimental transport = gRPC
+grpc_port = 6334
 ```
 
-Current Golden Set:
+### Golden Set and profile
 
 ```text
 enabled_queries_count = 34
@@ -202,17 +234,17 @@ explicit_canonical_labeled_enabled_count = 34
 weak_pattern_enabled_count = 0
 ```
 
-Current Qdrant profile evidence:
+Profile evidence:
 
 ```text
-default → exact order 33/34, one stable ANN recall mismatch
-ef_128  → exact order 33/34, one stable ANN recall mismatch
+default → exact order 33/34
+ef_128  → exact order 33/34
 ef_256  → exact order 34/34
 ef_512  → exact order 34/34
 exact   → exact order 34/34
 ```
 
-Selected experimental ANN profile:
+Selected profile:
 
 ```text
 name = ef_256
@@ -227,7 +259,51 @@ name = exact
 exact = true
 ```
 
-`ef_256` is the minimum currently tested ANN profile that restores full order parity on the active build and 34-query Golden Set. It is not a permanent universal constant.
+`ef_256` is build-scoped and must be re-evaluated after material changes.
+
+### Serving performance
+
+```text
+transport = gRPC
+full benchmark queries = 34
+top_k = [10, 20]
+backend concurrency = [1, 2, 4, 8]
+API concurrency = [1, 2, 4, 8]
+
+quality comparisons = 681
+exact comparisons = 681
+mean overlap@k = 1.0
+minimum overlap@k = 1.0
+serving errors = 0
+strict validator failures = 0
+```
+
+Reliability evidence:
+
+```text
+REST shared client on Windows at direct concurrency 8
+→ reproducible WinError 10038
+
+gRPC backend full run #1
+→ 680 / 680 successful at concurrency 8
+
+gRPC backend full run #2
+→ 680 / 680 successful at concurrency 8
+
+final full benchmark
+→ backend Qdrant concurrency 8 = 680 / 680
+→ API Qdrant concurrency 8 = 204 / 204
+```
+
+Public behavior remains:
+
+```text
+/search?mode=dense  → file dense
+/search?mode=hybrid → file dense component
+/experimental/search/qdrant → Qdrant gRPC
+/health → Qdrant-independent
+fallback → absent
+```
 
 ---
 
@@ -246,16 +322,16 @@ Completed:
 - provenance-preserving merge;
 - DOI normalization and conflict protection;
 - arXiv backbone;
-- aligned OpenAlex, Semantic Scholar, and Crossref enrichment;
+- OpenAlex, Semantic Scholar, and Crossref alignment;
 - ACL Anthology integration;
 - canonical contract validation;
-- controlled promotion of candidate corpus states.
+- controlled candidate promotion.
 
 ### 4.2 Incremental refresh and promotion safety
 
 Status: **done / green**
 
-Implemented lifecycle:
+Lifecycle:
 
 ```text
 capture baseline
@@ -288,16 +364,16 @@ Completed:
 - lexical retrieval;
 - dense retrieval;
 - hybrid retrieval;
-- retrieval build manifest;
+- retrieval manifest;
 - artifact validation;
 - file runtime;
-- query evaluation;
+- retrieval evaluation;
 - search-quality experiments;
 - controlled experiments;
 - Golden Set validation;
 - similar-paper retrieval.
 
-Current public file-dense semantics:
+Exact file reference semantics:
 
 ```python
 query_vector = encoder.encode(
@@ -310,7 +386,7 @@ scores = stored_embeddings @ query_vector
 order = np.argsort(scores)[::-1]
 ```
 
-The full sort is the current exact reference behavior. Scale optimization is a separate future concern.
+The full sort is the current exact reference behavior.
 
 ### 4.4 Postgres serving foundation
 
@@ -351,7 +427,7 @@ Completed:
 - artifact API and filters;
 - operational validation.
 
-### 4.6 Paper features, ranking, paper detail, similar papers
+### 4.6 Paper features, ranking, detail, similar papers
 
 Status: **done / green**
 
@@ -368,13 +444,13 @@ Completed:
 - paper detail cards;
 - semantic and radar-adjusted similar papers.
 
-These are transparent derived heuristics, not canonical truth or learned quality labels.
+These are transparent derived heuristics, not canonical truth.
 
 ### 4.7 Discovery API
 
 Status: **done / green**
 
-Current product endpoints include:
+Current endpoints include:
 
 ```text
 /discovery/profiles
@@ -387,13 +463,11 @@ Current product endpoints include:
 /discovery/clusters/map
 ```
 
-Discovery validation is green.
-
 ### 4.8 Streamlit Discovery UI
 
 Status: **done / green**
 
-The UI is a thin API client and supports:
+The thin client supports:
 
 - discovery ranking;
 - search;
@@ -410,8 +484,6 @@ The UI is a thin API client and supports:
 
 Status: **done / green**
 
-Current topic layer:
-
 ```text
 algorithm = MiniBatchKMeans
 cluster_count = 80
@@ -425,7 +497,7 @@ representatives = 800
 sampled_papers = 1200
 ```
 
-Cluster IDs and labels are build-scoped derived navigation aids, not canonical taxonomy.
+Cluster IDs and labels are build-scoped navigation aids, not canonical taxonomy.
 
 ### 4.10 Retrieval evaluation and Golden Set Expansion v2
 
@@ -433,13 +505,13 @@ Status: **done / green**
 
 Completed:
 
-- 34 enabled Golden Set queries;
+- 34 enabled queries;
 - 34 explicit canonical relevance labels;
 - no weak-pattern-only enabled queries;
 - parity, ranking, search-quality, and controlled evaluation tooling;
 - query-group expansion across modern ML topics.
 
-Important rule:
+Rule:
 
 ```text
 Do not change retrieval defaults by intuition.
@@ -450,22 +522,22 @@ Use measured query-level and group-level evidence.
 
 Status: **done / green**
 
-The parity slice established:
+Established:
 
 - collection mapping is correct;
-- persisted vectors and Qdrant vectors are compatible;
-- build ID and dense index mapping are correct;
+- persisted and Qdrant vectors are compatible;
+- build ID and dense-index mapping are correct;
 - exact Qdrant matches exact file dense;
-- the previous mismatch was an approximate HNSW recall difference;
-- `ef_256` restores full parity on the current Golden Set.
+- the old mismatch was approximate HNSW recall;
+- `ef_256` restores full parity.
 
-Public `/search` was intentionally not switched to Qdrant.
+Public search was not switched.
 
 ### 4.12 Dense Search Backend Abstraction v1
 
-Status: **done / green; merged into `main` in PR #16**
+Status: **done / green; merged in PR #16**
 
-Implemented internal architecture:
+Implemented:
 
 ```text
 DenseSearchBackend
@@ -473,75 +545,24 @@ DenseSearchBackend
 └── QdrantDenseBackend
 ```
 
-Implemented contracts:
+Backends own only dense candidate generation.
 
-- `DenseSearchRequest`;
-- `DenseSearchCandidate`;
-- `DenseSearchBackendInfo`;
-- `DenseSearchBackendResult`;
-- typed backend exceptions;
-- `QdrantSearchProfile`;
-- read-only `QdrantStore` protocol.
-
-Implemented responsibility boundary:
-
-```text
-prepared query vector
-→ dense backend
-→ backend-neutral candidates
-```
-
-Backends do not own:
+They do not own:
 
 - text validation;
 - model loading;
 - query encoding;
-- document hydration;
+- hydration;
 - hybrid merge;
 - product ranking;
-- pagination;
-- fallback policy;
+- fallback;
 - API serialization.
-
-`dense_backend.py` is now the authoritative runtime owner of exact file-dense candidate semantics.
-
-`parity.py` depends on the backend layer and provides report adapters, comparison, mapping audit, determinism, mismatch details, and classification.
-
-Qdrant improvements:
-
-- explicit `exact` and `hnsw_ef`;
-- selected `ef_256` runtime profile;
-- constructor injection;
-- compatibility validation cached per backend lifecycle;
-- per-result payload/build/mapping validation;
-- strict dense-ID mapping when artifacts are available;
-- no hidden fallback;
-- no collection mutation.
-
-Adoption completed in:
-
-- experimental Qdrant API;
-- file/Qdrant comparison;
-- selected `ef_256` comparison;
-- exact diagnostic comparison;
-- full profile sweep.
-
-Public behavior unchanged:
-
-```text
-/search?mode=dense  → file dense
-/search?mode=hybrid → file dense component
-/health             → Qdrant-independent
-similar papers      → unchanged
-Discovery API       → unchanged
-Streamlit           → unchanged
-```
 
 ### 4.13 Qdrant Failure Contract v1
 
-Status: **done / green; merged into `main` in PR #17**
+Status: **done / green; merged in PR #17**
 
-The API/runtime boundary now preserves the existing typed dense-backend failure categories:
+Typed mappings:
 
 ```text
 DenseBackendRequestError       → 400 dense_backend_bad_request
@@ -552,277 +573,197 @@ DenseBackendResultError        → 503 dense_backend_invalid_result
 
 Additional guarantees:
 
-- Qdrant candidates that cannot be hydrated from the active canonical runtime now fail explicitly;
-- no hidden fallback to file dense exists;
-- general `/health` remains independent of optional Qdrant availability;
-- public `/search?mode=dense` and `/search?mode=hybrid` remain file-backed;
-- transient Qdrant stop/start recovery succeeds without an API restart;
-- runtime reload clears and recreates the cached Qdrant backend;
-- successful experimental Qdrant responses remain compatible.
-
-The slice does not add public backend selection, observability state, performance benchmarks, hybrid Qdrant serving, or fallback orchestration.
+- hydration miss fails explicitly;
+- no hidden fallback;
+- `/health` remains Qdrant-independent;
+- public dense/hybrid remain file-backed;
+- stop/start recovery works;
+- reload recreates the backend.
 
 ### 4.14 Qdrant Runtime Observability v1
 
-Status: **implemented / green on feature branch; pending PR merge**
+Status: **done / green; merged in PR #18**
 
-The runtime now exposes bounded, non-persistent operational diagnostics for the
-experimental Qdrant dense-serving path without changing public search defaults.
-
-Implemented probe semantics:
+Implemented:
 
 ```text
 GET /runtime?refresh_qdrant=true
 → forced live Qdrant probe
 
 GET /runtime
-→ cached probe while cache age <= TTL
-
-default probe TTL
-→ 30 seconds
+→ cached probe within 30-second TTL
 ```
 
-Implemented runtime diagnostics include:
+Runtime diagnostics include:
 
-- Qdrant collection health and point-count compatibility;
-- selected profile, `exact`, and `hnsw_ef`;
-- retrieval build ID;
-- whether the backend object has been created;
-- whether backend compatibility has been checked;
-- request, success, and failure counters;
-- last request, success, and failure timestamps;
-- current last status: `never`, `ok`, or `error`;
-- bounded last-failure category, stage, and message;
-- last result count;
-- stage timings for encode, Qdrant search, hydration, and total time;
-- requested and effective vector backend;
-- explicit `fallback_applied=false`.
+- collection compatibility;
+- profile/build information;
+- backend creation and compatibility state;
+- request/success/failure counters;
+- timestamps;
+- bounded last-failure evidence;
+- encode/search/hydration/total timings;
+- requested/effective backend;
+- explicit `fallback_applied=false`;
+- reset on reload.
 
-Operational-state rules:
+No public promotion or fallback was introduced.
+
+### 4.15 Qdrant Serving Performance v1
+
+Status: **implemented / validated on feature branch; pending PR merge**
+
+Coverage:
 
 ```text
-successful request
-→ last_status = ok
-→ effective_vector_backend = qdrant
+backend-only:
+FileDenseBackend vs QdrantDenseBackend
 
-failed request
-→ last_status = error
-→ effective_vector_backend = null
-→ stable failure category retained
+end-to-end:
+public file-dense /search
+vs
+experimental /experimental/search/qdrant
 
-successful recovery
-→ last_status returns to ok
-→ last_failure_* evidence remains available
-
-runtime load or reload
-→ backend cache, probe cache, and bounded operational state reset
+Golden Set = 34 queries
+top_k = [10, 20]
+concurrency = [1, 2, 4, 8]
 ```
 
-The runtime does not store query text, vectors, response payloads, traceback
-objects, or unbounded history.
-
-Public behavior remains unchanged:
+Initial REST result:
 
 ```text
-/search?mode=dense  → file dense
-/search?mode=hybrid → file dense component
-/health             → Qdrant-independent
-Qdrant fallback     → absent
+first full run = 678 / 680 at concurrency 8
+diagnostic rerun = 679 / 680 at concurrency 8
+
+DenseBackendUnavailableError
+→ ResponseHandlingException
+→ httpx.ReadError
+→ httpcore.ReadError
+→ WinError 10038
+```
+
+The strict zero-error policy remained unchanged.
+
+Experimental serving moved to:
+
+```text
+grpc_port = 6334
+prefer_grpc = true
+```
+
+gRPC evidence:
+
+```text
+backend full run #1, concurrency 8 = 680 / 680
+backend full run #2, concurrency 8 = 680 / 680
+final full backend, concurrency 8 = 680 / 680
+final full API, concurrency 8 = 204 / 204
+quality comparisons = 681 exact
+serving errors = 0
+```
+
+Backend sequential performance:
+
+```text
+file:
+p50 = 8.258 ms
+p95 = 10.239 ms
+throughput = 113.819 rps
+
+Qdrant gRPC:
+p50 = 4.415 ms
+p95 = 5.149 ms
+throughput = 218.431 rps
+```
+
+Warm API bottleneck:
+
+```text
+hydrate p50 = 31.376 ms
+encode p50 = 11.590 ms
+Qdrant search p50 = 5.216 ms
+```
+
+The slice includes integrated regression, DB smoke, and full DoD closure.
+
+Public dense/hybrid remain file-backed.
+
+---
+
+## 5. Validation evidence for the current feature branch
+
+Targeted suite:
+
+```text
+145 passed
+4 expected DB-only skips under file runtime
+```
+
+Moderate regression passed:
+
+- Golden Set;
+- Discovery API tests and strict validator;
+- topic clusters;
+- topic projection;
+- Streamlit static validation;
+- Qdrant collection;
+- 34-query file/Qdrant comparison;
+- experimental Qdrant API.
+
+Final integrated run included:
+
+```text
+--include-qdrant-serving-poc
+--include-qdrant-profile-sweep
+--include-qdrant-serving-performance
+--include-qdrant-api
+--include-db-smoke
+--include-dod
+```
+
+Final milestone evidence:
+
+```text
+selected ef_256 = 34 / 34 exact
+exact oracle = 34 / 34 exact
+
+serving preset = full
+serving transport = gRPC
+serving query count = 34
+serving error count = 0
+serving quality comparisons = 681
+serving exact comparisons = 681
+serving required_failed_count = 0
+
+DB total documents = 60954
+canonical documents = 60954
+canonical multisource documents = 9192
+
+dod_passed = true
+required_failed_count = 0
+Discovery API regression passed
 ```
 
 ---
 
-
-## 5. Validation evidence for the current feature branch
-
-Qdrant Runtime Observability v1 targeted tests:
-
-```text
-Qdrant backend composition / observability = 6 passed
-API runtime smoke = 7 passed
-API error contract = 4 passed
-API reload lifecycle = 4 passed
-Discovery integration = 34 passed, 4 expected DB-only skips
-```
-
-Verified live probe semantics:
-
-```text
-forced /runtime probe
-→ probe_cached = false
-→ probe_cache_age_sec = 0.0
-
-immediate repeated /runtime probe
-→ probe_cached = true
-→ same probe_checked_at
-→ cache age within 30-second TTL
-```
-
-Verified successful experimental request state:
-
-```text
-request_count = 1
-success_count = 1
-failure_count = 0
-last_status = ok
-backend_created = true
-compatibility_checked = true
-compatibility_ok = true
-requested_vector_backend = qdrant
-effective_vector_backend = qdrant
-fallback_applied = false
-last_result_count = 3
-last_timing_ms contains encode/search/hydrate/total
-```
-
-Verified failure and health-isolation state:
-
-```text
-Qdrant stopped
-→ /experimental/search/qdrant = 503 dense_backend_unavailable
-→ /runtime.qdrant.ok = false
-→ failure_count increments
-→ last_status = error
-→ last_failure_stage = backend_search
-→ effective_vector_backend = null
-→ fallback_applied = false
-→ /health remains 200 and ready = true
-→ public file dense /search remains 200
-```
-
-Verified recovery state:
-
-```text
-Qdrant restarted
-→ next experimental request succeeds without API reload
-→ request_count = 3
-→ success_count = 2
-→ failure_count = 1
-→ last_status = ok
-→ effective_vector_backend = qdrant
-→ previous last_failure_* evidence remains available
-```
-
-Green validators and integrated checks:
-
-- Qdrant collection strict validator;
-- experimental Qdrant API strict validator;
-- 34-query file/Qdrant comparison;
-- Golden Set strict validator;
-- Discovery API strict validator;
-- topic clusters strict validator;
-- topic projection strict validator;
-- Streamlit static strict validator;
-- integrated Discovery regression;
-- full strict Definition of Done.
-
-Current retrieval comparison evidence:
-
-```text
-enabled queries = 34
-selected profile = ef_256
-selected full match = true
-exact full match = true
-error_count = 0
-blocking_classification_count = 0
-```
-
-Milestone closure:
-
-```text
-canonical_doc_count = 60954
-canonical_multisource_docs = 9192
-dod_passed = true
-required_failed_count = 0
-```
-
-Known non-blocking observation:
-
-- the low-level Windows socket error copied into the best-effort live-probe
-  `error` field may be locale-encoded poorly;
-- stable failure classification remains available through
-  `last_failure_category=dense_backend_unavailable`;
-- the public error response and server-side exception logging remain correct.
-
-
 ## 6. Near-term roadmap
 
-Recommended order after merge of the observability PR:
+Recommended order after merge:
 
 ```text
-1. Warm/cold latency and concurrency evidence.
-2. Integration-test memory/lifecycle hardening.
-3. Controlled hybrid file-vs-Qdrant evaluation.
-4. Explicit public-promotion decision.
-5. Retrieval-quality profiles and stronger scientific embeddings.
+1. Controlled hybrid file-vs-Qdrant evaluation.
+2. Explicit public-promotion decision.
+3. Hydration and cold-start investigation if latency work is prioritized.
+4. Integration-test memory/lifecycle hardening.
+5. Stronger embeddings and retrieval profiles.
 6. Topic labeling and product polish.
 7. New sources through the viability gate.
 8. Full text / RAG / personalization / dataset releases.
 ```
 
-### 6.1 Latency and concurrency evaluation
+### 6.1 Controlled hybrid evaluation
 
-Status: **next**
-
-Measure separately:
-
-- encode time;
-- backend search time;
-- hydration time;
-- ranking time where applicable;
-- total API time;
-- warm versus cold execution;
-- p50, p95, and max;
-- file versus Qdrant;
-- sequential versus concurrent requests;
-- local versus deployed network conditions;
-- process RSS, Windows committed memory, and VRAM;
-- behavior after corpus growth.
-
-The first live observability smoke already showed a large cold/warm encode
-difference. That is useful evidence, not a benchmark conclusion.
-
-Qdrant does not need to beat local NumPy at 60,954 documents to remain
-architecturally useful, but its operational value must be demonstrated rather
-than assumed.
-
-### 6.2 Integration-test memory/lifecycle hardening
-
-Status: **next technical debt**
-
-A combined heavy pytest process previously produced a transient memory failure,
-while the same files passed in separate Python processes.
-
-Likely contributors:
-
-- repeated app startup and shutdown;
-- repeated loading of 60,954 canonical objects and retrieval artifacts;
-- PyTorch/CUDA allocator retention;
-- TestClient/module lifecycle;
-- reload cycles.
-
-Observed runtime behavior is correct:
-
-```text
-initial model load → model_reused=false
-runtime reload     → model_reused=true
-Qdrant backend     → recreated after reload
-observability      → reset after reload
-```
-
-Future work:
-
-- instrument process RSS, commit memory, and VRAM;
-- verify object release between TestClient sessions;
-- consider session-scoped lightweight fixtures;
-- consider CPU-only integration mode;
-- keep heavy integration groups in separate processes until hardened.
-
-This debt is separate from Qdrant backend correctness.
-
-### 6.3 Controlled hybrid evaluation
-
-Status: **planned**
+Status: **next retrieval slice**
 
 Compare:
 
@@ -834,28 +775,77 @@ lexical + QdrantDenseBackend
 
 Keep common:
 
-- query encoder;
-- lexical candidate generation;
+- encoder;
+- lexical candidates;
+- candidate budgets;
 - score normalization;
 - hybrid merge;
 - ranking;
 - response schema;
 - Golden Set.
 
-Do not implement hybrid logic inside `QdrantDenseBackend`.
+Measure:
 
-### 6.4 Public Qdrant promotion decision
+- candidate and final-result differences;
+- query-level relevance;
+- exact order and overlap;
+- latency;
+- failure semantics;
+- requested/effective backend evidence.
 
-Status: **blocked on performance and hybrid evidence**
+Do not move hybrid logic into `QdrantDenseBackend`.
+
+### 6.2 Public Qdrant promotion decision
+
+Status: **blocked on controlled hybrid evidence**
 
 Possible outcomes:
 
 - keep Qdrant experimental;
-- expose an opt-in `vector_backend`;
-- select backend at deployment composition with explicit metadata;
-- postpone promotion until corpus size or request load grows.
+- expose explicit opt-in selection;
+- choose backend at deployment composition;
+- postpone promotion.
 
 No promotion is a valid evidence-based outcome.
+
+### 6.3 Hydration and cold-start investigation
+
+Status: **measured opportunity, not current blocker**
+
+Warm Qdrant API p50:
+
+```text
+hydrate = 31.376 ms
+encode = 11.590 ms
+Qdrant search = 5.216 ms
+total = 48.475 ms
+```
+
+Potential work:
+
+- inspect canonical ID lookup layout;
+- separate hydration from serialization;
+- profile copy/validation costs;
+- preserve explicit missing-document semantics;
+- avoid backend-specific hydration logic.
+
+Fresh Qdrant first-request overhead is also significant because backend/channel
+creation is lazy.
+
+### 6.4 Integration-test memory/lifecycle hardening
+
+Status: **technical debt**
+
+A previous monolithic heavy pytest process produced a transient memory failure,
+while separate processes passed.
+
+Potential work:
+
+- instrument RSS, committed memory, and VRAM;
+- verify object release between TestClient sessions;
+- consider lightweight fixtures;
+- consider CPU-only integration mode;
+- keep heavy groups separate until hardened.
 
 ### 6.5 Stronger embeddings and retrieval profiles
 
@@ -870,51 +860,41 @@ citation_aware
 hybrid
 ```
 
-Any change requires:
+Any embedding change requires:
 
-- a new retrieval build;
-- a new build-scoped Qdrant collection or controlled rebuild;
-- revalidation of vector dimension, normalization, and distance;
+- new retrieval build;
+- build-scoped Qdrant collection;
+- dimension/normalization/distance validation;
 - Golden Set rerun;
-- profile sweep rerun;
-- comparison and regression rerun;
-- explicit update of the selected profile.
+- profile sweep;
+- comparison and performance rerun.
 
-### 6.6 Topic cluster interpretation and UI polish
+### 6.6 Topic interpretation and UI polish
 
 Status: **planned**
 
 Potential improvements:
 
-- stronger cluster label generation;
+- stronger labels;
 - representative-term cleanup;
 - cluster naming/versioning;
 - cluster stability checks;
-- paper-comparison UI;
-- better evidence presentation.
-
-Clusters remain derived and build-scoped.
+- paper comparison;
+- clearer evidence presentation.
 
 ### 6.7 Source expansion
 
 Status: **planned through source viability gate**
 
-Possible sources include:
+Possible sources:
 
 - Papers with Code;
 - PubMed / Europe PMC;
-- Semantic Scholar selective enrichment;
-- additional conference and repository sources.
+- selective Semantic Scholar enrichment;
+- additional conference/repository sources.
 
-Every source must pass:
-
-- identity quality;
-- metadata value;
-- overlap analysis;
-- rate-limit and access viability;
-- provenance requirements;
-- incremental refresh behavior;
-- canonical reconcile safety.
+Every source must pass identity, value, overlap, access, provenance, refresh,
+and reconcile-safety gates.
 
 ### 6.8 Full text, RAG, personalization, datasets
 
@@ -924,12 +904,14 @@ Potential directions:
 
 - full-text acquisition and chunking;
 - evidence-grounded RAG;
-- citation-preserving answer generation;
+- citation-preserving answers;
 - saved papers and watchlists;
-- personalized feed;
+- personalized feeds;
 - why-recommended explanations;
 - paper comparison;
 - dataset releases.
+
+---
 
 ## 7. Engineering and MLOps backlog
 
@@ -941,11 +923,11 @@ Add only when justified by real operational need:
 - OpenTelemetry and Jaeger;
 - secrets management;
 - Alembic;
-- Airflow for batch pipelines;
-- Ray for distributed workloads;
-- Kafka for real event-driven flows;
-- Kubernetes after service and deployment complexity justify it;
-- full React/Next.js frontend after backend contracts stabilize.
+- Airflow;
+- Ray;
+- Kafka;
+- Kubernetes;
+- full React/Next.js frontend.
 
 Avoid technology-driven architecture.
 
@@ -953,28 +935,28 @@ Avoid technology-driven architecture.
 
 ## 8. Explicit non-goals of the current checkpoint
 
-Not part of the Qdrant Runtime Observability v1 PR:
+Not part of Qdrant Serving Performance v1:
 
 - public `vector_backend` parameter;
 - public Qdrant promotion;
-- hidden or explicit fallback orchestration;
-- public `/search` success-response schema expansion;
 - switching public dense/hybrid to Qdrant;
+- hidden or explicit fallback orchestration;
+- public `/search` response expansion;
+- controlled hybrid Qdrant serving;
+- similar-paper migration;
 - DB-native dense or hybrid;
 - lexical backend abstraction;
-- similar-paper migration;
 - filter pushdown;
-- circuit breaker or retry framework;
-- unbounded or persistent failure-history storage;
-- Prometheus/OpenTelemetry integration;
-- latency or concurrency benchmarking;
-- embedding-model replacement;
+- retry or circuit-breaker framework;
+- persistent telemetry history;
+- Prometheus/OpenTelemetry platform;
+- embedding replacement;
 - reranking redesign;
 - canonical refresh;
 - new sources;
 - full text;
 - RAG;
-- topic-cluster rebuild;
+- topic rebuild;
 - Streamlit redesign.
 
 ---
@@ -983,28 +965,28 @@ Not part of the Qdrant Runtime Observability v1 PR:
 
 ### Git
 
-- Git operations are run in Git Bash.
-- Python, pytest, validators, and scripts are run in Anaconda Prompt.
+- Git operations run in Git Bash.
+- Python, pytest, validators, and scripts run in Anaconda Prompt.
 - Avoid `git add .`.
 - Stage intentional files explicitly.
-- Keep local `notebooks/Untitled.ipynb` outside project commits.
+- Keep `notebooks/Untitled.ipynb` outside project commits.
 
 ### Generated artifacts
 
-`artifacts/` is ignored in the active repository workflow.
+`artifacts/` is ignored in the active workflow.
 
 Therefore:
 
-- report-generating commands do not require `git restore` when files are ignored and untracked;
-- always confirm with `git status`;
-- ignored reports are not part of routine commits;
-- tracked baselines, if introduced later, require an explicit policy.
+- report generation does not normally create commit candidates;
+- `git status` remains the source of truth;
+- ignored reports are not routine commits;
+- tracked baselines require an explicit policy.
 
 ### Heavy tests
 
 Until memory lifecycle is hardened:
 
-- run heavy API integration files in separate Python processes;
+- run heavy API files separately;
 - run comparison and profile sweep as separate commands;
 - avoid one monolithic process that repeatedly loads model/corpus/runtime.
 
@@ -1021,11 +1003,12 @@ candidate integration before stable promotion
 one validated vertical slice at a time
 ```
 
-The current next product/engineering question is no longer “can Qdrant return neighbors?” It is:
+The next retrieval question is:
 
 ```text
-Does Qdrant provide enough operational, scaling, filtering, isolation,
-or concurrency value to justify controlled public exposure?
+Does replacing only the dense component of the existing hybrid strategy
+preserve or improve query-level quality and operational behavior?
 ```
 
-That decision must be made from evidence, not from the presence of a vector database.
+Only after controlled hybrid evidence should the project decide whether
+Qdrant deserves public or deployment-level exposure.

@@ -149,6 +149,9 @@ class QdrantRuntimeDiagnostics(BaseModel):
 
     host: str
     port: int
+    grpc_port: int
+    prefer_grpc: bool
+    transport: Literal["rest", "grpc"]
     collection_name: str
     timeout_sec: float
     check_compatibility: bool

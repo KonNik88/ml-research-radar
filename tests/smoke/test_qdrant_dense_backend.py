@@ -150,6 +150,71 @@ def _backend(
         require_point_id_equals_dense_index=True,
     )
 
+def test_store_configures_explicit_grpc_transport(
+    monkeypatch,
+) -> None:
+    captured: dict[str, Any] = {}
+
+    class FakeQdrantClient:
+        def __init__(self, **kwargs: Any) -> None:
+            captured.update(kwargs)
+
+    monkeypatch.setattr(
+        "qdrant_client.QdrantClient",
+        FakeQdrantClient,
+    )
+
+    store = QdrantRetrievalStore(
+        host="localhost",
+        port=6333,
+        grpc_port=6334,
+        prefer_grpc=True,
+        collection_name="collection",
+        timeout_sec=120.0,
+        check_compatibility=False,
+    )
+
+    assert store.host == "localhost"
+    assert store.port == 6333
+    assert store.grpc_port == 6334
+    assert store.prefer_grpc is True
+    assert store.transport == "grpc"
+
+    assert captured == {
+        "host": "localhost",
+        "port": 6333,
+        "grpc_port": 6334,
+        "prefer_grpc": True,
+        "timeout": 120.0,
+        "check_compatibility": False,
+    }
+
+
+def test_store_preserves_rest_transport_by_default(
+    monkeypatch,
+) -> None:
+    captured: dict[str, Any] = {}
+
+    class FakeQdrantClient:
+        def __init__(self, **kwargs: Any) -> None:
+            captured.update(kwargs)
+
+    monkeypatch.setattr(
+        "qdrant_client.QdrantClient",
+        FakeQdrantClient,
+    )
+
+    store = QdrantRetrievalStore(
+        collection_name="collection",
+    )
+
+    assert store.grpc_port == 6334
+    assert store.prefer_grpc is False
+    assert store.transport == "rest"
+
+    assert captured["port"] == 6333
+    assert captured["grpc_port"] == 6334
+    assert captured["prefer_grpc"] is False
 
 def test_store_passes_explicit_hnsw_search_params() -> None:
     client = CapturingClient()

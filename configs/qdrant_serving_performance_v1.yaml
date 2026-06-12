@@ -1,0 +1,122 @@
+schema_version: qdrant_serving_performance_config_v1
+
+qdrant:
+  host: localhost
+  port: 6333
+  grpc_port: 6334
+  prefer_grpc: true
+
+  collection_name: ml_radar_dense_benchmark_v1
+  timeout_sec: 120
+  check_compatibility: false
+
+  profile:
+    name: ef_256
+    exact: false
+    hnsw_ef: 256
+
+retrieval:
+  manifest_path: artifacts/retrieval/manifests/latest.json
+  golden_queries_path: data/eval/retrieval/golden_queries.jsonl
+  require_normalized_embeddings: true
+  expected_distance: Cosine
+  query_selection: ordered
+  random_seed: 42
+
+api:
+  host: 127.0.0.1
+  port: 8011
+  startup_timeout_sec: 240
+  startup_poll_interval_sec: 0.25
+  request_timeout_sec: 120
+
+  uvicorn:
+    app: services.api.app:app
+    workers: 1
+    log_level: warning
+
+  file_dense:
+    path: /search
+    params:
+      mode: dense
+      rank: false
+
+  qdrant:
+    path: /experimental/search/qdrant
+    params: {}
+
+presets:
+  smoke:
+    max_queries: 4
+    top_k_values:
+      - 10
+
+    encoding:
+      warmup_rounds: 1
+      measured_rounds: 2
+
+    backend:
+      warmup_rounds: 1
+      measured_rounds: 2
+      concurrency_levels:
+        - 1
+        - 2
+
+    api:
+      warmup_rounds: 1
+      measured_rounds: 1
+      concurrency_levels:
+        - 1
+        - 2
+
+    fresh_process:
+      enabled: true
+
+  full:
+    max_queries: null
+    top_k_values:
+      - 10
+      - 20
+
+    encoding:
+      warmup_rounds: 2
+      measured_rounds: 3
+
+    backend:
+      warmup_rounds: 2
+      measured_rounds: 10
+      concurrency_levels:
+        - 1
+        - 2
+        - 4
+        - 8
+
+    api:
+      warmup_rounds: 2
+      measured_rounds: 3
+      concurrency_levels:
+        - 1
+        - 2
+        - 4
+        - 8
+
+    fresh_process:
+      enabled: true
+
+resources:
+  collect_process_memory: true
+  collect_system_memory: true
+  collect_docker_stats: true
+  collect_gpu_stats: true
+  sample_interval_sec: 0.25
+  qdrant_container_name: ml_radar_qdrant
+
+quality:
+  max_error_count: 0
+  min_mean_overlap_at_k: 1.0
+  min_query_overlap_at_k: 1.0
+  require_exact_same_order: true
+  require_result_count_match: true
+
+output:
+  output_dir: artifacts/reports/evaluation

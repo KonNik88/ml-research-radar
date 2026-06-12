@@ -83,6 +83,11 @@ def test_runtime_smoke(client: TestClient):
     assert "points_match_corpus" in qdrant
     assert "error" in qdrant
 
+    assert qdrant["port"] == 6333
+    assert qdrant["grpc_port"] == 6334
+    assert qdrant["prefer_grpc"] is True
+    assert qdrant["transport"] == "grpc"
+
     assert qdrant["probe_cached"] is False
     assert qdrant["probe_checked_at"] is not None
     assert qdrant["probe_cache_age_sec"] == 0.0

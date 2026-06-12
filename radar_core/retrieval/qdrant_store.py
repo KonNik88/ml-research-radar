@@ -34,24 +34,49 @@ class QdrantRetrievalStore:
     """Thin read-only adapter over a Qdrant collection."""
 
     def __init__(
-        self,
-        *,
-        host: str = "localhost",
-        port: int = 6333,
-        collection_name: str,
-        timeout_sec: float = 120.0,
-        check_compatibility: bool = True,
+            self,
+            *,
+            host: str = "localhost",
+            port: int = 6333,
+            grpc_port: int = 6334,
+            prefer_grpc: bool = False,
+            collection_name: str,
+            timeout_sec: float = 120.0,
+            check_compatibility: bool = True,
     ) -> None:
         from qdrant_client import QdrantClient
 
+        if (
+                not isinstance(grpc_port, int)
+                or isinstance(grpc_port, bool)
+                or not 1 <= grpc_port <= 65535
+        ):
+            raise ValueError(
+                "grpc_port must be an integer in range "
+                f"1..65535, got {grpc_port!r}"
+            )
+
+        if not isinstance(prefer_grpc, bool):
+            raise ValueError(
+                "prefer_grpc must be a boolean, "
+                f"got {prefer_grpc!r}"
+            )
+
         self.host = host
         self.port = port
+        self.grpc_port = grpc_port
+        self.prefer_grpc = prefer_grpc
+        self.transport = "grpc" if prefer_grpc else "rest"
+
         self.collection_name = collection_name
         self.timeout_sec = timeout_sec
         self.check_compatibility = check_compatibility
+
         self.client = QdrantClient(
             host=host,
             port=port,
+            grpc_port=grpc_port,
+            prefer_grpc=prefer_grpc,
             timeout=timeout_sec,
             check_compatibility=check_compatibility,
         )
