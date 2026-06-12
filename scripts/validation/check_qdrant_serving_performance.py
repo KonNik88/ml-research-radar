@@ -386,6 +386,61 @@ def _fresh_target_valid(
     )
 
 
+def _resource_capabilities_explicit(
+    *,
+    backend: Mapping[str, Any],
+    api: Mapping[str, Any],
+) -> bool:
+    """Validate resource evidence independently from scenario success."""
+
+    resource_sections: list[Mapping[str, Any]] = []
+
+    backend_sequential = _mapping(backend.get("sequential"))
+    for name in ("file", "qdrant"):
+        resource_sections.append(
+            _mapping(
+                _mapping(backend_sequential.get(name)).get(
+                    "resources"
+                )
+            )
+        )
+
+    backend_concurrent = _mapping(backend.get("concurrent"))
+    for name in ("file", "qdrant"):
+        for row in _sequence(backend_concurrent.get(name)):
+            resource_sections.append(
+                _mapping(_mapping(row).get("resources"))
+            )
+
+    fresh = _mapping(api.get("fresh_process"))
+    for name in ("file_dense", "qdrant"):
+        resource_sections.append(
+            _mapping(_mapping(fresh.get(name)).get("resources"))
+        )
+
+    api_sequential = _mapping(api.get("warm_sequential"))
+    for name in ("file_dense", "qdrant"):
+        resource_sections.append(
+            _mapping(
+                _mapping(api_sequential.get(name)).get(
+                    "resources"
+                )
+            )
+        )
+
+    api_concurrent = _mapping(api.get("warm_concurrent"))
+    for name in ("file_dense", "qdrant"):
+        for row in _sequence(api_concurrent.get(name)):
+            resource_sections.append(
+                _mapping(_mapping(row).get("resources"))
+            )
+
+    return bool(resource_sections) and all(
+        _resource_section_valid(resources)
+        for resources in resource_sections
+    )
+
+
 def evaluate_report(
     source: Mapping[str, Any],
     *,
@@ -759,14 +814,11 @@ def evaluate_report(
         )
     checks["quality_sections_valid"] = quality_sections_ok
 
-    # Resource presence is already enforced inside every scenario and fresh
-    # target. This explicit top-level check records that policy for consumers.
     checks["resource_capabilities_explicit"] = (
-        checks["backend_sequential_valid"]
-        and checks["backend_concurrent_valid"]
-        and checks["api_fresh_valid"]
-        and checks["api_sequential_valid"]
-        and checks["api_concurrent_valid"]
+        _resource_capabilities_explicit(
+            backend=backend,
+            api=api,
+        )
     )
 
     structural_required = [

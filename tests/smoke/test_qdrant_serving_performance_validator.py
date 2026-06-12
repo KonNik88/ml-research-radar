@@ -549,6 +549,34 @@ def test_missing_resource_capability_fails() -> None:
     result = evaluate_report(report, strict=True)
 
     assert result["checks"]["api_sequential_valid"] is False
+    assert result["checks"][
+        "resource_capabilities_explicit"
+    ] is False
+
+
+def test_scenario_failure_does_not_masquerade_as_resource_failure() -> None:
+    report = _valid_report()
+    scenario = report["backend_only"]["concurrent"]["qdrant"][1]
+    scenario["success_count"] -= 1
+    scenario["error_count"] = 1
+    scenario["records"].pop()
+    scenario["errors"] = [
+        {
+            "backend": "qdrant",
+            "concurrency": 2,
+            "query_id": "q-1",
+            "round": 1,
+            "top_k": 10,
+            "error": "simulated",
+        }
+    ]
+
+    result = evaluate_report(report, strict=True)
+
+    assert result["checks"]["backend_concurrent_valid"] is False
+    assert result["checks"][
+        "resource_capabilities_explicit"
+    ] is True
 
 
 @pytest.mark.parametrize(
