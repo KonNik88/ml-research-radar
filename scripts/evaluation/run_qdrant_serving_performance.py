@@ -1016,6 +1016,14 @@ def _api_environment(
             "ML_RADAR_QDRANT_PORT": str(
                 qdrant_cfg["port"]
             ),
+            "ML_RADAR_QDRANT_GRPC_PORT": str(
+                qdrant_cfg["grpc_port"]
+            ),
+            "ML_RADAR_QDRANT_PREFER_GRPC": (
+                "true"
+                if bool(qdrant_cfg["prefer_grpc"])
+                else "false"
+            ),
             "ML_RADAR_QDRANT_COLLECTION_NAME": str(
                 qdrant_cfg["collection_name"]
             ),

@@ -213,6 +213,11 @@ def _valid_report() -> dict:
             "retrieval": {
                 "expected_distance": "Cosine",
             },
+            "qdrant": {
+                "port": 6333,
+                "grpc_port": 6334,
+                "prefer_grpc": True,
+            },
             "presets": {
                 "smoke": {
                     "max_queries": 2,
@@ -265,6 +270,9 @@ def _valid_report() -> dict:
             "query_count": query_count,
             "top_k_values": [10],
             "collection_name": "collection",
+            "qdrant_transport": "grpc",
+            "qdrant_rest_port": 6333,
+            "qdrant_grpc_port": 6334,
             "profile_name": "ef_256",
             "error_count": 0,
             "quality_ok": True,
@@ -276,6 +284,10 @@ def _valid_report() -> dict:
             "points_count": 100,
             "vector_size": 384,
             "distance": "Cosine",
+            "transport": "grpc",
+            "rest_port": 6333,
+            "grpc_port": 6334,
+            "prefer_grpc": True,
         },
         "query_set": {
             "selected_query_count": query_count,
@@ -623,3 +635,18 @@ def test_non_strict_mode_allows_quality_failure() -> None:
 
     assert result["verdict"]["ok"] is True
     assert result["checks"]["quality_sections_valid"] is False
+
+def test_transport_mismatch_fails() -> None:
+    report = _valid_report()
+    report["summary"]["qdrant_transport"] = "rest"
+
+    result = evaluate_report(report, strict=True)
+
+    assert (
+        result["checks"]["qdrant_transport_matches_config"]
+        is False
+    )
+    assert (
+        "qdrant_transport_matches_config"
+        in result["verdict"]["required_failed_checks"]
+    )

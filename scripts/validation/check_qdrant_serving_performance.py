@@ -453,6 +453,13 @@ def evaluate_report(
     config = _mapping(source.get("config"))
     resolved = _mapping(source.get("resolved_preset"))
     collection = _mapping(source.get("collection"))
+    qdrant_config = _mapping(config.get("qdrant"))
+
+    expected_transport = (
+        "grpc"
+        if qdrant_config.get("prefer_grpc") is True
+        else "rest"
+    )
     query_set = _mapping(source.get("query_set"))
     encoding = _mapping(source.get("encoding"))
     backend = _mapping(source.get("backend_only"))
@@ -590,6 +597,22 @@ def evaluate_report(
             == 0
             and verdict_src.get("determinism_failure_count")
             == 0
+        ),
+        "qdrant_transport_matches_config": (
+                summary.get("qdrant_transport")
+                == expected_transport
+                and collection.get("transport")
+                == expected_transport
+                and summary.get("qdrant_rest_port")
+                == qdrant_config.get("port")
+                and summary.get("qdrant_grpc_port")
+                == qdrant_config.get("grpc_port")
+                and collection.get("rest_port")
+                == qdrant_config.get("port")
+                and collection.get("grpc_port")
+                == qdrant_config.get("grpc_port")
+                and collection.get("prefer_grpc")
+                == qdrant_config.get("prefer_grpc")
         ),
     }
 
@@ -834,6 +857,7 @@ def evaluate_report(
         "resolved_preset_matches_config",
         "query_set_count_matches_summary",
         "collection_compatible",
+        "qdrant_transport_matches_config",
         "encoding_valid",
         "backend_not_skipped",
         "api_not_skipped",

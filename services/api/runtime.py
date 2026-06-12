@@ -329,6 +329,8 @@ class ApiRuntime:
         store = QdrantRetrievalStore(
             host=settings.qdrant_host,
             port=settings.qdrant_port,
+            grpc_port=settings.qdrant_grpc_port,
+            prefer_grpc=settings.qdrant_prefer_grpc,
             collection_name=settings.qdrant_collection_name,
             timeout_sec=settings.qdrant_timeout_sec,
             check_compatibility=settings.qdrant_check_compatibility,
@@ -355,8 +357,15 @@ class ApiRuntime:
 
         logger.info(
             "Created experimental Qdrant dense backend: "
-            "collection=%s profile=%s exact=%s hnsw_ef=%s build_id=%s",
+            "collection=%s transport=%s grpc_port=%s "
+            "profile=%s exact=%s hnsw_ef=%s build_id=%s",
             settings.qdrant_collection_name,
+            (
+                "grpc"
+                if settings.qdrant_prefer_grpc
+                else "rest"
+            ),
+            settings.qdrant_grpc_port,
             profile.name,
             profile.exact,
             profile.hnsw_ef,
@@ -394,8 +403,15 @@ class ApiRuntime:
         diagnostics: dict[str, Any] = {
             "configured": True,
             "ok": False,
-            "host": settings.qdrant_host,
+                        "host": settings.qdrant_host,
             "port": settings.qdrant_port,
+            "grpc_port": settings.qdrant_grpc_port,
+            "prefer_grpc": settings.qdrant_prefer_grpc,
+            "transport": (
+                "grpc"
+                if settings.qdrant_prefer_grpc
+                else "rest"
+            ),
             "collection_name": settings.qdrant_collection_name,
             "timeout_sec": settings.qdrant_timeout_sec,
             "check_compatibility": settings.qdrant_check_compatibility,
@@ -414,6 +430,8 @@ class ApiRuntime:
             store = QdrantRetrievalStore(
                 host=settings.qdrant_host,
                 port=settings.qdrant_port,
+                grpc_port=settings.qdrant_grpc_port,
+                prefer_grpc=settings.qdrant_prefer_grpc,
                 collection_name=settings.qdrant_collection_name,
                 timeout_sec=settings.qdrant_timeout_sec,
                 check_compatibility=settings.qdrant_check_compatibility,

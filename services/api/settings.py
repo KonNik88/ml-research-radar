@@ -35,7 +35,17 @@ class ApiSettings(BaseSettings):
     # qdrant settings
     qdrant_host: str = Field(default="localhost")
     qdrant_port: int = Field(default=6333)
-    qdrant_collection_name: str = Field(default="ml_radar_dense_benchmark_v1")
+
+    qdrant_grpc_port: int = Field(
+        default=6334,
+        ge=1,
+        le=65535,
+    )
+    qdrant_prefer_grpc: bool = Field(default=True)
+
+    qdrant_collection_name: str = Field(
+        default="ml_radar_dense_benchmark_v1"
+    )
     qdrant_timeout_sec: float = Field(default=120.0)
     qdrant_check_compatibility: bool = Field(default=True)
 

@@ -75,6 +75,8 @@ def test_runtime_builds_and_caches_qdrant_dense_backend(
     settings = SimpleNamespace(
         qdrant_host="localhost",
         qdrant_port=6333,
+        qdrant_grpc_port=6334,
+        qdrant_prefer_grpc=True,
         qdrant_collection_name="collection",
         qdrant_timeout_sec=120.0,
         qdrant_check_compatibility=True,
@@ -129,6 +131,8 @@ def test_runtime_builds_and_caches_qdrant_dense_backend(
     assert FakeQdrantStore.created_kwargs == {
         "host": "localhost",
         "port": 6333,
+        "grpc_port": 6334,
+        "prefer_grpc": True,
         "collection_name": "collection",
         "timeout_sec": 120.0,
         "check_compatibility": True,
