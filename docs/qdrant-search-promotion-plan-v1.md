@@ -5,16 +5,20 @@
 ```text
 version: v1
 status: active promotion-gate and implementation-tracking document
-last updated: 2026-06-12
+last updated: 2026-06-13
 
-internal DenseSearchBackend abstraction: implemented / green
-experimental API adoption: implemented / green
+base main checkpoint: 6358164 (PR #19 merged)
+feature branch: retrieval/qdrant-hybrid-evaluation-v1
+current checkpoint: Qdrant Hybrid Evaluation v1
+
+internal DenseSearchBackend abstraction: merged / green
+experimental API adoption: merged / green
 evaluation tooling adoption: implemented / green
 Qdrant failure contract: merged / green
 Qdrant runtime observability: merged / green
-Qdrant serving performance: implemented / validated on feature branch
+Qdrant serving performance: merged / green
+Qdrant hybrid evaluation: implemented / validated on feature branch
 experimental transport: gRPC
-feature branch: retrieval/qdrant-serving-performance-v1
 
 public /search backend change: none
 public API strategy change: none
@@ -30,9 +34,10 @@ backend for public search.
 It records:
 
 1. the implemented backend abstraction;
-2. reliability and observability guarantees;
-3. completed serving-performance and transport evidence;
-4. remaining hybrid and product-decision gates.
+2. reliability, observability, and transport guarantees;
+3. completed serving-performance evidence;
+4. completed controlled hybrid file-vs-Qdrant evidence;
+5. the remaining product and public-exposure decision gates.
 
 This document does not authorize hidden switching, hidden fallback,
 backend-specific public modes, or Qdrant-dependent general readiness.
@@ -143,7 +148,7 @@ explicit canonical-labeled queries = 34
 weak-pattern-only enabled queries = 0
 ```
 
-Current parity evidence:
+Dense parity evidence:
 
 ```text
 default → 33/34 exact order, one stable ANN recall mismatch
@@ -177,7 +182,7 @@ QdrantSearchProfile(
 material changes to the corpus, embedding model, Qdrant version/configuration,
 index, or Golden Set.
 
-Current serving-performance evidence:
+Serving-performance evidence:
 
 ```text
 preset = full
@@ -205,6 +210,58 @@ gRPC
 → final full backend: 680 / 680
 → final full API: 204 / 204
 ```
+
+Controlled hybrid evidence:
+
+```text
+comparison = lexical + FileDenseBackend
+          vs lexical + QdrantDenseBackend
+transport = gRPC
+profile = ef_256
+queries = 34
+scenarios per query = 4
+scenarios = 136
+
+top_k=10 → candidate_k=50, rank=false|true
+top_k=20 → candidate_k=100, rank=false|true
+
+successful scenarios = 136 / 136
+errors = 0
+fallback = 0
+blocking classifications = 0
+determinism failures = 0
+
+final result-set overlap:
+mean = 1.0
+minimum = 1.0
+
+exact final order = 134 / 136
+exact dense + final parity = 132 / 136
+stable non-blocking differences = 4 / 136
+```
+
+Difference classifications:
+
+```text
+exact_match = 132
+dense_candidate_difference_no_final_effect = 2
+same_set_different_order = 2
+```
+
+Quality deltas, calculated as `Qdrant - File`:
+
+```text
+Hit       = 0 for all scenarios
+Precision = 0 for all scenarios
+Recall    = 0 for all scenarios
+MRR       = 0 for all scenarios
+nDCG min  = 0
+nDCG max  = +0.002368
+```
+
+The four non-exact scenarios are stable, occur only for `top_k=20` with
+`candidate_k=100`, preserve the complete final top-20 set, and do not indicate
+mapping, build, hydration, fallback, or determinism defects.
 
 ---
 
@@ -501,6 +558,17 @@ The common abstraction is used by:
 scripts/evaluation/compare_qdrant_file_dense.py
 scripts/evaluation/run_qdrant_search_profile_sweep.py
 scripts/evaluation/run_qdrant_serving_performance.py
+scripts/evaluation/qdrant_hybrid_evaluation.py
+scripts/evaluation/run_qdrant_hybrid_evaluation.py
+```
+
+Strict evidence validators include:
+
+```text
+scripts/validation/check_qdrant_file_dense_comparison.py
+scripts/validation/check_qdrant_search_profile_sweep.py
+scripts/validation/check_qdrant_serving_performance.py
+scripts/validation/check_qdrant_hybrid_evaluation.py
 ```
 
 The serving benchmark measures:
@@ -513,6 +581,19 @@ The serving benchmark measures:
 - resource capability summaries;
 - exact quality comparisons;
 - bounded failure diagnostics.
+
+The hybrid evaluation keeps common:
+
+- query encoder;
+- lexical candidate branch;
+- public candidate-budget policy;
+- min-max normalization;
+- shared hybrid merge kernel;
+- canonical hydration contract;
+- optional common ranking;
+- Golden Set metrics.
+
+Only dense candidate generation changes between the paired branches.
 
 The collection build/upload benchmark remains outside the read-only backend
 abstraction.
@@ -529,6 +610,7 @@ FileDenseBackend:
 - exact comparison reference
 - profile-sweep reference
 - serving benchmark reference
+- controlled hybrid reference branch
 - contract tests
 
 QdrantDenseBackend:
@@ -537,6 +619,7 @@ QdrantDenseBackend:
 - exact diagnostic comparison
 - profile sweep
 - serving benchmark
+- controlled hybrid candidate branch
 - contract tests
 ```
 
@@ -552,7 +635,8 @@ topic projection
 DB backend
 ```
 
-This is intentional.
+This remains intentional. The hybrid evaluation is evidence tooling, not public
+serving promotion.
 
 ---
 
@@ -757,20 +841,105 @@ total p50 = 48.475 ms
 
 The dominant warm API stage is hydration.
 
-### Integrated closure
+### Controlled hybrid evidence
+
+Full run:
 
 ```text
-core/API/performance suite = 145 passed
-Discovery integration = 34 passed, 4 expected DB-only skips
-selected ef_256 = 34 / 34 exact
-exact oracle = 34 / 34 exact
-serving comparisons = 681 exact
-serving errors = 0
-DB total documents = 60954
-dod_passed = true
-required_failed_count = 0
+schema_version = qdrant_hybrid_evaluation_v1
+quality_schema_version = qdrant_hybrid_evaluation_quality_v1
+build_id = 20260504T164021Z
+collection = ml_radar_dense_benchmark_v1
+transport = grpc
+profile = ef_256
+selected queries = 34
+expected scenarios = 136
+successful scenarios = 136
+errors = 0
+quality_ok = true
+strict required_failed_count = 0
+```
+
+Parity summary:
+
+```text
+mean dense overlap = 0.999412
+minimum dense overlap = 0.98
+mean final overlap = 1.0
+minimum final overlap = 1.0
+exact dense order = 132 / 136
+exact final order = 134 / 136
+```
+
+The four non-exact scenarios are limited to:
+
+```text
+diffusion_models_001
+- top20__candidate100__unranked
+- top20__candidate100__ranked
+
+rag_evaluation_001
+- top20__candidate100__unranked
+- top20__candidate100__ranked
+```
+
+Observed dense differences:
+
+```text
+diffusion_models_001:
+file-only dense ranks = 68, 96
+Qdrant-only dense ranks = 99, 100
+
+rag_evaluation_001:
+file-only dense ranks = 63, 78
+Qdrant-only dense ranks = 99, 100
+```
+
+Effects:
+
+```text
+2 scenarios → dense difference with no final effect
+2 scenarios → identical final set, rank-9/rank-10 swap
+all four → stable over 5 repeats
+all four → final overlap = 1.0
+all four → no Hit/Precision/Recall/MRR regression
+one ranked scenario → nDCG +0.002368 for Qdrant
+```
+
+These differences are classified as stable, non-blocking ANN/search-boundary
+differences under the current evidence. They are not mapping, build, hydration,
+fallback, or nondeterminism defects.
+
+### Current branch regression closure
+
+Focused hybrid slice tests:
+
+```text
+test_qdrant_hybrid_evaluation.py = 34 passed
+test_run_qdrant_hybrid_evaluation.py = 10 passed
+test_qdrant_hybrid_evaluation_validator.py = 8 passed
+test_hybrid_merge_contract.py = 13 passed
+test_dense_backend_contract.py = 19 passed
+test_qdrant_regression_runner.py = 9 passed
+focused total = 93 passed
+```
+
+Integrated regression:
+
+```text
+Golden Set validator = 34 enabled / strict green
+Discovery API integration = 34 passed, 4 expected DB-only skips
+Discovery API strict validator = green
+topic clusters = green
+topic projection = green
+Streamlit static validator = green
+Qdrant hybrid evaluation = 136 / 136 successful
+Qdrant hybrid strict validator = required_failed_count 0
 Discovery API regression passed
 ```
+
+The earlier merged serving-performance checkpoint also retains its full DB and
+Definition-of-Done closure.
 
 ---
 
@@ -796,48 +965,51 @@ creation is lazy.
 ## 18. Remaining promotion gates
 
 Internal abstraction, failure handling, observability, transport reliability,
-and serving-performance evidence are complete.
+serving performance, and controlled hybrid evaluation are complete for the
+active build and Golden Set.
 
-### Controlled hybrid evaluation
+### Product and exposure decision
 
-Required next slice:
-
-```text
-lexical + FileDenseBackend
-vs
-lexical + QdrantDenseBackend
-```
-
-Keep common:
-
-- encoder;
-- lexical component;
-- candidate budgets;
-- normalization;
-- hybrid merge;
-- ranking;
-- response schema;
-- Golden Set.
-
-Measure:
-
-- candidate and final-result overlap;
-- query-level relevance;
-- exact-order differences;
-- latency;
-- failure semantics;
-- requested/effective backend evidence.
-
-### Product decision
+The next slice is a design and product decision, not another hidden backend
+switch.
 
 Possible outcomes:
 
 - remain experimental;
-- expose an explicit opt-in backend;
-- choose backend at deployment composition;
+- expose an explicit opt-in backend selector;
+- choose the backend at deployment composition;
+- run a limited rollout with explicit metadata;
 - postpone promotion.
 
-No promotion is a valid outcome.
+No promotion is a valid evidence-based outcome.
+
+The decision must define:
+
+- whether Qdrant is public, deployment-selected, or experimental only;
+- requested and effective backend semantics;
+- response and OpenAPI metadata;
+- no-fallback or explicit-fallback policy;
+- rollout and rollback procedure;
+- readiness and health semantics;
+- compatibility and build-scoping requirements.
+
+### Optional exact diagnostic for the two depth-100 queries
+
+The current hybrid gate is already green. An optional diagnostic may run
+Qdrant `exact=true` at `candidate_k=100` for:
+
+```text
+diffusion_models_001
+rag_evaluation_001
+```
+
+This could further distinguish approximate HNSW recall from any residual
+score-order effect. It is not required to close the current slice because:
+
+- final result-set parity is 136/136;
+- all differences are deterministic;
+- no integrity defect was observed;
+- strict quality gates pass.
 
 ### Deployment-level reliability
 
@@ -851,7 +1023,7 @@ Before production-like adoption, consider:
 
 ### Public observability
 
-If a public choice is approved, define:
+If public selection is approved, define:
 
 - requested/effective backend metadata;
 - OpenAPI selection contract;
@@ -938,7 +1110,20 @@ Experiments must not overwrite accepted stable data artifacts.
 
 ## 23. Validation commands
 
-Core tests:
+Hybrid-focused tests:
+
+```bat
+python -m pytest ^
+  tests/smoke/test_qdrant_hybrid_evaluation.py ^
+  tests/smoke/test_run_qdrant_hybrid_evaluation.py ^
+  tests/smoke/test_qdrant_hybrid_evaluation_validator.py ^
+  tests/smoke/test_hybrid_merge_contract.py ^
+  tests/smoke/test_dense_backend_contract.py ^
+  tests/smoke/test_qdrant_regression_runner.py ^
+  -q
+```
+
+Broader Qdrant core tests:
 
 ```bat
 python -m pytest ^
@@ -991,7 +1176,24 @@ python -m scripts.evaluation.run_qdrant_serving_performance ^
 python -m scripts.validation.check_qdrant_serving_performance --strict
 ```
 
-Final integrated regression:
+Controlled hybrid evaluation:
+
+```bat
+set ML_RADAR_SEARCH_BACKEND=file
+
+python -m scripts.evaluation.run_qdrant_hybrid_evaluation
+python -m scripts.validation.check_qdrant_hybrid_evaluation --strict
+```
+
+Hybrid-integrated Discovery regression:
+
+```bat
+python -m scripts.validation.run_discovery_api_regression ^
+  --skip-similar-rebuild ^
+  --include-qdrant-hybrid-evaluation
+```
+
+Full Qdrant milestone regression, when a complete rerun is desired:
 
 ```bat
 python -m scripts.validation.run_discovery_api_regression ^
@@ -999,6 +1201,7 @@ python -m scripts.validation.run_discovery_api_regression ^
   --include-qdrant-serving-poc ^
   --include-qdrant-profile-sweep ^
   --include-qdrant-serving-performance ^
+  --include-qdrant-hybrid-evaluation ^
   --include-qdrant-api ^
   --include-db-smoke ^
   --include-dod
@@ -1034,7 +1237,7 @@ Status: **complete / green**
 
 ### Phase 4c — serving performance and transport reliability
 
-Status: **complete / green on feature branch**
+Status: **complete / green; merged in PR #19**
 
 Completed:
 
@@ -1050,15 +1253,28 @@ Completed:
 
 ### Phase 4d — controlled hybrid evaluation
 
-Status: **next**
+Status: **complete / green on feature branch**
+
+Completed:
+
+- shared hybrid merge kernel;
+- characterization tests preserving public behavior;
+- evaluation config and pure comparison helpers;
+- paired file/Qdrant scenario executor;
+- strict canonical hydration in evaluation;
+- deterministic repeat evidence;
+- 34-query, 136-scenario full run;
+- strict validator;
+- opt-in Discovery regression integration;
+- four stable non-blocking differences classified.
 
 ### Phase 5 — controlled public exposure decision
 
-Status: **not started**
+Status: **next**
 
 ### Phase 6 — optional explicit fallback
 
-Status: **not planned until Phase 5 is stable**
+Status: **not planned until Phase 5 is explicitly approved and stable**
 
 ---
 
@@ -1070,6 +1286,7 @@ Status: **not planned until Phase 5 is stable**
 - [x] Query encoding remains common and outside backends.
 - [x] Hydration remains outside backends.
 - [x] Hybrid merge remains outside backends.
+- [x] Shared hybrid merge kernel is used by public and evaluation callers.
 - [x] File dense remains the reference implementation.
 - [x] Qdrant read path does not mutate collections.
 - [x] Runtime backend does not depend on parity/evaluation code.
@@ -1085,6 +1302,7 @@ Status: **not planned until Phase 5 is stable**
 - [x] Dense index and dense-ID mapping checked.
 - [x] Collection mismatch fails explicitly.
 - [x] Compatibility behavior tested through deterministic failure injection.
+- [x] Hybrid evaluation requires the active retrieval build and collection contract.
 
 ### Quality
 
@@ -1092,10 +1310,14 @@ Status: **not planned until Phase 5 is stable**
 - [x] Collection validator passes.
 - [x] File/Qdrant comparison passes.
 - [x] Profile sweep passes.
-- [x] `ef_256` and exact match 34/34.
+- [x] `ef_256` and exact match 34/34 at the dense parity depth.
 - [x] Performance/concurrency evidence completed.
-- [ ] Controlled hybrid comparison completed.
-- [ ] Public-exposure query-level review completed.
+- [x] Controlled hybrid comparison completed.
+- [x] Final result-set parity is 136/136.
+- [x] Exact final order is 134/136.
+- [x] Four non-exact scenarios are classified and non-blocking.
+- [x] No Hit/Precision/Recall/MRR regression observed.
+- [ ] Public-exposure contract and query-level review completed.
 
 ### Reliability
 
@@ -1109,6 +1331,7 @@ Status: **not planned until Phase 5 is stable**
 - [x] Runtime reload backend recreation verified.
 - [x] REST concurrency failure reproduced and diagnosed.
 - [x] gRPC validated under repeated full load.
+- [x] Hybrid differences are deterministic over repeated runs.
 - [ ] Explicit timeout failure injection completed.
 - [ ] Deployment rollback drill completed.
 
@@ -1125,6 +1348,8 @@ Status: **not planned until Phase 5 is stable**
 - [x] Recovery retains failure evidence.
 - [x] Reload resets runtime state.
 - [x] Strict evidence validates transport/config agreement.
+- [x] Hybrid evidence records query-vector and lexical-input fingerprints.
+- [x] Hybrid evidence records classifications, overlap, metrics, and determinism.
 - [ ] Public `/search` backend metadata designed.
 - [ ] Fallback reason metadata designed if approved.
 - [ ] Production metrics/tracing implemented if justified.
@@ -1138,8 +1363,10 @@ Status: **not planned until Phase 5 is stable**
 - [x] Topic validators pass.
 - [x] Streamlit static validator passes.
 - [x] Qdrant performance validator passes.
-- [x] Postgres smoke passes.
-- [x] Milestone strict DoD passes.
+- [x] Qdrant hybrid validator passes.
+- [x] Qdrant hybrid evaluation is available as an opt-in regression stage.
+- [x] Postgres smoke passes in the merged serving-performance checkpoint.
+- [x] Milestone strict DoD passes in the merged serving-performance checkpoint.
 
 ---
 
@@ -1175,56 +1402,91 @@ File dense remains available throughout the promotion path.
 
 ## 27. Current PR boundary
 
-The Qdrant Serving Performance v1 PR includes:
+The Qdrant Hybrid Evaluation v1 PR includes:
 
-- read-only backend/API benchmark;
-- full 34-query preset;
-- sequential and concurrent load;
-- compact repeated-result evidence;
-- full quality-comparison evidence;
-- failure exception chains and task context;
-- strict serving validator;
-- opt-in regression integration;
-- explicit Qdrant gRPC support;
-- experimental API gRPC configuration;
-- runtime transport diagnostics;
-- diagnosis of REST `WinError 10038`;
-- repeated backend gRPC full runs;
-- final full backend and API benchmark;
-- 681 exact comparisons;
-- integrated regression, DB smoke, and DoD;
-- checkpoint documentation.
+- characterization tests for existing hybrid semantics;
+- shared backend-neutral hybrid merge kernel;
+- unchanged public candidate-budget policy;
+- unchanged public file-backed dense and hybrid behavior;
+- evaluation config for gRPC `ef_256`;
+- pure comparison, digest, determinism, and classification helpers;
+- typed dense-candidate adapters;
+- strict evaluation-only canonical hydration;
+- paired FileDenseBackend/QdrantDenseBackend scenario executor;
+- shared optional ranking and Golden Set metrics;
+- 34-query, 136-scenario full evaluation;
+- strict evidence validator;
+- opt-in Discovery regression integration;
+- checkpoint, promotion-plan, and roadmap documentation.
+
+It records:
+
+```text
+136 / 136 successful scenarios
+136 / 136 identical final result sets
+134 / 136 identical final order
+132 / 136 exact dense + final parity
+4 / 136 stable non-blocking differences
+0 errors
+0 fallback
+0 blocking defects
+0 nondeterminism
+```
 
 It does not include:
 
 - public backend selection;
 - public success-response metadata;
-- hybrid Qdrant serving;
+- switching public dense/hybrid to Qdrant;
+- backend-specific public modes;
 - similar-paper migration;
 - fallback orchestration;
 - retry or circuit-breaker framework;
 - persistent telemetry history;
 - metrics/tracing platform;
 - new embeddings;
-- source or canonical changes.
+- source or canonical changes;
+- retrieval artifact rebuild;
+- Qdrant collection mutation.
 
 ---
 
 ## 28. Final recommendation
 
-Merge Qdrant Serving Performance v1 after final documentation review and PR
+Merge Qdrant Hybrid Evaluation v1 after final documentation review and PR
 checks.
 
-Then proceed with:
+The current evidence supports this conclusion:
 
 ```text
-controlled hybrid file-vs-Qdrant evaluation
-→ explicit public-promotion decision
+Qdrant gRPC ef_256 is a validated experimental dense candidate backend
+for the active build and Golden Set.
+
+Replacing only the dense component of hybrid search preserves the complete
+final result set across all 136 evaluated scenarios and introduces no measured
+quality regression, integrity defect, fallback, or nondeterminism.
 ```
 
-Do not promote Qdrant merely because gRPC serving is stable and faster on the
-current local benchmark.
+This does **not** automatically authorize public promotion.
 
-The remaining question is whether replacing the dense component of the public
-hybrid strategy preserves or improves query-level behavior while remaining
-observable, reversible, and compatible with the active retrieval build.
+Proceed next with:
+
+```text
+explicit public/deployment backend-selection design
+→ decision: remain experimental, opt in, deployment-select, or postpone
+→ rollout and rollback contract if promotion is approved
+```
+
+Preferred default until that decision is complete:
+
+```text
+public dense/hybrid backend = file
+experimental Qdrant endpoint = available
+general health = Qdrant-independent
+fallback = absent
+```
+
+The remaining question is no longer whether controlled hybrid behavior is
+preserved. It is whether public or deployment-level exposure provides enough
+product and operational value to justify a new API/configuration contract.
+
