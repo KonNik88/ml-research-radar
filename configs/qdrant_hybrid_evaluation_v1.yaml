@@ -1,0 +1,75 @@
+schema_version: qdrant_hybrid_evaluation_config_v1
+
+qdrant:
+  host: localhost
+  port: 6333
+  grpc_port: 6334
+  prefer_grpc: true
+  collection_name: ml_radar_dense_benchmark_v1
+  timeout_sec: 120
+  check_compatibility: true
+
+  profile:
+    name: ef_256
+    exact: false
+    hnsw_ef: 256
+
+retrieval:
+  manifest_path: artifacts/retrieval/manifests/latest.json
+  golden_queries_path: data/eval/retrieval/golden_queries.jsonl
+  scoring_config_path: configs/scoring.yaml
+
+evaluation:
+  max_queries: null
+
+  top_k_values:
+    - 10
+    - 20
+
+  rank_modes:
+    - false
+    - true
+
+  offset: 0
+  sort_by: relevance
+
+  candidate_pool:
+    policy: public
+
+  hybrid:
+    normalization: minmax
+    lexical_weight: 0.55
+    dense_weight: 0.45
+
+  determinism:
+    repeated_runs: 2
+    mismatch_repeated_runs: 5
+
+quality:
+  max_error_count: 0
+
+  min_mean_final_overlap_at_k: 0.99
+  min_query_final_overlap_at_k: 0.95
+
+  require_same_build_id: true
+  require_same_query_vector: true
+  require_same_lexical_inputs: true
+  require_same_candidate_budget: true
+  require_same_hybrid_config: true
+
+  require_no_fallback: true
+  require_all_differences_classified: true
+  require_no_blocking_classifications: true
+  require_deterministic_results: true
+
+safety:
+  evaluation_only: true
+  production_default_changed: false
+  public_qdrant_promoted: false
+  fallback_used: false
+  canonical_data_changed: false
+  retrieval_build_changed: false
+  qdrant_collection_mutated: false
+
+output:
+  output_dir: artifacts/reports/evaluation
