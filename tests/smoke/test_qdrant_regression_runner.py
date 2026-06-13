@@ -64,6 +64,7 @@ def test_qdrant_evidence_steps_can_be_requested_together():
             "--include-qdrant-serving-poc",
             "--include-qdrant-profile-sweep",
             "--include-qdrant-serving-performance",
+            "--include-qdrant-hybrid-evaluation",
         ]
     )
 
@@ -77,6 +78,54 @@ def test_qdrant_evidence_steps_can_be_requested_together():
     assert "run_qdrant_serving_performance" in names
     assert "check_qdrant_serving_performance" in names
 
+    assert "run_qdrant_hybrid_evaluation" in names
+    assert "check_qdrant_hybrid_evaluation" in names
+
+    assert names.index(
+        "run_qdrant_hybrid_evaluation"
+    ) < names.index(
+        "check_qdrant_hybrid_evaluation"
+    )
+
+def test_hybrid_evaluation_uses_strict_validator_and_file_backend():
+    args = build_parser().parse_args(
+        [
+            "--skip-similar-rebuild",
+            "--include-qdrant-hybrid-evaluation",
+        ]
+    )
+
+    steps = {
+        step.name: step
+        for step in build_steps(args)
+    }
+
+    run_step = steps[
+        "run_qdrant_hybrid_evaluation"
+    ]
+    check_step = steps[
+        "check_qdrant_hybrid_evaluation"
+    ]
+
+    assert run_step.cmd[-1] == (
+        "scripts.evaluation."
+        "run_qdrant_hybrid_evaluation"
+    )
+
+    assert check_step.cmd[-2:] == [
+        (
+            "scripts.validation."
+            "check_qdrant_hybrid_evaluation"
+        ),
+        "--strict",
+    ]
+
+    assert run_step.env == {
+        "ML_RADAR_SEARCH_BACKEND": "file",
+    }
+    assert check_step.env == {
+        "ML_RADAR_SEARCH_BACKEND": "file",
+    }
 
 def test_serving_performance_uses_full_preset_and_strict_validator():
     args = build_parser().parse_args(
@@ -95,3 +144,30 @@ def test_serving_performance_uses_full_preset_and_strict_validator():
 
     assert run_step.cmd[-2:] == ["--preset", "full"]
     assert check_step.cmd[-1] == "--strict"
+
+def test_hybrid_evaluation_is_composed_after_existing_qdrant_evidence():
+    names = step_names(
+        [
+            "--include-qdrant-profile-sweep",
+            "--include-qdrant-serving-performance",
+            "--include-qdrant-hybrid-evaluation",
+        ]
+    )
+
+    assert names.index(
+        "check_qdrant_search_profile_sweep"
+    ) < names.index(
+        "run_qdrant_serving_performance"
+    )
+
+    assert names.index(
+        "check_qdrant_serving_performance"
+    ) < names.index(
+        "run_qdrant_hybrid_evaluation"
+    )
+
+    assert names.index(
+        "run_qdrant_hybrid_evaluation"
+    ) < names.index(
+        "check_qdrant_hybrid_evaluation"
+    )
