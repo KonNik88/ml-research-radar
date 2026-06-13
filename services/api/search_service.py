@@ -16,6 +16,10 @@ from radar_core.retrieval.dense_backend import (
     DenseBackendUnavailableError,
     DenseSearchRequest,
 )
+from radar_core.retrieval.hybrid_merge import (
+    merge_hybrid_candidate_scores,
+    minmax_normalize_scores,
+)
 from radar_core.ranking.scoring import rank_results
 from services.api.logging import get_logger
 from services.api.runtime import ApiRuntime
@@ -69,18 +73,12 @@ def _load_search_scoring_params() -> dict[str, float]:
     }
 
 
-def _minmax_normalize(score_map: dict[str, float]) -> dict[str, float]:
-    if not score_map:
-        return {}
+def _minmax_normalize(
+    score_map: dict[str, float],
+) -> dict[str, float]:
+    """Compatibility wrapper around the shared hybrid kernel."""
 
-    values = list(score_map.values())
-    min_v = min(values)
-    max_v = max(values)
-
-    if abs(max_v - min_v) < 1e-12:
-        return {k: 1.0 for k in score_map}
-
-    return {k: (v - min_v) / (max_v - min_v) for k, v in score_map.items()}
+    return minmax_normalize_scores(score_map)
 
 
 def _string_or_none(value: Any) -> str | None:
@@ -276,44 +274,62 @@ def _hybrid_search_with_model(
     dense_ms = (time.perf_counter() - t_dense) * 1000
 
     t_merge = time.perf_counter()
-    lexical_score_map = {r.canonical_id: float(r.score) for r in lexical_results}
-    dense_score_map = {r["canonical_id"]: float(r["score"]) for r in dense_results}
 
-    lexical_norm = _minmax_normalize(lexical_score_map)
-    dense_norm = _minmax_normalize(dense_score_map)
+    lexical_candidates = [
+        {
+            "canonical_id": result.canonical_id,
+            "score": float(result.score),
+        }
+        for result in lexical_results
+    ]
 
-    all_ids = set(lexical_norm) | set(dense_norm)
-    id_to_doc = {doc.canonical_id: doc for doc in documents}
+    score_rows = merge_hybrid_candidate_scores(
+        lexical_candidates=lexical_candidates,
+        dense_candidates=dense_results,
+        lexical_weight=lexical_weight,
+        dense_weight=dense_weight,
+    )
+
+    id_to_doc = {
+        doc.canonical_id: doc
+        for doc in documents
+    }
 
     combined: list[dict[str, Any]] = []
-    for canonical_id in all_ids:
+
+    for score_row in score_rows:
+        canonical_id = str(
+            score_row["canonical_id"]
+        )
         doc = id_to_doc.get(canonical_id)
+
+        # Preserve the current public hydration behavior.
+        # Strict hydration will be enforced separately in the
+        # paired Qdrant hybrid evaluation runner.
         if doc is None:
             continue
-
-        lexical_score = lexical_score_map.get(canonical_id, 0.0)
-        dense_score = dense_score_map.get(canonical_id, 0.0)
-
-        hybrid_score = (
-            lexical_weight * lexical_norm.get(canonical_id, 0.0)
-            + dense_weight * dense_norm.get(canonical_id, 0.0)
-        )
 
         combined.append(
             {
                 "canonical_id": canonical_id,
-                "hybrid_score": float(hybrid_score),
-                "lexical_score": float(lexical_score),
-                "dense_score": float(dense_score),
+                "hybrid_score": float(
+                    score_row["hybrid_score"]
+                ),
+                "lexical_score": float(
+                    score_row["lexical_score"]
+                ),
+                "dense_score": float(
+                    score_row["dense_score"]
+                ),
                 "title": doc.title,
                 "year": doc.year,
                 "doi": doc.doi,
-                "source_count": int(doc.source_count or 0),
+                "source_count": int(
+                    doc.source_count or 0
+                ),
                 "document": doc,
             }
         )
-
-    combined.sort(key=lambda x: x["hybrid_score"], reverse=True)
     hybrid_merge_ms = (time.perf_counter() - t_merge) * 1000
 
     return combined[:top_k], {

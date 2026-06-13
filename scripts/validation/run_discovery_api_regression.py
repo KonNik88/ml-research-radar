@@ -197,6 +197,37 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
             )
         )
 
+    if args.include_qdrant_hybrid_evaluation:
+        steps.extend(
+            [
+                Step(
+                    name=(
+                        "run_qdrant_hybrid_evaluation"
+                    ),
+                    cmd=python_cmd(
+                        (
+                            "scripts.evaluation."
+                            "run_qdrant_hybrid_evaluation"
+                        ),
+                    ),
+                    env=file_env,
+                ),
+                Step(
+                    name=(
+                        "check_qdrant_hybrid_evaluation"
+                    ),
+                    cmd=python_cmd(
+                        (
+                            "scripts.validation."
+                            "check_qdrant_hybrid_evaluation"
+                        ),
+                        "--strict",
+                    ),
+                    env=file_env,
+                ),
+            ]
+        )
+
     if args.include_retrieval_eval:
         steps.extend(
             [
@@ -408,6 +439,14 @@ def build_parser() -> argparse.ArgumentParser:
             "GET /experimental/search/qdrant. Requires file backend runtime, "
             "Qdrant container, and an existing benchmark collection. This does "
             "not change /search defaults or SearchRuntime backend selection."
+        ),
+    )
+    parser.add_argument(
+        "--include-qdrant-hybrid-evaluation",
+        action="store_true",
+        help=(
+            "Run the controlled file-vs-Qdrant "
+            "hybrid evaluation and its strict validator."
         ),
     )
     parser.add_argument(
