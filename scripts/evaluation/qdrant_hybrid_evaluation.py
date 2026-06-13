@@ -22,14 +22,28 @@ import hashlib
 import math
 from collections.abc import Mapping, Sequence
 from typing import Any
-
+import time
+from collections.abc import Callable
 import numpy as np
 
 from scripts.evaluation.qdrant_serving_performance import (
     compare_id_lists,
     result_ids_digest,
 )
-
+from radar_core.ranking.scoring import (
+    RankedResult,
+    rank_results,
+)
+from radar_core.retrieval.dense_backend import (
+    DenseSearchBackend,
+    DenseSearchRequest,
+)
+from radar_core.retrieval.hybrid_merge import (
+    merge_hybrid_candidate_scores,
+)
+from scripts.evaluation.run_retrieval_eval import (
+    metrics_at_k,
+)
 
 CONFIG_SCHEMA_VERSION = (
     "qdrant_hybrid_evaluation_config_v1"
@@ -1191,3 +1205,445 @@ def validate_public_scoring_contract(
             )
 
     return scoring_params
+
+def lexical_candidates_digest(
+    candidates: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    """Build compact evidence for one shared lexical candidate list."""
+
+    ids: list[str] = []
+    score_payload: list[str] = []
+    seen_ids: set[str] = set()
+
+    for position, candidate in enumerate(
+        candidates,
+        start=1,
+    ):
+        canonical_id = str(
+            candidate.get("canonical_id") or ""
+        ).strip()
+
+        if not canonical_id:
+            raise ValueError(
+                "Lexical candidate canonical_id "
+                f"is empty at position {position}"
+            )
+
+        if canonical_id in seen_ids:
+            raise ValueError(
+                "Duplicate lexical candidate "
+                f"canonical_id: {canonical_id}"
+            )
+
+        seen_ids.add(canonical_id)
+
+        score = _require_finite_number(
+            candidate.get("score"),
+            name=(
+                "lexical candidate score "
+                f"at position {position}"
+            ),
+        )
+
+        ids.append(canonical_id)
+        score_payload.append(
+            f"{canonical_id}\t{score:.17g}"
+        )
+
+    score_bytes = "\n".join(
+        score_payload
+    ).encode("utf-8")
+
+    return {
+        "count": len(ids),
+        "ids_digest": result_ids_digest(ids),
+        "ids_and_scores_sha256": hashlib.sha256(
+            score_bytes
+        ).hexdigest(),
+    }
+
+
+def ranked_results_to_rows(
+    ranked_results: Sequence[RankedResult],
+) -> list[dict[str, Any]]:
+    """Convert common ranking results back to evaluation rows."""
+
+    rows: list[dict[str, Any]] = []
+
+    for result in ranked_results:
+        row = dict(result.raw)
+        row.update(
+            {
+                "canonical_id": result.canonical_id,
+                "title": result.title,
+                "year": result.year,
+                "doi": result.doi,
+                "source_count": (
+                    result.source_count
+                ),
+                "retrieval_score": (
+                    result.retrieval_score
+                ),
+                "recency_score": (
+                    result.recency_score
+                ),
+                "source_support_score": (
+                    result.source_support_score
+                ),
+                "metadata_quality_score": (
+                    result.metadata_quality_score
+                ),
+                "final_score": result.final_score,
+                "document": result.document,
+            }
+        )
+        rows.append(row)
+
+    return rows
+
+
+def _apply_optional_ranking(
+    candidates: list[dict[str, Any]],
+    *,
+    rank: bool,
+    scoring_params: Mapping[str, Any],
+) -> tuple[list[dict[str, Any]], float]:
+    if not rank:
+        return candidates, 0.0
+
+    started = time.perf_counter()
+
+    ranked = rank_results(
+        candidates,
+        retrieval_score_field="hybrid_score",
+        retrieval_weight=float(
+            scoring_params[
+                "ranking_retrieval_weight"
+            ]
+        ),
+        recency_weight=float(
+            scoring_params[
+                "ranking_recency_weight"
+            ]
+        ),
+        source_support_weight=float(
+            scoring_params[
+                "ranking_source_support_weight"
+            ]
+        ),
+        metadata_quality_weight=float(
+            scoring_params[
+                "ranking_metadata_quality_weight"
+            ]
+        ),
+    )
+
+    elapsed_ms = (
+        time.perf_counter() - started
+    ) * 1000.0
+
+    return ranked_results_to_rows(
+        ranked
+    ), elapsed_ms
+
+
+def run_paired_hybrid_scenario(
+    *,
+    case: Mapping[str, Any],
+    query_vector: np.ndarray,
+    lexical_candidates: Sequence[
+        Mapping[str, Any]
+    ],
+    file_backend: DenseSearchBackend,
+    qdrant_backend: DenseSearchBackend,
+    documents_by_id: Mapping[str, Any],
+    scenario: Mapping[str, Any],
+    scoring_params: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Run one controlled file-vs-Qdrant hybrid scenario."""
+
+    top_k = _require_positive_int(
+        scenario.get("top_k"),
+        name="scenario.top_k",
+    )
+    candidate_k = _require_positive_int(
+        scenario.get("candidate_k"),
+        name="scenario.candidate_k",
+    )
+    rank = scenario.get("rank")
+
+    if not isinstance(rank, bool):
+        raise ValueError(
+            "scenario.rank must be boolean"
+        )
+
+    lexical_weight = _require_finite_number(
+        scenario.get("lexical_weight"),
+        name="scenario.lexical_weight",
+    )
+    dense_weight = _require_finite_number(
+        scenario.get("dense_weight"),
+        name="scenario.dense_weight",
+    )
+
+    shared_lexical = [
+        dict(candidate)
+        for candidate in lexical_candidates[
+            :candidate_k
+        ]
+    ]
+
+    request = DenseSearchRequest(
+        query_vector=np.asarray(
+            query_vector,
+            dtype=np.float32,
+        ),
+        top_k=candidate_k,
+    )
+
+    file_started = time.perf_counter()
+    file_result = file_backend.search(request)
+    file_dense_wall_ms = (
+        time.perf_counter() - file_started
+    ) * 1000.0
+
+    qdrant_started = time.perf_counter()
+    qdrant_result = qdrant_backend.search(
+        request
+    )
+    qdrant_dense_wall_ms = (
+        time.perf_counter() - qdrant_started
+    ) * 1000.0
+
+    file_dense_rows = (
+        dense_candidates_to_score_rows(
+            file_result.candidates
+        )
+    )
+    qdrant_dense_rows = (
+        dense_candidates_to_score_rows(
+            qdrant_result.candidates
+        )
+    )
+
+    file_merge_started = time.perf_counter()
+    file_score_rows = (
+        merge_hybrid_candidate_scores(
+            lexical_candidates=shared_lexical,
+            dense_candidates=file_dense_rows,
+            lexical_weight=lexical_weight,
+            dense_weight=dense_weight,
+        )
+    )
+    file_merge_ms = (
+        time.perf_counter()
+        - file_merge_started
+    ) * 1000.0
+
+    qdrant_merge_started = time.perf_counter()
+    qdrant_score_rows = (
+        merge_hybrid_candidate_scores(
+            lexical_candidates=shared_lexical,
+            dense_candidates=qdrant_dense_rows,
+            lexical_weight=lexical_weight,
+            dense_weight=dense_weight,
+        )
+    )
+    qdrant_merge_ms = (
+        time.perf_counter()
+        - qdrant_merge_started
+    ) * 1000.0
+
+    file_hydrate_started = time.perf_counter()
+    file_hydrated = strict_hydrate_score_rows(
+        file_score_rows,
+        documents_by_id=documents_by_id,
+    )
+    file_hydrate_ms = (
+        time.perf_counter()
+        - file_hydrate_started
+    ) * 1000.0
+
+    qdrant_hydrate_started = time.perf_counter()
+    qdrant_hydrated = (
+        strict_hydrate_score_rows(
+            qdrant_score_rows,
+            documents_by_id=documents_by_id,
+        )
+    )
+    qdrant_hydrate_ms = (
+        time.perf_counter()
+        - qdrant_hydrate_started
+    ) * 1000.0
+
+    file_ranked, file_rank_ms = (
+        _apply_optional_ranking(
+            file_hydrated,
+            rank=rank,
+            scoring_params=scoring_params,
+        )
+    )
+    qdrant_ranked, qdrant_rank_ms = (
+        _apply_optional_ranking(
+            qdrant_hydrated,
+            rank=rank,
+            scoring_params=scoring_params,
+        )
+    )
+
+    file_final = file_ranked[:top_k]
+    qdrant_final = qdrant_ranked[:top_k]
+
+    file_dense_ids = [
+        row["canonical_id"]
+        for row in file_dense_rows
+    ]
+    qdrant_dense_ids = [
+        row["canonical_id"]
+        for row in qdrant_dense_rows
+    ]
+    file_final_ids = [
+        row["canonical_id"]
+        for row in file_final
+    ]
+    qdrant_final_ids = [
+        row["canonical_id"]
+        for row in qdrant_final
+    ]
+
+    dense_comparison = compare_ranked_ids(
+        file_dense_ids,
+        qdrant_dense_ids,
+        top_k=candidate_k,
+    )
+    final_comparison = compare_ranked_ids(
+        file_final_ids,
+        qdrant_final_ids,
+        top_k=top_k,
+    )
+
+    file_metrics = metrics_at_k(
+        case=dict(case),
+        results=file_final,
+        k=top_k,
+    )
+    qdrant_metrics = metrics_at_k(
+        case=dict(case),
+        results=qdrant_final,
+        k=top_k,
+    )
+
+    deltas = metric_deltas(
+        file_metrics,
+        qdrant_metrics,
+        metric_names=(
+            "hit",
+            "precision",
+            "recall",
+            "mrr",
+            "ndcg",
+        ),
+    )
+
+    classification = classify_hybrid_difference(
+        dense_comparison=dense_comparison,
+        final_comparison=final_comparison,
+        deterministic=True,
+    )
+
+    return {
+        "scenario_id": str(
+            scenario.get("scenario_id") or ""
+        ),
+        "top_k": top_k,
+        "candidate_k": candidate_k,
+        "rank": rank,
+        "shared": {
+            "query_vector": (
+                query_vector_fingerprint(
+                    query_vector
+                )
+            ),
+            "lexical": lexical_candidates_digest(
+                shared_lexical
+            ),
+            "lexical_weight": lexical_weight,
+            "dense_weight": dense_weight,
+            "normalization": str(
+                scenario.get("normalization")
+                or ""
+            ),
+        },
+        "file": {
+            "backend": {
+                "name": (
+                    file_result.backend.backend_name
+                ),
+                "implementation": (
+                    file_result.backend.implementation
+                ),
+                "build_id": (
+                    file_result.backend.build_id
+                ),
+                "ready": (
+                    file_result.backend.ready
+                ),
+            },
+            "dense_ids": file_dense_ids,
+            "final_ids": file_final_ids,
+            "metrics": file_metrics,
+            "timing_ms": {
+                "dense_wall_ms": (
+                    file_dense_wall_ms
+                ),
+                "backend_search_ms": float(
+                    file_result.timing_ms.get(
+                        "backend_search_ms",
+                        0.0,
+                    )
+                ),
+                "merge_ms": file_merge_ms,
+                "hydrate_ms": file_hydrate_ms,
+                "rank_ms": file_rank_ms,
+            },
+        },
+        "qdrant": {
+            "backend": {
+                "name": (
+                    qdrant_result.backend.backend_name
+                ),
+                "implementation": (
+                    qdrant_result.backend.implementation
+                ),
+                "build_id": (
+                    qdrant_result.backend.build_id
+                ),
+                "ready": (
+                    qdrant_result.backend.ready
+                ),
+            },
+            "dense_ids": qdrant_dense_ids,
+            "final_ids": qdrant_final_ids,
+            "metrics": qdrant_metrics,
+            "timing_ms": {
+                "dense_wall_ms": (
+                    qdrant_dense_wall_ms
+                ),
+                "backend_search_ms": float(
+                    qdrant_result.timing_ms.get(
+                        "backend_search_ms",
+                        0.0,
+                    )
+                ),
+                "merge_ms": qdrant_merge_ms,
+                "hydrate_ms": qdrant_hydrate_ms,
+                "rank_ms": qdrant_rank_ms,
+            },
+        },
+        "comparison": {
+            "dense": dense_comparison,
+            "final": final_comparison,
+            "metric_deltas": deltas,
+            **classification,
+        },
+    }

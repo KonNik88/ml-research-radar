@@ -6,6 +6,11 @@ import numpy as np
 import pytest
 from types import SimpleNamespace
 
+from radar_core.retrieval.dense_backend import (
+    DenseSearchBackendInfo,
+    DenseSearchBackendResult,
+    DenseSearchCandidate,
+)
 from scripts.evaluation.qdrant_hybrid_evaluation import (
     build_scenario_matrix,
     classify_hybrid_difference,
@@ -19,6 +24,9 @@ from scripts.evaluation.qdrant_hybrid_evaluation import (
     strict_hydrate_score_rows,
     validate_hybrid_evaluation_config,
     validate_public_scoring_contract,
+    lexical_candidates_digest,
+    ranked_results_to_rows,
+    run_paired_hybrid_scenario,
 )
 from services.api.search_service import (
     _candidate_pool_size,
@@ -649,3 +657,404 @@ def test_public_scoring_contract_rejects_weight_drift(
             config,
             scoring_config(),
         )
+
+class FakeDenseBackend:
+    def __init__(
+        self,
+        *,
+        backend_name: str,
+        candidates: list[
+            DenseSearchCandidate
+        ],
+        build_id: str = "build-1",
+    ) -> None:
+        self.backend_name = backend_name
+        self.candidates = tuple(candidates)
+        self.build_id = build_id
+        self.requests = []
+
+    def search(self, request):
+        self.requests.append(request)
+
+        return DenseSearchBackendResult(
+            candidates=self.candidates,
+            backend=DenseSearchBackendInfo(
+                backend_name=self.backend_name,
+                implementation=(
+                    f"Fake{self.backend_name.title()}"
+                ),
+                build_id=self.build_id,
+                ready=True,
+                diagnostics={},
+            ),
+            timing_ms={
+                "backend_search_ms": 1.0,
+            },
+        )
+
+    def info(self):
+        return DenseSearchBackendInfo(
+            backend_name=self.backend_name,
+            implementation=(
+                f"Fake{self.backend_name.title()}"
+            ),
+            build_id=self.build_id,
+            ready=True,
+            diagnostics={},
+        )
+
+
+def make_dense_candidate(
+    canonical_id: str,
+    score: float,
+    rank: int,
+) -> DenseSearchCandidate:
+    return DenseSearchCandidate(
+        canonical_id=canonical_id,
+        score=score,
+        rank=rank,
+        dense_index=rank - 1,
+        backend_point_id=rank - 1,
+        backend_metadata={},
+    )
+
+
+def make_eval_document(
+    canonical_id: str,
+    *,
+    year: int,
+):
+    return SimpleNamespace(
+        canonical_id=canonical_id,
+        title=f"Paper {canonical_id}",
+        abstract="Abstract",
+        authors=["Author"],
+        year=year,
+        doi=f"10.1/{canonical_id}",
+        source_count=1,
+        primary_category="cs.LG",
+        categories=["cs.LG"],
+        tags=["retrieval"],
+        venue=None,
+        journal=None,
+        publisher=None,
+    )
+
+
+def paired_case() -> dict:
+    return {
+        "query_id": "query-1",
+        "query": "retrieval",
+        "expected": {
+            "canonical_ids": ["a"],
+            "relevant_count": 1,
+            "strict_canonical_relevance": True,
+        },
+        "graded_relevance": [
+            {
+                "canonical_id": "a",
+                "grade": 3,
+            }
+        ],
+    }
+
+
+def paired_scenario(
+    *,
+    rank: bool = False,
+) -> dict:
+    return {
+        "scenario_id": (
+            "top2__candidate3__"
+            + ("ranked" if rank else "unranked")
+        ),
+        "top_k": 2,
+        "candidate_k": 3,
+        "rank": rank,
+        "offset": 0,
+        "sort_by": "relevance",
+        "normalization": "minmax",
+        "lexical_weight": 0.55,
+        "dense_weight": 0.45,
+    }
+
+
+def test_lexical_candidates_digest_is_stable(
+) -> None:
+    candidates = [
+        {
+            "canonical_id": "a",
+            "score": 3.0,
+        },
+        {
+            "canonical_id": "b",
+            "score": 2.0,
+        },
+    ]
+
+    assert (
+        lexical_candidates_digest(candidates)
+        == lexical_candidates_digest(
+            deepcopy(candidates)
+        )
+    )
+
+
+def test_paired_scenario_exact_match() -> None:
+    candidates = [
+        make_dense_candidate(
+            "b",
+            0.9,
+            1,
+        ),
+        make_dense_candidate(
+            "a",
+            0.8,
+            2,
+        ),
+        make_dense_candidate(
+            "c",
+            0.7,
+            3,
+        ),
+    ]
+
+    file_backend = FakeDenseBackend(
+        backend_name="file",
+        candidates=candidates,
+    )
+    qdrant_backend = FakeDenseBackend(
+        backend_name="qdrant",
+        candidates=candidates,
+    )
+
+    documents = {
+        canonical_id: make_eval_document(
+            canonical_id,
+            year=2024 + index,
+        )
+        for index, canonical_id in enumerate(
+            ("a", "b", "c"),
+        )
+    }
+
+    result = run_paired_hybrid_scenario(
+        case=paired_case(),
+        query_vector=np.asarray(
+            [1.0, 0.0],
+            dtype=np.float32,
+        ),
+        lexical_candidates=[
+            {
+                "canonical_id": "a",
+                "score": 4.0,
+            },
+            {
+                "canonical_id": "b",
+                "score": 2.0,
+            },
+            {
+                "canonical_id": "c",
+                "score": 1.0,
+            },
+        ],
+        file_backend=file_backend,
+        qdrant_backend=qdrant_backend,
+        documents_by_id=documents,
+        scenario=paired_scenario(),
+        scoring_params=resolve_scoring_params(
+            scoring_config()
+        ),
+    )
+
+    assert result["comparison"][
+        "classification"
+    ] == "exact_match"
+    assert result["comparison"]["blocking"] is False
+    assert result["comparison"]["dense"][
+        "exact_same_order"
+    ] is True
+    assert result["comparison"]["final"][
+        "exact_same_order"
+    ] is True
+    assert result["comparison"][
+        "metric_deltas"
+    ] == pytest.approx(
+        {
+            "hit": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "mrr": 0.0,
+            "ndcg": 0.0,
+        }
+    )
+
+    assert len(file_backend.requests) == 1
+    assert len(qdrant_backend.requests) == 1
+    assert (
+        file_backend.requests[0].query_vector
+        is qdrant_backend.requests[
+            0
+        ].query_vector
+    )
+    assert file_backend.requests[0].top_k == 3
+
+
+def test_paired_scenario_detects_dense_difference(
+) -> None:
+    file_backend = FakeDenseBackend(
+        backend_name="file",
+        candidates=[
+            make_dense_candidate(
+                "a",
+                0.9,
+                1,
+            ),
+            make_dense_candidate(
+                "b",
+                0.8,
+                2,
+            ),
+            make_dense_candidate(
+                "c",
+                0.7,
+                3,
+            ),
+        ],
+    )
+    qdrant_backend = FakeDenseBackend(
+        backend_name="qdrant",
+        candidates=[
+            make_dense_candidate(
+                "a",
+                0.9,
+                1,
+            ),
+            make_dense_candidate(
+                "b",
+                0.8,
+                2,
+            ),
+            make_dense_candidate(
+                "d",
+                0.7,
+                3,
+            ),
+        ],
+    )
+
+    documents = {
+        canonical_id: make_eval_document(
+            canonical_id,
+            year=2025,
+        )
+        for canonical_id in (
+            "a",
+            "b",
+            "c",
+            "d",
+        )
+    }
+
+    result = run_paired_hybrid_scenario(
+        case=paired_case(),
+        query_vector=np.asarray(
+            [1.0, 0.0],
+            dtype=np.float32,
+        ),
+        lexical_candidates=[
+            {
+                "canonical_id": "a",
+                "score": 4.0,
+            }
+        ],
+        file_backend=file_backend,
+        qdrant_backend=qdrant_backend,
+        documents_by_id=documents,
+        scenario=paired_scenario(),
+        scoring_params=resolve_scoring_params(
+            scoring_config()
+        ),
+    )
+
+    assert result["comparison"]["dense"][
+        "overlap_ratio"
+    ] == pytest.approx(2 / 3)
+    assert result["comparison"][
+        "classification"
+    ] in {
+        "dense_candidate_difference_no_final_effect",
+        "approximate_search_recall_difference",
+    }
+
+
+def test_paired_ranked_scenario_uses_common_ranking(
+) -> None:
+    candidates = [
+        make_dense_candidate("a", 0.9, 1),
+        make_dense_candidate("b", 0.8, 2),
+        make_dense_candidate("c", 0.7, 3),
+    ]
+
+    documents = {
+        "a": make_eval_document(
+            "a",
+            year=2020,
+        ),
+        "b": make_eval_document(
+            "b",
+            year=2025,
+        ),
+        "c": make_eval_document(
+            "c",
+            year=2026,
+        ),
+    }
+
+    result = run_paired_hybrid_scenario(
+        case=paired_case(),
+        query_vector=np.asarray(
+            [1.0, 0.0],
+            dtype=np.float32,
+        ),
+        lexical_candidates=[
+            {
+                "canonical_id": "a",
+                "score": 3.0,
+            },
+            {
+                "canonical_id": "b",
+                "score": 2.0,
+            },
+            {
+                "canonical_id": "c",
+                "score": 1.0,
+            },
+        ],
+        file_backend=FakeDenseBackend(
+            backend_name="file",
+            candidates=candidates,
+        ),
+        qdrant_backend=FakeDenseBackend(
+            backend_name="qdrant",
+            candidates=candidates,
+        ),
+        documents_by_id=documents,
+        scenario=paired_scenario(
+            rank=True
+        ),
+        scoring_params=resolve_scoring_params(
+            scoring_config()
+        ),
+    )
+
+    assert result["rank"] is True
+    assert result["comparison"][
+        "classification"
+    ] == "exact_match"
+    assert result["file"]["timing_ms"][
+        "rank_ms"
+    ] >= 0.0
+    assert result["qdrant"]["timing_ms"][
+        "rank_ms"
+    ] >= 0.0
