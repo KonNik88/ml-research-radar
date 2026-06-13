@@ -19,6 +19,10 @@ except ImportError as exc:  # pragma: no cover
 
 from radar_core.contracts.canonical_document import CanonicalDocument
 from radar_core.ranking.scoring import rank_results
+from radar_core.retrieval.hybrid_merge import (
+    merge_hybrid_candidate_scores,
+    minmax_normalize_scores,
+)
 from scripts.evaluation.run_retrieval_eval import (
     compact_result,
     load_jsonl,
@@ -112,18 +116,12 @@ def load_yaml(path: Path) -> dict[str, Any]:
     return payload
 
 
-def minmax_normalize(score_map: dict[str, float]) -> dict[str, float]:
-    if not score_map:
-        return {}
+def minmax_normalize(
+    score_map: dict[str, float],
+) -> dict[str, float]:
+    """Compatibility wrapper around the shared hybrid kernel."""
 
-    values = list(score_map.values())
-    min_v = min(values)
-    max_v = max(values)
-
-    if abs(max_v - min_v) < 1e-12:
-        return {k: 1.0 for k in score_map}
-
-    return {k: (v - min_v) / (max_v - min_v) for k, v in score_map.items()}
+    return minmax_normalize_scores(score_map)
 
 
 def build_runtime(backend_mode: str):
@@ -372,56 +370,66 @@ def build_hybrid_candidates_from_cache(
 ) -> tuple[list[dict[str, Any]], dict[str, float]]:
     t_merge = time.perf_counter()
 
-    lexical_candidates = list(query_cache["lexical_candidates"][:candidate_k])
-    dense_candidates = list(query_cache["dense_candidates"][:candidate_k])
+    lexical_candidates = list(
+        query_cache["lexical_candidates"][:candidate_k]
+    )
+    dense_candidates = list(
+        query_cache["dense_candidates"][:candidate_k]
+    )
 
-    lexical_score_map = {
-        str(candidate["canonical_id"]): float(candidate.get("score", 0.0))
-        for candidate in lexical_candidates
+    score_rows = merge_hybrid_candidate_scores(
+        lexical_candidates=lexical_candidates,
+        dense_candidates=dense_candidates,
+        lexical_weight=lexical_weight,
+        dense_weight=dense_weight,
+    )
+
+    id_to_doc = {
+        doc.canonical_id: doc
+        for doc in runtime.documents
     }
-    dense_score_map = {
-        str(candidate["canonical_id"]): float(candidate.get("score", 0.0))
-        for candidate in dense_candidates
-    }
-
-    lexical_norm = minmax_normalize(lexical_score_map)
-    dense_norm = minmax_normalize(dense_score_map)
-
-    all_ids = set(lexical_norm) | set(dense_norm)
-    id_to_doc = {doc.canonical_id: doc for doc in runtime.documents}
 
     combined: list[dict[str, Any]] = []
-    for canonical_id in all_ids:
+
+    for score_row in score_rows:
+        canonical_id = str(
+            score_row["canonical_id"]
+        )
         doc = id_to_doc.get(canonical_id)
+
+        # Preserve the existing controlled-runner hydration behavior.
         if doc is None:
             continue
-
-        lexical_score = lexical_score_map.get(canonical_id, 0.0)
-        dense_score = dense_score_map.get(canonical_id, 0.0)
-
-        hybrid_score = (
-            lexical_weight * lexical_norm.get(canonical_id, 0.0)
-            + dense_weight * dense_norm.get(canonical_id, 0.0)
-        )
 
         combined.append(
             {
                 "canonical_id": canonical_id,
-                "hybrid_score": float(hybrid_score),
-                "lexical_score": float(lexical_score),
-                "dense_score": float(dense_score),
+                "hybrid_score": float(
+                    score_row["hybrid_score"]
+                ),
+                "lexical_score": float(
+                    score_row["lexical_score"]
+                ),
+                "dense_score": float(
+                    score_row["dense_score"]
+                ),
                 "title": doc.title,
                 "year": doc.year,
                 "doi": doc.doi,
-                "source_count": int(doc.source_count or 0),
+                "source_count": int(
+                    doc.source_count or 0
+                ),
                 "document": doc,
             }
         )
 
-    combined.sort(key=lambda x: x["hybrid_score"], reverse=True)
-    merge_ms = round((time.perf_counter() - t_merge) * 1000.0, 3)
+    hybrid_merge_ms = (
+        time.perf_counter() - t_merge
+    ) * 1000.0
 
-    return combined, {"hybrid_merge_ms": merge_ms}
+    return combined, {
+        "hybrid_merge_ms": hybrid_merge_ms,
+    }
 
 
 def estimated_query_ms_for_variant(
