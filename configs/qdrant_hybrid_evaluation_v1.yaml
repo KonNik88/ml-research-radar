@@ -46,6 +46,9 @@ evaluation:
     mismatch_repeated_runs: 5
 
 quality:
+  expected_enabled_query_count: 34
+  require_full_query_set: true
+
   max_error_count: 0
 
   min_mean_final_overlap_at_k: 0.99
