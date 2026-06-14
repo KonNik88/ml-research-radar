@@ -5,15 +5,15 @@
 ```text
 document: primary living roadmap
 checkpoint: Qdrant Hybrid Evaluation v1
-checkpoint date: 2026-06-13
-implementation state: implemented / validated on feature branch, pending PR merge
-feature branch: retrieval/qdrant-hybrid-evaluation-v1
-base main checkpoint: 6358164
+checkpoint date: 2026-06-14
+implementation state: merged / green on main
+feature branch: merged and closed
 previous checkpoint: Qdrant Serving Performance v1 merged in PR #19
 public Qdrant promotion: not performed
 public dense/hybrid backend: file
 experimental Qdrant transport: gRPC
 fallback: absent
+scaling strategy: accepted / documented
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**,
@@ -681,7 +681,7 @@ Public dense/hybrid remained file-backed.
 
 ### 4.16 Qdrant Hybrid Evaluation v1
 
-Status: **implemented / validated on feature branch; pending PR merge**
+Status: **done / green; merged into main**
 
 Implemented:
 
@@ -728,7 +728,7 @@ Interpretation:
 
 ---
 
-## 5. Validation evidence for the current feature branch
+## 5. Validation evidence for the current main checkpoint
 
 Focused hybrid slice suite:
 
@@ -803,78 +803,240 @@ collection.
 
 ## 6. Near-term roadmap
 
-Recommended order after merge:
+The project will not scale the corpus aggressively before the main product,
+retrieval, evaluation, refresh, and promotion semantics are sufficiently
+stable.
+
+The accepted sequencing is documented in:
 
 ```text
-1. Explicit public/deployment Qdrant exposure decision.
-2. Hydration and cold-start investigation if latency work is prioritized.
-3. Integration-test memory/lifecycle hardening.
-4. Stronger embeddings and retrieval profiles.
-5. Topic labeling and product polish.
-6. New sources through the viability gate.
-7. Full text / RAG / personalization / dataset releases.
+docs/scaling-and-vector-serving-strategy-v1.md
 ```
 
-### 6.1 Public or deployment-level Qdrant exposure decision
-
-Status: **next retrieval decision slice**
-
-The evidence question is now answered for the active build:
+Recommended order:
 
 ```text
-Replacing only the dense component of hybrid search preserves the complete
-final result set across all 136 evaluated scenarios and introduces no measured
-quality regression, fallback, integrity defect, or nondeterminism.
+1. Complete and stabilize the functional MVP on the current representative corpus.
+2. Strengthen product features, retrieval quality, ranking, and code ownership.
+3. Select and validate the next embedding/retrieval generation.
+4. Run a medium-scale rehearsal on a larger candidate corpus.
+5. Operationalize Qdrant through a deployment-level vector-backend selector.
+6. Promote Qdrant to the primary vector-serving role when scale evidence justifies it.
+7. Expand the accepted corpus substantially.
+8. Add orchestration and distributed infrastructure only when real operating needs appear.
 ```
 
-The next decision is contractual and product-facing.
+### 6.1 Scaling and vector-serving strategy
 
-Possible outcomes:
+Status: **accepted / documented**
 
-- keep Qdrant experimental;
-- expose an explicit opt-in backend selector;
-- select the backend at deployment composition;
-- run a limited explicit rollout;
-- postpone promotion.
-
-No promotion remains a valid outcome.
-
-Any approved exposure must define:
-
-- requested and effective backend metadata;
-- public/default behavior;
-- OpenAPI and configuration contract;
-- no-fallback or explicit-fallback semantics;
-- health/readiness behavior;
-- rollout and rollback procedure;
-- build-scoped compatibility gates.
-
-Preferred API direction, if public selection is approved:
+Core decision:
 
 ```text
-/search?mode=dense&vector_backend=file
-/search?mode=dense&vector_backend=qdrant
-/search?mode=hybrid&vector_backend=qdrant
+The current 60954-document corpus remains the representative development and
+validation corpus while the functional MVP and its contracts are still evolving.
 ```
 
-Backend-specific strategy modes remain discouraged.
-
-### 6.2 Optional exact diagnostic for depth-100 differences
-
-Status: **optional, not a blocker**
-
-An exact Qdrant diagnostic at `candidate_k=100` may be run for:
+Current role split:
 
 ```text
-diffusion_models_001
-rag_evaluation_001
+FileDenseBackend
+= exact reference backend, offline evaluation oracle, rebuildable artifact path
+
+QdrantDenseBackend
+= validated future scalable vector-serving backend
 ```
 
-This could further confirm that the four stable differences are HNSW recall or
-score-boundary effects. The current slice does not require it because final-set
-parity is complete and the strict evidence gate is green.
+The completed Qdrant work is therefore a scale-readiness proof, not an
+immediate requirement to switch public search.
 
-### 6.3 Hydration and cold-start investigation
+The project must avoid both extremes:
+
+```text
+premature scale
+→ slower iteration, harder debugging, expensive rebuilds
+
+late operationalization
+→ forced migration only after the corpus has already become too large
+```
+
+Preferred transition point:
+
+```text
+functional MVP stabilized
+→ next embedding model selected
+→ medium-scale rehearsal
+→ deployment-level Qdrant selector
+→ large corpus expansion
+```
+
+A public request-level `vector_backend` parameter remains deferred. It should
+be introduced only if a concrete product use case requires per-request backend
+selection.
+
+### 6.2 Functional MVP completion on the current corpus
+
+Status: **current planning horizon**
+
+The current corpus is large enough to exercise real project behavior while
+remaining cheap enough to rebuild and inspect.
+
+Suitable work before major scale-up includes:
+
+- graph and relation layers;
+- additional paper features;
+- ranking and reranking improvements;
+- retrieval-model experiments;
+- stronger discovery workflows;
+- refresh and promotion hardening;
+- source viability experiments;
+- code ownership and architecture review;
+- API/UI product polish;
+- evaluation and failure-injection improvements.
+
+The next concrete vertical slice should be selected separately. The roadmap
+does not force Qdrant deployment selector work to be the immediate next PR.
+
+### 6.3 Next embedding and retrieval generation
+
+Status: **planned before large-scale corpus growth**
+
+Potential profiles:
+
+```text
+fast_default
+scientific_semantic
+citation_aware
+hybrid
+```
+
+A stronger model may improve scientific retrieval, but any model change
+creates a new retrieval generation.
+
+Required lifecycle:
+
+```text
+select candidate model
+→ build file embeddings and IDs
+→ validate normalization and dimensions
+→ create a new build-scoped Qdrant collection
+→ run Golden Set evaluation
+→ run profile sweep
+→ run controlled hybrid evaluation
+→ run serving benchmark
+→ promote or reject the generation explicitly
+```
+
+The current MiniLM build and Qdrant collection remain valid evidence for the
+existing generation, not permanent defaults for every future corpus.
+
+### 6.4 Medium-scale rehearsal
+
+Status: **planned gate before major corpus expansion**
+
+Before moving directly to millions of papers, create a larger candidate build,
+for example:
+
+```text
+100000–300000 documents
+or
+approximately 500000 documents
+```
+
+This rehearsal need not become stable canonical latest.
+
+Measure:
+
+- ingest, normalize, align, and reconcile time;
+- identity-conflict and provenance behavior;
+- Postgres materialization time and size;
+- embedding throughput and artifact size;
+- Qdrant upload and index-build time;
+- RAM, VRAM, storage, and pagefile pressure;
+- exact file-search latency;
+- Qdrant latency and concurrency;
+- incremental refresh behavior;
+- validator and report duration;
+- candidate promotion and rollback;
+- full rebuild recovery.
+
+The result determines whether Qdrant operationalization, model changes,
+partitioning, or pipeline orchestration must happen before further growth.
+
+### 6.5 Deployment-level Qdrant selector
+
+Status: **approved future slice; intentionally deferred**
+
+Preferred future contract:
+
+```text
+ML_RADAR_VECTOR_BACKEND=file|qdrant
+```
+
+Default:
+
+```text
+file
+```
+
+Initial scope:
+
+```text
+/search?mode=dense
+/search?mode=hybrid
+```
+
+Behavior:
+
+```text
+mode = retrieval strategy
+vector backend = deployment-selected dense implementation
+```
+
+Expected v1 rules:
+
+- one vector backend per deployment;
+- no request-level selector;
+- no hidden fallback;
+- lexical search remains independent;
+- Qdrant-selected deployments expose explicit readiness failures;
+- file remains the rollback and exact-reference backend;
+- experimental Qdrant endpoint remains until a separate lifecycle decision;
+- similar-paper migration is a separate evaluated slice.
+
+This selector should be implemented after MVP semantics and the next retrieval
+generation are clearer, but before large corpus growth makes file serving an
+operational constraint.
+
+### 6.6 Similar-paper vector serving
+
+Status: **separate future decision**
+
+Current similar-paper search already uses paper embeddings and file-based
+nearest-neighbour search.
+
+Potential future path:
+
+```text
+paper embedding
+→ Qdrant nearest neighbours
+→ self-exclusion
+→ existing semantic or radar-adjusted ranking
+```
+
+This is not automatically included in deployment selector v1 because the
+contract differs from text-query search:
+
+- paper vector instead of query text;
+- mandatory self-exclusion;
+- different enrichment;
+- different evaluation cases;
+- `semantic` and `radar_adjusted` result modes.
+
+Migration is justified only by measured latency, memory, update, or
+operational benefits.
+
+### 6.7 Hydration and cold-start investigation
 
 Status: **measured opportunity, not current blocker**
 
@@ -891,14 +1053,15 @@ Potential work:
 
 - inspect canonical ID lookup layout;
 - separate hydration from serialization;
-- profile copy/validation costs;
+- profile copy and validation costs;
 - preserve explicit missing-document semantics;
-- avoid backend-specific hydration logic.
+- avoid backend-specific hydration logic;
+- evaluate eager channel/backend initialization for deployed Qdrant mode.
 
-Fresh Qdrant first-request overhead is also significant because backend/channel
-creation is lazy.
+Hydration optimization may deliver more API-level benefit than further ANN
+micro-optimization on the current corpus.
 
-### 6.4 Integration-test memory/lifecycle hardening
+### 6.8 Integration-test memory and lifecycle hardening
 
 Status: **technical debt**
 
@@ -913,56 +1076,53 @@ Potential work:
 - consider CPU-only integration mode;
 - keep heavy groups separate until hardened.
 
-### 6.5 Stronger embeddings and retrieval profiles
+### 6.9 Source expansion
 
-Status: **planned**
-
-Potential profiles:
-
-```text
-fast_default
-scientific_semantic
-citation_aware
-hybrid
-```
-
-Any embedding change requires:
-
-- new retrieval build;
-- build-scoped Qdrant collection;
-- dimension/normalization/distance validation;
-- Golden Set rerun;
-- profile sweep;
-- hybrid comparison and performance rerun.
-
-### 6.6 Topic interpretation and UI polish
-
-Status: **planned**
-
-Potential improvements:
-
-- stronger labels;
-- representative-term cleanup;
-- cluster naming/versioning;
-- cluster stability checks;
-- paper comparison;
-- clearer evidence presentation.
-
-### 6.7 Source expansion
-
-Status: **planned through source viability gate**
+Status: **planned through source viability gates**
 
 Possible sources:
 
 - Papers with Code;
 - PubMed / Europe PMC;
 - selective Semantic Scholar enrichment;
-- additional conference/repository sources.
+- additional conference and repository sources.
 
 Every source must pass identity, value, overlap, access, provenance, refresh,
 and reconcile-safety gates.
 
-### 6.8 Full text, RAG, personalization, datasets
+Large-scale source ingestion must wait until the relevant refresh,
+reconciliation, retrieval-generation, validation, and rollback paths are
+reproducible.
+
+### 6.10 Orchestration and distributed infrastructure
+
+Status: **trigger-based, not schedule-based**
+
+Airflow or another orchestrator becomes justified when:
+
+- the pipeline runs regularly;
+- multiple dependent stages need scheduling;
+- retries and restart-from-failure are needed;
+- run history and operational visibility are required;
+- manual CLI composition becomes an operational risk.
+
+Kafka becomes justified when:
+
+- ingestion is event-driven or near-real-time;
+- several independent consumers need the same events;
+- replay is operationally valuable;
+- batch refresh is no longer sufficient.
+
+Kubernetes becomes justified when:
+
+- several services need independent scaling;
+- replicas and rolling rollout are required;
+- automated recovery is needed;
+- a production-like deployment topology exists.
+
+These tools remain options, not mandatory portfolio decorations.
+
+### 6.11 Full text, RAG, personalization, and datasets
 
 Status: **later product layers**
 
@@ -976,6 +1136,9 @@ Potential directions:
 - why-recommended explanations;
 - paper comparison;
 - dataset releases.
+
+These layers must build on stable canonical identity, retrieval generations,
+provenance, and evaluation rather than bypass them.
 
 ---
 
@@ -1069,22 +1232,31 @@ derived layers rebuildable
 evidence before defaults
 explicit failure over hidden fallback
 candidate integration before stable promotion
+stabilize semantics before scaling data
+introduce infrastructure only when operating needs justify it
 one validated vertical slice at a time
 ```
 
-The controlled hybrid question is now answered for the active build:
+The controlled hybrid question is answered for the active build:
 
 ```text
 Qdrant ef_256 preserves the complete final hybrid result set across the full
 34-query, 136-scenario evaluation matrix without measured quality regression.
 ```
 
-The next retrieval question is:
+The accepted scaling decision is:
 
 ```text
-Should Qdrant remain experimental, become an explicit opt-in backend, or be
-selected at deployment composition—and what observable rollout and rollback
-contract would make that decision safe?
+Use the current representative corpus to finish and validate the functional
+MVP. Keep file dense as the exact reference. Operationalize Qdrant after the
+next retrieval generation and a medium-scale rehearsal, but before major
+corpus expansion makes file serving an operational constraint.
 ```
 
-No promotion is required merely because the technical evidence is positive.
+The next project question is therefore not automatically "switch to Qdrant".
+It is:
+
+```text
+Which functional vertical slice most increases product value or architectural
+confidence while preserving the validated scaling path?
+```
