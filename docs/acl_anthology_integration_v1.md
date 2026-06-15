@@ -1,5 +1,22 @@
 # ACL Anthology Integration v1
 
+## Current status amendment
+
+The candidate-only integration described in this document was completed and
+subsequently promoted through the canonical reconcile and explicit promotion
+lifecycle.
+
+Current accepted checkpoint:
+
+```text
+ACL-family canonical documents = 957
+ACL-only canonical documents = 954
+existing canonical papers enriched with ACL provenance = 3
+```
+
+The remainder of this document preserves the original candidate-slice design,
+constraints and historical scope.
+
 ## Purpose
 
 This document defines the first candidate-only integration slice for ACL Anthology in ML Research Radar.
@@ -10,13 +27,15 @@ The goal of v1 is not to promote ACL Anthology into the stable canonical corpus 
 
 ---
 
-## Status
+## Historical v1 status
 
-Status: candidate ingestion v1.
+Status at the time of this slice: candidate ingestion v1.
 
-Scope: candidate-only.
+Scope at the time of this slice: candidate-only.
 
-Stable canonical promotion: not allowed in v1.
+Stable canonical promotion was intentionally not allowed inside v1 itself.
+Promotion was performed later through a separate audited promotion step, as
+recorded in the current status amendment above.
 
 ---
 
