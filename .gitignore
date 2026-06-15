@@ -31,3 +31,5 @@ data/features/
 .vscode/
 
 *.log
+
+collect_latest_reports.sh
