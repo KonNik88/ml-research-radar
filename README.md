@@ -3,210 +3,458 @@
 ![Python](https://img.shields.io/badge/Python-3.11-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-API-green)
 ![Streamlit](https://img.shields.io/badge/Streamlit-UI-red)
-![Postgres](https://img.shields.io/badge/Postgres-DB-blue)
-![Qdrant](https://img.shields.io/badge/Qdrant-Vector%20DB-purple)
-![Docker](https://img.shields.io/badge/Docker-Containers-blue)
-![Kubernetes](https://img.shields.io/badge/Kubernetes-Orchestration-blue)
-![Ray](https://img.shields.io/badge/Ray-Distributed-orange)
-![Kafka](https://img.shields.io/badge/Kafka-Event%20Streaming-black)
-![Observability](https://img.shields.io/badge/Observability-Grafana%20%7C%20Loki%20%7C%20Tempo-orange)
+![Postgres](https://img.shields.io/badge/Postgres-Serving%20DB-blue)
+![Qdrant](https://img.shields.io/badge/Qdrant-Vector%20Serving-purple)
+![Docker](https://img.shields.io/badge/Docker-Local%20Infrastructure-blue)
 
-Custom end-to-end platform to discover, organize, rank, analyze, and reason over machine learning papers, repositories, and research trends.
+Roadmap technologies:
 
----
+![Airflow](https://img.shields.io/badge/Airflow-Planned-blue)
+![LangGraph](https://img.shields.io/badge/LangGraph-Planned-purple)
+![Ray](https://img.shields.io/badge/Ray-Planned-orange)
+![Kafka](https://img.shields.io/badge/Kafka-Planned-black)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-Planned-blue)
+![Observability](https://img.shields.io/badge/Observability-Planned-orange)
 
-## Overview
+**ML Research Radar** is a long-horizon, paper-centric platform for discovering, organizing, ranking, analyzing, and reasoning over machine-learning research.
 
-**ML Research Radar** is a long-horizon, production-like ML systems project focused on research discovery and analysis.
+The repository serves two purposes at once:
 
-The platform is designed to:
+1. a working, validated research-discovery system;
+2. a staged engineering roadmap toward richer retrieval, research graphs, RAG, personalization, observability, orchestration, event-driven processing, distributed execution, and production-style deployment.
 
-- ingest multi-source ML research content
-- normalize and deduplicate documents
-- enrich records with summaries, tags, entities, and links
-- support semantic and hybrid retrieval
-- provide RAG-based question answering over a private corpus
-- surface trends, clusters, timelines, and similarity maps
-- evolve toward observability, orchestration, event-driven processing, and Kubernetes deployment
-- generate structured public research datasets as a natural by-product of the pipeline
-
-This is not a single-model demo. It is an **expandable research platform** with a clear architectural roadmap.
+The roadmap is intentionally broader than the current implementation. Planned technologies remain visible here, but they are introduced only when a concrete product or operational need justifies them.
 
 ---
 
-## Core Goals
+## Project vision
 
-- Build a strong end-to-end ML research discovery system
-- Practice modern ML / LLM / MLOps tooling in one coherent project
-- Keep the architecture modular and extensible from the start
-- Grow the project through versioned vertical slices instead of uncontrolled feature creep
-- Reuse derived data later for public dataset releases (Kaggle / GitHub / Hugging Face)
+ML Research Radar is designed to grow into an end-to-end research platform that can:
 
----
+- ingest partially overlapping scientific sources;
+- resolve source-level records into stable paper-level identities;
+- preserve field-level provenance;
+- connect papers with repositories, models, datasets, demos, and other research artifacts;
+- support lexical, dense, hybrid, and later graph-aware retrieval;
+- rank papers for different research and implementation-oriented scenarios;
+- expose paper pages, artifact pages, similar papers, topic maps, and research graphs;
+- support full-text retrieval, grounded RAG, paper comparison, and survey generation;
+- create watchlists, digests, saved searches, and personalized discovery flows;
+- publish reproducible public datasets derived from accepted corpus checkpoints;
+- evolve toward observable, scheduled, distributed, event-driven, and deployable infrastructure.
 
-## What the System Does
-
-### Research ingestion
-Collects data from multiple sources such as:
-
-- arXiv
-- GitHub
-- OpenAlex
-- Crossref
-
-Planned next sources:
-
-- Semantic Scholar
-- Hugging Face
-- Papers with Code
-- domain-specific sources later when justified
-
-### Document normalization
-The pipeline normalizes documents and metadata into a stable internal schema using:
-
-- canonical URLs
-- stable `doc_id`
-- `content_hash`
-- source harmonization
-- deduplication logic
-
-### Enrichment
-Each item can be enriched with:
-
-- TL;DR summary
-- taxonomy tags
-- task and method labels
-- datasets and metrics
-- entities and research objects
-- paper ↔ repository links
-- scoring and ranking features
-
-### Retrieval and RAG
-The platform supports:
-
-- semantic search
-- similar document retrieval
-- hybrid retrieval and reranking later
-- RAG answers with citations
-- paper comparison workflows
-- research-agent style exploration later
-
-### Analytics
-The platform is designed to support:
-
-- trend analysis
-- topic evolution
-- weekly topic maps
-- clustering and pseudo-labeling
-- research timelines
-- graph-based exploration
-
-### Product features
-Planned product-facing features include:
-
-- feed and filters
-- bookmarks and saved searches
-- Telegram digests and alerts
-- reading-list generation
-- learning-path generation
-- explainability (“why recommended?”)
+This is not a single-model demo and not a collection of unrelated technologies. New components are added only when they strengthen the same research-discovery system.
 
 ---
 
-## High-Level Architecture
-
-The system follows this pipeline:
+## Current validated checkpoint
 
 ```text
-Sources
-  ↓
-Ingest
-  ↓
-Normalize / Deduplicate
-  ↓
-Enrich
-  ↓
-Store
-  ↓
-Serve
-  ↓
-Analyze / Export
+canonical documents = 60,954
+multisource documents = 9,192
+documents with DOI = 10,183
+
+arXiv backbone = 60,000
+ACL-family documents = 957
+ACL-only documents = 954
+existing papers enriched with ACL provenance = 3
+
+retrieval build = 20260504T164021Z
+embedding model = sentence-transformers/all-MiniLM-L6-v2
+embedding shape = [60954, 384]
+dense vectors normalized = true
+
+paper feature rows = 60,954
+topic clusters = 80
+topic projection rows = 2,080
+
+Qdrant collection = ml_radar_dense_benchmark_v1
+Qdrant points = 60,954
+selected ANN profile = ef_256
 ```
 
-Additional cross-cutting layers:
+Current public search behavior:
 
-- LLM workflows
-- analytics
-- observability
-- orchestration
-- dataset export
+```text
+/search?mode=lexical
+→ file BM25
+
+/search?mode=dense
+→ exact file dense
+
+/search?mode=hybrid
+→ BM25 + exact file dense
+
+/experimental/search/qdrant
+→ Qdrant gRPC
+```
+
+Qdrant has completed parity, backend-abstraction, failure-contract, runtime-observability, serving-performance, and controlled hybrid-evaluation slices. It has not been promoted to the public dense/hybrid default.
 
 ---
 
-## Data Layers
+## Architectural foundation
 
-The project separates data into explicit layers:
+The central invariant is:
+
+```text
+data/analytics/reconciled/canonical_documents.jsonl
+= paper-level source of truth
+```
+
+Derived layers:
+
+```text
+Postgres
+= rebuildable materialized serving layer
+
+retrieval artifacts
+= rebuildable lexical/dense generation
+
+Qdrant
+= optional derived vector-serving implementation
+
+artifact entities and links
+= separate evidence/materialization plane
+
+paper features, ranking, similar papers, clusters, projections
+= derived discovery and analytics layers
+
+FastAPI
+= service boundary
+
+Streamlit
+= thin API client
+```
+
+No derived layer may redefine canonical paper identity.
+
+Identity domains remain separate:
+
+```text
+source_doc_id / doc_id
+= source-level observation identity
+
+canonical_id
+= reconciled paper-level identity
+
+artifact_id
+= normalized repository/model/dataset/demo identity
+
+Qdrant point_id / dense_index
+= serving mapping inside one retrieval generation
+```
+
+Paper identity priority:
+
+```text
+DOI
+→ external DOI
+→ arXiv ID
+→ external arXiv ID
+→ normalized title + year fallback
+```
+
+A canonical URL is useful metadata, but it is not the sole identity rule.
+
+---
+
+## Current source landscape
+
+### Stable paper sources
+
+- arXiv
+- OpenAlex alignment
+- Semantic Scholar alignment
+- Crossref alignment
+- ACL Anthology
+
+Roles:
+
+- **arXiv** provides the main preprint backbone.
+- **OpenAlex** contributes semantic concepts, citation/reference signals, external identifiers, and venue/publisher hints.
+- **Semantic Scholar** contributes identifier and citation support.
+- **Crossref** stabilizes DOI-oriented publication metadata, publisher, publication type, dates, and references.
+- **ACL Anthology** is the first promoted domain source and adds NLP/computational-linguistics coverage.
+
+### Operational artifact providers
+
+- GitHub
+- Hugging Face Hub
+
+These providers enrich artifact entities. Their metadata does not overwrite canonical paper title, authors, abstract, venue, year, publisher, publication type, or identity.
+
+### Candidate future paper/domain sources
+
+- OpenReview
+- PubMed / Europe PMC
+- bioRxiv
+- medRxiv
+- additional conference and repository sources when justified
+
+Papers with Code live integration is currently blocked/archived. Any future use requires a separate offline or historical viability experiment.
+
+---
+
+## Operational pipeline
+
+```text
+paper sources
+→ raw source records
+→ normalized source observations
+→ alignment / enrichment
+→ identity resolution and reconcile
+→ canonical paper corpus
+→ Postgres materialization
+→ artifact extraction and provider enrichment
+→ paper features
+→ retrieval generation
+→ ranking / paper detail / similar papers
+→ topic clusters / projection
+→ FastAPI
+→ Streamlit
+→ evaluation / validators / Definition of Done
+```
+
+Refresh follows candidate-first safety semantics:
+
+```text
+experiment
+→ timestamped candidate
+→ source and reconcile audits
+→ explicit promotion
+→ rebuild derived layers
+→ strict Definition of Done
+```
+
+A selective enrichment batch is not treated as the complete accepted source state. It must be merged into an explicit full snapshot before stable reconciliation.
+
+---
+
+## Implemented capabilities
+
+### Canonical paper core
+
+- normalized source contracts;
+- source-level and paper-level identity separation;
+- conservative DOI/arXiv conflict handling;
+- multi-source reconciliation;
+- field-level merge policy;
+- provenance preservation;
+- canonical contract and audit tooling;
+- candidate/promotion/rollback workflow.
+
+### Retrieval
+
+- BM25 lexical retrieval;
+- exact dense retrieval;
+- hybrid retrieval;
+- build-scoped manifests;
+- Golden Set evaluation;
+- controlled weight and candidate-depth experiments;
+- similar-paper retrieval;
+- backend-neutral hybrid merge;
+- exact file reference backend.
+
+### Serving
+
+- FastAPI;
+- file runtime;
+- Postgres materialized runtime;
+- document and artifact browsing;
+- file lexical/dense/hybrid search;
+- DB lexical search v1;
+- runtime reload and diagnostics.
+
+### Artifact evidence plane
+
+- artifact entities;
+- artifact observations;
+- trusted paper-artifact links;
+- GitHub enrichment;
+- Hugging Face enrichment;
+- artifact filters and API surfaces;
+- artifact-aware paper features.
+
+Current baseline:
+
+```text
+artifact entities in DB = 7,333
+artifact observations = 38,246
+paper-artifact links = 7,430
+linked canonical papers = 6,673
+
+GitHub found = 5,339
+Hugging Face found = 77
+```
+
+### Discovery and analytics
+
+- transparent paper features;
+- ranking profiles;
+- paper detail;
+- semantic and radar-adjusted similar papers;
+- 80 MiniBatchKMeans topic clusters;
+- full-corpus assignments;
+- UMAP topic projection;
+- cluster navigation and map API;
+- Streamlit Discovery UI.
+
+### Qdrant serving line
+
+- collection build/upload and strict validation;
+- file-vs-Qdrant parity;
+- ANN profile sweep;
+- `DenseSearchBackend` abstraction;
+- `FileDenseBackend`;
+- `QdrantDenseBackend`;
+- typed failure semantics;
+- strict result/mapping validation;
+- runtime observability;
+- gRPC serving benchmark;
+- controlled file-vs-Qdrant hybrid evaluation.
+
+Hybrid evaluation result:
+
+```text
+34 queries
+136 scenarios
+136 / 136 same final result sets
+134 / 136 same final order
+132 / 136 exact dense + final parity
+0 blocking classifications
+0 measured Hit / Precision / Recall / MRR regression
+```
+
+The file backend remains the exact reference, evaluation oracle, and rollback path.
+
+---
+
+## Search and discovery contracts
+
+### Free-form search
+
+```text
+GET /search
+```
+
+Modes:
+
+- `lexical`
+- `dense`
+- `hybrid`
+
+Current hybrid defaults:
+
+```text
+lexical weight = 0.55
+dense weight = 0.45
+```
+
+An evaluated dense-heavier candidate exists, but the production default has not been changed.
+
+### Similar papers
+
+```text
+GET /discovery/papers/{canonical_id}/similar
+```
+
+Modes:
+
+- `semantic`
+- `radar_adjusted`
+
+This contract starts from a paper embedding and requires self-exclusion. It is intentionally separate from text-query search.
+
+### Discovery ranking
+
+```text
+GET /discovery/ranking/{profile}
+```
+
+Profiles use derived paper features such as:
+
+- recency;
+- source confidence;
+- implementation readiness;
+- citation signal;
+- artifact availability.
+
+### Topic navigation
+
+Current topic artifacts:
+
+```text
+clusters = 80
+assignments = 60,954
+projection rows = 2,080
+```
+
+Cluster labels are heuristic, build-scoped navigation hints rather than a stable curated taxonomy.
+
+---
+
+## Validation and evidence
+
+Validation is a first-class part of the architecture.
+
+Current families include:
+
+- canonical contract;
+- canonical provenance consistency;
+- source and postpass audits;
+- retrieval checks;
+- Golden Set quality;
+- controlled search experiments;
+- artifact and enrichment checks;
+- paper features;
+- ranking profiles;
+- similar papers;
+- Discovery API;
+- clusters and projection;
+- Streamlit UI;
+- Qdrant collection, parity, profile sweep, performance, and hybrid evaluation;
+- strict Definition of Done.
+
+Current provenance evidence:
+
+```text
+documents checked = 60,954
+structural errors = 0
+warnings = 0
+informational doc_ids_shorter_than_sources = 9,095
+```
+
+The informational count is expected because `doc_ids` are deduplicated while `sources` preserve contributing provenance rows.
+
+---
+
+## Data layers
 
 ```text
 data/
-├── raw/
-├── normalized/
-├── enriched/
-├── analytics/
-└── datasets_release/
+├── raw/                   # source responses and bulk snapshots
+├── normalized/            # source-level normalized observations
+├── analytics/reconciled/  # canonical paper truth
+├── enriched/              # artifact/provider materializations
+├── features/              # derived paper features
+└── datasets_release/      # future immutable public releases
 ```
 
-### raw
-Raw responses from upstream sources.
+Generated evidence and build outputs live under:
 
-Examples:
-- API JSON payloads
-- source metadata dumps
-- PDF references
-- raw HTML snapshots when needed
+```text
+artifacts/
+├── reports/
+├── retrieval/
+└── clusters/
+```
 
-### normalized
-Cleaned, canonicalized, deduplicated records.
-
-Examples:
-- unified titles/authors/date fields
-- canonical URLs
-- stable IDs
-- cleaned metadata schema
-
-### enriched
-Derived ML/LLM outputs.
-
-Examples:
-- summaries
-- tags
-- entities
-- repo links
-- scores
-- clusters
-- topic labels
-
-### analytics
-Artifacts and structured outputs from analysis workflows.
-
-Examples:
-- trend tables
-- graph exports
-- similarity maps
-- topic evolution outputs
-
-### datasets_release
-Prepared public dataset exports.
-
-Examples:
-- clean metadata dataset
-- enriched metadata dataset
-- graph/linkage dataset
-- topic/cluster dataset
+Generated artifacts are evidence/materializations, not substitutes for accepted source contracts.
 
 ---
 
-## Repository Structure
+## Repository structure
 
 ```text
 ML_Research_Radar/
@@ -229,416 +477,315 @@ ML_Research_Radar/
 └── README.md
 ```
 
-### `radar_core/`
-The project’s business logic lives here.
+Important boundaries:
 
-Modules include:
-
-- `ingest/`
-- `normalize/`
-- `enrich/`
-- `retrieval/`
-- `ranking/`
-- `rag/`
-- `analytics/`
-- `dataset_export/`
-- `contracts/`
-- `models/`
-- `utils/`
-
-### `services/`
-Service wrappers and entry points.
-
-Includes:
-
-- `api/` — FastAPI
-- `ui/` — Streamlit
-- `workers/`
-- `notifications/`
-- `airflow/` later
-- `langgraph/` later
-
-### `store/`
-Persistence layer.
-
-- `sql/`
-- `alembic/`
-- `qdrant/`
-
-### `infra/`
-Infrastructure layout.
-
-- `docker/`
-- `k8s/`
-- `observability/`
-
-### `docs/`
-Project architecture and planning docs.
-
-- `architecture.md`
-- `roadmap.md`
-- `data_contracts.md`
-- `dataset_strategy.md`
-- `api_reference.md`
+- `radar_core/` contains core contracts and business logic;
+- `services/api/` exposes FastAPI;
+- `services/ui/` remains a thin Streamlit client;
+- `scripts/` contains explicit ingest, refresh, export, evaluation, and validation entry points;
+- `store/sql/` contains Postgres materialization;
+- `infra/docker/` contains current local infrastructure;
+- future orchestration and deployment layers must not absorb canonical/retrieval business logic.
 
 ---
 
-## Storage Strategy
+## Current technology stack
 
-### PostgreSQL
-Used for:
+### Implemented/core
 
-- canonical documents
-- source mappings
-- processing state
-- enrichments
-- tags and relationships
-- scores
-- feedback
-- release metadata
-
-### Qdrant
-Used for:
-
-- embeddings
-- semantic retrieval
-- similarity search
-- lightweight payload for search workflows
-
-### File-based storage
-Used for:
-
-- raw dumps
-- analytics artifacts
-- export bundles
-- reports and figures
-
----
-
-## Data Contracts
-
-Several architectural invariants are fixed from the start:
-
-- stable `doc_id`
-- `content_hash`
-- stage tracking
-- pipeline versioning
-- schema versioning
-- idempotent processing
-- separation of raw / derived / serving concerns
-
-Pipeline stages:
-
-```text
-FOUND
-FETCHED
-PARSED
-EMBEDDED
-ENRICHED
-INDEXED
-```
-
-These contracts are critical for:
-
-- deduplication
-- reproducibility
-- re-indexing
-- future Kafka integration
-- dataset versioning
-
----
-
-## Tech Stack
-
-### Current / core stack
 - Python 3.11
+- Pydantic
 - FastAPI
 - Streamlit
 - PostgreSQL
 - Qdrant
-- Pydantic
-- Alembic
 - Docker Compose
 - Sentence Transformers
 - PyTorch
+- NumPy / pandas
+- scikit-learn
 - Plotly
-- UMAP / HDBSCAN
+- UMAP
+- pytest
 
-### Planned stack extensions
-- LangChain
-- LangGraph
-- Ray
-- Kafka
-- Airflow
-- Kubernetes
-- Prometheus
-- Grafana
-- Loki
-- Tempo
-- Grafana Alloy / OpenTelemetry-based observability
+### Planned extensions
+
+- stronger scientific embedding models;
+- cross-encoder reranking;
+- learned sparse retrieval;
+- full-text parsing and chunk retrieval;
+- grounded RAG;
+- LangGraph workflows;
+- Airflow;
+- Ray;
+- Kafka;
+- Kubernetes;
+- Prometheus / Grafana;
+- Loki or another structured-log backend;
+- OpenTelemetry / Jaeger or Tempo;
+- Alembic when incremental DB migrations become necessary;
+- a dedicated frontend after API contracts stabilize;
+- graph-aware retrieval and GraphRAG-like reasoning;
+- selected Rust/Java/C++/C utilities where justified.
+
+Planned technologies are options in a staged architecture, not mandatory checklist items.
 
 ---
 
-## Environment Notes
+## Long-term functional roadmap
 
-The project uses a dedicated environment and installs dependencies incrementally by stages.
+The roadmap below describes intended capabilities, not the chronological status of the current repository. Many foundations and several later evaluation/discovery capabilities are already implemented in a different order.
 
-Environment snapshots are stored in:
+### Foundation and source platform
+
+- source adapters;
+- raw and normalized snapshots;
+- canonical reconciliation;
+- provenance;
+- Postgres materialization;
+- artifact evidence;
+- safe refresh and promotion.
+
+### Retrieval and ranking
+
+- lexical, dense, and hybrid retrieval;
+- scientific embedding generations;
+- hybrid-weight studies;
+- rerankers;
+- learned sparse methods;
+- graph-aware retrieval;
+- feedback-aware and personalized ranking.
+
+### Enrichment and research objects
+
+- structured task/method/dataset/metric extraction;
+- summaries;
+- taxonomy labels;
+- entities;
+- novelty signals;
+- citation and evidence graphs;
+- stronger paper-artifact linkage.
+
+### Product and UX
+
+- feed and filters;
+- bookmarks;
+- saved searches;
+- watchlists;
+- reading lists;
+- exports;
+- alerts and digests;
+- paper comparison;
+- “why recommended?” explanations;
+- learning paths;
+- richer paper and artifact workspaces;
+- dedicated frontend when justified.
+
+### Analytics and graphs
+
+- topic evolution;
+- research timelines;
+- citation/reference graph;
+- artifact graph;
+- source/evidence graph;
+- trend dashboards;
+- cluster comparison;
+- graph exports.
+
+### Full text, RAG, and research workflows
+
+- full-text acquisition;
+- section/chunk contracts;
+- chunk embeddings;
+- grounded RAG with citations;
+- paper comparison;
+- survey generation;
+- guided research workflows;
+- research-agent mode.
+
+### Dataset release track
+
+Potential releases:
+
+1. clean paper metadata;
+2. paper–artifact links;
+3. topic/cluster artifacts;
+4. research graph exports;
+5. temporal trends;
+6. retrieval pairs and benchmark data.
+
+Potential publication targets:
+
+- GitHub Releases;
+- Hugging Face Datasets;
+- Kaggle.
+
+Dataset releases remain immutable derived outputs from named accepted checkpoints.
+
+### Observability and MLOps
+
+Staged path:
 
 ```text
-environment/
+structured logs
+→ Prometheus / Grafana
+→ container and host metrics
+→ OpenTelemetry tracing
+→ Loki / Jaeger / Tempo or equivalent where justified
 ```
 
-Locked package snapshots are stored in:
+### Batch and workflow orchestration
+
+- Airflow for recurring batch ingest, enrichment, rebuild, evaluation, and release DAGs;
+- LangGraph for interactive/stateful LLM research workflows.
+
+Airflow is not used as an interactive agent framework, and LangGraph is not used as a batch ETL scheduler.
+
+### Distributed execution
+
+Ray becomes relevant when measured bottlenecks justify parallel:
+
+- embeddings;
+- parsing;
+- provider enrichment;
+- analytics;
+- large candidate builds.
+
+### Event-driven architecture
+
+Kafka remains a future stage for:
+
+- continuous source events;
+- multiple independent consumers;
+- replay;
+- retry/DLQ contracts;
+- event-driven indexing.
+
+It is not required for daily or weekly batch refresh.
+
+### Deployment maturity
+
+Kubernetes becomes relevant only after the project has:
+
+- independently scalable services;
+- workers and recurring jobs;
+- stable storage contracts;
+- secrets management;
+- observability;
+- real need for replicas, rollout, and recovery.
+
+### Polyglot extensions
+
+Possible focused additions:
+
+- Rust for fast JSONL/CSV streaming and text utilities;
+- Java for a bounded metadata-service experiment;
+- C++ for educational ANN/performance tooling;
+- C for narrowly justified streaming utilities;
+- Bash for bootstrap, smoke, and local automation.
+
+Polyglot work must reinforce the platform rather than fragment it.
+
+---
+
+## Current development sequence
+
+The current representative corpus is intentionally retained while semantics remain cheap to rebuild, evaluate, and inspect.
+
+Accepted sequence:
 
 ```text
-requirements/
+current-state and evidence synchronization
+→ choose one focused technical/product slice
+→ validate the next retrieval generation
+→ medium-scale candidate rehearsal
+→ deployment-level Qdrant selector
+→ larger accepted corpus
+→ orchestration and distributed infrastructure only when justified
 ```
 
-This helps keep the project reproducible while the stack grows.
+Candidate next focused slices:
+
+- Ranking Evaluation and Hardening v1
+- Retrieval Generation Study v1
+- Graph/Evidence Contract v1
+- Lexical Performance Profiling v1
+- Discovery Product Enhancement
+
+The next slice is selected explicitly. Public Qdrant promotion, a new embedding model, hybrid-weight changes, and ranking redesign are not bundled together.
 
 ---
 
-## Observability Plan
+## Implementation principles
 
-The observability layer is planned as:
-
-- **Prometheus** for metrics
-- **Grafana** for dashboards
-- **Loki** for logs
-- **Tempo** for traces
-- **Alloy** for unified telemetry collection
-
-This layer is intentionally staged later in development, after the core platform becomes functional.
-
----
-
-## Dataset Release Track
-
-A major side outcome of the project is the ability to release structured public datasets.
-
-Planned dataset families:
-
-1. **Clean Research Metadata**
-   - titles, authors, dates, sources, abstracts, tags, methods, tasks
-
-2. **Paper ↔ Code Linking Dataset**
-   - paper-to-repository relationships and derived metadata
-
-3. **Topic / Cluster Dataset**
-   - cluster IDs, pseudo-labels, topic keywords
-
-4. **Research Graph Dataset**
-   - nodes and edges for graph ML and link prediction
-
-5. **Temporal Research Trends Dataset**
-   - topic and method evolution across time
-
-Potential release platforms:
-
-- Kaggle
-- GitHub Releases
-- Hugging Face Datasets
-
-The public dataset track is an extension of the main pipeline, not a separate project.
+- Build from simple to complex.
+- Prefer complete vertical slices over feature sprawl.
+- Preserve canonical truth and provenance.
+- Keep derived layers rebuildable.
+- Separate retrieval strategy from serving backend.
+- Keep business logic in `radar_core`.
+- Keep services thin.
+- Measure quality before changing defaults.
+- Treat generated reports as evidence.
+- Promote candidates explicitly.
+- Add infrastructure only after operational triggers appear.
+- Preserve exact references and rollback paths.
+- Review code ownership as the project grows.
 
 ---
 
-## Roadmap
+## Explicitly out of scope
 
-### v0.1 — Foundation + Core Ingestion
-- repository structure
-- source adapters (initial)
-- Postgres + Qdrant setup
-- contracts
-- raw ingestion
-- normalization foundations
+To keep the project coherent, the roadmap excludes unrelated additions that do not strengthen research discovery, retrieval, ranking, evidence, reasoning, analytics, or platform operation.
 
-### v0.2 — Search Core
-- search API
-- similar items
-- feed UI
-- initial ranking
+Examples:
 
-### v0.3 — Enrichment Layer
-- summaries
-- structured extraction
-- taxonomy tags
-- enriched records in Postgres
-
-### v0.4 — RAG Layer
-- question answering over corpus
-- citations
-- source panels
-- chat tab in UI
-
-### v0.5 — Product UX Expansion
-- bookmarks
-- saved searches
-- compare papers
-- reading lists
-- Telegram digests
-
-### v0.6 — Analytics Layer
-- trends
-- topic maps
-- clustering
-- timelines
-- similarity exploration
-
-### v0.7 — Retrieval Quality Upgrade
-- hybrid retrieval
-- rerankers
-- improved scoring
-- feedback-aware ranking
-
-### v0.8 — ML Enrichment Expansion
-- NER / entity extraction
-- novelty heuristics
-- personalization
-- user-interest modeling
-
-### v0.9 — Evaluation Layer
-- retrieval evaluation
-- RAG evaluation
-- regression suites
-- golden sets
-
-### v1.0 — Observability / MLOps Layer
-- metrics
-- logs
-- traces
-- dashboards
-
-### v1.1 — Airflow Orchestration
-- scheduled ingest/enrich/export/eval pipelines
-
-### v1.2 — LangGraph / LLM Workflows
-- compare workflows
-- digest workflows
-- research-agent workflows
-
-### v1.3 — Ray Layer
-- parallel ingestion
-- parallel parsing
-- parallel embedding/enrichment
-
-### v1.4 — Kafka Event Layer
-- event contracts
-- decoupled workers
-- retries / DLQ
-- event-driven pipeline evolution
-
-### v1.5 — Kubernetes Layer
-- deployment separation
-- persistent workloads
-- monitoring in cluster
-
-### v1.6+ — Polyglot Expansion
-- Rust utilities
-- Java microservices
-- C++ educational vector tooling
-- Bash automation
+- unrelated reinforcement-learning demos;
+- image-generation features;
+- training large foundation models from scratch;
+- isolated technology demos without integration into the platform.
 
 ---
 
-## Planned Functional Extensions
+## Documentation map
 
-### Product
-- feed
-- filters
-- bookmarks
-- exports
-- watchlists
-- saved searches
-- Telegram alerts
-- explainability
-- compare papers
-- compare with external pipelines
-- reading list generation
-- learning path generation
-
-### Analytics
-- weekly topic clusters
-- similarity maps
-- topic dashboards
-- topic evolution
-- research timeline
-- graph views
-
-### ML / retrieval
-- rerank models
-- taxonomy classifier
-- NER / entity extraction
-- novelty scoring
-- preference modeling
-- personalized ranking
-
-### LLM / reasoning
-- summarize
-- structured extraction
-- RAG
-- digest generation
-- comparison reasoning
-- research agent mode
-- automatic survey / overview generation
-
-### Engineering
-- provider abstraction
-- evaluation suite
-- observability
-- Airflow
-- LangGraph
-- Ray
-- Kafka
-- Kubernetes
-- CI quality stack
+- `docs/architecture.md` — current architecture and responsibilities
+- `docs/roadmap.md` — primary living roadmap and validated checkpoints
+- `docs/data_contracts.md` — paper/source contracts
+- `docs/merge_policy.md` — canonical merge semantics
+- `docs/provenance_semantics.md` — provenance interpretation
+- `docs/source_matrix.md` — current source landscape
+- `docs/source_onboarding_v1.md` — source onboarding lifecycle
+- `docs/refresh_contract_v1.md` — refresh/promotion safety
+- `docs/api_reference.md` — API surfaces
+- `docs/dataset_strategy.md` — future public dataset boundary
+- `docs/scaling-and-vector-serving-strategy-v1.md` — accepted scaling strategy
 
 ---
 
-## What Is Intentionally Out of Scope
+## Local workflow
 
-To keep the project coherent, the following are intentionally not part of the plan:
+Git operations:
 
-- multimodal generation
-- image generation
-- unrelated RL demos
-- training large models from scratch
-- isolated toy features that do not strengthen research discovery, retrieval, ranking, reasoning, or analytics
+```text
+Git Bash
+```
 
----
+Python, tests, validators, and project scripts:
 
-## Implementation Principles
+```bat
+conda activate ml_radar
+cd /d D:\ML\ML_Research_Radar
+```
 
-- Build from simple to complex
-- Release in vertical slices
-- Keep business logic inside `radar_core`
-- Keep services as wrappers, not logic containers
-- Add new features as modules, stages, workers, endpoints, or tabs
-- Avoid rewriting the foundation when extending the system
+Local Postgres and Qdrant infrastructure:
 
----
-
-## Current Status
-
-At the current stage:
-
-- project vision is defined
-- architecture is formalized
-- future extensions are planned
-- environment is prepared at a base level
-- repository structure is initialized
-
-The next real development step is to start implementing the **core data contracts and document pipeline foundations**.
+```text
+infra/docker/
+```
 
 ---
 
 ## License
 
 MIT License
-
----
-
-## Project Summary
-
-**ML Research Radar** is an expandable platform for discovering, structuring, analyzing, and reasoning over machine learning research content — with a roadmap that spans semantic retrieval, RAG, analytics, public datasets, observability, orchestration, event-driven processing, and polyglot engineering extensions.
