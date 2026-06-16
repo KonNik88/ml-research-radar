@@ -4,7 +4,7 @@ metadata:
   purpose: "Viability checks for candidate paper, artifact, signal, and future full-text sources."
   project: "ML Research Radar"
   policy: "Viability first, integration later. A source may pass viability but still remain outside stable ingestion until candidate validation is complete."
-  current_baseline_note: "After the green 60k baseline, GitHub and Hugging Face Hub are operational artifact enrichment providers, not paper truth sources."
+  current_baseline_note: "After the green 60k + ACL baseline, ACL Anthology is an active stable paper source, while GitHub and Hugging Face Hub are optional operational artifact enrichment providers and not paper truth sources."
 
 # This config is intentionally conservative. Passing these checks does not mean
 # that a source may be added directly to stable reconcile/export/refresh paths.
@@ -54,10 +54,10 @@ sources:
     canonical_truth_policy: "Artifact enrichment only. Must not modify canonical paper title, authors, abstract, venue, publisher, publication_type, citations, references, or identity."
     current_project_status: "GitHub Artifact Enrichment v1 is operational over extracted GitHub artifact_entities. Enrichment remains optional because GitHub API is a live external dependency."
     current_60k_baseline:
-      artifact_entities_count: 5796
-      metadata_rows_count: 5796
-      found_count: 5188
-      not_found_count: 608
+      artifact_entities_count: 5953
+      metadata_rows_count: 5953
+      found_count: 5339
+      not_found_count: 614
       forbidden_count: 0
       rate_limited_count: 0
       error_count: 0
@@ -117,9 +117,9 @@ sources:
     canonical_truth_policy: "Artifact enrichment only. Models, datasets and spaces are artifact entities, not paper truth."
     current_project_status: "Hugging Face Artifact Enrichment v1 is operational over extracted Hugging Face artifact_entities. Enrichment remains optional because Hugging Face Hub is a live external dependency."
     current_60k_baseline:
-      artifact_entities_count: 96
-      metadata_rows_count: 96
-      found_count: 73
+      artifact_entities_count: 100
+      metadata_rows_count: 100
+      found_count: 77
       forbidden_count: 2
       skipped_invalid_external_id_count: 21
       rate_limited_count: 0
@@ -127,10 +127,10 @@ sources:
       duplicate_artifact_id_count: 0
       unknown_artifact_id_count: 0
       strict_ok: true
-      db_hf_entities_count: 96
-      db_hf_metadata_count: 96
-      db_hf_found_count: 73
-      db_hf_downloads_count: 64
+      db_hf_entities_count: 100
+      db_hf_metadata_count: 100
+      db_hf_found_count: 77
+      found_with_downloads_count: 68
     next_action: "Keep operational; postpone Hugging Face-specific API filters until after the next source/source-expansion slices. Improve upstream HF URL cleanup later if it becomes frequent on larger corpora."
     output_contract:
       metadata_snapshot: "data/enriched/huggingface_artifacts/huggingface_artifact_metadata.<ts>.jsonl"
@@ -175,15 +175,21 @@ sources:
     enabled: true
     source_type: paper
     plane: paper
-    status: viable_candidate
-    onboarding_state: viable_candidate
-    priority: first_new_paper_source
+    status: stable
+    onboarding_state: stable
+    priority: active_domain_paper_source
     access_mode: bulk_metadata
-    stable_integration_allowed: false
-    canonical_truth_policy: "Candidate paper source. May affect canonical truth only after normalized output, source audit, candidate reconcile impact check, and explicit promotion decision."
-    current_project_status: "Recommended first new paper source because it is structured, domain-relevant for NLP/ML, bulk-friendly, and relatively low API risk."
-    next_action: "Implement ACL Anthology candidate ingestion v1 with explicit small scope and normalized snapshot output."
-    candidate_scope:
+    stable_integration_allowed: true
+    canonical_truth_policy: "Active paper source. ACL observations may affect canonical paper truth only through normalized source rows, canonical reconciliation, validation, and explicit promotion."
+    current_project_status: "ACL Anthology Integration v1 completed candidate ingestion, source-quality audit, canonical impact validation, reconcile, and explicit promotion. ACL is now part of the accepted stable paper-source set."
+    current_canonical_baseline:
+      canonical_documents_total: 60954
+      acl_family_documents: 957
+      acl_only_documents: 954
+      enriched_existing_documents: 3
+      strict_ok: true
+    next_action: "Keep ACL in the stable source set; use the completed lifecycle as the reference pattern for future domain paper sources."
+    historical_candidate_scope:
       initial: "small deterministic XML subset or selected recent ACL venues"
       avoid_initially: "full historical import until parser/audit/reconcile impact are validated"
     output_contract:
@@ -192,7 +198,7 @@ sources:
       ingest_report: "artifacts/reports/acl_anthology_ingest_latest.json"
       integration_doc: "docs/acl_anthology_integration_v1.md"
     auth: {}
-    notes: "NLP/domain paper source. Prefer bulk metadata from ACL Anthology repository or official bulk citation exports. Candidate-only until audit and reconcile impact checks pass."
+    notes: "Active NLP/domain paper source. Bulk metadata remains the preferred acquisition path. Stable updates must continue to follow candidate-first reconcile, audit, and explicit promotion semantics."
     checks:
       - name: metadata_repository_xml_dir
         required: true

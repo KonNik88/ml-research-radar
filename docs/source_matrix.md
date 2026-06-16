@@ -82,10 +82,10 @@ Current stable paper sources:
 - `openalex_alignment`
 - `semantic_scholar_alignment`
 - `crossref_alignment`
+- `acl_anthology`
 
 Candidate paper/domain sources after viability checks:
 
-- `acl_anthology`
 - `openreview`
 - `pubmed`
 - `biorxiv`
@@ -155,14 +155,18 @@ Signal sources can influence ranking, alerts, or discovery only in explicit rank
 | `openalex_alignment` | paper | alignment | DOI | semantic enrichment + citation metadata | concepts, keywords, cited_by_count, referenced_ids, venue, journal, publisher, OA hints | publication_type can be noisy, artifact links limited | active |
 | `semantic_scholar_alignment` | paper | alignment | DOI / arXiv id | auxiliary bibliographic + citation support | external identifiers, cited_by_count, venue hints, title/author cross-check | journal can be noisy, reference coverage can be uneven, OA metadata limited | active |
 | `crossref_alignment` | paper | alignment | DOI | bibliographic stabilizer + references enrichment | publisher, publication_type, references_count, referenced_dois, license, publication date | abstract often missing, semantic metadata weak, cited_by_count weak | active |
+| `acl_anthology` | paper | domain source | ACL id / DOI / title-year fallback | NLP and computational-linguistics paper metadata | ACL id, title, authors, year, venue, landing page, PDF URL, DOI and abstract where available | citation metadata and broad cross-domain coverage are limited | active / promoted |
 
 Current stable canonical paper build:
 
 ```text
 canonical corpus source of truth = data/analytics/reconciled/canonical_documents.jsonl
-canonical documents = 60000
+canonical documents = 60954
 multi-source canonical documents = 9192
-active stable paper sources = 4
+active stable paper sources = 5
+ACL-family canonical documents = 957
+ACL-only canonical documents = 954
+existing canonical papers enriched with ACL provenance = 3
 DoD passed = true
 ```
 
@@ -197,13 +201,13 @@ Not allowed:
 - changing canonical paper title, authors, abstract, venue, publisher, citation counts, references, publication type or paper identity
 - ranking papers by GitHub stars as canonical paper quality
 
-Current 60k baseline:
+Current accepted baseline:
 
 ```text
-github_entities_count = 5796
-metadata_rows_count = 5796
-found_count = 5188
-not_found_count = 608
+github_entities_count = 5953
+metadata_rows_count = 5953
+found_count = 5339
+not_found_count = 614
 forbidden_count = 0
 rate_limited_count = 0
 error_count = 0
@@ -234,12 +238,12 @@ Not allowed:
 - changing canonical paper title, authors, abstract, venue, publisher, citation counts, references, publication type or paper identity
 - treating model/dataset/space popularity as canonical paper quality
 
-Current 60k baseline:
+Current accepted baseline:
 
 ```text
-huggingface_entities_count = 96
-metadata_rows_count = 96
-found_count = 73
+huggingface_entities_count = 100
+metadata_rows_count = 100
+found_count = 77
 forbidden_count = 2
 skipped_invalid_external_id_count = 21
 rate_limited_count = 0
@@ -255,8 +259,7 @@ ok = true
 
 | source | plane | access mode | primary role | expected contribution | status |
 |---|---|---|---|---|---|
-| `acl_anthology` | paper | bulk metadata / GitHub XML | NLP/domain paper source | NLP papers, venues, authors, abstracts where available, URLs, ACL ids | viable candidate; next paper source |
-| `openreview` | paper | API v2 / Python client | ML conference paper source | submissions, venues, OpenReview ids, titles, authors, abstracts | viable candidate; after ACL |
+| `openreview` | paper | API v2 / Python client | ML conference paper source | submissions, venues, OpenReview ids, titles, authors, abstracts | viable candidate |
 | `pubmed` | paper | NCBI E-utilities | biomedical/domain paper source | PMID, DOI, biomedical titles/abstracts, publication metadata | viable candidate; later domain expansion |
 | `biorxiv` | paper | public API | biomedical preprint source | preprints, DOI, title, abstract, authors, category/date metadata | viable candidate; later domain expansion |
 | `medrxiv` | paper | public API | medical preprint source | preprints, DOI, title, abstract, authors, category/date metadata | viable candidate; later domain expansion |
@@ -313,9 +316,10 @@ ok = true
 
 ### `acl_anthology`
 
-- Candidate paper/domain source for NLP and computational linguistics.
-- Good candidate for deterministic/bulk metadata ingestion.
-- Should be integrated as candidate paper source first, then evaluated before stable reconcile integration.
+- Active promoted paper/domain source for NLP and computational linguistics.
+- Integrated through deterministic bulk metadata ingestion and the standard candidate reconcile, audit and explicit promotion lifecycle.
+- Current accepted checkpoint contains 957 ACL-family canonical documents: 954 ACL-only documents and 3 existing canonical papers enriched with ACL provenance.
+- ACL remains part of the paper plane and does not bypass canonical reconciliation.
 
 ### `openreview`
 
@@ -415,6 +419,7 @@ Artifact evidence must preserve provenance:
 - `openalex_alignment`
 - `semantic_scholar_alignment`
 - `crossref_alignment`
+- `acl_anthology`
 
 ### Operational artifact enrichment providers
 
@@ -423,7 +428,6 @@ Artifact evidence must preserve provenance:
 
 ### Viable candidate paper/domain sources
 
-- `acl_anthology`
 - `openreview`
 - `pubmed`
 - `biorxiv`

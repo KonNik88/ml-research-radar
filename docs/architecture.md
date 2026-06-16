@@ -13,7 +13,8 @@ ML Research Radar is a paper-centric canonical corpus and discovery platform for
 Current working checkpoint:
 
 ```text
-Discovery Green Checkpoint — 2026-05 / Qdrant runtime visibility sync — 2026-06
+Qdrant Hybrid Evaluation v1 — merged / green
+Current-State and Evidence Sync v1 — active maintenance checkpoint
 ```
 
 Current stable baseline:
@@ -175,7 +176,7 @@ artifacts/retrieval/dense/ids_20260504T164021Z.json
 artifacts/retrieval/dense/meta_20260504T164021Z.json
 ```
 
-Retrieval remains file-based in the current checkpoint.
+Public lexical, dense, and hybrid retrieval remain file-backed in the current checkpoint. Qdrant serves the same build-scoped dense generation through an explicit experimental path and is not yet the public default.
 
 ---
 
@@ -371,10 +372,25 @@ Current Qdrant surfaces:
 ```text
 scripts.validation.check_qdrant_collection
 scripts.evaluation.compare_qdrant_file_dense
+scripts.evaluation.run_qdrant_search_profile_sweep
+scripts.evaluation.run_qdrant_serving_performance
+scripts.evaluation.run_qdrant_hybrid_evaluation
 scripts.validation.check_qdrant_file_dense_comparison
+scripts.validation.check_qdrant_serving_performance
+scripts.validation.check_qdrant_hybrid_evaluation
 GET /experimental/search/qdrant
-GET /runtime -> qdrant diagnostics
+GET /runtime -> Qdrant diagnostics and operational state
 Streamlit sidebar -> Qdrant runtime status
+```
+
+Transport roles are intentionally split:
+
+```text
+REST
+→ compatibility-oriented parity and profile-sweep tooling
+
+gRPC
+→ production-like experimental serving performance and controlled hybrid evaluation
 ```
 
 Critical boundaries:
@@ -439,8 +455,9 @@ The validation layer is first-class architecture, not a side utility.
 Current validation families:
 
 ```text
-canonical / provenance / postpass audit
-retrieval checks
+canonical contract / provenance consistency / postpass audit
+retrieval checks and Golden Set quality
+controlled search experiments
 artifact quality
 GitHub enrichment
 Hugging Face enrichment
@@ -451,8 +468,18 @@ Discovery API
 topic clusters
 topic projection
 Streamlit UI
-Qdrant benchmark / serving POC / experimental API
+Qdrant collection / parity / profile sweep
+Qdrant serving performance
+Qdrant controlled hybrid evaluation
 strict DoD
+```
+
+Current provenance evidence covers the full 60,954-document corpus:
+
+```text
+structural errors = 0
+warnings = 0
+informational doc_ids_shorter_than_sources = 9095
 ```
 
 Preferred engineering pattern:
@@ -502,17 +529,41 @@ GraphRAG/product graph layer
 
 ## 13. Near-term direction
 
-Near-term after current Qdrant visibility sync:
+Current maintenance step:
 
 ```text
-docs/runtime runbook sync
-Golden Set Expansion v2
-small UI/topic label polish
-cache diagnostics if needed
-careful planning for Qdrant search promotion
+synchronize current source/configuration/checkpoint documentation
+refresh full-corpus provenance evidence
+preserve public runtime defaults
+close the branch through focused validation and review
 ```
 
-Do not jump directly into Qdrant/RAG/Airflow until current docs, runbooks, and regression commands remain stable.
+After this checkpoint, select one focused technical slice rather than combining several changing factors:
+
+```text
+Ranking Evaluation and Hardening v1
+or
+Retrieval Generation Study v1
+or
+Graph/Evidence Contract v1
+or
+Lexical Performance Profiling v1
+or
+Discovery Product Enhancement
+```
+
+Accepted scaling order:
+
+```text
+functional semantics and evaluation on the representative corpus
+→ next retrieval generation
+→ medium-scale candidate rehearsal
+→ deployment-level Qdrant selector
+→ large accepted corpus expansion
+→ orchestration/distributed infrastructure only when justified
+```
+
+Do not jump directly into public Qdrant promotion, RAG, Airflow, Kafka, or Kubernetes.
 
 Final rule:
 

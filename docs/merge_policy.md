@@ -71,11 +71,14 @@ This is intentional and central to canonical quality.
 
 - `crossref_alignment`
 
+### Domain paper source
+
+- `acl_anthology`
+
 ## 3.2 Candidate paper/domain sources
 
 Candidate paper/domain sources are viable but not yet part of the stable canonical merge path:
 
-- `acl_anthology`
 - `openreview`
 - `pubmed`
 - `biorxiv`
@@ -87,7 +90,7 @@ They must first pass candidate ingestion, source quality audit, and reconcile im
 
 Artifact sources are not paper truth sources.
 
-Viable artifact candidates:
+Current operational artifact enrichment providers:
 
 - `github`
 - `huggingface_hub`
@@ -524,14 +527,15 @@ Required flow:
 7. explicit promotion decision
 8. stable registry/reconcile/export/audit integration only after validation
 
-This applies to:
+This applies to future candidate sources such as:
 
-- `acl_anthology`
 - `openreview`
 - `pubmed`
 - `biorxiv`
 - `medrxiv`
 - future sources
+
+`acl_anthology` completed this lifecycle and is now part of the active stable paper-source set.
 
 Artifact sources have a separate flow:
 
@@ -555,8 +559,8 @@ Current known technical debt areas:
 - OpenAlex and Semantic Scholar field-level noise
 - stricter canonical handling for manifestation-level vs bibliographic-level fields
 - title/abstract selection policy should be aligned between docs, code, and tests
-- artifact layer is not yet implemented
-- GitHub/Hugging Face enrichment is viable but not yet implemented
+- continued synchronization between paper-source and artifact-provider documentation
+- provider-specific artifact coverage and normalization hardening
 - Papers with Code live integration is blocked and must remain outside active stable merge
 - `open_access` vs `is_open_access` API semantics need explicit handling
 

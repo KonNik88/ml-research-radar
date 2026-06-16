@@ -4,14 +4,14 @@
 
 ```text
 document: primary living roadmap
-checkpoint: Qdrant Hybrid Evaluation v1
-checkpoint date: 2026-06-14
-implementation state: merged / green on main
-feature branch: merged and closed
-previous checkpoint: Qdrant Serving Performance v1 merged in PR #19
+base checkpoint: Qdrant Hybrid Evaluation v1 merged / green
+active checkpoint: Current-State and Evidence Sync v1
+active branch: maintenance/current-state-evidence-sync-v1
+current-state scope: evidence and documentation synchronization only
 public Qdrant promotion: not performed
 public dense/hybrid backend: file
-experimental Qdrant transport: gRPC
+experimental Qdrant serving transport: gRPC
+parity/profile-sweep compatibility transport: REST
 fallback: absent
 scaling strategy: accepted / documented
 ```
@@ -799,9 +799,58 @@ smoke and strict Definition-of-Done closure. This hybrid slice does not modify
 canonical data, retrieval artifacts, Postgres materialization, or the Qdrant
 collection.
 
+Current full-corpus provenance evidence:
+
+```text
+report = canonical_provenance_consistency_v2
+documents checked = 60954
+structural errors = 0
+warnings = 0
+informational doc_ids_shorter_than_sources = 9095
+```
+
+The informational count follows the documented semantics: `doc_ids` are
+deduplicated while `sources` preserve contributing provenance rows.
+
 ---
 
 ## 6. Near-term roadmap
+
+### 6.0 Current-State and Evidence Sync v1
+
+Status: **active maintenance slice**
+
+Scope:
+
+```text
+refresh full-corpus provenance evidence
+synchronize ACL/source/artifact status
+clarify source-config responsibilities
+document REST/gRPC evaluation roles
+refresh README, architecture, roadmap, and dataset placeholder
+preserve all public runtime and retrieval defaults
+```
+
+Non-goals:
+
+```text
+no canonical or retrieval rebuild
+no public Qdrant promotion
+no vector-backend selector
+no embedding or hybrid-weight change
+no ranking redesign
+no new source ingestion
+```
+
+After merge, choose one focused technical slice:
+
+```text
+Ranking Evaluation and Hardening v1
+Retrieval Generation Study v1
+Graph/Evidence Contract v1
+Lexical Performance Profiling v1
+Discovery Product Enhancement
+```
 
 The project will not scale the corpus aggressively before the main product,
 retrieval, evaluation, refresh, and promotion semantics are sufficiently
@@ -1080,12 +1129,16 @@ Potential work:
 
 Status: **planned through source viability gates**
 
-Possible sources:
+Current stable paper-source set already includes ACL Anthology.
 
-- Papers with Code;
+Possible future sources:
+
+- OpenReview;
 - PubMed / Europe PMC;
-- selective Semantic Scholar enrichment;
-- additional conference and repository sources.
+- bioRxiv / medRxiv;
+- selective additional conference and repository sources.
+
+Papers with Code live integration remains blocked/archived under the current access contract. Any future use must be an explicit offline/historical viability experiment rather than a default live-source plan.
 
 Every source must pass identity, value, overlap, access, provenance, refresh,
 and reconcile-safety gates.
@@ -1164,7 +1217,7 @@ Avoid technology-driven architecture.
 
 ## 8. Explicit non-goals of the current checkpoint
 
-Not part of Qdrant Hybrid Evaluation v1:
+Not part of Current-State and Evidence Sync v1:
 
 - public `vector_backend` parameter;
 - public Qdrant promotion;
@@ -1254,9 +1307,10 @@ corpus expansion makes file serving an operational constraint.
 ```
 
 The next project question is therefore not automatically "switch to Qdrant".
-It is:
+
+After the current evidence/documentation sync is merged, the decision is:
 
 ```text
-Which functional vertical slice most increases product value or architectural
-confidence while preserving the validated scaling path?
+Which single focused vertical slice most increases product value or
+architectural confidence while preserving the validated scaling path?
 ```
