@@ -9,6 +9,17 @@ It complements `docs/source_matrix.md`.
 - `source_matrix.md` answers: **what sources exist, what plane they belong to, what they contribute, and how much they are trusted.**
 - `source_onboarding_v1.md` answers: **how a new source moves from idea → viability → candidate integration → validated stable integration.**
 
+### Configuration roles
+
+The source-related configuration files have different responsibilities:
+
+- `configs/sources.yaml` defines arXiv ingestion/backfill profiles and related ingestion defaults. Its `sources.enabled` list is not the authoritative registry of accepted canonical paper sources.
+- `configs/source_viability.yaml` stores viability, onboarding-state, provider-policy, and current evidence metadata for candidate and operational sources. It does not directly select reconcile inputs.
+- `docs/source_matrix.md` is the authoritative human-readable current source landscape.
+- Actual canonical participation is determined by explicit normalized inputs, reconcile/promotion decisions, and accepted canonical evidence.
+
+Persisted source-family names such as `openalex`, `semantic_scholar`, and `crossref` may differ from pipeline-role labels such as `openalex_alignment`, `semantic_scholar_alignment`, and `crossref_alignment`. This distinction is intentional and must not be changed through bulk renaming.
+
 ML Research Radar is a paper-centric canonical corpus platform, but not every source is a paper source. The project explicitly separates:
 
 1. paper sources
@@ -281,7 +292,7 @@ New source-specific required checks should be added only after the source become
 
 ## 5. Paper source onboarding template
 
-Use this for ACL Anthology, OpenReview, PubMed, bioRxiv, medRxiv, and future paper sources.
+Use this for OpenReview, PubMed, bioRxiv, medRxiv, and future paper sources. ACL Anthology has already completed this lifecycle and is now an active stable source; its integration remains the reference example.
 
 ```text
 1. Add/update configs/source_viability.yaml entry.
@@ -361,24 +372,34 @@ Full text is a separate derived layer, not a paper metadata source.
 
 ## 9. Recommended onboarding order
 
-Current recommended order:
+Current accepted source state:
 
 ```text
-1. Medium-scale expansion of current stable 4-source paper core.
-2. Re-run artifact extraction and check for new GitHub/Hugging Face artifacts.
-3. Hugging Face artifact discovery/enrichment if entities exist.
-4. ACL Anthology candidate paper source.
-5. OpenReview candidate paper source.
-6. PubMed / bioRxiv / medRxiv domain expansion.
-7. Full-text/chunk/RAG layer after retrieval evaluation is stronger.
-8. Airflow orchestration only after scripts and gates are stable.
+stable paper sources:
+- arXiv
+- OpenAlex alignment
+- Semantic Scholar alignment
+- Crossref alignment
+- ACL Anthology
+
+operational optional artifact providers:
+- GitHub
+- Hugging Face Hub
 ```
 
-Alternative if prioritizing new paper source immediately:
+Recommended future onboarding order is selected by product and research value rather than by the historical ACL sequence:
 
 ```text
-ACL Anthology candidate integration first, then medium-scale expansion.
+1. Keep the current stable source set reproducible and auditable.
+2. Choose one explicit next paper/domain source only after a fresh viability and overlap review.
+3. OpenReview is the leading ML-conference candidate when conference coverage becomes the selected goal.
+4. PubMed / bioRxiv / medRxiv remain later biomedical-domain expansion candidates.
+5. Refresh GitHub/Hugging Face enrichment when a selected slice depends on fresher artifact evidence.
+6. Add full-text/chunk/RAG sources only after chunk contracts and retrieval evaluation are defined.
+7. Add Airflow orchestration only after the underlying source scripts and gates are stable and recurring.
 ```
+
+ACL Anthology should no longer appear as a future candidate in current-state planning. Its historical candidate lifecycle is documented in `docs/acl_anthology_integration_v1.md`.
 
 ---
 
@@ -487,4 +508,3 @@ Do not do these during the first source onboarding step:
 - write new source output directly into canonical latest
 - launch million-scale ingestion before storage is ready
 - add source-specific logic directly into API without materialization contracts
-

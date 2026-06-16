@@ -1,5 +1,17 @@
 # Qdrant / File-Dense Parity Checkpoint v1
 
+## Current status amendment
+
+This historical parity checkpoint was followed by completed slices for:
+
+- dense backend abstraction;
+- typed Qdrant failure semantics;
+- runtime observability;
+- gRPC serving performance;
+- controlled file-vs-Qdrant hybrid evaluation.
+
+Public dense and hybrid search remain file-backed at the current accepted checkpoint. Qdrant remains an explicitly selected experimental/derived serving backend pending a later deployment-level promotion decision.
+
 ## Status
 
 This checkpoint hardens the experimental Qdrant serving path without changing
@@ -19,6 +31,16 @@ Active retrieval build:
 - embedding dimension: `384`
 - Qdrant collection: `ml_radar_dense_benchmark_v1`
 - distance: `Cosine`
+
+## Transport roles
+
+The transport choices in current configs are intentional and cover different concerns:
+
+- `configs/qdrant_parity_v2.yaml` uses REST (`prefer_grpc: false`) for compatibility-oriented file/Qdrant comparison and multi-profile sweep tooling.
+- `configs/qdrant_serving_performance_v1.yaml` uses gRPC (`prefer_grpc: true`) for production-like experimental serving benchmarks.
+- `configs/qdrant_hybrid_evaluation_v1.yaml` uses gRPC (`prefer_grpc: true`) for controlled hybrid evaluation against the selected serving profile.
+
+REST coverage should not be removed merely to make all configs uniform. A future transport change requires its own evidence and regression decision.
 
 ## Why this checkpoint was required
 
@@ -216,9 +238,9 @@ enabled golden query.
   switched by this checkpoint. Runtime search-profile configuration belongs to
   the later dense-backend abstraction/adoption slice.
 
-## Decision and next slice
+## Historical decision and subsequent completion
 
-This checkpoint removes the integrity blocker for an internal dense backend
+This checkpoint removed the integrity blocker for an internal dense backend
 abstraction:
 
 ```text
@@ -227,7 +249,7 @@ DenseSearchBackend
 └── QdrantDenseBackend
 ```
 
-The next slice may introduce the internal candidate-retrieval contract and use
-it in evaluation and experimental paths. Public dense and hybrid search remain
-file-backed until explicit promotion gates, failure semantics, observability,
-and regression contracts are completed.
+That abstraction and the subsequent failure, observability, serving-performance,
+and hybrid-evaluation slices have now been completed. Public dense and hybrid
+search still remain file-backed because Qdrant promotion is a separate
+deployment-level decision, not an automatic consequence of parity.
