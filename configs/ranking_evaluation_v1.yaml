@@ -1,0 +1,152 @@
+schema_version: ranking_evaluation_v1
+
+metadata:
+  purpose: >
+    Evidence-driven evaluation of the optional free-form search ranking
+    heuristic while holding retrieval candidates and hybrid weights fixed.
+  public_behavior_change: false
+  baseline_implementation: radar_core/ranking/scoring.py
+
+defaults:
+  backend_mode: file
+  search_mode: hybrid
+  lexical_weight: 0.55
+  dense_weight: 0.45
+  candidate_k_values:
+    - 50
+    - 100
+  search_top_k: 20
+  metric_k_values:
+    - 5
+    - 10
+    - 20
+  primary_k: 10
+  numeric_tolerance: 1.0e-12
+  determinism_repeats: 2
+
+paths:
+  golden_queries_path: data/eval/retrieval/golden_queries.jsonl
+  scoring_config_path: configs/scoring.yaml
+  output_dir: artifacts/reports/evaluation
+  validation_output_dir: artifacts/reports/validation
+
+profiles:
+  - name: unranked
+    apply_ranking: false
+    description: Preserve the hybrid retrieval order.
+
+  - name: current
+    apply_ranking: true
+    description: Reproduce the current optional public ranking formula.
+    weights:
+      retrieval: 0.60
+      recency: 0.20
+      source_support: 0.10
+      metadata_quality: 0.10
+
+  - name: retrieval_only
+    apply_ranking: true
+    description: Characterization invariant; preserve retrieval order except exact ties.
+    weights:
+      retrieval: 1.00
+      recency: 0.00
+      source_support: 0.00
+      metadata_quality: 0.00
+
+  - name: without_recency
+    apply_ranking: true
+    description: Remove recency and renormalize the remaining current weights.
+    weights:
+      retrieval: 0.75
+      recency: 0.00
+      source_support: 0.125
+      metadata_quality: 0.125
+
+  - name: without_source_support
+    apply_ranking: true
+    description: Remove source support and renormalize the remaining current weights.
+    weights:
+      retrieval: 0.666667
+      recency: 0.222222
+      source_support: 0.00
+      metadata_quality: 0.111111
+
+  - name: without_metadata_quality
+    apply_ranking: true
+    description: Remove metadata quality and renormalize the remaining current weights.
+    weights:
+      retrieval: 0.666667
+      recency: 0.222222
+      source_support: 0.111111
+      metadata_quality: 0.00
+
+  - name: retrieval_plus_recency
+    apply_ranking: true
+    description: Keep only retrieval and recency at their current relative ratio.
+    weights:
+      retrieval: 0.75
+      recency: 0.25
+      source_support: 0.00
+      metadata_quality: 0.00
+
+  - name: retrieval_plus_source_support
+    apply_ranking: true
+    description: Keep only retrieval and source support at their current relative ratio.
+    weights:
+      retrieval: 0.857143
+      recency: 0.00
+      source_support: 0.142857
+      metadata_quality: 0.00
+
+  - name: retrieval_plus_metadata_quality
+    apply_ranking: true
+    description: Keep only retrieval and metadata quality at their current relative ratio.
+    weights:
+      retrieval: 0.857143
+      recency: 0.00
+      source_support: 0.00
+      metadata_quality: 0.142857
+
+classifications:
+  primary:
+    - ranking_helped
+    - ranking_no_effect
+    - ranking_hurt_order
+    - ranking_removed_relevant_from_top_k
+    - ranking_added_relevant_to_top_k
+    - tie_or_boundary_effect
+    - insufficient_labels
+
+analysis:
+  compare_against_profile: unranked
+  preserve_candidate_level_evidence: true
+  preserve_query_level_evidence: true
+  evaluate_candidate_pool_sensitivity: true
+  require_explicit_relevance_labels: true
+  quality_composite_weights:
+    recall: 0.40
+    ndcg: 0.40
+    mrr: 0.20
+
+thresholds:
+  min_enabled_cases: 34
+  expected_profiles_count: 9
+  expected_candidate_depths_count: 2
+  require_zero_runtime_errors: true
+  require_scores_finite: true
+  require_unique_candidate_ids: true
+  require_valid_rank_permutations: true
+  require_retrieval_only_order_invariant: true
+  require_determinism: true
+  require_all_comparisons_classified: true
+  require_candidate_pool_sensitivity: true
+  require_decision_section: true
+
+decision_policy:
+  allow_no_promotion: true
+  change_public_default_during_evaluation: false
+  permitted_outcomes:
+    - preserve_current_optional_behavior
+    - promote_simplified_heuristic_in_follow_up
+    - evaluate_normalization_change_in_follow_up
+    - reject_heuristic_reranking
