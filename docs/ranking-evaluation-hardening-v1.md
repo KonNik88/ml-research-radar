@@ -3,7 +3,7 @@
 ## Document status
 
 ```text
-status: design contract
+status: accepted evidence checkpoint
 slice: Ranking Evaluation and Hardening v1
 branch: retrieval/ranking-evaluation-hardening-v1
 base checkpoint: main after Current-State and Evidence Sync v1
@@ -16,6 +16,281 @@ optional product ranking applied to free-form search results.
 The purpose is not to make ranking more complex. The purpose is to explain,
 measure, and classify the effect of the current heuristic ranking before any
 default, formula, normalization, or model is changed.
+
+
+---
+
+## Accepted evidence checkpoint
+
+```text
+checkpoint_status: accepted
+checkpoint_date: 2026-06-17
+evaluation_build_id: 20260504T164021Z
+corpus_doc_count: 60954
+enabled_queries: 34
+ranking_profiles: 9
+candidate_depths: 2
+evaluation_runs: 612
+runtime_errors: 0
+determinism_failures: 0
+candidate_pool_sensitivity_rows: 306
+strict_validator: green
+public_behavior_change: false
+recommended_outcome: reject_heuristic_reranking
+reference_behavior: unranked hybrid
+```
+
+The Ranking Evaluation and Hardening v1 evidence run is accepted as a
+diagnostic checkpoint.
+
+The key conclusion is:
+
+```text
+No evaluated heuristic ranking profile exceeded the unranked hybrid baseline.
+The current heuristic ranking materially reduces query-relevance quality and
+removes explicitly relevant papers from top-k results.
+```
+
+This checkpoint does not change public API behavior. It documents why the
+current heuristic ranking must not be promoted as a recommended/default
+relevance strategy.
+
+### Accepted profile results
+
+| profile | quality composite | delta vs unranked | Recall@10 | nDCG@10 | MRR@10 | relevant removed from top-k |
+|---|---:|---:|---:|---:|---:|---:|
+| `unranked` | 0.703368 | 0.000000 | 0.630528 | 0.676912 | 0.901961 | 0 |
+| `retrieval_only` | 0.703368 | 0.000000 | 0.630528 | 0.676912 | 0.901961 | 0 |
+| `retrieval_plus_metadata_quality` | 0.703260 | -0.000108 | 0.630528 | 0.677868 | 0.899510 | 4 |
+| `without_source_support` | 0.689562 | -0.013806 | 0.614579 | 0.663248 | 0.892157 | 35 |
+| `retrieval_plus_recency` | 0.686416 | -0.016952 | 0.609677 | 0.660284 | 0.892157 | 37 |
+| `retrieval_plus_source_support` | 0.685417 | -0.017951 | 0.619747 | 0.658746 | 0.870098 | 24 |
+| `without_recency` | 0.682144 | -0.021224 | 0.615458 | 0.654853 | 0.870098 | 28 |
+| `without_metadata_quality` | 0.669517 | -0.033851 | 0.588547 | 0.641618 | 0.887255 | 52 |
+| `current` | 0.667339 | -0.036029 | 0.585606 | 0.639115 | 0.887255 | 52 |
+
+### Signal diagnosis
+
+The accepted analysis separates the current formula into signal-level effects:
+
+```text
+current_vs_unranked:
+  quality_delta = -0.036029
+  mean_moved_candidates = 119.323529
+  relevant_removed = 52
+
+metadata_quality_signal:
+  quality_delta_vs_unranked = -0.000108
+  relevant_removed = 4
+  interpretation = closest_to_baseline_but_not_better
+
+recency_signal:
+  quality_delta_vs_unranked = -0.016952
+  relevant_removed = 37
+  interpretation = harmful_under_current_labels
+
+source_support_signal:
+  quality_delta_vs_unranked = -0.017951
+  relevant_removed = 24
+  interpretation = harmful_under_current_labels
+```
+
+The metadata-quality-only variant is the closest ranked candidate, but it still
+does not exceed the unranked baseline. It also moves a large number of
+candidates and both adds and removes relevant top-k papers. It is therefore not
+promoted.
+
+### Classification summary
+
+Across all ranked comparisons:
+
+```text
+ranking_added_relevant_to_top_k = 66
+ranking_helped = 38
+ranking_hurt_order = 83
+ranking_no_effect = 151
+ranking_removed_relevant_from_top_k = 180
+tie_or_boundary_effect = 26
+```
+
+The large number of `ranking_removed_relevant_from_top_k` cases is the primary
+reason this slice rejects the current heuristic ranking for relevance
+optimization.
+
+### Spot-check: SHAP / explainability
+
+Query:
+
+```text
+explainable artificial intelligence SHAP
+```
+
+Current ranking produced a severe failure at `candidate_k=50`.
+
+Three explicitly relevant papers were present in the unranked top-10 and moved
+outside it:
+
+| title | rank before | rank after | retrieval score | recency | source support | metadata quality |
+|---|---:|---:|---:|---:|---:|---:|
+| `Do Not Trust Additive Explanations` | 5 | 14 | 0.547880 | 0.125 | 0.0 | 0.87 |
+| `Problems with Shapley-value-based explanations as feature importance measures` | 9 | 31 | 0.388826 | 0.250 | 0.0 | 0.87 |
+| `Explaining individual predictions when features are dependent: More accurate approximations to Shapley values` | 10 | 51 | 0.343971 | 0.125 | 0.0 | 0.87 |
+
+Observed metric deltas:
+
+```text
+Recall@10 = -0.375000
+nDCG@10 = -0.293617
+MRR@10 = -0.166667
+Precision@10 = -0.300000
+```
+
+This is not a harmless tie effect. Query-relevant papers are demoted because
+they are older and single-source despite being retrieval-relevant.
+
+### Spot-check: Neural ODE
+
+Query:
+
+```text
+neural ordinary differential equations
+```
+
+At both candidate depths the current ranking raises one relevant multi-source
+paper but removes several other explicitly relevant papers from top-k.
+
+Example relevant paper moved upward:
+
+```text
+Taylor-Lagrange Neural Ordinary Differential Equations:
+Toward Fast Training and Evaluation of Neural ODEs
+```
+
+It benefits from:
+
+```text
+metadata_quality_score = 0.99
+source_support_score = 1.0
+source_count = 4
+```
+
+However, three other relevant papers are pushed down:
+
+| title | example rank movement | note |
+|---|---:|---|
+| `Dissecting Neural ODEs` | 8 → 16 / 6 → 17 | relevant paper removed from top-k |
+| `Input-to-State Stable Neural Ordinary Differential Equations...` | 7 → 12 / 8 → 11 | relevant paper removed from top-k |
+| `Neural Delay Differential Equations` | 9 → 15 / 9 → 16 | relevant paper removed from top-k |
+
+The net outcome is negative even when one relevant paper is promoted:
+
+```text
+Recall@10 = -0.25
+classification = ranking_removed_relevant_from_top_k
+```
+
+This confirms that the current formula can trade several relevant query matches
+for one paper with stronger metadata/source priors.
+
+### Spot-check: neural recommender systems
+
+Query:
+
+```text
+neural recommender systems ranking
+```
+
+At `candidate_k=100`, the current ranking removes two explicitly relevant
+papers from top-k.
+
+Examples:
+
+| title | rank before | rank after | source support | metadata quality |
+|---|---:|---:|---:|---:|
+| `Sequential Learning over Implicit Feedback for Robust Large-Scale Recommender Systems` | 6 | 11 | 1.0 | 0.99 |
+| `Contrastive Learning for Recommender System` | 4 | 14 | 0.0 | 0.87 |
+
+This case is important because one demoted relevant paper already has strong
+source and metadata signals. The failure is therefore not reducible to a single
+missing metadata/source-support field. The broader issue is the current balance:
+
+```text
+too little retrieval dominance
++ query-independent priors
++ candidate-pool-relative normalization
+```
+
+### Candidate-k semantics
+
+In this evaluation, `candidate_k` is the per-component retrieval depth, not the
+final merged candidate count.
+
+For hybrid retrieval:
+
+```text
+candidate_k = 50
+means up to 50 lexical candidates + up to 50 dense candidates
+before merge/deduplication
+
+candidate_k = 100
+means up to 100 lexical candidates + up to 100 dense candidates
+before merge/deduplication
+```
+
+Therefore a moved-candidate count greater than `candidate_k` is valid. It refers
+to the merged hybrid candidate pool, not a single retrieval source list.
+
+### Hit@10 is not sufficient for ranking gates
+
+Several harmful examples keep `Hit@10` unchanged while Recall@10, nDCG@10, MRR,
+or Precision@10 degrade.
+
+This confirms that ranking regression gates must not rely on Hit@k alone.
+Future ranking and retrieval gates should prefer:
+
+```text
+Recall@k
+nDCG@k
+MRR@k
+relevant_removed_from_top_k
+per-query degradation counts
+```
+
+### Accepted decision
+
+This slice accepts the following decision:
+
+```text
+recommended_outcome = reject_heuristic_reranking
+reference_profile = unranked
+best_ranked_profile = retrieval_plus_metadata_quality
+public_default_change = false
+```
+
+Operational interpretation:
+
+1. Keep unranked hybrid retrieval as the reference behavior.
+2. Do not promote the current heuristic ranking formula.
+3. Do not promote metadata-quality-only ranking yet.
+4. Keep `rank=true` available only as an explicit optional/experimental behavior
+   unless a future decision removes or changes it.
+5. Do not change API defaults in this slice.
+6. Do not change `scoring.py` semantics in this slice.
+7. Treat future reranking work as a separate evidence-backed slice.
+
+### Follow-up candidates
+
+Potential follow-up slices, not part of this checkpoint:
+
+1. `Cross-Encoder Reranking Study v1`
+2. `Ranking Normalization Study v1`
+3. `Metadata-Quality Tie-Break Study v1`
+4. `Ranking API Semantics Cleanup v1`
+5. `Search Quality Golden Set Expansion v1`
+
+A future learned or cross-encoder reranker may be justified, but only as a new
+slice with its own acceptance criteria.
+
 
 ---
 
