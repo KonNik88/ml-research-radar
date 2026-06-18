@@ -35,6 +35,8 @@ runtime_errors: 0
 determinism_failures: 0
 candidate_pool_sensitivity_rows: 306
 strict_validator: green
+freshness_validator: green
+regression_wrapper: green
 public_behavior_change: false
 recommended_outcome: reject_heuristic_reranking
 reference_behavior: unranked hybrid
@@ -277,6 +279,149 @@ Operational interpretation:
 5. Do not change API defaults in this slice.
 6. Do not change `scoring.py` semantics in this slice.
 7. Treat future reranking work as a separate evidence-backed slice.
+
+### Lightweight regression gate
+
+After the accepted evidence checkpoint, the slice adds a lightweight regression
+entrypoint:
+
+```text
+scripts/validation/check_ranking_evidence_regression.py
+```
+
+This command is the recommended milestone gate for accepted ranking evidence:
+
+```bash
+python -m scripts.validation.check_ranking_evidence_regression \
+  --config-path configs/ranking_evaluation_v1.yaml \
+  --report-path artifacts/reports/evaluation/ranking_evaluation_latest.json \
+  --retrieval-manifest-path artifacts/retrieval/manifests/latest.json
+```
+
+On Windows `cmd.exe`:
+
+```bat
+python -m scripts.validation.check_ranking_evidence_regression ^
+  --config-path configs\ranking_evaluation_v1.yaml ^
+  --report-path artifacts\reports\evaluation\ranking_evaluation_latest.json ^
+  --retrieval-manifest-path artifacts\retrieval\manifests\latest.json
+```
+
+The wrapper does not rerun the heavy evaluator. It combines three checks:
+
+1. strict integrity validation of the accepted ranking evidence report;
+2. freshness validation against the current retrieval manifest;
+3. regression policy validation that the accepted outcome is explicit and
+   non-mutating for public search behavior.
+
+The accepted green output for this checkpoint is:
+
+```text
+strict = True
+evaluation_build_id = 20260504T164021Z
+manifest_build_id = 20260504T164021Z
+recommended_outcome = reject_heuristic_reranking
+required_failed_count = 0
+```
+
+The wrapper writes local validation artifacts:
+
+```text
+artifacts/reports/validation/ranking_evidence_regression_latest.json
+artifacts/reports/validation/ranking_evidence_regression_latest.md
+artifacts/reports/validation/history/ranking_evidence_regression_<timestamp>.json
+artifacts/reports/validation/history/ranking_evidence_regression_<timestamp>.md
+```
+
+These reports are generated artifacts and should not be committed unless a
+separate artifact-retention policy explicitly says otherwise.
+
+#### Layered validation model
+
+The accepted ranking-evidence validation stack is:
+
+```text
+scripts/evaluation/run_ranking_evaluation.py
+  -> heavy evidence generator
+
+scripts/validation/check_ranking_evaluation.py --strict
+  -> strict internal evidence integrity validator
+
+scripts/validation/check_ranking_evaluation_freshness.py
+  -> freshness validator against the current retrieval build
+
+scripts/validation/check_ranking_evidence_regression.py
+  -> lightweight milestone/regression wrapper
+```
+
+This layering is intentional. The evaluator is expensive and should be rerun only
+when ranking logic, retrieval artifacts, evaluation cases, or evaluation policy
+change. The wrapper is cheap and can be used as a regression gate for this
+accepted checkpoint.
+
+#### DoD / regression semantics
+
+The heavy evaluator is not part of the default lightweight DoD. A normal
+regression check should use:
+
+```text
+python -m scripts.validation.check_ranking_evidence_regression
+```
+
+A full re-evaluation should be triggered when any of the following changes:
+
+1. `radar_core/ranking/scoring.py`;
+2. `services/api/search_service.py` ranking/search semantics;
+3. `configs/scoring.yaml` ranking weights or search score semantics;
+4. `configs/ranking_evaluation_v1.yaml`;
+5. evaluation query set or explicit relevance labels;
+6. retrieval build, embedding model, corpus fingerprint, or manifest identity;
+7. public search defaults related to `rank`, `mode`, or ranking behavior.
+
+If retrieval artifacts are rebuilt but the ranking evidence is not regenerated,
+the freshness validator must fail. This prevents stale evidence from validating a
+new retrieval build.
+
+#### Accepted command set
+
+The complete accepted local verification command set for this slice is:
+
+```bat
+python -m pytest ^
+  tests\smoke\test_ranking_scoring_contract.py ^
+  tests\smoke\test_ranking_evaluation_helpers.py ^
+  tests\smoke\test_ranking_evaluation_validator.py ^
+  tests\smoke\test_ranking_evaluation_summary.py ^
+  tests\smoke\test_ranking_evaluation_freshness.py ^
+  tests\smoke\test_ranking_evidence_regression.py ^
+  -q
+```
+
+Expected result:
+
+```text
+41 passed
+```
+
+Then:
+
+```bat
+python -m scripts.validation.check_ranking_evidence_regression ^
+  --config-path configs\ranking_evaluation_v1.yaml ^
+  --report-path artifacts\reports\evaluation\ranking_evaluation_latest.json ^
+  --retrieval-manifest-path artifacts\retrieval\manifests\latest.json
+```
+
+Expected result:
+
+```text
+strict=True
+evaluation_build_id=20260504T164021Z
+manifest_build_id=20260504T164021Z
+recommended_outcome=reject_heuristic_reranking
+required_failed_count=0
+```
+
 
 ### Follow-up candidates
 
