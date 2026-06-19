@@ -1,0 +1,149 @@
+schema_version: dataset_release_config_v1
+
+release:
+  dataset_name: ml_research_radar_metadata
+  version: v0.1
+  release_family: clean_research_metadata
+  status: candidate_contract
+  description: >
+    Metadata-only public dataset candidate derived from an accepted ML Research
+    Radar canonical corpus checkpoint. This config is a release contract, not a
+    publication decision.
+  publication_targets:
+    - huggingface_datasets
+    - kaggle
+  maintainers:
+    - ML Research Radar
+
+source_checkpoint:
+  canonical_corpus_path: data/analytics/reconciled/canonical_documents.jsonl
+  expected_canonical_doc_count: 60954
+  canonical_corpus_fingerprint: null
+  retrieval_manifest_path: artifacts/retrieval/manifests/latest.json
+  retrieval_build_id: "20260504T164021Z"
+  retrieval_corpus_doc_count: 60954
+  embedding_model: sentence-transformers/all-MiniLM-L6-v2
+  retrieval_fingerprint: 6282e3e78a604490d0626a243e1e93a1c8e2a012b6558739a88448cf19970fc7
+  source_checkpoint_notes: >
+    Current contract is tied to the accepted 60,954-document corpus and
+    retrieval build 20260504T164021Z. A material corpus or retrieval rebuild
+    requires a new release-candidate version and fresh validation.
+
+export:
+  output_root: data/datasets_release
+  dataset_dir_template: "{dataset_name}/{version}"
+  format: parquet
+  compression: zstd
+  include_abstracts: true
+  include_external_ids: true
+  include_source_summary: true
+  include_provenance_summary: true
+  include_open_access_fields: true
+  include_artifact_summary_flags: false
+  include_embeddings: false
+  include_raw_provider_payloads: false
+  include_source_records: false
+  include_full_text: false
+  include_pdfs: false
+  include_private_notes: false
+  max_rows: null
+  deterministic_order_by:
+    - canonical_id
+
+columns:
+  required:
+    - canonical_id
+    - title
+    - abstract
+    - authors
+    - year
+    - doi
+    - arxiv_id
+    - openalex_id
+    - primary_category
+    - categories
+    - concepts
+    - venue
+    - journal
+    - conference
+    - publisher
+    - publication_type
+    - language
+    - landing_page_url
+    - pdf_url
+    - open_access
+    - source_count
+    - unique_source_count
+    - source_families
+    - metadata_completeness_score
+    - is_preprint
+    - is_review
+    - is_survey
+    - is_withdrawn
+  optional:
+    - keywords
+    - tags
+    - cited_by_count
+    - references_count
+    - provenance_summary
+    - external_ids_summary
+  forbidden:
+    - raw_provider_payload
+    - raw_source_record
+    - full_text
+    - pdf_binary
+    - embedding_vector
+    - private_notes
+
+validation:
+  require_unique_canonical_id: true
+  require_expected_row_count: true
+  allow_null_abstract: true
+  allow_null_doi: true
+  allow_null_arxiv_id: true
+  require_non_empty_title: true
+  require_manifest_json: true
+  require_schema_json: true
+  require_checksums_txt: true
+  require_readme_md: true
+  require_data_file: true
+  require_deterministic_order: true
+  require_no_forbidden_columns: true
+  require_build_metadata: true
+
+license_review:
+  status: required_before_publication
+  publication_allowed_before_review: false
+  notes: >
+    Metadata-only candidate release. Provider-specific redistribution terms,
+    OpenAlex/Semantic Scholar/Crossref/ACL/arXiv metadata policies, and artifact
+    provider metadata redistribution rules must be reviewed before publication.
+  excluded_until_review:
+    - raw provider payloads
+    - source snapshots
+    - full text
+    - PDFs
+    - embeddings
+    - provider-restricted fields
+
+safety:
+  canonical_truth_impact: none
+  may_overwrite_operational_latest: false
+  may_be_used_as_reconcile_input: false
+  may_include_full_text: false
+  may_include_pdfs: false
+  may_include_embeddings_without_review: false
+  publish_without_manual_review: false
+  generated_release_is_immutable: true
+
+outputs:
+  expected_release_layout:
+    - data.parquet
+    - schema.json
+    - manifest.json
+    - README.md
+    - checksums.txt
+  generated_reports:
+    latest_json: artifacts/reports/validation/dataset_release_config_latest.json
+    latest_markdown: artifacts/reports/validation/dataset_release_config_latest.md
+    history_dir: artifacts/reports/validation/history

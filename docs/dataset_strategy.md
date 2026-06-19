@@ -3,12 +3,14 @@
 ## Document status
 
 ```text
-status: future track / placeholder contract
-current implementation priority: not active
+status: active contract track / no publication yet
+current implementation priority: Dataset Export Contract v0.1
 canonical truth impact: none
+public dataset publication: not performed
 ```
 
-This document defines the boundary for future public dataset releases from ML Research Radar.
+This document defines the boundary for future public dataset releases from
+**ML Research Radar**.
 
 A dataset release is a **derived public artifact**. It is not:
 
@@ -17,6 +19,16 @@ A dataset release is a **derived public artifact**. It is not:
 - a retrieval-generation manifest;
 - a replacement for source snapshots;
 - an input that may silently overwrite operational `latest` artifacts.
+
+The current active dataset work is intentionally narrow:
+
+```text
+define release config
+define metadata-only schema boundary
+define validation contract
+do not export yet
+do not publish yet
+```
 
 ---
 
@@ -28,24 +40,67 @@ Operational paper truth remains:
 data/analytics/reconciled/canonical_documents.jsonl
 ```
 
-Future dataset releases are generated from an explicit accepted checkpoint and must record:
+Future dataset releases are generated from an explicit accepted checkpoint and
+must record:
 
-- canonical corpus fingerprint;
+- canonical corpus fingerprint when available;
 - canonical document count;
 - retrieval build ID when retrieval-derived data is included;
-- feature/cluster/graph build IDs where applicable;
+- feature, cluster, or graph build IDs where applicable;
 - export configuration;
 - creation timestamp;
 - schema version;
 - license and provenance notes.
 
-A published release must never become an implicit upstream source for canonical reconciliation.
+A published release must never become an implicit upstream source for canonical
+reconciliation.
+
+Current accepted source checkpoint for the first candidate contract:
+
+```text
+canonical_doc_count = 60954
+retrieval_build_id = 20260504T164021Z
+embedding_model = sentence-transformers/all-MiniLM-L6-v2
+release_family = clean_research_metadata
+publication_status = not_published
+```
 
 ---
 
-## 2. Potential release families
+## 2. Current candidate: metadata-only v0.1
 
-### 2.1 Clean research metadata
+The first candidate release family is:
+
+```text
+clean_research_metadata
+```
+
+Purpose:
+
+```text
+A reproducible metadata-only public dataset candidate derived from an accepted
+canonical corpus checkpoint.
+```
+
+Potential audience:
+
+- ML/retrieval/RAG practitioners;
+- research-discovery and bibliographic-mining projects;
+- portfolio reviewers who need a reproducible corpus artifact;
+- future Hugging Face Datasets / Kaggle notebooks.
+
+Current non-publication stance:
+
+```text
+The project may define and validate the release contract now.
+Actual public upload requires a separate release decision and license review.
+```
+
+---
+
+## 3. Potential release families
+
+### 3.1 Clean research metadata
 
 Possible content:
 
@@ -61,7 +116,13 @@ Possible content:
 
 Sensitive or provider-restricted fields must be reviewed before release.
 
-### 2.2 Paper–artifact links
+Current status:
+
+```text
+selected for v0.1 contract
+```
+
+### 3.2 Paper–artifact links
 
 Possible content:
 
@@ -76,7 +137,13 @@ Possible content:
 
 Provider terms and live metadata redistribution rules must be checked explicitly.
 
-### 2.3 Topic and discovery artifacts
+Current status:
+
+```text
+deferred
+```
+
+### 3.3 Topic and discovery artifacts
 
 Possible content:
 
@@ -86,20 +153,33 @@ Possible content:
 - projection coordinates;
 - transparent paper-feature scores.
 
-These releases are build-scoped and must include their retrieval/cluster/projection identifiers.
+These releases are build-scoped and must include their retrieval, cluster, and
+projection identifiers.
 
-### 2.4 Research graph exports
+Current status:
+
+```text
+deferred
+```
+
+### 3.4 Research graph exports
 
 Possible future edge families:
 
-- paper → paper reference;
-- paper → artifact;
-- paper → source observation;
-- paper → topic/cluster.
+- paper -> paper reference;
+- paper -> artifact;
+- paper -> source observation;
+- paper -> topic/cluster.
 
 Graph exports require a dedicated entity/edge contract before publication.
 
-### 2.5 Temporal and trend datasets
+Current status:
+
+```text
+deferred
+```
+
+### 3.5 Temporal and trend datasets
 
 Possible content:
 
@@ -110,21 +190,33 @@ Possible content:
 
 Aggregations must remain reproducible from a named accepted checkpoint.
 
-### 2.6 Retrieval evaluation datasets
+Current status:
+
+```text
+deferred
+```
+
+### 3.6 Retrieval evaluation datasets
 
 Possible content:
 
-- query–positive pairs;
-- query–candidate judgments;
+- query-positive pairs;
+- query-candidate judgments;
 - hard negatives;
 - paper similarity pairs;
 - benchmark splits.
 
 Human labels, weak labels, and generated labels must be distinguished explicitly.
 
+Current status:
+
+```text
+deferred
+```
+
 ---
 
-## 3. Release lifecycle
+## 4. Release lifecycle
 
 Required future lifecycle:
 
@@ -153,29 +245,82 @@ data/datasets_release/
         └── checksums.txt
 ```
 
-Operational `latest` aliases should not replace immutable release versions.
+Operational `latest` aliases must not replace immutable release versions.
 
 ---
 
-## 4. Validation expectations
+## 5. Dataset config contract
 
-A release validator should eventually check:
+The first active config is:
+
+```text
+configs/dataset_release.yaml
+```
+
+The config must define:
+
+```text
+schema_version
+release metadata
+source checkpoint
+export options
+required / optional / forbidden columns
+validation requirements
+license-review requirements
+safety policy
+expected output layout
+```
+
+The first contract intentionally sets:
+
+```text
+include_embeddings = false
+include_full_text = false
+include_pdfs = false
+include_raw_provider_payloads = false
+publish_without_manual_review = false
+may_be_used_as_reconcile_input = false
+may_overwrite_operational_latest = false
+```
+
+This prevents accidental over-release or accidental use of a public release as an
+operational source.
+
+---
+
+## 6. Validation expectations
+
+The release config validator should check:
 
 - schema version;
+- release name/version/family;
+- source checkpoint fields;
+- expected row count;
+- retrieval build identity when present;
+- export format and output layout;
 - required columns;
+- forbidden columns;
+- license review status;
+- safety flags;
+- no publication without manual review;
+- no full text/PDF/raw payload/embedding release in metadata-only v0.1;
+- deterministic output-order policy.
+
+Future release-output validators should also check:
+
+- actual output schema;
 - unique IDs;
 - row counts;
 - null/coverage statistics;
 - duplicate rows;
 - foreign-key consistency;
 - build/fingerprint consistency;
-- license/provenance metadata;
 - checksums;
 - deterministic regeneration where applicable.
 
 ---
 
-## 5. Candidate publication targets
+## 7. Candidate publication targets
 
 Potential targets:
 
@@ -183,21 +328,65 @@ Potential targets:
 - Hugging Face Datasets;
 - Kaggle.
 
-The target is selected per dataset after checking file-size, licensing, update, and versioning constraints.
+Preliminary preference for the first public metadata release:
+
+```text
+Hugging Face Datasets
+→ best fit for ML/retrieval/RAG audience and versioned dataset cards
+
+Kaggle
+→ useful for portfolio visibility and notebooks
+```
+
+The target is selected per dataset after checking file-size, licensing, update,
+and versioning constraints.
 
 ---
 
-## 6. Current non-goals
+## 8. Current non-goals
 
-Not part of Current-State and Evidence Sync v1:
+Not part of Dataset Export Contract v0.1:
 
-- implementing dataset export code;
+- implementing the full dataset export pipeline;
 - publishing a dataset;
-- selecting a public license for provider-derived metadata;
+- selecting a final public license;
 - generating graph exports;
 - generating retrieval pairs;
 - scheduling releases;
 - integrating releases into Airflow;
-- treating a release as operational truth.
+- treating a release as operational truth;
+- exporting full text, PDFs, embeddings, or raw provider payloads.
 
-The concrete dataset track should begin only after one release family is selected with an explicit schema, audience, license review, and Definition of Done.
+---
+
+## 9. Definition of Done for Dataset Export Contract v0.1
+
+Complete when:
+
+- [ ] `configs/dataset_release.yaml` defines the v0.1 metadata-only contract;
+- [ ] `docs/dataset-release-v0.1.md` explains the release boundary and DoD;
+- [ ] `docs/dataset_strategy.md` is synchronized with the active contract;
+- [ ] `scripts/validation/check_dataset_release_config.py` validates the config;
+- [ ] smoke tests cover accepted and rejected config cases;
+- [ ] no export files are generated;
+- [ ] no public dataset is published;
+- [ ] no operational `latest` files are modified.
+
+---
+
+## 10. Operational interpretation
+
+The dataset track should begin with a contract because dataset release is a
+public-facing boundary.
+
+Current accepted interpretation:
+
+```text
+We can prepare the release contract now.
+We should not publish yet.
+We should not export everything by default.
+We should not let the release become an input source.
+```
+
+The first dataset slice is therefore a safety and reproducibility layer, not a
+new data-ingestion or product-feature layer.
