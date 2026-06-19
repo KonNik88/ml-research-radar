@@ -3,19 +3,19 @@
 ## Document status
 
 ```text
-status: proposed checkpoint / anti-duplication audit
+status: implemented / green / accepted checkpoint
 slice: Retrieval Serving Checkpoint v1
-suggested branch: maintenance/retrieval-serving-checkpoint-v1
+branch: maintenance/search-runtime-checkpoint-v1
 public behavior change: none
-implementation change: none in this checkpoint
-purpose: prevent duplicate work before the next retrieval/serving slice
+implementation behavior change: none to API/search/runtime semantics
+purpose: prevent duplicate retrieval/Qdrant/runtime/ranking work and provide a lightweight serving gate
 ```
 
-This checkpoint records the current accepted state of the retrieval, dense-backend,
-Qdrant, runtime, hybrid-evaluation, and ranking-evaluation layers.
+This checkpoint records the current accepted state of the retrieval,
+dense-backend, Qdrant, runtime, hybrid-evaluation, and ranking-evaluation layers.
 
 The purpose is not to add another serving implementation. The purpose is to make
-the next slice safer by explicitly separating:
+future slices safer by explicitly separating:
 
 ```text
 already completed work
@@ -48,12 +48,20 @@ embedding_shape = [60954, 384]
 dense_vectors_normalized = true
 ```
 
+Current Golden Set baseline:
+
+```text
+enabled_queries = 34
+explicit_canonical_labeled_queries = 34
+weak_pattern_only_enabled_queries = 0
+```
+
 Current public search behavior:
 
 ```text
 /search?mode=lexical -> file-backed lexical search
-/search?mode=dense   -> file-backed dense search
-/search?mode=hybrid  -> file-backed hybrid search
+/search?mode=dense   -> exact file dense search
+/search?mode=hybrid  -> file lexical + exact file dense hybrid search
 ```
 
 Current experimental Qdrant behavior:
@@ -118,7 +126,7 @@ The dense backend abstraction already defines:
 
 Do not redo:
 
-- the backend abstraction;
+- backend abstraction;
 - `FileDenseBackend`;
 - `QdrantDenseBackend`;
 - Qdrant profile objects;
@@ -382,8 +390,9 @@ qdrant
 Current public behavior:
 
 ```text
-/search?mode=dense  -> file dense
-/search?mode=hybrid -> file dense component
+/search?mode=lexical -> file lexical / DB lexical depending on runtime
+/search?mode=dense   -> exact file dense
+/search?mode=hybrid  -> file lexical + exact file dense hybrid
 ```
 
 ### 3.2 Experimental Qdrant
@@ -416,7 +425,7 @@ is Qdrant-independent.
 /runtime
 ```
 
-may include Qdrant diagnostics.
+includes Qdrant diagnostics when requested by the runtime snapshot.
 
 If Qdrant is unavailable:
 
@@ -446,7 +455,87 @@ reranking formula.
 
 ---
 
-## 4. Work that is explicitly deferred
+## 4. Implemented lightweight checkpoint gate
+
+The checkpoint now includes:
+
+```text
+scripts/validation/check_retrieval_serving_checkpoint.py
+tests/smoke/test_retrieval_serving_checkpoint.py
+```
+
+Default command:
+
+```bat
+python -m scripts.validation.check_retrieval_serving_checkpoint
+```
+
+Default required steps:
+
+```text
+ranking_evidence_regression
+qdrant_hybrid_evidence
+```
+
+Optional steps:
+
+```text
+qdrant_serving_performance_evidence
+qdrant_collection_live
+api_runtime_smoke
+```
+
+Extended command:
+
+```bat
+python -m scripts.validation.check_retrieval_serving_checkpoint ^
+  --include-serving-performance-evidence ^
+  --include-qdrant-collection-live ^
+  --include-api-smoke
+```
+
+The wrapper:
+
+- composes existing validators;
+- validates accepted evidence;
+- does not rerun heavy benchmarks by default;
+- does not rebuild retrieval artifacts;
+- does not require Qdrant for `/health`;
+- does not change `/search`;
+- does not promote Qdrant;
+- does not introduce fallback.
+
+Generated outputs:
+
+```text
+artifacts/reports/validation/retrieval_serving_checkpoint_latest.json
+artifacts/reports/validation/retrieval_serving_checkpoint_latest.md
+artifacts/reports/validation/history/retrieval_serving_checkpoint_<timestamp>.json
+artifacts/reports/validation/history/retrieval_serving_checkpoint_<timestamp>.md
+```
+
+Generated outputs are local evidence artifacts and should not be committed unless
+a separate artifact-retention policy explicitly says otherwise.
+
+Accepted local evidence:
+
+```text
+pytest tests/smoke/test_retrieval_serving_checkpoint.py -q
+→ 9 passed
+
+python -m scripts.validation.check_retrieval_serving_checkpoint
+→ required_failed_count = 0
+
+python -m scripts.validation.check_retrieval_serving_checkpoint ^
+  --include-serving-performance-evidence ^
+  --include-qdrant-collection-live ^
+  --include-api-smoke
+→ required_failed_count = 0
+```
+
+---
+
+## 5. Work explicitly deferred
 
 The following are valid future topics, but are not part of this checkpoint:
 
@@ -476,210 +565,75 @@ immediate public behavior change.
 
 ---
 
-## 5. Remaining gaps that are actually new
+## 6. Remaining gaps that are actually new
 
-The following workstreams appear to be valid new work rather than duplicate
-runtime/Qdrant implementation.
+Valid next workstreams:
 
-### 5.1 Retrieval Serving Regression Wrapper v1
+### 6.1 Search API Semantics Cleanup v1
 
-Problem:
-
-```text
-Retrieval/Qdrant/ranking validators exist, but the project lacks one compact
-serving-checkpoint command that explains what is being validated and why.
-```
-
-Possible goal:
-
-```text
-scripts/validation/check_retrieval_serving_checkpoint.py
-```
-
-Potential responsibilities:
-
-- validate accepted ranking evidence regression;
-- validate Qdrant collection compatibility where Qdrant artifacts are available;
-- validate experimental Qdrant API evidence or mark it intentionally skipped;
-- validate Qdrant hybrid evidence freshness or accepted-report integrity;
-- validate API/runtime smoke expectations;
-- emit a compact JSON/Markdown checkpoint report;
-- distinguish required checks from optional environment-dependent checks.
+Synchronize API, README, architecture, roadmap, runtime, Qdrant, ranking, and
+checkpoint documentation.
 
 Non-goals:
 
-- do not rerun heavy benchmarks by default;
-- do not rebuild retrieval artifacts;
-- do not require Qdrant for general file-runtime health;
-- do not change `/search` behavior.
-
-### 5.2 Search API Semantics Cleanup v1
-
-Problem:
-
 ```text
-API docs, runtime docs, Qdrant docs, and ranking docs now contain overlapping
-search semantics. This is manageable but can drift.
+no API behavior change
+no Qdrant promotion
+no fallback
+no retrieval rebuild
+no ranking change
 ```
 
-Possible goal:
+### 6.2 Dataset Export Contract v0.1
 
-- consolidate `/search`, `/experimental/search/qdrant`, `/runtime`, and
-  ranking semantics in `api_reference.md`;
-- cross-link to the accepted checkpoint docs;
-- clearly separate public behavior from experimental behavior;
-- document that public dense/hybrid remain file-backed.
+Define future metadata-only public export schema, provenance, license, checksum,
+and data-card policy. No public upload in that slice.
 
-Non-goals:
+### 6.3 Deployment-Level Vector Backend Selector Design v1
 
-- no API behavior change;
-- no new endpoint;
-- no Qdrant promotion.
-
-### 5.3 Dataset Export Contract v0.1
-
-Problem:
-
-```text
-The project plans a future Kaggle/Hugging Face dataset release, but public
-dataset release requires schema, provenance, license, and versioning policy.
-```
-
-Possible goal:
-
-- define metadata-only public export schema;
-- define excluded fields;
-- define build ID / checksum / version policy;
-- define dataset card requirements;
-- define whether embeddings are included in the first release.
-
-Non-goals:
-
-- no public upload in this slice;
-- no corpus rebuild;
-- no licensing shortcuts.
-
-### 5.4 Deployment-Level Vector Backend Selector Design v1
-
-Problem:
-
-```text
-Qdrant has strong experimental evidence, but public promotion is a separate
-deployment/API semantics decision.
-```
-
-Possible goal:
+Design:
 
 ```text
 ML_RADAR_VECTOR_BACKEND=file|qdrant
 ```
 
-Only as design first.
-
-Non-goals:
-
-- do not enable by default;
-- do not silently switch `/search`;
-- do not introduce fallback;
-- do not remove file dense as reference.
-
----
-
-## 6. Recommended next slice
-
-Recommended immediate next code slice:
-
-```text
-Retrieval Serving Regression Wrapper v1
-```
-
-Suggested branch:
-
-```text
-validation/retrieval-serving-regression-v1
-```
-
-Suggested files to inspect before implementation:
-
-```text
-scripts/validation/run_discovery_api_regression.py
-scripts/validation/check_qdrant_collection.py
-scripts/validation/check_qdrant_hybrid_evaluation.py
-scripts/validation/check_qdrant_serving_performance.py
-scripts/validation/check_ranking_evidence_regression.py
-scripts/validation/check_retrieval_eval.py
-scripts/validation/run_retrieval_checks.py
-
-configs/qdrant_hybrid_evaluation_v1.yaml
-configs/qdrant_serving_performance_v1.yaml
-configs/qdrant_parity_v2.yaml
-configs/ranking_evaluation_v1.yaml
-
-tests/smoke/test_qdrant_regression_runner.py
-tests/smoke/test_qdrant_hybrid_evaluation_validator.py
-tests/smoke/test_qdrant_serving_performance.py
-tests/smoke/test_ranking_evidence_regression.py
-tests/integration/test_api_smoke.py
-tests/integration/test_api_errors.py
-tests/integration/test_api_reload.py
-```
-
-Suggested output:
-
-```text
-artifacts/reports/validation/retrieval_serving_checkpoint_latest.json
-artifacts/reports/validation/retrieval_serving_checkpoint_latest.md
-artifacts/reports/validation/history/retrieval_serving_checkpoint_<timestamp>.json
-artifacts/reports/validation/history/retrieval_serving_checkpoint_<timestamp>.md
-```
-
-Suggested acceptance:
-
-```text
-required_failed_count = 0
-public_search_behavior_changed = false
-qdrant_required_for_health = false
-fallback_allowed = false
-ranking_recommendation = reject_heuristic_reranking
-file_dense_reference_preserved = true
-```
+Only as a future deployment-level design. No default change.
 
 ---
 
 ## 7. Definition of Done for this checkpoint
 
-This checkpoint is complete when:
+Complete when:
 
-- [ ] this document is committed;
-- [ ] it records completed retrieval/Qdrant/ranking slices;
-- [ ] it explicitly lists work that must not be redone;
-- [ ] it identifies the next non-duplicative code slice;
-- [ ] no public API behavior changes are made;
-- [ ] no runtime behavior changes are made;
-- [ ] no generated reports are committed.
-
-Recommended commit:
-
-```text
-docs: record retrieval serving checkpoint
-```
+- [x] checkpoint document exists;
+- [x] completed retrieval/Qdrant/ranking slices are recorded;
+- [x] work that must not be redone is listed;
+- [x] retrieval-serving checkpoint gate exists;
+- [x] smoke tests exist;
+- [x] default gate is lightweight;
+- [x] extended local gate is available;
+- [x] no public API behavior changes were made;
+- [x] no runtime behavior changes were made;
+- [x] no Qdrant promotion was performed;
+- [x] no generated reports are committed.
 
 ---
 
 ## 8. Operational interpretation
 
-This checkpoint changes how the project plans work, not how the application
-runs.
+This checkpoint changes how the project plans and validates retrieval-serving
+work. It does not change how public search runs.
 
-The accepted interpretation is:
+Accepted interpretation:
 
 ```text
 Dense/Qdrant/runtime hardening is already substantially complete.
 Do not start another dense-backend or Qdrant-failure slice from scratch.
-The next useful engineering layer is a compact retrieval-serving regression
-wrapper or an API/docs consolidation slice.
+The current lightweight gate validates accepted retrieval-serving evidence.
+Public /search remains file-backed.
+Qdrant remains explicitly experimental.
 ```
 
 A future public Qdrant promotion remains possible, but it must be handled as a
-separate deployment-level decision with explicit API semantics and regression
-evidence.
+separate deployment-level decision with explicit API semantics, regression
+evidence, and rollback policy.

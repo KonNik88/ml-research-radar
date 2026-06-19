@@ -4,17 +4,23 @@
 
 This document describes the current architecture of **ML Research Radar**.
 
-ML Research Radar is a paper-centric canonical corpus and discovery platform for ML/AI research. The project is not a simple arXiv parser, not a local JSONL search demo, and not a RAG prototype. Its central entity is a stable **canonical paper entity** built from partially overlapping source-level observations.
+ML Research Radar is a paper-centric canonical corpus and discovery platform for
+ML/AI research. It is not a simple arXiv parser, not a local JSONL search demo,
+not a vector-database wrapper, and not a RAG prototype.
+
+The central entity is a stable **canonical paper entity** built from partially
+overlapping source-level observations.
 
 ---
 
 ## Current checkpoint
 
-Current working checkpoint:
-
 ```text
-Qdrant Hybrid Evaluation v1 — merged / green
-Current-State and Evidence Sync v1 — active maintenance checkpoint
+checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1
+public Qdrant promotion = not performed
+public dense/hybrid backend = file
+experimental Qdrant transport = gRPC
+fallback = absent
 ```
 
 Current stable baseline:
@@ -25,14 +31,24 @@ canonical_multisource_docs = 9192
 doi_count = 10183
 arXiv backbone = 60000
 ACL-family docs = 957
+
 retrieval_build_id = 20260504T164021Z
 embedding_model = sentence-transformers/all-MiniLM-L6-v2
 embedding_shape = [60954, 384]
+
 paper_features_rows_count = 60954
 topic_clusters_count = 80
 topic_projection_rows_count = 2080
-qdrant_benchmark_collection = ml_radar_dense_benchmark_v1
-qdrant_benchmark_uploaded_count = 60954
+
+qdrant_collection = ml_radar_dense_benchmark_v1
+qdrant_points_count = 60954
+qdrant_vector_size = 384
+qdrant_distance = Cosine
+qdrant_selected_profile = ef_256
+
+golden_queries_enabled = 34
+golden_queries_explicit = 34
+golden_queries_weak_pattern = 0
 ```
 
 ---
@@ -74,20 +90,46 @@ ranking / detail / similar = derived discovery/product layer
 topic clusters / projection = derived analytics/discovery layer
 Discovery API = product/discovery API over derived layers
 Streamlit UI = thin API client
-Qdrant = optional derived vector-serving benchmark / experimental layer
+Qdrant = optional derived vector-serving implementation
 ```
 
 Important boundary:
 
 ```text
-No derived layer is allowed to mutate canonical truth.
+No derived layer is allowed to mutate or redefine canonical truth.
+```
+
+Identity domains:
+
+```text
+source_doc_id / doc_id
+= source-level observation identity
+
+canonical_id
+= reconciled paper-level identity
+
+artifact_id
+= normalized repository/model/dataset/demo identity
+
+dense_index / Qdrant point_id
+= serving mapping inside one retrieval generation
+```
+
+Paper identity priority:
+
+```text
+DOI
+→ external DOI
+→ arXiv ID
+→ external arXiv ID
+→ normalized title + year fallback
 ```
 
 ---
 
 ## 1. Source and normalization layer
 
-Current stable paper sources:
+Stable paper sources:
 
 ```text
 arxiv
@@ -99,11 +141,12 @@ acl_anthology
 
 Roles:
 
-- `arxiv` is the 60k backbone.
-- `openalex_alignment`, `semantic_scholar_alignment`, and `crossref_alignment` enrich the backbone.
-- `acl_anthology` is the first major source-expansion case.
+- `arxiv` is the backbone corpus.
+- `openalex_alignment`, `semantic_scholar_alignment`, and `crossref_alignment`
+  enrich identity, citation/reference, concept, venue, publisher, and DOI signals.
+- `acl_anthology` is the first promoted domain-source expansion.
 - GitHub and Hugging Face are artifact enrichment providers, not paper sources.
-- Papers with Code live/source integration remains blocked/archived; PWC-like signals are artifact candidates only unless policy changes.
+- Papers with Code live/source integration remains blocked/archived.
 
 The normalized layer isolates downstream code from raw provider-specific formats.
 
@@ -124,21 +167,13 @@ provenance preservation
 canonical entity creation
 ```
 
-Identity priority is currently:
-
-```text
-DOI
-external DOI
-arXiv id
-external arXiv id
-title + year fallback
-```
-
-The current operational paper source of truth is:
+Operational source of truth:
 
 ```text
 data/analytics/reconciled/canonical_documents.jsonl
 ```
+
+A canonical URL is useful metadata but is not the sole identity rule.
 
 ---
 
@@ -146,7 +181,7 @@ data/analytics/reconciled/canonical_documents.jsonl
 
 Retrieval is a derived artifact layer built from canonical documents.
 
-Current retrieval modes:
+Public retrieval modes:
 
 ```text
 lexical
@@ -157,18 +192,18 @@ hybrid
 Current implementation:
 
 ```text
-lexical index over canonical text fields
-dense embeddings with sentence-transformers/all-MiniLM-L6-v2
-hybrid merge over lexical and dense candidates
+lexical = file BM25 / lexical index
+dense = exact file dense over normalized sentence-transformer embeddings
+hybrid = lexical + exact file dense with min-max normalization and fixed weights
 ```
 
-Current retrieval manifest:
+Active retrieval manifest:
 
 ```text
 artifacts/retrieval/manifests/latest.json
 ```
 
-Current dense artifacts:
+Active dense artifacts:
 
 ```text
 artifacts/retrieval/dense/embeddings_20260504T164021Z.npy
@@ -176,11 +211,90 @@ artifacts/retrieval/dense/ids_20260504T164021Z.json
 artifacts/retrieval/dense/meta_20260504T164021Z.json
 ```
 
-Public lexical, dense, and hybrid retrieval remain file-backed in the current checkpoint. Qdrant serves the same build-scoped dense generation through an explicit experimental path and is not yet the public default.
+Exact file dense remains the reference implementation.
+
+Reference semantics:
+
+```python
+query_vector = encoder.encode(
+    [query],
+    convert_to_numpy=True,
+    normalize_embeddings=True,
+)[0].astype(np.float32)
+
+scores = stored_embeddings @ query_vector
+order = np.argsort(scores)[::-1]
+```
 
 ---
 
-## 4. Postgres materialized serving layer
+## 4. Hybrid merge
+
+Hybrid retrieval uses shared score composition:
+
+```text
+lexical candidates
+dense candidates
+→ independent min-max normalization
+→ union of canonical IDs
+→ weighted hybrid score
+→ score-based ordering
+```
+
+Current weights:
+
+```text
+lexical = 0.55
+dense = 0.45
+```
+
+The shared hybrid kernel does not own retrieval, hydration, ranking, pagination,
+or serialization.
+
+---
+
+## 5. Ranking layer
+
+Free-form `/search` supports optional ranking:
+
+```text
+rank=false
+→ default reference behavior
+
+rank=true
+→ explicit optional/experimental heuristic reranking
+```
+
+Accepted ranking evidence rejects promotion of the current heuristic reranking
+formula:
+
+```text
+recommended_outcome = reject_heuristic_reranking
+reference_behavior = unranked hybrid
+public_behavior_change = false
+```
+
+Discovery ranking profiles are separate from free-form query reranking.
+
+Free-form search ranking scope:
+
+```text
+radar_core/ranking/scoring.py
+services/api/search_service.py
+configs/scoring.yaml
+```
+
+Discovery profile ranking scope:
+
+```text
+radar_core/ranking/feature_ranking.py
+radar_core/ranking/profiles.py
+configs/ranking_profiles_v1.yaml
+```
+
+---
+
+## 6. Postgres materialized serving layer
 
 Postgres is a serving/materialization layer, not canonical truth.
 
@@ -202,13 +316,14 @@ DB backend does not currently support:
 /search?mode=hybrid
 ```
 
-This asymmetry is deliberate: current DB search is a serving slice, not retrieval-quality parity.
+This asymmetry is deliberate. Current DB search is a serving slice, not
+retrieval-quality parity.
 
 ---
 
-## 5. Artifact evidence and enrichment layer
+## 7. Artifact evidence and enrichment layer
 
-Artifact evidence is a separate plane from paper identity.
+Artifact evidence is separate from paper identity.
 
 Current artifact/enrichment baseline:
 
@@ -220,18 +335,17 @@ github_found_count ≈ 5339
 huggingface_found_count ≈ 77
 ```
 
-GitHub and Hugging Face metadata are artifact metadata, not canonical paper truth.
-
 Important semantics:
 
 ```text
-GitHub stars/forks/language/license/status must not be used as canonical identity signals.
-Hugging Face forbidden/skipped_invalid_external_id states are diagnostics under current policy.
+GitHub stars/forks/language/license/status are artifact metadata.
+Hugging Face downloads/likes/tags are artifact metadata.
+Artifact metadata must not redefine canonical paper identity.
 ```
 
 ---
 
-## 6. Discovery/product layer
+## 8. Discovery/product layer
 
 Discovery API is a file-first product layer over validated derived artifacts.
 
@@ -250,7 +364,7 @@ artifacts/clusters/topic/latest.json
 artifacts/clusters/topic/runs/<cluster_build_id>/*
 ```
 
-Current product chain:
+Product chain:
 
 ```text
 ranking profile + query overrides
@@ -267,7 +381,7 @@ Discovery API does not redefine canonical truth.
 
 ---
 
-## 7. Topic clusters and topic projection
+## 9. Topic clusters and topic projection
 
 Topic clusters and projections are derived analytics/discovery artifacts.
 
@@ -280,7 +394,7 @@ topic_projection_algorithm = umap
 topic_projection_rows_count = 2080
 ```
 
-Topic cluster labels are heuristic navigation hints, not curated taxonomy.
+Cluster labels are heuristic navigation hints, not curated taxonomy.
 
 Projection coordinates are stable only for a specific combination of:
 
@@ -292,9 +406,9 @@ retrieval_build_id
 
 ---
 
-## 8. API backend architecture
+## 10. API backend architecture
 
-The API supports two backend modes:
+The API supports two runtime backend modes:
 
 ```text
 file
@@ -319,13 +433,17 @@ dense artifacts are loaded
 embedding model is loaded
 ```
 
-Supports `/search` modes:
+Supports:
 
 ```text
-lexical
-dense
-hybrid
+/search?mode=lexical
+/search?mode=dense
+/search?mode=hybrid
+/experimental/search/qdrant
+/discovery/*
 ```
+
+`/experimental/search/qdrant` requires file runtime.
 
 ### DB backend
 
@@ -336,20 +454,15 @@ DB store is loaded
 DB connectivity is healthy
 ```
 
-Supports:
+Supports browse/filter/artifact endpoints and DB lexical search.
 
-```text
-documents/artifacts browsing
-DB lexical search v1
-```
-
-The two backends are intentionally not fully symmetric.
+Unsupported DB modes return structured `400 Bad Request`.
 
 ---
 
-## 9. Qdrant layer
+## 11. Qdrant layer
 
-Qdrant is currently an optional derived vector-serving benchmark / experimental layer.
+Qdrant is an optional derived vector-serving implementation.
 
 Current collection:
 
@@ -365,6 +478,10 @@ points_count = 60954
 corpus_doc_count = 60954
 vector_size = 384
 distance = Cosine
+status = green
+optimizer_status = ok
+transport = gRPC for experimental serving
+profile = ef_256
 ```
 
 Current Qdrant surfaces:
@@ -383,14 +500,14 @@ GET /runtime -> Qdrant diagnostics and operational state
 Streamlit sidebar -> Qdrant runtime status
 ```
 
-Transport roles are intentionally split:
+Transport roles:
 
 ```text
 REST
-→ compatibility-oriented parity and profile-sweep tooling
+→ compatibility-oriented parity/profile-sweep tooling
 
 gRPC
-→ production-like experimental serving performance and controlled hybrid evaluation
+→ production-like experimental serving, performance benchmark, and controlled hybrid evaluation
 ```
 
 Critical boundaries:
@@ -400,20 +517,108 @@ Qdrant is not canonical truth.
 Qdrant is not required for /health readiness.
 Qdrant does not change /search defaults.
 Qdrant is not the production default backend.
+Qdrant does not introduce fallback.
 The public Qdrant search path remains /experimental/search/qdrant.
 ```
 
 If Qdrant is unavailable:
 
 ```text
-/health still returns 200 OK if the selected runtime backend is ready.
-/runtime still returns 200 OK with qdrant.ok=false and qdrant.error populated.
-Streamlit remains usable and shows Qdrant unavailable.
+/health
+→ still 200 OK if selected runtime backend is ready
+
+/runtime
+→ 200 OK with qdrant.ok=false and qdrant.error populated
+
+/experimental/search/qdrant
+→ structured 503
+
+/search?mode=dense
+→ file dense remains available
 ```
 
 ---
 
-## 10. Streamlit UI
+## 12. Dense backend abstraction
+
+Current dense backend contract:
+
+```text
+DenseSearchBackend
+├── FileDenseBackend
+└── QdrantDenseBackend
+```
+
+Backends own only dense candidate generation:
+
+```text
+prepared normalized query vector
+→ dense candidates
+```
+
+Backends do not own:
+
+- query text validation;
+- embedding model loading;
+- query encoding;
+- lexical retrieval;
+- hybrid merge;
+- canonical hydration;
+- ranking;
+- API serialization;
+- fallback.
+
+Typed dense backend errors:
+
+```text
+DenseBackendRequestError
+DenseBackendUnavailableError
+DenseBackendCompatibilityError
+DenseBackendResultError
+```
+
+API mapping:
+
+```text
+DenseBackendRequestError       -> 400 dense_backend_bad_request
+DenseBackendUnavailableError   -> 503 dense_backend_unavailable
+DenseBackendCompatibilityError -> 503 dense_backend_incompatible
+DenseBackendResultError        -> 503 dense_backend_invalid_result
+```
+
+---
+
+## 13. Runtime observability
+
+Runtime endpoint:
+
+```text
+GET /runtime
+GET /runtime?refresh_qdrant=true
+```
+
+Qdrant diagnostics include:
+
+- configured endpoint and transport;
+- collection existence and compatibility;
+- point count / corpus count comparison;
+- vector size and distance;
+- optimizer/status;
+- selected search profile;
+- diagnostics cache state;
+- backend creation and compatibility state;
+- request/success/failure counters;
+- last status and timestamps;
+- last failure category/stage/message;
+- last timing map;
+- requested/effective vector backend;
+- `fallback_applied`.
+
+`/runtime` may expose Qdrant unavailability without making `/health` unhealthy.
+
+---
+
+## 14. Streamlit UI
 
 Streamlit is a thin client over FastAPI.
 
@@ -431,142 +636,84 @@ Sidebar API status
 Sidebar Qdrant runtime status
 ```
 
-The UI must not compute ranking, clustering, embeddings, or reconciliation locally.
+The UI must not compute ranking, clustering, embeddings, or canonical merge
+logic.
 
-Current UI validation:
+---
+
+## 15. Validation architecture
+
+Validation is a first-class architecture layer.
+
+Important validator families:
+
+```text
+canonical/provenance validators
+retrieval artifact validators
+Golden Set validators
+ranking evidence validators
+Qdrant collection/parity/profile/performance/hybrid validators
+Discovery API validators
+topic cluster/projection validators
+Streamlit UI validators
+Definition-of-Done checks
+retrieval-serving checkpoint gate
+```
+
+Lightweight retrieval-serving checkpoint:
 
 ```bat
-python -m scripts.validation.check_streamlit_discovery_ui --strict
+python -m scripts.validation.check_retrieval_serving_checkpoint
 ```
 
-Expected Qdrant UI check:
+Extended local checkpoint:
 
-```text
-qdrant_runtime_status_ui_snippets_present = true
-required_failed_count = 0
+```bat
+python -m scripts.validation.check_retrieval_serving_checkpoint ^
+  --include-serving-performance-evidence ^
+  --include-qdrant-collection-live ^
+  --include-api-smoke
 ```
+
+Generated reports under `artifacts/reports/...` are build/evidence artifacts and
+are not canonical truth.
 
 ---
 
-## 11. Validation and DoD layer
+## 16. Deferred architecture work
 
-The validation layer is first-class architecture, not a side utility.
-
-Current validation families:
+Deferred, separate slices:
 
 ```text
-canonical contract / provenance consistency / postpass audit
-retrieval checks and Golden Set quality
-controlled search experiments
-artifact quality
-GitHub enrichment
-Hugging Face enrichment
-paper features
-ranking profiles
-similar papers
-Discovery API
-topic clusters
-topic projection
-Streamlit UI
-Qdrant collection / parity / profile sweep
-Qdrant serving performance
-Qdrant controlled hybrid evaluation
-strict DoD
+public Qdrant promotion
+ML_RADAR_VECTOR_BACKEND=file|qdrant design
+Qdrant-backed public hybrid
+Qdrant-backed similar-paper migration
+filter pushdown into Qdrant
+new embedding generation
+retrieval rebuild
+larger Golden Set expansion
+dataset release
+full text / RAG
+orchestration / Airflow
+distributed execution / Ray
+event processing / Kafka
+deployment / Kubernetes
+observability stack
 ```
 
-Current provenance evidence covers the full 60,954-document corpus:
-
-```text
-structural errors = 0
-warnings = 0
-informational doc_ids_shorter_than_sources = 9095
-```
-
-Preferred engineering pattern:
-
-```text
-small focused script
-→ explicit report
-→ strict validator
-→ optional DoD gate
-→ docs/runbook update
-```
+These should not be mixed into Search API Semantics Cleanup v1.
 
 ---
 
-## 12. Current scope boundaries
+## 17. Current architectural interpretation
 
-Included now:
-
-```text
-canonical paper corpus
-file retrieval artifacts
-Postgres materialized serving
-artifact evidence layer
-GitHub/HF artifact enrichment
-paper features
-Discovery API
-Streamlit UI
-topic clusters/projection
-Qdrant experimental visibility and validation
-```
-
-Postponed:
+The accepted interpretation is:
 
 ```text
-full-text ingestion
-chunk-level retrieval
-production Qdrant /search backend
-RAG serving
-Airflow orchestration
-Kubernetes deployment
-Kafka/event streaming
-public production frontend
-GraphRAG/product graph layer
-```
-
----
-
-## 13. Near-term direction
-
-Current maintenance step:
-
-```text
-synchronize current source/configuration/checkpoint documentation
-refresh full-corpus provenance evidence
-preserve public runtime defaults
-close the branch through focused validation and review
-```
-
-After this checkpoint, select one focused technical slice rather than combining several changing factors:
-
-```text
-Ranking Evaluation and Hardening v1
-or
-Retrieval Generation Study v1
-or
-Graph/Evidence Contract v1
-or
-Lexical Performance Profiling v1
-or
-Discovery Product Enhancement
-```
-
-Accepted scaling order:
-
-```text
-functional semantics and evaluation on the representative corpus
-→ next retrieval generation
-→ medium-scale candidate rehearsal
-→ deployment-level Qdrant selector
-→ large accepted corpus expansion
-→ orchestration/distributed infrastructure only when justified
-```
-
-Do not jump directly into public Qdrant promotion, RAG, Airflow, Kafka, or Kubernetes.
-
-Final rule:
-
-```text
-Viability first, candidate integration second, stable integration last.
+Public /search remains file-backed.
+Qdrant is experimentally validated but not promoted.
+Unranked hybrid remains the search relevance reference.
+The retrieval-serving checkpoint gate is the lightweight regression guard.
+Future promotion decisions must be explicit, evidence-backed, and reversible.
 ```
