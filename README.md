@@ -4,50 +4,46 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-API-green)
 ![Streamlit](https://img.shields.io/badge/Streamlit-UI-red)
 ![Postgres](https://img.shields.io/badge/Postgres-Serving%20DB-blue)
-![Qdrant](https://img.shields.io/badge/Qdrant-Vector%20Serving-purple)
+![Qdrant](https://img.shields.io/badge/Qdrant-Experimental%20Vector%20Serving-purple)
 ![Docker](https://img.shields.io/badge/Docker-Local%20Infrastructure-blue)
 
 Roadmap technologies:
 
 ![Airflow](https://img.shields.io/badge/Airflow-Planned-blue)
-![LangGraph](https://img.shields.io/badge/LangGraph-Planned-purple)
 ![Ray](https://img.shields.io/badge/Ray-Planned-orange)
 ![Kafka](https://img.shields.io/badge/Kafka-Planned-black)
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-Planned-blue)
 ![Observability](https://img.shields.io/badge/Observability-Planned-orange)
+![RAG](https://img.shields.io/badge/RAG-Planned-purple)
 
-**ML Research Radar** is a long-horizon, paper-centric platform for discovering, organizing, ranking, analyzing, and reasoning over machine-learning research.
+**ML Research Radar** is a long-horizon, paper-centric platform for discovering,
+organizing, evaluating, and reasoning over machine-learning research.
 
-The repository serves two purposes at once:
+The project is intentionally staged. It is not an arXiv-only parser, not a
+vector-database wrapper, and not a one-off RAG demo. The repository combines:
 
-1. a working, validated research-discovery system;
-2. a staged engineering roadmap toward richer retrieval, research graphs, RAG, personalization, observability, orchestration, event-driven processing, distributed execution, and production-style deployment.
+1. a working, validated local research-discovery system;
+2. a documented engineering roadmap toward richer retrieval, public datasets,
+   research graphs, full-text retrieval, RAG, personalization, observability,
+   orchestration, and deployable infrastructure.
 
-The roadmap is intentionally broader than the current implementation. Planned technologies remain visible here, but they are introduced only when a concrete product or operational need justifies them.
-
----
-
-## Project vision
-
-ML Research Radar is designed to grow into an end-to-end research platform that can:
-
-- ingest partially overlapping scientific sources;
-- resolve source-level records into stable paper-level identities;
-- preserve field-level provenance;
-- connect papers with repositories, models, datasets, demos, and other research artifacts;
-- support lexical, dense, hybrid, and later graph-aware retrieval;
-- rank papers for different research and implementation-oriented scenarios;
-- expose paper pages, artifact pages, similar papers, topic maps, and research graphs;
-- support full-text retrieval, grounded RAG, paper comparison, and survey generation;
-- create watchlists, digests, saved searches, and personalized discovery flows;
-- publish reproducible public datasets derived from accepted corpus checkpoints;
-- evolve toward observable, scheduled, distributed, event-driven, and deployable infrastructure.
-
-This is not a single-model demo and not a collection of unrelated technologies. New components are added only when they strengthen the same research-discovery system.
+New technologies are introduced only when they strengthen the same
+paper-centric research-discovery system.
 
 ---
 
 ## Current validated checkpoint
+
+```text
+checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1
+public behavior change = none
+public dense/hybrid backend = file
+experimental Qdrant endpoint = explicit
+fallback = absent
+Qdrant promotion = not performed
+```
+
+Current corpus and retrieval baseline:
 
 ```text
 canonical documents = 60,954
@@ -57,39 +53,106 @@ documents with DOI = 10,183
 arXiv backbone = 60,000
 ACL-family documents = 957
 ACL-only documents = 954
-existing papers enriched with ACL provenance = 3
+ACL-enriched existing documents = 3
 
 retrieval build = 20260504T164021Z
 embedding model = sentence-transformers/all-MiniLM-L6-v2
 embedding shape = [60954, 384]
 dense vectors normalized = true
+```
 
+Current discovery baseline:
+
+```text
 paper feature rows = 60,954
 topic clusters = 80
 topic projection rows = 2,080
+ranking profiles = 9
+```
 
-Qdrant collection = ml_radar_dense_benchmark_v1
-Qdrant points = 60,954
+Current Qdrant baseline:
+
+```text
+collection = ml_radar_dense_benchmark_v1
+points = 60,954
+vector size = 384
+distance = Cosine
+experimental transport = gRPC
 selected ANN profile = ef_256
 ```
 
-Current public search behavior:
+Current Golden Set and evaluation baseline:
 
 ```text
-/search?mode=lexical
-→ file BM25
-
-/search?mode=dense
-→ exact file dense
-
-/search?mode=hybrid
-→ BM25 + exact file dense
-
-/experimental/search/qdrant
-→ Qdrant gRPC
+enabled Golden queries = 34
+explicit canonical-labeled queries = 34
+weak-pattern-only enabled queries = 0
 ```
 
-Qdrant has completed parity, backend-abstraction, failure-contract, runtime-observability, serving-performance, and controlled hybrid-evaluation slices. It has not been promoted to the public dense/hybrid default.
+---
+
+## Current public search behavior
+
+Public search remains file-backed:
+
+```text
+GET /search?mode=lexical
+→ file BM25 / lexical retrieval
+
+GET /search?mode=dense
+→ exact file dense retrieval
+
+GET /search?mode=hybrid
+→ file lexical + exact file dense hybrid retrieval
+```
+
+Experimental Qdrant search remains explicit:
+
+```text
+GET /experimental/search/qdrant
+→ Qdrant dense search over the same retrieval build
+```
+
+Important boundaries:
+
+```text
+Qdrant is optional.
+Qdrant is not canonical truth.
+Qdrant is not required for /health readiness.
+Qdrant does not change /search defaults.
+Qdrant does not introduce fallback.
+Qdrant is not the public dense/hybrid default.
+```
+
+The file backend remains the exact reference, evaluation oracle, and rollback
+path.
+
+---
+
+## Ranking status
+
+Free-form `/search` has an explicit `rank` flag.
+
+Current accepted semantics:
+
+```text
+rank=false
+→ default and reference behavior
+
+rank=true
+→ explicit optional/experimental heuristic reranking
+```
+
+Accepted ranking evidence concluded:
+
+```text
+recommended_outcome = reject_heuristic_reranking
+reference_behavior = unranked hybrid
+public_behavior_change = false
+```
+
+The current heuristic reranking formula is not promoted as a default relevance
+strategy.
 
 ---
 
@@ -109,7 +172,7 @@ Postgres
 = rebuildable materialized serving layer
 
 retrieval artifacts
-= rebuildable lexical/dense generation
+= rebuildable lexical/dense retrieval layer
 
 Qdrant
 = optional derived vector-serving implementation
@@ -155,44 +218,36 @@ DOI
 → normalized title + year fallback
 ```
 
-A canonical URL is useful metadata, but it is not the sole identity rule.
-
 ---
 
 ## Current source landscape
 
-### Stable paper sources
+Stable paper sources:
 
-- arXiv
-- OpenAlex alignment
-- Semantic Scholar alignment
-- Crossref alignment
-- ACL Anthology
+```text
+arXiv
+OpenAlex alignment
+Semantic Scholar alignment
+Crossref alignment
+ACL Anthology
+```
 
-Roles:
+Operational artifact providers:
 
-- **arXiv** provides the main preprint backbone.
-- **OpenAlex** contributes semantic concepts, citation/reference signals, external identifiers, and venue/publisher hints.
-- **Semantic Scholar** contributes identifier and citation support.
-- **Crossref** stabilizes DOI-oriented publication metadata, publisher, publication type, dates, and references.
-- **ACL Anthology** is the first promoted domain source and adds NLP/computational-linguistics coverage.
+```text
+GitHub
+Hugging Face Hub
+```
 
-### Operational artifact providers
+GitHub and Hugging Face metadata enrich artifact entities. They do not overwrite
+canonical paper title, authors, abstract, venue, year, publication type, or
+identity.
 
-- GitHub
-- Hugging Face Hub
+Candidate future paper/domain sources include OpenReview, PubMed / Europe PMC,
+bioRxiv, medRxiv, and additional conference or repository sources when justified.
 
-These providers enrich artifact entities. Their metadata does not overwrite canonical paper title, authors, abstract, venue, year, publisher, publication type, or identity.
-
-### Candidate future paper/domain sources
-
-- OpenReview
-- PubMed / Europe PMC
-- bioRxiv
-- medRxiv
-- additional conference and repository sources when justified
-
-Papers with Code live integration is currently blocked/archived. Any future use requires a separate offline or historical viability experiment.
+Papers with Code live integration is currently blocked/archived. Any future use
+requires a separate offline or historical viability experiment.
 
 ---
 
@@ -227,7 +282,9 @@ experiment
 → strict Definition of Done
 ```
 
-A selective enrichment batch is not treated as the complete accepted source state. It must be merged into an explicit full snapshot before stable reconciliation.
+Selective enrichment batches are not treated as the complete accepted source
+state. They must be merged into an explicit full snapshot before stable
+reconciliation.
 
 ---
 
@@ -247,9 +304,9 @@ A selective enrichment batch is not treated as the complete accepted source stat
 ### Retrieval
 
 - BM25 lexical retrieval;
-- exact dense retrieval;
+- exact file dense retrieval;
 - hybrid retrieval;
-- build-scoped manifests;
+- build-scoped retrieval manifests;
 - Golden Set evaluation;
 - controlled weight and candidate-depth experiments;
 - similar-paper retrieval;
@@ -258,13 +315,14 @@ A selective enrichment batch is not treated as the complete accepted source stat
 
 ### Serving
 
-- FastAPI;
+- FastAPI service boundary;
 - file runtime;
 - Postgres materialized runtime;
 - document and artifact browsing;
 - file lexical/dense/hybrid search;
 - DB lexical search v1;
-- runtime reload and diagnostics.
+- runtime reload and diagnostics;
+- experimental Qdrant dense endpoint.
 
 ### Artifact evidence plane
 
@@ -276,7 +334,7 @@ A selective enrichment batch is not treated as the complete accepted source stat
 - artifact filters and API surfaces;
 - artifact-aware paper features.
 
-Current baseline:
+Current artifact baseline:
 
 ```text
 artifact entities in DB = 7,333
@@ -302,19 +360,21 @@ Hugging Face found = 77
 
 ### Qdrant serving line
 
-- collection build/upload and strict validation;
-- file-vs-Qdrant parity;
-- ANN profile sweep;
-- `DenseSearchBackend` abstraction;
-- `FileDenseBackend`;
-- `QdrantDenseBackend`;
-- typed failure semantics;
-- strict result/mapping validation;
-- runtime observability;
-- gRPC serving benchmark;
-- controlled file-vs-Qdrant hybrid evaluation.
+Completed slices:
 
-Hybrid evaluation result:
+```text
+Qdrant collection build/upload and strict validation
+Qdrant / file-dense parity
+Qdrant profile sweep
+DenseSearchBackend abstraction
+Qdrant failure contract
+Qdrant runtime observability
+Qdrant serving performance
+Qdrant hybrid evaluation
+Retrieval serving checkpoint gate
+```
+
+Qdrant hybrid evaluation result:
 
 ```text
 34 queries
@@ -325,8 +385,6 @@ Hybrid evaluation result:
 0 blocking classifications
 0 measured Hit / Precision / Recall / MRR regression
 ```
-
-The file backend remains the exact reference, evaluation oracle, and rollback path.
 
 ---
 
@@ -340,9 +398,11 @@ GET /search
 
 Modes:
 
-- `lexical`
-- `dense`
-- `hybrid`
+```text
+lexical
+dense
+hybrid
+```
 
 Current hybrid defaults:
 
@@ -351,7 +411,16 @@ lexical weight = 0.55
 dense weight = 0.45
 ```
 
-An evaluated dense-heavier candidate exists, but the production default has not been changed.
+`rank=false` is the current reference behavior.
+
+### Experimental Qdrant search
+
+```text
+GET /experimental/search/qdrant
+```
+
+This endpoint is explicit and experimental. It uses Qdrant gRPC over the current
+retrieval build and selected profile. It does not change `/search`.
 
 ### Similar papers
 
@@ -361,10 +430,13 @@ GET /discovery/papers/{canonical_id}/similar
 
 Modes:
 
-- `semantic`
-- `radar_adjusted`
+```text
+semantic
+radar_adjusted
+```
 
-This contract starts from a paper embedding and requires self-exclusion. It is intentionally separate from text-query search.
+This contract starts from a paper embedding and requires self-exclusion. It is
+intentionally separate from text-query search.
 
 ### Discovery ranking
 
@@ -372,13 +444,8 @@ This contract starts from a paper embedding and requires self-exclusion. It is i
 GET /discovery/ranking/{profile}
 ```
 
-Profiles use derived paper features such as:
-
-- recency;
-- source confidence;
-- implementation readiness;
-- citation signal;
-- artifact availability.
+Profiles use derived paper features such as recency, source confidence,
+implementation readiness, citation signal, and artifact availability.
 
 ### Topic navigation
 
@@ -390,13 +457,14 @@ assignments = 60,954
 projection rows = 2,080
 ```
 
-Cluster labels are heuristic, build-scoped navigation hints rather than a stable curated taxonomy.
+Cluster labels are heuristic, build-scoped navigation hints rather than stable
+curated taxonomy.
 
 ---
 
 ## Validation and evidence
 
-Validation is a first-class part of the architecture.
+Validation is part of the architecture.
 
 Current families include:
 
@@ -414,6 +482,7 @@ Current families include:
 - clusters and projection;
 - Streamlit UI;
 - Qdrant collection, parity, profile sweep, performance, and hybrid evaluation;
+- retrieval-serving checkpoint gate;
 - strict Definition of Done.
 
 Current provenance evidence:
@@ -425,7 +494,26 @@ warnings = 0
 informational doc_ids_shorter_than_sources = 9,095
 ```
 
-The informational count is expected because `doc_ids` are deduplicated while `sources` preserve contributing provenance rows.
+The informational count is expected because `doc_ids` are deduplicated while
+`sources` preserve contributing provenance rows.
+
+Recommended lightweight retrieval-serving gate:
+
+```bat
+python -m scripts.validation.check_retrieval_serving_checkpoint
+```
+
+Extended local gate:
+
+```bat
+python -m scripts.validation.check_retrieval_serving_checkpoint ^
+  --include-serving-performance-evidence ^
+  --include-qdrant-collection-live ^
+  --include-api-smoke
+```
+
+Generated reports under `artifacts/reports/...` are evidence/materializations
+and should not be committed unless a separate artifact-retention policy says so.
 
 ---
 
@@ -449,8 +537,6 @@ artifacts/
 ├── retrieval/
 └── clusters/
 ```
-
-Generated artifacts are evidence/materializations, not substitutes for accepted source contracts.
 
 ---
 
@@ -491,7 +577,7 @@ Important boundaries:
 
 ## Current technology stack
 
-### Implemented/core
+Implemented/core:
 
 - Python 3.11
 - Pydantic
@@ -508,7 +594,7 @@ Important boundaries:
 - UMAP
 - pytest
 
-### Planned extensions
+Planned extensions:
 
 - stronger scientific embedding models;
 - cross-encoder reranking;
@@ -523,269 +609,44 @@ Important boundaries:
 - Prometheus / Grafana;
 - Loki or another structured-log backend;
 - OpenTelemetry / Jaeger or Tempo;
-- Alembic when incremental DB migrations become necessary;
-- a dedicated frontend after API contracts stabilize;
-- graph-aware retrieval and GraphRAG-like reasoning;
-- selected Rust/Java/C++/C utilities where justified.
+- Alembic migrations.
 
-Planned technologies are options in a staged architecture, not mandatory checklist items.
+These planned items are staged roadmap options, not immediate implementation
+requirements.
 
 ---
 
-## Long-term functional roadmap
+## Near-term roadmap
 
-The roadmap below describes intended capabilities, not the chronological status of the current repository. Many foundations and several later evaluation/discovery capabilities are already implemented in a different order.
+Recommended order:
 
-### Foundation and source platform
+1. **Search API Semantics Cleanup v1**  
+   Synchronize API, runtime, Qdrant, ranking, and validation documentation.
 
-- source adapters;
-- raw and normalized snapshots;
-- canonical reconciliation;
-- provenance;
-- Postgres materialization;
-- artifact evidence;
-- safe refresh and promotion.
+2. **Dataset Export Contract v0.1**  
+   Define metadata-only public export schema, provenance, checksum, and data-card policy.
 
-### Retrieval and ranking
+3. **Deployment Vector Backend Selector Design v1**  
+   Design `ML_RADAR_VECTOR_BACKEND=file|qdrant` without changing defaults.
 
-- lexical, dense, and hybrid retrieval;
-- scientific embedding generations;
-- hybrid-weight studies;
-- rerankers;
-- learned sparse methods;
-- graph-aware retrieval;
-- feedback-aware and personalized ranking.
+4. **Public Qdrant Promotion v1**  
+   Only after explicit design, regression gates, rollback policy, and acceptance evidence.
 
-### Enrichment and research objects
+5. **Next retrieval generation**  
+   New embeddings, larger Golden Set, and retrieval rebuild only as a separate build-scoped slice.
 
-- structured task/method/dataset/metric extraction;
-- summaries;
-- taxonomy labels;
-- entities;
-- novelty signals;
-- citation and evidence graphs;
-- stronger paper-artifact linkage.
+---
 
-### Product and UX
+## Safety stance
 
-- feed and filters;
-- bookmarks;
-- saved searches;
-- watchlists;
-- reading lists;
-- exports;
-- alerts and digests;
-- paper comparison;
-- “why recommended?” explanations;
-- learning paths;
-- richer paper and artifact workspaces;
-- dedicated frontend when justified.
-
-### Analytics and graphs
-
-- topic evolution;
-- research timelines;
-- citation/reference graph;
-- artifact graph;
-- source/evidence graph;
-- trend dashboards;
-- cluster comparison;
-- graph exports.
-
-### Full text, RAG, and research workflows
-
-- full-text acquisition;
-- section/chunk contracts;
-- chunk embeddings;
-- grounded RAG with citations;
-- paper comparison;
-- survey generation;
-- guided research workflows;
-- research-agent mode.
-
-### Dataset release track
-
-Potential releases:
-
-1. clean paper metadata;
-2. paper–artifact links;
-3. topic/cluster artifacts;
-4. research graph exports;
-5. temporal trends;
-6. retrieval pairs and benchmark data.
-
-Potential publication targets:
-
-- GitHub Releases;
-- Hugging Face Datasets;
-- Kaggle.
-
-Dataset releases remain immutable derived outputs from named accepted checkpoints.
-
-### Observability and MLOps
-
-Staged path:
+Current accepted policy:
 
 ```text
-structured logs
-→ Prometheus / Grafana
-→ container and host metrics
-→ OpenTelemetry tracing
-→ Loki / Jaeger / Tempo or equivalent where justified
+Do not change public retrieval defaults by intuition.
+Do not promote Qdrant because it is available.
+Do not promote ranking because it exists.
+Do not commit generated reports by accident.
+Prefer small, evidence-backed vertical slices.
 ```
 
-### Batch and workflow orchestration
-
-- Airflow for recurring batch ingest, enrichment, rebuild, evaluation, and release DAGs;
-- LangGraph for interactive/stateful LLM research workflows.
-
-Airflow is not used as an interactive agent framework, and LangGraph is not used as a batch ETL scheduler.
-
-### Distributed execution
-
-Ray becomes relevant when measured bottlenecks justify parallel:
-
-- embeddings;
-- parsing;
-- provider enrichment;
-- analytics;
-- large candidate builds.
-
-### Event-driven architecture
-
-Kafka remains a future stage for:
-
-- continuous source events;
-- multiple independent consumers;
-- replay;
-- retry/DLQ contracts;
-- event-driven indexing.
-
-It is not required for daily or weekly batch refresh.
-
-### Deployment maturity
-
-Kubernetes becomes relevant only after the project has:
-
-- independently scalable services;
-- workers and recurring jobs;
-- stable storage contracts;
-- secrets management;
-- observability;
-- real need for replicas, rollout, and recovery.
-
-### Polyglot extensions
-
-Possible focused additions:
-
-- Rust for fast JSONL/CSV streaming and text utilities;
-- Java for a bounded metadata-service experiment;
-- C++ for educational ANN/performance tooling;
-- C for narrowly justified streaming utilities;
-- Bash for bootstrap, smoke, and local automation.
-
-Polyglot work must reinforce the platform rather than fragment it.
-
----
-
-## Current development sequence
-
-The current representative corpus is intentionally retained while semantics remain cheap to rebuild, evaluate, and inspect.
-
-Accepted sequence:
-
-```text
-current-state and evidence synchronization
-→ choose one focused technical/product slice
-→ validate the next retrieval generation
-→ medium-scale candidate rehearsal
-→ deployment-level Qdrant selector
-→ larger accepted corpus
-→ orchestration and distributed infrastructure only when justified
-```
-
-Candidate next focused slices:
-
-- Ranking Evaluation and Hardening v1
-- Retrieval Generation Study v1
-- Graph/Evidence Contract v1
-- Lexical Performance Profiling v1
-- Discovery Product Enhancement
-
-The next slice is selected explicitly. Public Qdrant promotion, a new embedding model, hybrid-weight changes, and ranking redesign are not bundled together.
-
----
-
-## Implementation principles
-
-- Build from simple to complex.
-- Prefer complete vertical slices over feature sprawl.
-- Preserve canonical truth and provenance.
-- Keep derived layers rebuildable.
-- Separate retrieval strategy from serving backend.
-- Keep business logic in `radar_core`.
-- Keep services thin.
-- Measure quality before changing defaults.
-- Treat generated reports as evidence.
-- Promote candidates explicitly.
-- Add infrastructure only after operational triggers appear.
-- Preserve exact references and rollback paths.
-- Review code ownership as the project grows.
-
----
-
-## Explicitly out of scope
-
-To keep the project coherent, the roadmap excludes unrelated additions that do not strengthen research discovery, retrieval, ranking, evidence, reasoning, analytics, or platform operation.
-
-Examples:
-
-- unrelated reinforcement-learning demos;
-- image-generation features;
-- training large foundation models from scratch;
-- isolated technology demos without integration into the platform.
-
----
-
-## Documentation map
-
-- `docs/architecture.md` — current architecture and responsibilities
-- `docs/roadmap.md` — primary living roadmap and validated checkpoints
-- `docs/data_contracts.md` — paper/source contracts
-- `docs/merge_policy.md` — canonical merge semantics
-- `docs/provenance_semantics.md` — provenance interpretation
-- `docs/source_matrix.md` — current source landscape
-- `docs/source_onboarding_v1.md` — source onboarding lifecycle
-- `docs/refresh_contract_v1.md` — refresh/promotion safety
-- `docs/api_reference.md` — API surfaces
-- `docs/dataset_strategy.md` — future public dataset boundary
-- `docs/scaling-and-vector-serving-strategy-v1.md` — accepted scaling strategy
-
----
-
-## Local workflow
-
-Git operations:
-
-```text
-Git Bash
-```
-
-Python, tests, validators, and project scripts:
-
-```bat
-conda activate ml_radar
-cd /d D:\ML\ML_Research_Radar
-```
-
-Local Postgres and Qdrant infrastructure:
-
-```text
-infra/docker/
-```
-
----
-
-## License
-
-MIT License
+The project should remain paper-centric and evidence-driven.
