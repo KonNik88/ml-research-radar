@@ -33,3 +33,5 @@ data/features/
 *.log
 
 collect_latest_reports.sh
+
+notebooks/
