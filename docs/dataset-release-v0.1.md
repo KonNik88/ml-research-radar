@@ -263,3 +263,93 @@ The project is not yet publishing a dataset.
 The first public candidate should be metadata-only.
 Every future release must be tied to an accepted checkpoint and validated.
 ```
+
+---
+
+## 11. Dataset Export Runner v0.1
+
+Dataset Export Runner v0.1 turns the accepted metadata-only contract into a
+local candidate release directory. It does not publish the dataset and does not
+change operational truth.
+
+Runner command:
+
+```bat
+python -m scripts.export.export_public_dataset
+```
+
+Explicit config command:
+
+```bat
+python -m scripts.export.export_public_dataset --config-path configs/dataset_release.yaml
+```
+
+If the configured release directory already exists and is non-empty, the runner
+fails by default. Rewriting a generated candidate requires an explicit flag:
+
+```bat
+python -m scripts.export.export_public_dataset --force
+```
+
+Expected local candidate output:
+
+```text
+data/datasets_release/ml_research_radar_metadata/v0.1/
+├── data.parquet
+├── schema.json
+├── manifest.json
+├── README.md
+└── checksums.txt
+```
+
+Generated candidate releases remain derived artifacts:
+
+```text
+canonical_truth_impact = none
+may_overwrite_operational_latest = false
+may_be_used_as_reconcile_input = false
+publication_status = not_published
+manual_review_required_before_publication = true
+```
+
+The runner must not export embeddings, full text, PDF binaries, raw provider
+payloads, private notes, or full source records.
+
+---
+
+## 12. Dataset release output validation
+
+Generated candidate output is validated separately from the config contract.
+
+Validator command:
+
+```bat
+python -m scripts.validation.check_dataset_release_output --strict
+```
+
+The output validator checks:
+
+- required release files exist;
+- `data.parquet` is readable;
+- schema and manifest files are readable;
+- columns match the configured required + optional export schema;
+- forbidden columns are absent;
+- `canonical_id` is unique;
+- titles are non-empty;
+- row order is deterministic;
+- manifest row count matches the data file;
+- safety and non-publication flags are preserved;
+- checksums match generated files.
+
+Suggested Dataset Export Runner v0.1 checks:
+
+```bat
+python -m pytest tests\smoke\test_dataset_release_config.py tests\smoke\test_public_dataset_export_contract.py tests\smoke\test_dataset_release_output_validator.py -q
+python -m scripts.validation.check_dataset_release_config --strict --check-paths
+python -m scripts.export.export_public_dataset
+python -m scripts.validation.check_dataset_release_output --strict
+```
+
+The release directory is still a local candidate after these commands. Public
+upload requires a separate manual license/provenance review and a separate
+release decision.
