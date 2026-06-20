@@ -390,3 +390,58 @@ We should not let the release become an input source.
 
 The first dataset slice is therefore a safety and reproducibility layer, not a
 new data-ingestion or product-feature layer.
+
+---
+
+## 11. Dataset Export Runner v0.1
+
+After the Dataset Export Contract v0.1 slice, the next bounded implementation
+slice is a local metadata export runner.
+
+Scope:
+
+```text
+scripts/export/export_public_dataset.py
+scripts/validation/check_dataset_release_output.py
+tests/smoke/test_public_dataset_export_contract.py
+tests/smoke/test_dataset_release_output_validator.py
+```
+
+The runner creates a local candidate release directory from
+`configs/dataset_release.yaml` and the accepted canonical corpus checkpoint:
+
+```text
+data/datasets_release/ml_research_radar_metadata/v0.1/
+├── data.parquet
+├── schema.json
+├── manifest.json
+├── README.md
+└── checksums.txt
+```
+
+This slice is still not a publication slice.
+
+Non-goals remain:
+
+- public upload to Kaggle, Hugging Face Datasets, or GitHub Releases;
+- embedding export;
+- full-text or PDF export;
+- raw provider payload export;
+- full source-record export;
+- graph export;
+- RAG or GraphRAG;
+- retrieval rebuild;
+- Qdrant promotion;
+- search or ranking behavior changes;
+- mutation of canonical latest or operational serving state.
+
+The output validator is intentionally separate from the config validator:
+
+```text
+check_dataset_release_config.py  -> validates the release contract
+check_dataset_release_output.py  -> validates the generated local candidate artifact
+```
+
+A generated candidate may be considered locally reproducible only when both the
+config validator and the output validator are green. It may be considered for
+publication only after a separate manual license/provenance review.
