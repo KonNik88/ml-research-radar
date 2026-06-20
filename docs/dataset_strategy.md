@@ -242,6 +242,7 @@ data/datasets_release/
         ├── schema.json
         ├── manifest.json
         ├── README.md
+        ├── data_quality_summary.json
         └── checksums.txt
 ```
 
@@ -316,6 +317,7 @@ Future release-output validators should also check:
 - foreign-key consistency;
 - build/fingerprint consistency;
 - checksums;
+- data-quality summary consistency;
 - deterministic regeneration where applicable.
 
 ---
@@ -445,3 +447,30 @@ check_dataset_release_output.py  -> validates the generated local candidate arti
 A generated candidate may be considered locally reproducible only when both the
 config validator and the output validator are green. It may be considered for
 publication only after a separate manual license/provenance review.
+
+---
+
+## 12. Dataset Release Output Hardening v0.1
+
+After the initial local export runner, the next bounded dataset-layer slice adds a release-level data-quality summary:
+
+```text
+data_quality_summary.json
+```
+
+The goal is not to publish the dataset. The goal is to make the generated candidate easier to inspect and safer to review before any future publication decision.
+
+The summary should include:
+
+- row and column counts;
+- canonical ID uniqueness and duplicate counts;
+- field coverage statistics;
+- year range;
+- metadata completeness score summary;
+- source-family counts;
+- publication-type, language, and primary-category counts;
+- source-count and unique-source-count distributions.
+
+The output validator should treat this file as part of the required release layout and verify that it is readable, listed in `manifest.json`, included in `checksums.txt`, and consistent with `data.parquet` for core counts.
+
+This remains a local candidate release hardening slice. It must not introduce public upload, embedding export, full-text/PDF export, raw payload export, graph export, retrieval rebuild, Qdrant promotion, or search/ranking behavior changes.

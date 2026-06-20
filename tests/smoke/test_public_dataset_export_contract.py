@@ -170,6 +170,7 @@ def test_export_creates_valid_local_candidate_release(tmp_path: Path) -> None:
     assert (release_dir / "schema.json").exists()
     assert (release_dir / "manifest.json").exists()
     assert (release_dir / "README.md").exists()
+    assert (release_dir / "data_quality_summary.json").exists()
     assert (release_dir / "checksums.txt").exists()
 
     frame = pd.read_parquet(release_dir / "data.parquet")
@@ -189,6 +190,17 @@ def test_export_creates_valid_local_candidate_release(tmp_path: Path) -> None:
     assert manifest["manual_review_required_before_publication"] is True
     assert manifest["safety"]["canonical_truth_impact"] == "none"
     assert manifest["source_checkpoint"]["actual_exported_row_count"] == 3
+    assert manifest["files"]["data_quality_summary"] == "data_quality_summary.json"
+
+    quality_summary = json.loads((release_dir / "data_quality_summary.json").read_text(encoding="utf-8"))
+    assert quality_summary["schema_version"] == "dataset_release_data_quality_summary_v1"
+    assert quality_summary["row_count"] == 3
+    assert quality_summary["column_count"] == len(frame.columns)
+    assert quality_summary["canonical_id"]["unique_count"] == 3
+    assert quality_summary["canonical_id"]["duplicate_count"] == 0
+    assert quality_summary["field_coverage"]["abstract"]["non_empty_count"] == 2
+    assert quality_summary["year_range"] == {"min": 2024, "max": 2026}
+    assert quality_summary["source_family_counts"]["arxiv"] == 2
 
     checks = validate_release_output(config, config_path=config_path, release_dir=release_dir)
     assert required_failures(checks) == set()

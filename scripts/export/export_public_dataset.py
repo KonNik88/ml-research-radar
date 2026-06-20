@@ -28,6 +28,7 @@ else:
 DEFAULT_CONFIG_PATH = Path("configs/dataset_release.yaml")
 DATASET_SCHEMA_VERSION = "dataset_release_schema_v1"
 DATASET_MANIFEST_SCHEMA_VERSION = "dataset_release_manifest_v1"
+DATA_QUALITY_SUMMARY_SCHEMA_VERSION = "dataset_release_data_quality_summary_v1"
 EXPORTER_VERSION = "dataset_export_runner_v0.1"
 
 REQUIRED_OUTPUT_FILES = [
@@ -35,6 +36,7 @@ REQUIRED_OUTPUT_FILES = [
     "schema.json",
     "manifest.json",
     "README.md",
+    "data_quality_summary.json",
     "checksums.txt",
 ]
 
@@ -363,6 +365,171 @@ def infer_nullable(column: str, required_columns: set[str]) -> bool:
     return True
 
 
+
+
+def is_non_empty_value(value: Any) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, list):
+        return len(value) > 0
+    return True
+
+
+def count_non_empty(rows: Sequence[Mapping[str, Any]], column: str) -> int:
+    return sum(1 for row in rows if is_non_empty_value(row.get(column)))
+
+
+def ratio(count: int, total: int) -> float:
+    if total <= 0:
+        return 0.0
+    return round(count / total, 6)
+
+
+def top_counts(values: Iterable[Any], *, limit: int = 25) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for value in values:
+        text = as_string_or_none(value)
+        if text is None:
+            continue
+        counts[text] = counts.get(text, 0) + 1
+    return dict(sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:limit])
+
+
+def list_value_counts(rows: Sequence[Mapping[str, Any]], column: str, *, limit: int = 50) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        for value in as_list(row.get(column)):
+            text = as_string_or_none(value)
+            if text is None:
+                continue
+            counts[text] = counts.get(text, 0) + 1
+    return dict(sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:limit])
+
+
+def numeric_values(rows: Sequence[Mapping[str, Any]], column: str) -> list[float]:
+    values: list[float] = []
+    for row in rows:
+        value = row.get(column)
+        if isinstance(value, bool) or value is None:
+            continue
+        if isinstance(value, (int, float)):
+            values.append(float(value))
+    return values
+
+
+def numeric_distribution(rows: Sequence[Mapping[str, Any]], column: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        value = row.get(column)
+        if isinstance(value, bool) or value is None:
+            key = "null"
+        else:
+            key = str(value)
+        counts[key] = counts.get(key, 0) + 1
+    return dict(sorted(counts.items(), key=lambda item: item[0]))
+
+
+def numeric_summary(rows: Sequence[Mapping[str, Any]], column: str) -> dict[str, Any]:
+    values = numeric_values(rows, column)
+    if not values:
+        return {"count": 0, "min": None, "mean": None, "max": None}
+    return {
+        "count": len(values),
+        "min": min(values),
+        "mean": round(sum(values) / len(values), 6),
+        "max": max(values),
+    }
+
+
+def year_range(rows: Sequence[Mapping[str, Any]]) -> dict[str, int | None]:
+    years: list[int] = []
+    for row in rows:
+        value = row.get("year")
+        if isinstance(value, bool):
+            continue
+        if isinstance(value, int):
+            years.append(value)
+    if not years:
+        return {"min": None, "max": None}
+    return {"min": min(years), "max": max(years)}
+
+
+def build_data_quality_summary(
+    config: Mapping[str, Any],
+    *,
+    rows: Sequence[Mapping[str, Any]],
+    selected_columns: Sequence[str],
+) -> dict[str, Any]:
+    release = as_mapping(config.get("release"))
+    row_count = len(rows)
+    canonical_ids = [as_string_or_none(row.get("canonical_id")) for row in rows]
+    non_empty_ids = [value for value in canonical_ids if value is not None]
+    duplicate_canonical_id_count = len(non_empty_ids) - len(set(non_empty_ids))
+
+    coverage_columns = [
+        "title",
+        "abstract",
+        "authors",
+        "year",
+        "doi",
+        "arxiv_id",
+        "openalex_id",
+        "primary_category",
+        "categories",
+        "concepts",
+        "venue",
+        "journal",
+        "conference",
+        "publisher",
+        "publication_type",
+        "language",
+        "landing_page_url",
+        "pdf_url",
+        "source_families",
+        "keywords",
+        "tags",
+        "cited_by_count",
+        "references_count",
+    ]
+    coverage = {
+        column: {
+            "non_empty_count": count_non_empty(rows, column),
+            "non_empty_ratio": ratio(count_non_empty(rows, column), row_count),
+        }
+        for column in coverage_columns
+        if column in selected_columns
+    }
+
+    return {
+        "schema_version": DATA_QUALITY_SUMMARY_SCHEMA_VERSION,
+        "dataset_name": release.get("dataset_name"),
+        "version": release.get("version"),
+        "generated_at_utc": utc_now_iso(),
+        "row_count": row_count,
+        "column_count": len(selected_columns),
+        "primary_key": "canonical_id",
+        "canonical_id": {
+            "non_empty_count": len(non_empty_ids),
+            "unique_count": len(set(non_empty_ids)),
+            "duplicate_count": duplicate_canonical_id_count,
+        },
+        "field_coverage": coverage,
+        "year_range": year_range(rows),
+        "metadata_completeness_score": numeric_summary(rows, "metadata_completeness_score"),
+        "source_family_counts": list_value_counts(rows, "source_families", limit=50),
+        "publication_type_counts": top_counts((row.get("publication_type") for row in rows), limit=50),
+        "language_counts": top_counts((row.get("language") for row in rows), limit=50),
+        "top_primary_categories": top_counts((row.get("primary_category") for row in rows), limit=50),
+        "source_count_distribution": numeric_distribution(rows, "source_count"),
+        "unique_source_count_distribution": numeric_distribution(rows, "unique_source_count"),
+        "safety_note": (
+            "This summary describes the local candidate dataset release only; "
+            "it is not a publication decision and does not change canonical truth."
+        ),
+    }
+
 def build_schema(config: Mapping[str, Any], *, selected_columns: Sequence[str]) -> dict[str, Any]:
     columns_cfg = as_mapping(config.get("columns"))
     required_columns = {str(item) for item in as_list(columns_cfg.get("required"))}
@@ -399,6 +566,7 @@ def build_manifest(
     data_file: str,
     schema_file: str,
     readme_file: str,
+    data_quality_summary_file: str,
     checksums_file: str,
 ) -> dict[str, Any]:
     release = as_mapping(config.get("release"))
@@ -469,6 +637,7 @@ def build_manifest(
             "schema": schema_file,
             "manifest": "manifest.json",
             "readme": readme_file,
+            "data_quality_summary": data_quality_summary_file,
             "checksums": checksums_file,
         },
     }
@@ -624,6 +793,7 @@ def export_public_dataset(
     data_file = "data.parquet"
     schema_file = "schema.json"
     readme_file = "README.md"
+    data_quality_summary_file = "data_quality_summary.json"
     checksums_file = "checksums.txt"
 
     write_parquet(
@@ -644,11 +814,17 @@ def export_public_dataset(
         data_file=data_file,
         schema_file=schema_file,
         readme_file=readme_file,
+        data_quality_summary_file=data_quality_summary_file,
         checksums_file=checksums_file,
     )
     dump_json(resolved_release_dir / "manifest.json", manifest)
     dump_text(resolved_release_dir / readme_file, build_readme(config, manifest=manifest))
-    write_checksums(resolved_release_dir, [data_file, schema_file, "manifest.json", readme_file])
+    data_quality_summary = build_data_quality_summary(config, rows=rows, selected_columns=columns)
+    dump_json(resolved_release_dir / data_quality_summary_file, data_quality_summary)
+    write_checksums(
+        resolved_release_dir,
+        [data_file, schema_file, "manifest.json", readme_file, data_quality_summary_file],
+    )
 
     return {
         "ok": True,

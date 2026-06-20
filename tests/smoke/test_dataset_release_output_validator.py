@@ -118,3 +118,31 @@ def test_release_dir_must_be_under_configured_output_root(tmp_path: Path) -> Non
     )
 
     assert "release_dir_under_output_root" in failures
+
+
+def test_validator_fails_when_data_quality_summary_row_count_is_stale(tmp_path: Path) -> None:
+    config, config_path, release_dir = build_valid_release(tmp_path)
+    summary_path = release_dir / "data_quality_summary.json"
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    summary["row_count"] = 999
+    summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    failures = required_failures(
+        validate_release_output(config, config_path=config_path, release_dir=release_dir)
+    )
+
+    assert "data_quality_summary_row_count_matches_data" in failures
+
+
+def test_validator_fails_when_manifest_omits_data_quality_summary_file(tmp_path: Path) -> None:
+    config, config_path, release_dir = build_valid_release(tmp_path)
+    manifest_path = release_dir / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["files"].pop("data_quality_summary")
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    failures = required_failures(
+        validate_release_output(config, config_path=config_path, release_dir=release_dir)
+    )
+
+    assert "manifest_lists_data_quality_summary_file" in failures

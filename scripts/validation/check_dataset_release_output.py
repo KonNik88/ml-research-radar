@@ -33,6 +33,7 @@ REQUIRED_OUTPUT_FILES = {
     "schema.json",
     "manifest.json",
     "README.md",
+    "data_quality_summary.json",
     "checksums.txt",
 }
 REQUIRED_SAFETY_VALUES = {
@@ -244,6 +245,7 @@ def validate_release_output(
     schema_path = release_dir / "schema.json"
     manifest_path = release_dir / "manifest.json"
     readme_path = release_dir / "README.md"
+    data_quality_summary_path = release_dir / "data_quality_summary.json"
     checksums_path = release_dir / "checksums.txt"
 
     frame = None
@@ -295,6 +297,24 @@ def validate_release_output(
             ok=manifest_ok,
             message="manifest.json is readable",
             details={"error": manifest_error},
+        )
+
+
+    data_quality_summary: dict[str, Any] = {}
+    if data_quality_summary_path.exists():
+        try:
+            data_quality_summary = load_json(data_quality_summary_path)
+            data_quality_summary_ok = True
+            data_quality_summary_error = None
+        except Exception as exc:  # pragma: no cover - defensive detail is reported
+            data_quality_summary_ok = False
+            data_quality_summary_error = str(exc)
+        add_check(
+            checks,
+            name="data_quality_summary_json_readable",
+            ok=data_quality_summary_ok,
+            message="data_quality_summary.json is readable",
+            details={"error": data_quality_summary_error},
         )
 
     if readme_path.exists():
@@ -396,6 +416,50 @@ def validate_release_output(
                 details={"expected": expected_count, "actual": len(frame), "max_rows": max_rows},
             )
 
+
+    if frame is not None and data_quality_summary:
+        summary_row_count = data_quality_summary.get("row_count")
+        summary_column_count = data_quality_summary.get("column_count")
+        canonical_id_summary = as_mapping(data_quality_summary.get("canonical_id"))
+        duplicate_count = int(frame["canonical_id"].duplicated().sum()) if "canonical_id" in frame.columns else None
+        unique_count = int(frame["canonical_id"].nunique(dropna=True)) if "canonical_id" in frame.columns else None
+        add_check(
+            checks,
+            name="data_quality_summary_schema_version",
+            ok=data_quality_summary.get("schema_version") == "dataset_release_data_quality_summary_v1",
+            message="data_quality_summary.json schema_version is dataset_release_data_quality_summary_v1",
+            details={"actual": data_quality_summary.get("schema_version")},
+        )
+        add_check(
+            checks,
+            name="data_quality_summary_row_count_matches_data",
+            ok=summary_row_count == len(frame),
+            message="data_quality_summary row_count matches data.parquet row count",
+            details={"summary_row_count": summary_row_count, "data_row_count": len(frame)},
+        )
+        add_check(
+            checks,
+            name="data_quality_summary_column_count_matches_data",
+            ok=summary_column_count == len(frame.columns),
+            message="data_quality_summary column_count matches data.parquet column count",
+            details={"summary_column_count": summary_column_count, "data_column_count": len(frame.columns)},
+        )
+        add_check(
+            checks,
+            name="data_quality_summary_canonical_id_stats_match_data",
+            ok=(
+                canonical_id_summary.get("duplicate_count") == duplicate_count
+                and canonical_id_summary.get("unique_count") == unique_count
+            ),
+            message="data_quality_summary canonical_id stats match data.parquet",
+            details={
+                "summary_duplicate_count": canonical_id_summary.get("duplicate_count"),
+                "data_duplicate_count": duplicate_count,
+                "summary_unique_count": canonical_id_summary.get("unique_count"),
+                "data_unique_count": unique_count,
+            },
+        )
+
     if schema:
         schema_columns = [as_mapping(item).get("name") for item in as_list(schema.get("columns"))]
         add_check(
@@ -434,6 +498,16 @@ def validate_release_output(
             ok=manifest.get("manual_review_required_before_publication") is True,
             message="manifest requires manual review before publication",
             details={"actual": manifest.get("manual_review_required_before_publication")},
+        )
+
+
+        manifest_files = as_mapping(manifest.get("files"))
+        add_check(
+            checks,
+            name="manifest_lists_data_quality_summary_file",
+            ok=manifest_files.get("data_quality_summary") == "data_quality_summary.json",
+            message="manifest files include data_quality_summary.json",
+            details={"actual": manifest_files.get("data_quality_summary")},
         )
 
         manifest_export = as_mapping(manifest.get("export"))
