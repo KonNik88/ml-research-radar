@@ -474,3 +474,55 @@ The summary should include:
 The output validator should treat this file as part of the required release layout and verify that it is readable, listed in `manifest.json`, included in `checksums.txt`, and consistent with `data.parquet` for core counts.
 
 This remains a local candidate release hardening slice. It must not introduce public upload, embedding export, full-text/PDF export, raw payload export, graph export, retrieval rebuild, Qdrant promotion, or search/ranking behavior changes.
+
+---
+
+## 9. Review-readiness gate
+
+The dataset release track now includes a dedicated review-readiness gate for local candidate releases.
+
+The purpose of this gate is to separate three states that must not be collapsed:
+
+```text
+technical candidate generated
+technical candidate valid
+public publication approved
+```
+
+The current v0.1 path supports the first two states only. Public publication remains blocked until manual review.
+
+The review-readiness validator is:
+
+```text
+scripts/validation/check_dataset_release_review_readiness.py
+```
+
+Recommended command after generating and validating the candidate release:
+
+```bat
+python -m scripts.validation.check_dataset_release_review_readiness --strict
+```
+
+A successful report means:
+
+```text
+technical_candidate_ready = true
+manual_review_required = true
+publication_ready = false
+publication_block_reason = manual_review_not_completed
+```
+
+This is the intended state for the current dataset track.
+
+The validator checks that:
+
+- the local candidate release exists;
+- the output validator is green;
+- `manifest.json` still marks the artifact as not published;
+- manual review remains required;
+- publication before review is blocked by config and manifest policy;
+- `data_quality_summary.json` is present and consistent with review expectations;
+- duplicate canonical ID count is zero;
+- the release remains a derived artifact with no canonical truth impact.
+
+This gate does not replace manual review. It prepares a candidate artifact for manual review and prevents accidental publication semantics from entering the release metadata.

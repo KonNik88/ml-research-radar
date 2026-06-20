@@ -380,3 +380,83 @@ The summary is generated from `data.parquet` export rows and records non-publica
 This file is intended to support local inspection and future manual release review. It is still a derived local candidate artifact, not a publication decision and not canonical truth.
 
 The output validator must check that `data_quality_summary.json` exists, is readable, is listed in `manifest.json`, is covered by `checksums.txt`, and agrees with `data.parquet` on core counts and canonical ID statistics.
+
+---
+
+## 12. Dataset Release Review Readiness v0.1
+
+After the local candidate export and output validation slices, the next safety gate is a review-readiness check.
+
+The review-readiness validator is:
+
+```text
+scripts/validation/check_dataset_release_review_readiness.py
+```
+
+Default command:
+
+```bat
+python -m scripts.validation.check_dataset_release_review_readiness --strict
+```
+
+The gate reads the generated local candidate release plus the latest output-validation report and verifies that the candidate is technically ready for manual review.
+
+Inputs:
+
+```text
+configs/dataset_release.yaml
+data/datasets_release/ml_research_radar_metadata/v0.1/manifest.json
+data/datasets_release/ml_research_radar_metadata/v0.1/schema.json
+data/datasets_release/ml_research_radar_metadata/v0.1/README.md
+data/datasets_release/ml_research_radar_metadata/v0.1/data_quality_summary.json
+artifacts/reports/validation/dataset_release_output_latest.json
+```
+
+Expected report outputs:
+
+```text
+artifacts/reports/validation/dataset_release_review_readiness_latest.json
+artifacts/reports/validation/dataset_release_review_readiness_latest.md
+artifacts/reports/validation/history/dataset_release_review_readiness_<timestamp>.json
+artifacts/reports/validation/history/dataset_release_review_readiness_<timestamp>.md
+```
+
+A green review-readiness report means:
+
+```text
+technical_candidate_ready = true
+manual_review_required = true
+publication_ready = false
+publication_block_reason = manual_review_not_completed
+```
+
+This is intentional. The review-readiness gate does not approve public publication. It only confirms that the generated local candidate artifact is technically ready for human license/provenance review.
+
+The gate checks, among other things:
+
+- the generated release directory exists;
+- review-critical files are present;
+- `manifest.json`, `schema.json`, and `data_quality_summary.json` are readable;
+- `README.md` states the non-publication/manual-review boundary;
+- `manifest.json` states `publication_status = not_published`;
+- `manifest.json` states `manual_review_required_before_publication = true`;
+- `license_review.publication_allowed_before_review = false`;
+- `safety.publish_without_manual_review = false`;
+- `safety.canonical_truth_impact = none`;
+- `data_quality_summary.json` contains core review metrics;
+- duplicate canonical ID count is zero;
+- expected row count matches the accepted checkpoint;
+- the latest dataset output-validation report is green and points to the same release directory.
+
+The review-readiness gate still does not perform:
+
+```text
+public upload
+license approval
+provenance approval
+Kaggle publication
+Hugging Face publication
+GitHub Release publication
+```
+
+Any real public publication requires a separate release decision after manual review.
