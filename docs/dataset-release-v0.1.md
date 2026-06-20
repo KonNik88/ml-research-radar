@@ -151,10 +151,12 @@ data/datasets_release/
         ├── schema.json
         ├── manifest.json
         ├── README.md
+        ├── data_quality_summary.json
         └── checksums.txt
 ```
 
-The current contract slice does not have to create this directory.
+The current export-runner slice creates this directory as a local candidate artifact only.
+It does not publish the dataset and does not change operational truth.
 
 ---
 
@@ -233,6 +235,7 @@ Valid follow-up slices:
 Dataset Export Runner v0.1
 Dataset Output Validator v0.1
 Dataset Card / README Generator v0.1
+Dataset Release Output Hardening v0.1
 License and Provenance Review v0.1
 Candidate Release Dry Run v0.1
 Public Release Decision v0.1
@@ -353,3 +356,27 @@ python -m scripts.validation.check_dataset_release_output --strict
 The release directory is still a local candidate after these commands. Public
 upload requires a separate manual license/provenance review and a separate
 release decision.
+
+
+## 10. Dataset Release Output Hardening v0.1
+
+The follow-up hardening slice extends the local candidate release with a machine-readable data-quality summary:
+
+```text
+data_quality_summary.json
+```
+
+The summary is generated from `data.parquet` export rows and records non-publication review signals such as:
+
+- row and column counts;
+- canonical ID uniqueness and duplicate counts;
+- field coverage counts and ratios;
+- year range;
+- metadata completeness score summary;
+- source-family distribution;
+- publication-type, language, and primary-category counts;
+- source-count and unique-source-count distributions.
+
+This file is intended to support local inspection and future manual release review. It is still a derived local candidate artifact, not a publication decision and not canonical truth.
+
+The output validator must check that `data_quality_summary.json` exists, is readable, is listed in `manifest.json`, is covered by `checksums.txt`, and agrees with `data.parquet` on core counts and canonical ID statistics.
