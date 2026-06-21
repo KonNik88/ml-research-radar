@@ -298,6 +298,8 @@ Implemented sort modes:
 ```text
 stars_desc
 forks_desc
+pushed_desc
+updated_desc
 ```
 
 Example queries:
@@ -308,6 +310,8 @@ GET /artifacts?provider=github&github_status=found
 GET /artifacts?provider=github&github_status=not_found
 GET /artifacts?provider=github&archived=false
 GET /artifacts?provider=github&has_github_metadata=true&sort_by=forks_desc
+GET /artifacts?provider=github&pushed_after=2024-01-01T00:00:00Z&sort_by=pushed_desc
+GET /artifacts?provider=github&updated_after=2024-01-01T00:00:00Z&sort_by=updated_desc
 ```
 
 Current smoke baseline after implementation:
@@ -327,18 +331,12 @@ Semantics:
 - `archived=false` matches only rows with explicit `metadata.github.archived == false`;
 - non-GitHub artifacts are not treated as `archived=false`;
 - `has_github_metadata=false` means `metadata` does not contain a `github` object;
-- GitHub stars/forks/language/license/status remain artifact metadata, not paper-ranking or paper-identity signals.
+- GitHub stars/forks/language/license/status/date fields remain artifact metadata, not paper-ranking or paper-identity signals;
+- `pushed_after` / `pushed_before` filter over `metadata.github.pushed_at`;
+- `updated_after` / `updated_before` filter over the materialized GitHub repository `updated_at` timestamp copied into `artifact_entities.updated_at`;
+- rows without explicit GitHub metadata do not match GitHub date filters.
 
-Date filters are intentionally postponed to a later small API slice:
-
-```text
-pushed_after
-pushed_before
-updated_after
-updated_before
-pushed_desc
-updated_desc
-```
+Date filters were added in `GitHub Artifact Date Filters v1` as a small follow-up slice over the already materialized GitHub metadata.
 
 ## Validation
 

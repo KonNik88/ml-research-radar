@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from datetime import datetime
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -541,6 +542,22 @@ def list_artifacts(
         None,
         description="Filter by presence of metadata.github. Use with provider=github for diagnostics.",
     ),
+    pushed_after: datetime | None = Query(
+        None,
+        description="Filter GitHub repositories by metadata.github.pushed_at >= this timestamp.",
+    ),
+    pushed_before: datetime | None = Query(
+        None,
+        description="Filter GitHub repositories by metadata.github.pushed_at <= this timestamp.",
+    ),
+    updated_after: datetime | None = Query(
+        None,
+        description="Filter GitHub repositories by materialized GitHub updated_at >= this timestamp.",
+    ),
+    updated_before: datetime | None = Query(
+        None,
+        description="Filter GitHub repositories by materialized GitHub updated_at <= this timestamp.",
+    ),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     sort_by: Literal[
@@ -551,6 +568,8 @@ def list_artifacts(
         "last_seen_desc",
         "stars_desc",
         "forks_desc",
+        "pushed_desc",
+        "updated_desc",
     ] = Query("linked_papers_desc"),
 ) -> ArtifactListResponse:
     runtime = get_runtime()
@@ -562,6 +581,12 @@ def list_artifacts(
 
     if min_stars is not None and max_stars is not None and min_stars > max_stars:
         raise ValueError("min_stars must be less than or equal to max_stars")
+
+    if pushed_after is not None and pushed_before is not None and pushed_after > pushed_before:
+        raise ValueError("pushed_after must be less than or equal to pushed_before")
+
+    if updated_after is not None and updated_before is not None and updated_after > updated_before:
+        raise ValueError("updated_after must be less than or equal to updated_before")
 
     rows = runtime.db_store.list_artifacts(
         provider=provider,
@@ -577,6 +602,10 @@ def list_artifacts(
         archived=archived,
         github_status=github_status,
         has_github_metadata=has_github_metadata,
+        pushed_after=pushed_after,
+        pushed_before=pushed_before,
+        updated_after=updated_after,
+        updated_before=updated_before,
         limit=limit,
         offset=offset,
         sort_by=sort_by,
@@ -596,6 +625,10 @@ def list_artifacts(
         archived=archived,
         github_status=github_status,
         has_github_metadata=has_github_metadata,
+        pushed_after=pushed_after,
+        pushed_before=pushed_before,
+        updated_after=updated_after,
+        updated_before=updated_before,
     )
 
     return ArtifactListResponse(
