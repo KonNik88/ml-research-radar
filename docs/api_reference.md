@@ -878,6 +878,10 @@ license
 archived
 github_status
 has_github_metadata
+pushed_after
+pushed_before
+updated_after
+updated_before
 limit
 offset
 sort_by
@@ -904,6 +908,39 @@ owner_asc
 last_seen_desc
 stars_desc
 forks_desc
+pushed_desc
+updated_desc
+```
+
+GitHub date filter semantics:
+
+```text
+pushed_after / pushed_before
+→ filter by metadata.github.pushed_at
+
+updated_after / updated_before
+→ filter by materialized GitHub repository updated_at
+```
+
+Date filter values are parsed by PostgreSQL as timestamps. Recommended request
+format is ISO-8601, for example:
+
+```text
+2024-01-01T00:00:00Z
+```
+
+Rows without the relevant GitHub date metadata do not match the corresponding
+date filter. These fields remain artifact metadata only: they do not change
+canonical paper truth, paper ranking, retrieval behavior, Qdrant behavior, or
+Streamlit response schemas.
+
+Example queries:
+
+```http
+GET /artifacts?provider=github&pushed_after=2024-01-01T00:00:00Z&sort_by=pushed_desc&limit=5
+GET /artifacts?provider=github&pushed_before=2024-01-01T00:00:00Z&limit=5
+GET /artifacts?provider=github&updated_after=2024-01-01T00:00:00Z&sort_by=updated_desc&limit=5
+GET /artifacts?provider=github&updated_before=2024-01-01T00:00:00Z&limit=5
 ```
 
 ## `GET /artifacts/{artifact_id}`
@@ -1282,9 +1319,13 @@ policy explicitly says otherwise.
 
 ```bat
 python -m scripts.validation.check_ranking_evidence_regression ^
-  --config-path configsanking_evaluation_v1.yaml ^
-  --report-path artifactseports\evaluationanking_evaluation_latest.json ^
-  --retrieval-manifest-path artifactsetrieval\manifests\latest.json
+  --config-path configs
+anking_evaluation_v1.yaml ^
+  --report-path artifacts
+eports\evaluation
+anking_evaluation_latest.json ^
+  --retrieval-manifest-path artifacts
+etrieval\manifests\latest.json
 ```
 
 Accepted green output:
@@ -1317,6 +1358,22 @@ Validates existing Qdrant hybrid evidence report.
 
 ```bat
 python -m scripts.validation.check_discovery_api --strict
+```
+
+## Artifact API filter regression
+
+DB-backed artifact API filter checks require a running Postgres serving layer
+and DB backend mode:
+
+```bat
+set ML_RADAR_SEARCH_BACKEND=db
+python -m pytest tests/integration/test_api_artifacts_db.py tests/integration/test_api_artifacts_github_filters_db.py tests/integration/test_api_artifacts_github_date_filters_db.py tests/integration/test_api_documents_artifact_filters_db.py tests/integration/test_api_github_enrichment_db.py -q
+```
+
+Expected current green baseline:
+
+```text
+35 passed
 ```
 
 ---
