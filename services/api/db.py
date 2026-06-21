@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Iterator
 
 import psycopg
@@ -440,6 +441,10 @@ class PostgresDocumentStore:
         archived: bool | None = None,
         github_status: str | None = None,
         has_github_metadata: bool | None = None,
+        pushed_after: datetime | None = None,
+        pushed_before: datetime | None = None,
+        updated_after: datetime | None = None,
+        updated_before: datetime | None = None,
         limit: int = 20,
         offset: int = 0,
         sort_by: str = "linked_papers_desc",
@@ -458,6 +463,10 @@ class PostgresDocumentStore:
             archived=archived,
             github_status=github_status,
             has_github_metadata=has_github_metadata,
+            pushed_after=pushed_after,
+            pushed_before=pushed_before,
+            updated_after=updated_after,
+            updated_before=updated_before,
         )
 
         where_sql = ""
@@ -510,6 +519,10 @@ class PostgresDocumentStore:
         archived: bool | None = None,
         github_status: str | None = None,
         has_github_metadata: bool | None = None,
+        pushed_after: datetime | None = None,
+        pushed_before: datetime | None = None,
+        updated_after: datetime | None = None,
+        updated_before: datetime | None = None,
     ) -> int:
         where_clauses, params = self._build_artifact_where(
             provider=provider,
@@ -525,6 +538,10 @@ class PostgresDocumentStore:
             archived=archived,
             github_status=github_status,
             has_github_metadata=has_github_metadata,
+            pushed_after=pushed_after,
+            pushed_before=pushed_before,
+            updated_after=updated_after,
+            updated_before=updated_before,
         )
 
         where_sql = ""
@@ -1015,6 +1032,10 @@ class PostgresDocumentStore:
         archived: bool | None = None,
         github_status: str | None = None,
         has_github_metadata: bool | None = None,
+        pushed_after: datetime | None = None,
+        pushed_before: datetime | None = None,
+        updated_after: datetime | None = None,
+        updated_before: datetime | None = None,
     ) -> tuple[list[str], list[Any]]:
         where_clauses: list[str] = []
         params: list[Any] = []
@@ -1114,6 +1135,42 @@ class PostgresDocumentStore:
         elif has_github_metadata is False:
             where_clauses.append("NOT (COALESCE(ae.metadata, '{}'::jsonb) ? 'github')")
 
+        if pushed_after is not None:
+            where_clauses.append(
+                """
+                (COALESCE(ae.metadata, '{}'::jsonb) ? 'github')
+                AND NULLIF(ae.metadata->'github'->>'pushed_at', '')::timestamptz >= %s
+                """
+            )
+            params.append(pushed_after)
+
+        if pushed_before is not None:
+            where_clauses.append(
+                """
+                (COALESCE(ae.metadata, '{}'::jsonb) ? 'github')
+                AND NULLIF(ae.metadata->'github'->>'pushed_at', '')::timestamptz <= %s
+                """
+            )
+            params.append(pushed_before)
+
+        if updated_after is not None:
+            where_clauses.append(
+                """
+                (COALESCE(ae.metadata, '{}'::jsonb) ? 'github')
+                AND ae.updated_at >= %s
+                """
+            )
+            params.append(updated_after)
+
+        if updated_before is not None:
+            where_clauses.append(
+                """
+                (COALESCE(ae.metadata, '{}'::jsonb) ? 'github')
+                AND ae.updated_at <= %s
+                """
+            )
+            params.append(updated_before)
+
         return where_clauses, params
 
     @staticmethod
@@ -1140,6 +1197,13 @@ class PostgresDocumentStore:
             return "ORDER BY ae.stars DESC NULLS LAST, ae.provider ASC, ae.normalized_url ASC"
         if sort_by == "forks_desc":
             return "ORDER BY ae.forks DESC NULLS LAST, ae.provider ASC, ae.normalized_url ASC"
+        if sort_by == "pushed_desc":
+            return (
+                "ORDER BY NULLIF(ae.metadata->'github'->>'pushed_at', '')::timestamptz "
+                "DESC NULLS LAST, ae.provider ASC, ae.normalized_url ASC"
+            )
+        if sort_by == "updated_desc":
+            return "ORDER BY ae.updated_at DESC NULLS LAST, ae.provider ASC, ae.normalized_url ASC"
         if sort_by == "linked_papers_desc":
             return "ORDER BY COALESCE(stats.linked_papers_count, 0) DESC, ae.provider ASC, ae.normalized_url ASC"
         return "ORDER BY COALESCE(stats.linked_papers_count, 0) DESC, ae.provider ASC, ae.normalized_url ASC"
