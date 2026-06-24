@@ -37,6 +37,7 @@ Current working checkpoint:
 ```text
 Discovery Green Checkpoint — 2026-05
 Qdrant runtime visibility sync — 2026-06
+Artifact API filters validation + DoD gate — 2026-06
 ```
 
 Current healthy baseline:
@@ -61,6 +62,10 @@ paper_artifact_links_db_count = 7430
 github_found_count ≈ 5339
 huggingface_found_count ≈ 77
 
+artifact_api_filters_check = ok
+artifact_api_filters_required_failed_count = 0
+artifact_api_filters_dod_gate = optional by default / required with --require-artifact-api-filters
+
 paper_features_rows_count = 60954
 ranking_profiles_count = 9
 topic_clusters_count = 80
@@ -75,9 +80,9 @@ golden_queries_weak_pattern_count = 7
 qdrant_benchmark_collection = ml_radar_dense_benchmark_v1
 qdrant_benchmark_uploaded_count = 60954
 
-strict_dod_required_checks = 132
 strict_dod_required_failed_count = 0
 strict_dod_passed = true
+strict_dod_required_checks = see latest check_refresh_definition_of_done report
 ```
 
 Current retrieval manifest:
@@ -532,7 +537,33 @@ python -m scripts.export.test_artifact_db_read
 python -m scripts.validation.check_github_artifact_enrichment --strict
 ```
 
-### 11. Validate Hugging Face enrichment
+### 11. Validate Artifact API filters
+
+This is a DB-backed API/report validation layer. It does not mutate canonical
+truth, retrieval artifacts, Qdrant, ranking, or enrichment outputs.
+
+```bat
+set ML_RADAR_SEARCH_BACKEND=db
+python -m scripts.validation.check_artifact_api_filters --strict
+```
+
+Expected:
+
+```text
+ok = true
+required_failed_count = 0
+```
+
+Generated reports:
+
+```text
+artifacts/reports/validation/artifact_api_filters_check_latest.json
+artifacts/reports/validation/artifact_api_filters_check_latest.md
+artifacts/reports/validation/history/artifact_api_filters_check_<timestamp>.json
+artifacts/reports/validation/history/artifact_api_filters_check_<timestamp>.md
+```
+
+### 12. Validate Hugging Face enrichment
 
 ```bat
 python -m scripts.validation.check_huggingface_artifact_enrichment --strict
@@ -546,20 +577,20 @@ Hugging Face skipped_invalid_external_id
 GitHub not_found preserved as historical artifact evidence
 ```
 
-### 12. Build / validate paper features
+### 13. Build / validate paper features
 
 ```bat
 python -m scripts.features.build_paper_features
 python -m scripts.validation.check_paper_features --strict
 ```
 
-### 13. Validate ranking profiles
+### 14. Validate ranking profiles
 
 ```bat
 python -m scripts.validation.check_ranking_profiles --strict
 ```
 
-### 14. Build / validate paper detail and similar papers
+### 15. Build / validate paper detail and similar papers
 
 ```bat
 python -m scripts.ranking.demo_radar_ranking --profile huggingface_ready --top-k 5
@@ -568,7 +599,7 @@ python -m scripts.retrieval.find_similar_papers --from-latest-detail --top-k 20
 python -m scripts.validation.check_similar_papers_report --strict
 ```
 
-### 15. Build / validate topic clusters
+### 16. Build / validate topic clusters
 
 If retrieval embeddings, canonical corpus, or paper features changed:
 
@@ -577,7 +608,7 @@ python -m scripts.analytics.build_topic_clusters
 python -m scripts.validation.check_topic_clusters --strict
 ```
 
-### 16. Build / validate topic projection
+### 17. Build / validate topic projection
 
 If topic clusters changed or projection needs refresh:
 
@@ -586,7 +617,7 @@ python -m scripts.analytics.build_topic_projection
 python -m scripts.validation.check_topic_projection --strict
 ```
 
-### 17. Validate Discovery API
+### 18. Validate Discovery API
 
 ```bat
 set ML_RADAR_SEARCH_BACKEND=file
@@ -594,7 +625,7 @@ python -m pytest tests/integration/test_api_discovery.py -q
 python -m scripts.validation.check_discovery_api --strict
 ```
 
-### 18. Validate Streamlit Discovery UI
+### 19. Validate Streamlit Discovery UI
 
 ```bat
 python -m scripts.validation.check_streamlit_discovery_ui --strict
@@ -608,7 +639,103 @@ python -m scripts.validation.check_streamlit_discovery_ui --strict --check-api
 
 ---
 
-# E. Qdrant validation layers
+# E. Artifact API filters validation and DoD gate
+
+Use this when changing DB-backed Artifact API filters, artifact/date metadata
+filtering, artifact-document links, or the Artifact API validation contract.
+
+## Standalone validator
+
+```bat
+set ML_RADAR_SEARCH_BACKEND=db
+python -m scripts.validation.check_artifact_api_filters --strict
+```
+
+Expected:
+
+```text
+ok = true
+required_failed_count = 0
+runtime_backend_mode = db
+runtime_ready = true
+runtime_db_connected = true
+```
+
+The validator checks:
+
+```text
+/runtime DB readiness
+/artifacts?provider=github
+/artifacts?has_github_metadata=true
+/artifacts?github_status=found
+stars_desc / forks_desc sort modes
+min_stars
+language
+archived=false
+pushed_desc / pushed_after
+updated_desc / updated_before
+invalid pushed/updated date ranges -> 400
+/artifacts/{artifact_id}
+/artifacts/{artifact_id}/papers
+/documents?has_trusted_artifact=true
+/documents?artifact_provider=github
+/documents/{canonical_id}/artifacts?provider=github
+```
+
+Generated reports:
+
+```text
+artifacts/reports/validation/artifact_api_filters_check_latest.json
+artifacts/reports/validation/artifact_api_filters_check_latest.md
+artifacts/reports/validation/history/artifact_api_filters_check_<timestamp>.json
+artifacts/reports/validation/history/artifact_api_filters_check_<timestamp>.md
+```
+
+## DoD aggregation
+
+The refresh DoD aggregator does not run the Artifact API validator itself. It
+only reads the latest validation report.
+
+Default optional/diagnostic DoD:
+
+```bat
+python -m scripts.update.check_refresh_definition_of_done ^
+  --require-artifacts ^
+  --require-github-enrichment
+```
+
+Required Artifact API filters gate:
+
+```bat
+python -m scripts.update.check_refresh_definition_of_done ^
+  --require-artifacts ^
+  --require-github-enrichment ^
+  --require-artifact-api-filters
+```
+
+Expected required-gate verdict:
+
+```text
+artifact_api_filters_check_exists = true
+artifact_api_filters_check_ok = true
+artifact_api_filters_required_failed_count_zero = true
+artifact_api_filters_required = true
+dod_passed = true
+required_failed_count = 0
+```
+
+Important boundary:
+
+```text
+Artifact API filters validation is derived/report-level evidence.
+It does not change canonical truth, retrieval, Qdrant, ranking, enrichment
+fetchers, Postgres schema, or Streamlit response schemas.
+Generated reports are not committed.
+```
+
+---
+
+# F. Qdrant validation layers
 
 ## Qdrant collection check
 
@@ -684,7 +811,7 @@ Qdrant is not the production default backend.
 
 ---
 
-# F. Discovery API regression runner
+# G. Discovery API regression runner
 
 Quick discovery regression:
 
@@ -709,12 +836,12 @@ python -m scripts.validation.run_discovery_api_regression --include-live-ui-chec
 
 ---
 
-# G. Strict Definition of Done
+# H. Strict Definition of Done
 
 Current full strict DoD command should include the active required gates supported by the current project codebase:
 
 ```bat
-python -m scripts.update.check_refresh_definition_of_done --require-known-issues --require-artifacts --require-github-enrichment --require-huggingface-enrichment --require-paper-features --require-similar-papers --require-discovery-api --require-topic-clusters --require-topic-projection --require-streamlit-discovery-ui --require-golden-queries
+python -m scripts.update.check_refresh_definition_of_done --require-known-issues --require-artifacts --require-artifact-api-filters --require-github-enrichment --require-huggingface-enrichment --require-paper-features --require-similar-papers --require-discovery-api --require-topic-clusters --require-topic-projection --require-streamlit-discovery-ui --require-golden-queries
 ```
 
 Expected:
@@ -728,7 +855,7 @@ If local `--help` does not show these gates, sync the DoD script before treating
 
 ---
 
-# H. Hugging Face / VPN caveat
+# I. Hugging Face / VPN caveat
 
 `SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")` may make HEAD/metadata requests to Hugging Face even when weights are cached. If VPN/network is unstable, startup or tests may fail before project code is actually exercised.
 
@@ -755,7 +882,7 @@ Then retry the smoke tests.
 
 ---
 
-# I. Git / artifact hygiene
+# J. Git / artifact hygiene
 
 Do not commit large generated artifacts by default:
 
@@ -792,7 +919,7 @@ git diff --cached --stat
 
 ---
 
-# J. Blockers
+# K. Blockers
 
 Stop and investigate if any of these occur:
 
@@ -807,6 +934,7 @@ Stop and investigate if any of these occur:
 - retrieval manifest doc count mismatches canonical;
 - retrieval checks fail;
 - artifact quality/export/DB read fails;
+- Artifact API filters validation fails when the gate is in scope;
 - GitHub/HF enrichment strict checks fail outside known provider-state caveats;
 - paper features rows do not match canonical;
 - similar papers target/result checks fail;
@@ -819,7 +947,7 @@ Stop and investigate if any of these occur:
 
 ---
 
-# K. Non-blocker diagnostics under current semantics
+# L. Non-blocker diagnostics under current semantics
 
 These are not automatic blockers unless policy changes:
 
