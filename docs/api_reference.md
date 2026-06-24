@@ -1360,20 +1360,87 @@ Validates existing Qdrant hybrid evidence report.
 python -m scripts.validation.check_discovery_api --strict
 ```
 
-## Artifact API filter regression
+## Artifact API filters validation report
 
-DB-backed artifact API filter checks require a running Postgres serving layer
+DB-backed artifact API filter validation requires a running Postgres serving layer
 and DB backend mode:
 
 ```bat
 set ML_RADAR_SEARCH_BACKEND=db
-python -m pytest tests/integration/test_api_artifacts_db.py tests/integration/test_api_artifacts_github_filters_db.py tests/integration/test_api_artifacts_github_date_filters_db.py tests/integration/test_api_documents_artifact_filters_db.py tests/integration/test_api_github_enrichment_db.py -q
+python -m scripts.validation.check_artifact_api_filters --strict
+```
+
+The validator exercises the existing Artifact/Documents API surface and writes
+JSON/Markdown reports:
+
+```text
+artifacts/reports/validation/artifact_api_filters_check_latest.json
+artifacts/reports/validation/artifact_api_filters_check_latest.md
+artifacts/reports/validation/history/artifact_api_filters_check_<timestamp>.json
+artifacts/reports/validation/history/artifact_api_filters_check_<timestamp>.md
+```
+
+Covered checks include:
+
+```text
+/runtime DB readiness
+/artifacts?provider=github
+/artifacts?has_github_metadata=true
+/artifacts?github_status=found
+stars_desc / forks_desc sort modes
+min_stars
+language
+archived=false
+pushed_desc / pushed_after
+updated_desc / updated_before
+invalid pushed/updated date ranges -> 400
+/artifacts/{artifact_id}
+/artifacts/{artifact_id}/papers
+/documents?has_trusted_artifact=true
+/documents?artifact_provider=github
+/documents/{canonical_id}/artifacts?provider=github
+```
+
+Expected current green output:
+
+```text
+ok=True
+required_failed_count=0
+```
+
+The refresh Definition of Done aggregator can require this latest report with:
+
+```bat
+python -m scripts.update.check_refresh_definition_of_done ^
+  --require-artifacts ^
+  --require-github-enrichment ^
+  --require-artifact-api-filters
+```
+
+Important semantics:
+
+```text
+check_refresh_definition_of_done does not run the Artifact API validator itself.
+It only reads artifacts/reports/validation/artifact_api_filters_check_latest.json.
+Without --require-artifact-api-filters, this report is diagnostic/optional.
+With --require-artifact-api-filters, it becomes a required DoD gate.
+Generated reports are not committed.
+```
+
+## Artifact API filter regression tests
+
+DB-backed artifact API filter tests require a running Postgres serving layer
+and DB backend mode:
+
+```bat
+set ML_RADAR_SEARCH_BACKEND=db
+python -m pytest tests/integration/test_api_artifacts_db.py tests/integration/test_api_artifacts_github_filters_db.py tests/integration/test_api_artifacts_github_date_filters_db.py tests/integration/test_api_documents_artifact_filters_db.py tests/integration/test_api_github_enrichment_db.py tests/integration/test_artifact_api_filters_validation.py -q
 ```
 
 Expected current green baseline:
 
 ```text
-35 passed
+36 passed
 ```
 
 ---
@@ -1386,6 +1453,8 @@ No Qdrant promotion.
 No fallback.
 No retrieval rebuild.
 No ranking formula change.
+Artifact API filters validation is report-only.
+DoD reads the latest Artifact API filters report only when required.
 No generated report commit.
 ```
 
