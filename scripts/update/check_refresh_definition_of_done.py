@@ -37,6 +37,9 @@ DEFAULT_ARTIFACT_EXPORT_PATH = Path(
 DEFAULT_ARTIFACT_DB_READ_PATH = Path(
     "artifacts/reports/export/test_artifact_db_read_latest.json"
 )
+DEFAULT_ARTIFACT_API_FILTERS_CHECK_PATH = Path(
+    "artifacts/reports/validation/artifact_api_filters_check_latest.json"
+)
 
 DEFAULT_GITHUB_ENRICHMENT_CHECK_PATH = Path(
     "artifacts/reports/validation/github_artifact_enrichment_check_latest.json"
@@ -766,6 +769,203 @@ def extract_artifact_values(
     }
 
 
+
+def extract_artifact_api_filters_values(
+    artifact_api_filters_check: dict[str, Any] | None,
+) -> dict[str, Any]:
+    report = artifact_api_filters_check or {}
+    summary = report.get("summary") if isinstance(report.get("summary"), dict) else {}
+    checks = report.get("checks") if isinstance(report.get("checks"), dict) else {}
+    verdict = report.get("verdict") if isinstance(report.get("verdict"), dict) else {}
+
+    return {
+        "artifact_api_filters_check_ok": report_ok(artifact_api_filters_check),
+        "artifact_api_filters_required_failed_count": first_present(
+            report,
+            [
+                ("required_failed_count",),
+                ("verdict", "required_failed_count"),
+            ],
+        ),
+        "artifact_api_filters_required_failed_checks": first_present(
+            report,
+            [
+                ("required_failed_checks",),
+                ("verdict", "required_failed_checks"),
+            ],
+        ),
+        "artifact_api_filters_runtime_backend_mode": summary.get("runtime_backend_mode"),
+        "artifact_api_filters_runtime_ready": summary.get("runtime_ready"),
+        "artifact_api_filters_runtime_db_connected": summary.get("runtime_db_connected"),
+        "artifact_api_filters_provider_github_total": summary.get(
+            "artifacts_provider_github_total"
+        ),
+        "artifact_api_filters_github_status_found_total": summary.get(
+            "artifacts_github_status_found_total"
+        ),
+        "artifact_api_filters_language_filter_value": summary.get(
+            "language_filter_value"
+        ),
+        "artifact_api_filters_language_total": summary.get("language_total"),
+        "artifact_api_filters_min_stars_threshold": summary.get(
+            "min_stars_threshold"
+        ),
+        "artifact_api_filters_pushed_after_threshold": summary.get(
+            "pushed_after_threshold"
+        ),
+        "artifact_api_filters_updated_before_threshold": summary.get(
+            "updated_before_threshold"
+        ),
+        "artifact_api_filters_artifact_id": summary.get("artifact_id"),
+        "artifact_api_filters_canonical_id": summary.get("canonical_id"),
+        "artifact_api_filters_documents_has_trusted_artifact_total": summary.get(
+            "documents_has_trusted_artifact_total"
+        ),
+        "artifact_api_filters_documents_artifact_provider_github_total": summary.get(
+            "documents_artifact_provider_github_total"
+        ),
+        "artifact_api_filters_runtime_endpoint_ok": checks.get("runtime_endpoint_ok"),
+        "artifact_api_filters_runtime_db_ready": checks.get("runtime_db_ready"),
+        "artifact_api_filters_provider_github_endpoint_ok": checks.get(
+            "artifacts_provider_github_endpoint_ok"
+        ),
+        "artifact_api_filters_provider_github_results_non_empty": checks.get(
+            "artifacts_provider_github_results_non_empty"
+        ),
+        "artifact_api_filters_provider_github_rows_match": checks.get(
+            "artifacts_provider_github_rows_match"
+        ),
+        "artifact_api_filters_has_github_metadata_endpoint_ok": checks.get(
+            "artifacts_has_github_metadata_endpoint_ok"
+        ),
+        "artifact_api_filters_has_github_metadata_rows_match": checks.get(
+            "artifacts_has_github_metadata_rows_match"
+        ),
+        "artifact_api_filters_github_status_found_endpoint_ok": checks.get(
+            "artifacts_github_status_found_endpoint_ok"
+        ),
+        "artifact_api_filters_github_status_found_rows_match": checks.get(
+            "artifacts_github_status_found_rows_match"
+        ),
+        "artifact_api_filters_stars_desc_endpoint_ok": checks.get(
+            "artifacts_stars_desc_endpoint_ok"
+        ),
+        "artifact_api_filters_stars_desc_sorted": checks.get(
+            "artifacts_stars_desc_sorted"
+        ),
+        "artifact_api_filters_forks_desc_endpoint_ok": checks.get(
+            "artifacts_forks_desc_endpoint_ok"
+        ),
+        "artifact_api_filters_forks_desc_sorted": checks.get(
+            "artifacts_forks_desc_sorted"
+        ),
+        "artifact_api_filters_min_stars_endpoint_ok": checks.get(
+            "artifacts_min_stars_endpoint_ok"
+        ),
+        "artifact_api_filters_min_stars_rows_match": checks.get(
+            "artifacts_min_stars_rows_match"
+        ),
+        "artifact_api_filters_min_stars_sorted": checks.get(
+            "artifacts_min_stars_sorted"
+        ),
+        "artifact_api_filters_language_value_resolved": checks.get(
+            "artifacts_language_value_resolved"
+        ),
+        "artifact_api_filters_language_endpoint_ok": checks.get(
+            "artifacts_language_endpoint_ok"
+        ),
+        "artifact_api_filters_language_rows_match": checks.get(
+            "artifacts_language_rows_match"
+        ),
+        "artifact_api_filters_archived_false_endpoint_ok": checks.get(
+            "artifacts_archived_false_endpoint_ok"
+        ),
+        "artifact_api_filters_archived_false_rows_match": checks.get(
+            "artifacts_archived_false_rows_match"
+        ),
+        "artifact_api_filters_pushed_desc_endpoint_ok": checks.get(
+            "artifacts_pushed_desc_endpoint_ok"
+        ),
+        "artifact_api_filters_pushed_desc_values_present": checks.get(
+            "artifacts_pushed_desc_values_present"
+        ),
+        "artifact_api_filters_pushed_desc_sorted": checks.get(
+            "artifacts_pushed_desc_sorted"
+        ),
+        "artifact_api_filters_pushed_after_threshold_resolved": checks.get(
+            "artifacts_pushed_after_threshold_resolved"
+        ),
+        "artifact_api_filters_pushed_after_endpoint_ok": checks.get(
+            "artifacts_pushed_after_endpoint_ok"
+        ),
+        "artifact_api_filters_pushed_after_rows_match": checks.get(
+            "artifacts_pushed_after_rows_match"
+        ),
+        "artifact_api_filters_pushed_after_sorted": checks.get(
+            "artifacts_pushed_after_sorted"
+        ),
+        "artifact_api_filters_updated_desc_endpoint_ok": checks.get(
+            "artifacts_updated_desc_endpoint_ok"
+        ),
+        "artifact_api_filters_updated_desc_values_present": checks.get(
+            "artifacts_updated_desc_values_present"
+        ),
+        "artifact_api_filters_updated_desc_sorted": checks.get(
+            "artifacts_updated_desc_sorted"
+        ),
+        "artifact_api_filters_updated_before_threshold_resolved": checks.get(
+            "artifacts_updated_before_threshold_resolved"
+        ),
+        "artifact_api_filters_updated_before_endpoint_ok": checks.get(
+            "artifacts_updated_before_endpoint_ok"
+        ),
+        "artifact_api_filters_updated_before_rows_match": checks.get(
+            "artifacts_updated_before_rows_match"
+        ),
+        "artifact_api_filters_updated_before_sorted": checks.get(
+            "artifacts_updated_before_sorted"
+        ),
+        "artifact_api_filters_pushed_invalid_range_returns_400": checks.get(
+            "artifacts_pushed_invalid_range_returns_400"
+        ),
+        "artifact_api_filters_updated_invalid_range_returns_400": checks.get(
+            "artifacts_updated_invalid_range_returns_400"
+        ),
+        "artifact_api_filters_artifact_detail_endpoint_ok": checks.get(
+            "artifact_detail_endpoint_ok"
+        ),
+        "artifact_api_filters_artifact_detail_found": checks.get(
+            "artifact_detail_found"
+        ),
+        "artifact_api_filters_artifact_linked_papers_endpoint_ok": checks.get(
+            "artifact_linked_papers_endpoint_ok"
+        ),
+        "artifact_api_filters_artifact_linked_papers_rows_match": checks.get(
+            "artifact_linked_papers_rows_match"
+        ),
+        "artifact_api_filters_documents_has_trusted_artifact_endpoint_ok": checks.get(
+            "documents_has_trusted_artifact_endpoint_ok"
+        ),
+        "artifact_api_filters_documents_has_trusted_artifact_results_non_empty": checks.get(
+            "documents_has_trusted_artifact_results_non_empty"
+        ),
+        "artifact_api_filters_documents_artifact_provider_github_endpoint_ok": checks.get(
+            "documents_artifact_provider_github_endpoint_ok"
+        ),
+        "artifact_api_filters_documents_artifact_provider_github_results_non_empty": checks.get(
+            "documents_artifact_provider_github_results_non_empty"
+        ),
+        "artifact_api_filters_document_artifacts_endpoint_ok": checks.get(
+            "document_artifacts_endpoint_ok"
+        ),
+        "artifact_api_filters_document_artifacts_results_non_empty": checks.get(
+            "document_artifacts_results_non_empty"
+        ),
+        "artifact_api_filters_document_artifacts_rows_match": checks.get(
+            "document_artifacts_rows_match"
+        ),
+    }
+
 def extract_github_enrichment_values(
     github_enrichment_check: dict[str, Any] | None,
 ) -> dict[str, Any]:
@@ -1072,6 +1272,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=DEFAULT_ARTIFACT_DB_READ_PATH,
     )
+    parser.add_argument(
+        "--artifact-api-filters-check-path",
+        type=Path,
+        default=DEFAULT_ARTIFACT_API_FILTERS_CHECK_PATH,
+        help="Artifact API filters validation report path.",
+    )
 
     parser.add_argument(
         "--github-enrichment-check-path",
@@ -1113,6 +1319,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--require-artifacts",
         action="store_true",
         help="Treat artifact quality/export/DB smoke reports as required DoD conditions.",
+    )
+    parser.add_argument(
+        "--require-artifact-api-filters",
+        action="store_true",
+        help=(
+            "Treat the DB-backed Artifact API filters validation report as a "
+            "required DoD condition. This is separate from --require-artifacts "
+            "because it validates API behavior over already materialized artifacts."
+        ),
     )
     parser.add_argument(
         "--require-github-enrichment",
@@ -1236,6 +1451,14 @@ def main() -> None:
         artifact_quality=artifact_quality,
         artifact_export=artifact_export,
         artifact_db_read=artifact_db_read,
+    )
+
+    artifact_api_filters_check = load_json_if_exists(
+        args.artifact_api_filters_check_path
+    )
+    artifact_api_filters_check_exists = artifact_api_filters_check is not None
+    artifact_api_filters_values = extract_artifact_api_filters_values(
+        artifact_api_filters_check
     )
 
     github_enrichment_check = load_json_if_exists(args.github_enrichment_check_path)
@@ -1440,6 +1663,264 @@ def main() -> None:
             safe_int(artifact_values["artifact_quality_trusted_links_count"])
             == safe_int(artifact_values["artifact_export_trusted_links_count"])
             and safe_int(artifact_values["artifact_export_trusted_links_count"]) > 0
+        ),
+
+        # optional Artifact API filters block
+        "artifact_api_filters_check_exists": artifact_api_filters_check_exists,
+        "artifact_api_filters_check_ok": artifact_api_filters_values[
+            "artifact_api_filters_check_ok"
+        ],
+        "artifact_api_filters_required_failed_count_zero": (
+            safe_int(
+                artifact_api_filters_values[
+                    "artifact_api_filters_required_failed_count"
+                ],
+                default=999999,
+            )
+            == 0
+        ),
+        "artifact_api_filters_runtime_db_ready": bool(
+            artifact_api_filters_values["artifact_api_filters_runtime_db_ready"]
+        ),
+        "artifact_api_filters_provider_github_ok": (
+            bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_provider_github_endpoint_ok"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_provider_github_results_non_empty"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_provider_github_rows_match"
+                ]
+            )
+        ),
+        "artifact_api_filters_github_metadata_ok": (
+            bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_has_github_metadata_endpoint_ok"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_has_github_metadata_rows_match"
+                ]
+            )
+        ),
+        "artifact_api_filters_github_status_found_ok": (
+            bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_github_status_found_endpoint_ok"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_github_status_found_rows_match"
+                ]
+            )
+        ),
+        "artifact_api_filters_stars_desc_ok": (
+            bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_stars_desc_endpoint_ok"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values["artifact_api_filters_stars_desc_sorted"]
+            )
+        ),
+        "artifact_api_filters_forks_desc_ok": (
+            bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_forks_desc_endpoint_ok"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values["artifact_api_filters_forks_desc_sorted"]
+            )
+        ),
+        "artifact_api_filters_min_stars_ok": (
+            bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_min_stars_endpoint_ok"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values["artifact_api_filters_min_stars_rows_match"]
+            )
+            and bool(
+                artifact_api_filters_values["artifact_api_filters_min_stars_sorted"]
+            )
+        ),
+        "artifact_api_filters_language_ok": (
+            bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_language_value_resolved"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values["artifact_api_filters_language_endpoint_ok"]
+            )
+            and bool(
+                artifact_api_filters_values["artifact_api_filters_language_rows_match"]
+            )
+        ),
+        "artifact_api_filters_archived_false_ok": (
+            bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_archived_false_endpoint_ok"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_archived_false_rows_match"
+                ]
+            )
+        ),
+        "artifact_api_filters_pushed_date_ok": (
+            bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_pushed_desc_endpoint_ok"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_pushed_desc_values_present"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values["artifact_api_filters_pushed_desc_sorted"]
+            )
+            and bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_pushed_after_threshold_resolved"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_pushed_after_endpoint_ok"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_pushed_after_rows_match"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_pushed_after_sorted"
+                ]
+            )
+        ),
+        "artifact_api_filters_updated_date_ok": (
+            bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_updated_desc_endpoint_ok"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_updated_desc_values_present"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values["artifact_api_filters_updated_desc_sorted"]
+            )
+            and bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_updated_before_threshold_resolved"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_updated_before_endpoint_ok"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_updated_before_rows_match"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_updated_before_sorted"
+                ]
+            )
+        ),
+        "artifact_api_filters_invalid_date_ranges_ok": (
+            bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_pushed_invalid_range_returns_400"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_updated_invalid_range_returns_400"
+                ]
+            )
+        ),
+        "artifact_api_filters_detail_and_links_ok": (
+            bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_artifact_detail_endpoint_ok"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_artifact_detail_found"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_artifact_linked_papers_endpoint_ok"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_artifact_linked_papers_rows_match"
+                ]
+            )
+        ),
+        "artifact_api_filters_documents_filters_ok": (
+            bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_documents_has_trusted_artifact_endpoint_ok"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_documents_has_trusted_artifact_results_non_empty"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_documents_artifact_provider_github_endpoint_ok"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_documents_artifact_provider_github_results_non_empty"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_document_artifacts_endpoint_ok"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_document_artifacts_results_non_empty"
+                ]
+            )
+            and bool(
+                artifact_api_filters_values[
+                    "artifact_api_filters_document_artifacts_rows_match"
+                ]
+            )
         ),
 
         # optional GitHub enrichment block
@@ -1907,6 +2388,29 @@ def main() -> None:
             ]
         )
 
+    if args.require_artifact_api_filters:
+        required_check_names.extend(
+            [
+                "artifact_api_filters_check_exists",
+                "artifact_api_filters_check_ok",
+                "artifact_api_filters_required_failed_count_zero",
+                "artifact_api_filters_runtime_db_ready",
+                "artifact_api_filters_provider_github_ok",
+                "artifact_api_filters_github_metadata_ok",
+                "artifact_api_filters_github_status_found_ok",
+                "artifact_api_filters_stars_desc_ok",
+                "artifact_api_filters_forks_desc_ok",
+                "artifact_api_filters_min_stars_ok",
+                "artifact_api_filters_language_ok",
+                "artifact_api_filters_archived_false_ok",
+                "artifact_api_filters_pushed_date_ok",
+                "artifact_api_filters_updated_date_ok",
+                "artifact_api_filters_invalid_date_ranges_ok",
+                "artifact_api_filters_detail_and_links_ok",
+                "artifact_api_filters_documents_filters_ok",
+            ]
+        )
+
     if args.require_github_enrichment:
         required_check_names.extend(
             [
@@ -2069,6 +2573,7 @@ def main() -> None:
         "dod_passed": len(required_failed) == 0,
         "known_issues_required": bool(args.require_known_issues),
         "artifacts_required": bool(args.require_artifacts),
+        "artifact_api_filters_required": bool(args.require_artifact_api_filters),
         "github_enrichment_required": bool(args.require_github_enrichment),
         "huggingface_enrichment_required": bool(args.require_huggingface_enrichment),
         "paper_features_required": bool(args.require_paper_features),
@@ -2094,6 +2599,9 @@ def main() -> None:
             "artifact_quality_path": normalize_path(args.artifact_quality_path),
             "artifact_export_path": normalize_path(args.artifact_export_path),
             "artifact_db_read_path": normalize_path(args.artifact_db_read_path),
+            "artifact_api_filters_check_path": normalize_path(
+                args.artifact_api_filters_check_path
+            ),
             "github_enrichment_check_path": normalize_path(
                 args.github_enrichment_check_path
             ),
@@ -2128,6 +2636,7 @@ def main() -> None:
             "known_issues_build_id": known_issues_build_id,
             **canonical_contract_values,
             **artifact_values,
+            **artifact_api_filters_values,
             **github_enrichment_values,
             **huggingface_enrichment_values,
             **paper_features_values,
@@ -2192,6 +2701,10 @@ def main() -> None:
     print(f"[OK] required_failed_checks={verdict['required_failed_checks']}")
     print(f"[OK] known_issues_required={verdict['known_issues_required']}")
     print(f"[OK] artifacts_required={verdict['artifacts_required']}")
+    print(
+        f"[OK] artifact_api_filters_required="
+        f"{verdict['artifact_api_filters_required']}"
+    )
     print(f"[OK] github_enrichment_required={verdict['github_enrichment_required']}")
     print(
         f"[OK] huggingface_enrichment_required="
