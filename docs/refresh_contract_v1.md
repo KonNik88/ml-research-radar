@@ -733,6 +733,30 @@ fetchers, Postgres schema, or Streamlit response schemas.
 Generated reports are not committed.
 ```
 
+## Regression runner integration
+
+The Discovery API regression runner can generate the Artifact API filters report
+before running the DoD aggregation step. This keeps the DoD aggregator as a
+report reader while still giving one command for the common regression path.
+
+```bat
+python -m scripts.validation.run_discovery_api_regression ^
+  --include-artifact-api-filters ^
+  --include-dod
+```
+
+When `--include-artifact-api-filters` and `--include-dod` are used together,
+the runner forwards `--require-artifact-api-filters` to the DoD command.
+
+Use a shorter local variant when similar-paper rebuilding is not in scope:
+
+```bat
+python -m scripts.validation.run_discovery_api_regression ^
+  --skip-similar-rebuild ^
+  --include-artifact-api-filters ^
+  --include-dod
+```
+
 ---
 
 # F. Qdrant validation layers
@@ -831,6 +855,8 @@ python -m scripts.validation.run_discovery_api_regression --include-qdrant-servi
 python -m scripts.validation.run_discovery_api_regression --include-qdrant-api --include-qdrant-serving-poc --skip-similar-rebuild
 python -m scripts.validation.run_discovery_api_regression --include-qdrant-benchmark --include-qdrant-serving-poc --include-qdrant-api --skip-similar-rebuild
 python -m scripts.validation.run_discovery_api_regression --include-db-smoke --include-dod
+python -m scripts.validation.run_discovery_api_regression --include-artifact-api-filters --include-dod
+python -m scripts.validation.run_discovery_api_regression --skip-similar-rebuild --include-artifact-api-filters --include-dod
 python -m scripts.validation.run_discovery_api_regression --include-live-ui-check
 ```
 
