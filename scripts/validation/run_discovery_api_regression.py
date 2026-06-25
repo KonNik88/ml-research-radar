@@ -56,8 +56,21 @@ def python_cmd(module: str, *args: str) -> list[str]:
     return [sys.executable, "-m", module, *args]
 
 
+def dod_flags_for_args(args: argparse.Namespace) -> list[str]:
+    flags = list(DEFAULT_DOD_FLAGS)
+
+    if args.include_artifact_api_filters:
+        # Keep the normal DoD behavior unchanged unless the caller explicitly
+        # asks the regression runner to generate the Artifact API filters report.
+        # In that case, the DoD step should require the freshly generated report.
+        flags.insert(2, "--require-artifact-api-filters")
+
+    return flags
+
+
 def build_steps(args: argparse.Namespace) -> list[Step]:
     file_env = {"ML_RADAR_SEARCH_BACKEND": "file"}
+    db_env = {"ML_RADAR_SEARCH_BACKEND": "db"}
 
     steps = [
         Step(
@@ -326,6 +339,18 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
             )
         )
 
+    if args.include_artifact_api_filters:
+        steps.append(
+            Step(
+                name="check_artifact_api_filters",
+                cmd=python_cmd(
+                    "scripts.validation.check_artifact_api_filters",
+                    "--strict",
+                ),
+                env=db_env,
+            )
+        )
+
     if args.include_db_smoke:
         steps.append(
             Step(
@@ -340,7 +365,7 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
                 name="strict_dod_with_discovery_api",
                 cmd=python_cmd(
                     "scripts.update.check_refresh_definition_of_done",
-                    *DEFAULT_DOD_FLAGS,
+                    *dod_flags_for_args(args),
                 ),
             )
         )
@@ -450,6 +475,18 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--include-artifact-api-filters",
+        action="store_true",
+        help=(
+            "Also run the DB-backed Artifact API filters validator. "
+            "This uses ML_RADAR_SEARCH_BACKEND=db, generates "
+            "artifact_api_filters_check_latest.json, does not call external "
+            "artifact providers, and does not mutate canonical/retrieval data. "
+            "When used together with --include-dod, the DoD step also gets "
+            "--require-artifact-api-filters."
+        ),
+    )
+    parser.add_argument(
         "--include-db-smoke",
         action="store_true",
         help="Also run scripts.export.test_db_read. Requires Postgres container.",
@@ -457,7 +494,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--include-dod",
         action="store_true",
-        help="Also run strict DoD with --require-discovery-api. Requires fresh DB smoke report.",
+        help=("Also run strict DoD with the current regression-runner required gates. " "Requires fresh validation reports for the selected gates."),
     )
     parser.add_argument(
         "--include-live-ui-check",
