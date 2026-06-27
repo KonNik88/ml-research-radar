@@ -40,6 +40,7 @@ Qdrant runtime visibility sync — 2026-06
 Artifact API filters validation + DoD gate — 2026-06
 Regression runner DB preflight — 2026-06
 Discovery regression runner summary report — 2026-06
+Dataset release track checkpoint — 2026-06
 ```
 
 Current healthy baseline:
@@ -69,6 +70,7 @@ artifact_api_filters_required_failed_count = 0
 artifact_api_filters_dod_gate = optional by default / required with --require-artifact-api-filters
 regression_runner_db_preflight = enabled for DB-backed regression steps
 discovery_api_regression_runner_report = enabled
+dataset_release_track_checkpoint = local_candidate_validation_enabled
 
 paper_features_rows_count = 60954
 ranking_profiles_count = 9
@@ -77,9 +79,9 @@ topic_assignments_count = 60954
 topic_projection_algorithm = umap
 topic_projection_rows_count = 2080
 
-golden_queries_enabled_count = 22
-golden_queries_explicit_count = 15
-golden_queries_weak_pattern_count = 7
+golden_queries_enabled_count = 34
+golden_queries_explicit_count = 34
+golden_queries_weak_pattern_count = 0
 
 qdrant_benchmark_collection = ml_radar_dense_benchmark_v1
 qdrant_benchmark_uploaded_count = 60954
@@ -881,7 +883,79 @@ Generated runner reports are not committed.
 
 ---
 
-# F. Qdrant validation layers
+
+# F. Dataset release candidate validation
+
+Use this when checking the metadata-only local dataset-release candidate track.
+This validation does not publish a dataset and does not change canonical truth,
+retrieval artifacts, Postgres serving state, Qdrant, ranking, API behavior, or
+Streamlit behavior.
+
+Current local candidate identity:
+
+```text
+dataset_name = ml_research_radar_metadata
+version = v0.1
+release_family = clean_research_metadata
+publication_status = not_published
+manual_review_required_before_publication = true
+```
+
+Expected generated local candidate layout:
+
+```text
+data/datasets_release/ml_research_radar_metadata/v0.1/
+├── data.parquet
+├── schema.json
+├── manifest.json
+├── README.md
+├── data_quality_summary.json
+└── checksums.txt
+```
+
+Recommended validation sequence:
+
+```bat
+python -m scripts.validation.check_dataset_release_config --strict --check-paths
+python -m scripts.export.export_public_dataset --force
+python -m scripts.validation.check_dataset_release_output --strict
+python -m scripts.validation.check_dataset_release_review_readiness --strict
+```
+
+Expected final review-readiness state:
+
+```text
+technical_candidate_ready = true
+manual_review_required = true
+publication_ready = false
+publication_block_reason = manual_review_not_completed
+required_failed_count = 0
+```
+
+Important boundary:
+
+```text
+The generated dataset directory is a local candidate artifact.
+It is not a public release.
+It must not be used as a reconcile input.
+It must not overwrite operational latest files.
+It must not be committed by default.
+Public upload requires a separate manual license/provenance review and release decision.
+```
+
+Generated reports:
+
+```text
+artifacts/reports/validation/dataset_release_config_latest.json
+artifacts/reports/validation/dataset_release_output_latest.json
+artifacts/reports/validation/dataset_release_review_readiness_latest.json
+artifacts/reports/validation/history/dataset_release_*.json
+```
+
+Generated report history should not be committed unless a separate
+artifact-retention policy explicitly says otherwise.
+
+# G. Qdrant validation layers
 
 ## Qdrant collection check
 
@@ -957,7 +1031,7 @@ Qdrant is not the production default backend.
 
 ---
 
-# G. Discovery API regression runner
+# H. Discovery API regression runner
 
 Quick discovery regression:
 
@@ -984,7 +1058,7 @@ python -m scripts.validation.run_discovery_api_regression --include-live-ui-chec
 
 ---
 
-# H. Strict Definition of Done
+# I. Strict Definition of Done
 
 Current full strict DoD command should include the active required gates supported by the current project codebase:
 
@@ -1003,7 +1077,7 @@ If local `--help` does not show these gates, sync the DoD script before treating
 
 ---
 
-# I. Hugging Face / VPN caveat
+# J. Hugging Face / VPN caveat
 
 `SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")` may make HEAD/metadata requests to Hugging Face even when weights are cached. If VPN/network is unstable, startup or tests may fail before project code is actually exercised.
 
@@ -1030,7 +1104,7 @@ Then retry the smoke tests.
 
 ---
 
-# J. Git / artifact hygiene
+# K. Git / artifact hygiene
 
 Do not commit large generated artifacts by default:
 
@@ -1067,7 +1141,7 @@ git diff --cached --stat
 
 ---
 
-# K. Blockers
+# L. Blockers
 
 Stop and investigate if any of these occur:
 
@@ -1095,7 +1169,7 @@ Stop and investigate if any of these occur:
 
 ---
 
-# L. Non-blocker diagnostics under current semantics
+# M. Non-blocker diagnostics under current semantics
 
 These are not automatic blockers unless policy changes:
 

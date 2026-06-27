@@ -4,13 +4,13 @@
 
 ```text
 document = primary living roadmap
-active checkpoint = Discovery Regression Runner Summary Report v1
-base checkpoint = Regression Runner DB Preflight v1
+active checkpoint = Dataset Release Track Checkpoint v0.1
+base checkpoint = Discovery Regression Runner Summary Report v1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = validation-runner summary report only
+scope of current branch = dataset release track checkpoint synchronization only
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -478,30 +478,12 @@ Artifact API filters validator and does not write validation reports.
 
 ---
 
-## 5. Current active slice
+### 4.15 Discovery Regression Runner Summary Report v1
 
-### 5.1 Discovery Regression Runner Summary Report v1
+Status: **done / green**
 
-Status: **current / validation-runner observability**
-
-Goal:
-
-```text
-Write one lightweight JSON/Markdown summary report for every Discovery API
+Implemented one lightweight JSON/Markdown summary report for every Discovery API
 regression runner execution, including DB preflight and all subprocess steps.
-```
-
-Scope:
-
-- keep existing console behavior unchanged;
-- write latest and history reports for the regression runner itself;
-- record selected CLI inputs;
-- record each step name, kind, command, environment override, return code,
-  duration and pass/fail status;
-- include `db_runtime_preflight` as a reportable preflight step when DB-backed
-  steps are selected;
-- write failure reports even when the runner stops after the first failed step;
-- keep generated runner reports out of source control.
 
 Report outputs:
 
@@ -512,74 +494,136 @@ artifacts/reports/validation/history/discovery_api_regression_runner_<timestamp>
 artifacts/reports/validation/history/discovery_api_regression_runner_<timestamp>.md
 ```
 
-Report schema:
+The report is operational evidence. It does not replace individual validator
+reports and is not currently a DoD input.
+
+### 4.16 Dataset Release Track v0.1
+
+Status: **implemented local candidate pipeline / not published**
+
+Implemented the metadata-only dataset-release track:
 
 ```text
-schema_version = discovery_api_regression_runner_report_v1
+contract
+→ config validation
+→ local export runner
+→ output validation
+→ data-quality summary
+→ review-readiness gate
+```
+
+Current boundary:
+
+```text
+dataset_name = ml_research_radar_metadata
+version = v0.1
+release_family = clean_research_metadata
+publication_status = not_published
+manual_review_required_before_publication = true
+```
+
+Generated local candidate layout:
+
+```text
+data/datasets_release/ml_research_radar_metadata/v0.1/
+├── data.parquet
+├── schema.json
+├── manifest.json
+├── README.md
+├── data_quality_summary.json
+└── checksums.txt
+```
+
+Correct green review-readiness interpretation:
+
+```text
+technical_candidate_ready = true
+manual_review_required = true
+publication_ready = false
+publication_block_reason = manual_review_not_completed
+```
+
+No public upload is performed in this track.
+
+## 5. Current active slice
+
+### 5.1 Dataset Release Track Checkpoint v0.1
+
+Status: **current / dataset-release checkpoint synchronization**
+
+Goal:
+
+```text
+Synchronize the already implemented dataset-release track with current main,
+validate the local candidate pipeline, and document the not-published/manual-review boundary.
+```
+
+Scope:
+
+- sync `configs/dataset_release.yaml` with the implemented output layout;
+- require `data_quality_summary.json` in config validation;
+- keep export runner, output validator, and review-readiness gate aligned;
+- document the complete local candidate validation sequence;
+- keep generated dataset files and report history out of source control;
+- preserve the manual-review/publication boundary.
+
+Validation sequence:
+
+```bat
+python -m scripts.validation.check_dataset_release_config --strict --check-paths
+python -m scripts.export.export_public_dataset --force
+python -m scripts.validation.check_dataset_release_output --strict
+python -m scripts.validation.check_dataset_release_review_readiness --strict
+```
+
+Expected review-readiness result:
+
+```text
+technical_candidate_ready = true
+manual_review_required = true
+publication_ready = false
+publication_block_reason = manual_review_not_completed
+required_failed_count = 0
 ```
 
 Non-goals:
 
 ```text
-no API behavior change
-no DB schema change
+no public upload
+no final license approval
 no canonical truth change
-no retrieval/Qdrant/ranking change
-no enrichment fetcher change
-no Artifact API validator contract change
-no DoD aggregator requirement for the runner report
-no committed generated runner reports
-```
-
-Suggested validation:
-
-```bat
-python -m py_compile scripts/validation/run_discovery_api_regression.py
-python -m scripts.validation.run_discovery_api_regression --help
-python -m scripts.validation.run_discovery_api_regression ^
-  --skip-similar-rebuild ^
-  --include-artifact-api-filters ^
-  --include-dod
-python -c "import json; p='artifacts/reports/validation/discovery_api_regression_runner_latest.json'; r=json.load(open(p, encoding='utf-8')); assert r['schema_version']=='discovery_api_regression_runner_report_v1'; assert r['summary']['ok'] is True; assert r['summary']['failed_steps_count']==0; assert any(s['name']=='db_runtime_preflight' for s in r['steps']); print('runner summary ok')"
-```
-
-Expected healthy summary includes:
-
-```text
-summary.ok = true
-summary.failed_steps_count = 0
-verdict.failed_steps = []
-db_runtime_preflight step present when DB-backed steps are selected
-check_artifact_api_filters step present when --include-artifact-api-filters is selected
-strict_dod_with_discovery_api step present when --include-dod is selected
+no retrieval/Qdrant/ranking/API behavior change
+no graph export
+no RAG/full-text release
+no committed generated dataset artifacts
 ```
 
 ---
 
 ## 6. Near-term roadmap
 
-### 6.1 Dataset Export Contract v0.1
+### 6.1 Graph / NER / RAG Architecture Decision v0.1
 
 Purpose:
 
 ```text
-Prepare a future metadata-only public dataset release without uploading yet.
+Define the staged architecture for the next functional layers before implementation.
 ```
 
 Scope:
 
-- public export schema;
-- excluded fields;
-- provenance/license boundaries;
-- build ID / checksum / version policy;
-- data-card requirements;
-- optional embeddings policy.
+- Paper–Artifact Graph v0.1 boundary;
+- NER / entity extraction experiment boundary;
+- full-text and chunk provenance prerequisites for RAG;
+- API/runtime ownership boundaries;
+- generated artifact and validation expectations.
 
 Non-goals:
 
-- no public upload;
-- no corpus rebuild;
-- no licensing shortcut.
+- no graph database implementation yet;
+- no production NER promotion yet;
+- no RAG answer layer yet;
+- no LangGraph orchestration yet.
 
 ### 6.2 Deployment Vector Backend Selector Design v1
 

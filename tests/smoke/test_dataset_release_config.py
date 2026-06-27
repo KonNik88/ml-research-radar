@@ -69,6 +69,7 @@ def make_valid_config() -> dict:
             "require_checksums_txt": True,
             "require_readme_md": True,
             "require_data_file": True,
+            "require_data_quality_summary_json": True,
             "require_deterministic_order": True,
             "require_no_forbidden_columns": True,
             "require_build_metadata": True,
@@ -92,6 +93,7 @@ def make_valid_config() -> dict:
                 "schema.json",
                 "manifest.json",
                 "README.md",
+                "data_quality_summary.json",
                 "checksums.txt",
             ]
         },
@@ -189,6 +191,20 @@ def test_license_review_blocks_publication_before_review() -> None:
     config["license_review"]["publication_allowed_before_review"] = True
 
     assert "publication_blocked_before_review" in failed_names(config)
+
+
+def test_expected_layout_requires_data_quality_summary() -> None:
+    config = make_valid_config()
+    config["outputs"]["expected_release_layout"].remove("data_quality_summary.json")
+
+    assert "expected_release_layout" in failed_names(config)
+
+
+def test_validation_requires_data_quality_summary_flag() -> None:
+    config = make_valid_config()
+    config["validation"]["require_data_quality_summary_json"] = False
+
+    assert "validation_required_flags" in failed_names(config)
 
 
 def test_config_file_shape_matches_yaml_round_trip(tmp_path: Path) -> None:
