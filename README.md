@@ -35,12 +35,14 @@ paper-centric research-discovery system.
 ## Current validated checkpoint
 
 ```text
-checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1
+checkpoint = Dataset Release Track Checkpoint v0.1
+base checkpoint = Discovery Regression Runner Summary Report v1
 public behavior change = none
 public dense/hybrid backend = file
 experimental Qdrant endpoint = explicit
 fallback = absent
 Qdrant promotion = not performed
+dataset public upload = not performed
 ```
 
 Current corpus and retrieval baseline:
@@ -386,6 +388,45 @@ Qdrant hybrid evaluation result:
 0 measured Hit / Precision / Recall / MRR regression
 ```
 
+
+### Dataset release track
+
+Implemented local metadata-only dataset release candidate pipeline:
+
+```text
+contract
+→ config validation
+→ local export runner
+→ output validation
+→ data-quality summary
+→ review-readiness gate
+```
+
+Current candidate identity:
+
+```text
+dataset = ml_research_radar_metadata
+version = v0.1
+release_family = clean_research_metadata
+publication_status = not_published
+manual_review_required_before_publication = true
+```
+
+Expected local candidate layout:
+
+```text
+data/datasets_release/ml_research_radar_metadata/v0.1/
+├── data.parquet
+├── schema.json
+├── manifest.json
+├── README.md
+├── data_quality_summary.json
+└── checksums.txt
+```
+
+A green review-readiness gate means the candidate is technically ready for
+manual review. It does not approve public publication.
+
 ---
 
 ## Search and discovery contracts
@@ -620,19 +661,25 @@ requirements.
 
 Recommended order:
 
-1. **Search API Semantics Cleanup v1**  
-   Synchronize API, runtime, Qdrant, ranking, and validation documentation.
+1. **Dataset Release Track Checkpoint v0.1**  
+   Synchronize the implemented metadata-only local candidate release pipeline,
+   including `data_quality_summary.json` in the config/validator contract.
 
-2. **Dataset Export Contract v0.1**  
-   Define metadata-only public export schema, provenance, checksum, and data-card policy.
+2. **Graph / NER / RAG Architecture Decision v0.1**  
+   Define boundaries for paper-artifact graph, entity extraction experiments,
+   full-text/chunk provenance, and grounded RAG before implementation.
 
-3. **Deployment Vector Backend Selector Design v1**  
+3. **Paper–Artifact Graph v0.1**  
+   Build the first new functional layer over existing `canonical_id`,
+   `artifact_id`, and trusted paper-artifact links.
+
+4. **Deployment Vector Backend Selector Design v1**  
    Design `ML_RADAR_VECTOR_BACKEND=file|qdrant` without changing defaults.
 
-4. **Public Qdrant Promotion v1**  
+5. **Public Qdrant Promotion v1**  
    Only after explicit design, regression gates, rollback policy, and acceptance evidence.
 
-5. **Next retrieval generation**  
+6. **Next retrieval generation**  
    New embeddings, larger Golden Set, and retrieval rebuild only as a separate build-scoped slice.
 
 ---

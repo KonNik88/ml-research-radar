@@ -3,16 +3,17 @@
 ## Document status
 
 ```text
-status: active contract track / no publication yet
-current implementation priority: Dataset Export Contract v0.1
+status: active local candidate release track / no publication yet
+current checkpoint: Dataset Release Track Checkpoint v0.1
+current local pipeline: implemented
 canonical truth impact: none
 public dataset publication: not performed
 ```
 
-This document defines the boundary for future public dataset releases from
-**ML Research Radar**.
+This document defines the strategic boundary for future public dataset releases
+from **ML Research Radar**.
 
-A dataset release is a **derived public artifact**. It is not:
+A dataset release is a **derived public artifact candidate**. It is not:
 
 - canonical paper truth;
 - a Postgres serving state;
@@ -20,15 +21,20 @@ A dataset release is a **derived public artifact**. It is not:
 - a replacement for source snapshots;
 - an input that may silently overwrite operational `latest` artifacts.
 
-The current active dataset work is intentionally narrow:
+The current dataset work supports a local candidate-release pipeline only:
 
 ```text
-define release config
-define metadata-only schema boundary
-define validation contract
-do not export yet
-do not publish yet
+accepted operational checkpoint
+→ explicit export config
+→ local candidate release directory
+→ schema/output validation
+→ data-quality summary
+→ technical review-readiness gate
+→ manual license/provenance review
+→ separate explicit release decision
 ```
+
+The current track stops before public publication.
 
 ---
 
@@ -40,26 +46,27 @@ Operational paper truth remains:
 data/analytics/reconciled/canonical_documents.jsonl
 ```
 
-Future dataset releases are generated from an explicit accepted checkpoint and
-must record:
+Dataset releases are generated from an explicit accepted checkpoint and must
+record:
 
-- canonical corpus fingerprint when available;
 - canonical document count;
-- retrieval build ID when retrieval-derived data is included;
-- feature, cluster, or graph build IDs where applicable;
+- retrieval build ID when retrieval-derived metadata is referenced;
+- embedding model identity when relevant;
 - export configuration;
 - creation timestamp;
 - schema version;
-- license and provenance notes.
+- license and provenance notes;
+- non-publication/manual-review status until approved.
 
 A published release must never become an implicit upstream source for canonical
 reconciliation.
 
-Current accepted source checkpoint for the first candidate contract:
+Current accepted source checkpoint for the v0.1 metadata candidate:
 
 ```text
 canonical_doc_count = 60954
 retrieval_build_id = 20260504T164021Z
+retrieval_corpus_doc_count = 60954
 embedding_model = sentence-transformers/all-MiniLM-L6-v2
 release_family = clean_research_metadata
 publication_status = not_published
@@ -92,15 +99,52 @@ Potential audience:
 Current non-publication stance:
 
 ```text
-The project may define and validate the release contract now.
+The project may generate and validate a local candidate now.
 Actual public upload requires a separate release decision and license review.
 ```
 
 ---
 
-## 3. Potential release families
+## 3. Current local pipeline
 
-### 3.1 Clean research metadata
+The v0.1 track currently consists of:
+
+```text
+configs/dataset_release.yaml
+scripts/validation/check_dataset_release_config.py
+scripts/export/export_public_dataset.py
+scripts/validation/check_dataset_release_output.py
+scripts/validation/check_dataset_release_review_readiness.py
+```
+
+Expected local candidate layout:
+
+```text
+data/datasets_release/
+└── ml_research_radar_metadata/
+    └── v0.1/
+        ├── data.parquet
+        ├── schema.json
+        ├── manifest.json
+        ├── README.md
+        ├── data_quality_summary.json
+        └── checksums.txt
+```
+
+Correct technical end state before manual review:
+
+```text
+technical_candidate_ready = true
+manual_review_required = true
+publication_ready = false
+publication_block_reason = manual_review_not_completed
+```
+
+---
+
+## 4. Release families
+
+### 4.1 Clean research metadata
 
 Possible content:
 
@@ -114,15 +158,13 @@ Possible content:
 - external identifiers;
 - source-count and provenance summaries.
 
-Sensitive or provider-restricted fields must be reviewed before release.
-
 Current status:
 
 ```text
-selected for v0.1 contract
+selected for v0.1 local candidate release track
 ```
 
-### 3.2 Paper–artifact links
+### 4.2 Paper–artifact links
 
 Possible content:
 
@@ -143,7 +185,7 @@ Current status:
 deferred
 ```
 
-### 3.3 Topic and discovery artifacts
+### 4.3 Topic and discovery artifacts
 
 Possible content:
 
@@ -153,7 +195,7 @@ Possible content:
 - projection coordinates;
 - transparent paper-feature scores.
 
-These releases are build-scoped and must include their retrieval, cluster, and
+These releases are build-scoped and must include retrieval, cluster, and
 projection identifiers.
 
 Current status:
@@ -162,7 +204,7 @@ Current status:
 deferred
 ```
 
-### 3.4 Research graph exports
+### 4.4 Research graph exports
 
 Possible future edge families:
 
@@ -179,7 +221,7 @@ Current status:
 deferred
 ```
 
-### 3.5 Temporal and trend datasets
+### 4.5 Temporal and trend datasets
 
 Possible content:
 
@@ -196,7 +238,7 @@ Current status:
 deferred
 ```
 
-### 3.6 Retrieval evaluation datasets
+### 4.6 Retrieval evaluation datasets
 
 Possible content:
 
@@ -216,49 +258,15 @@ deferred
 
 ---
 
-## 4. Release lifecycle
-
-Required future lifecycle:
-
-```text
-accepted operational checkpoint
-→ explicit export config
-→ candidate release directory
-→ schema and row-count validation
-→ provenance/license review
-→ reproducibility manifest
-→ sample inspection
-→ explicit release decision
-→ immutable versioned publication
-```
-
-Recommended layout:
-
-```text
-data/datasets_release/
-└── <dataset_name>/
-    └── <version>/
-        ├── data.*
-        ├── schema.json
-        ├── manifest.json
-        ├── README.md
-        ├── data_quality_summary.json
-        └── checksums.txt
-```
-
-Operational `latest` aliases must not replace immutable release versions.
-
----
-
 ## 5. Dataset config contract
 
-The first active config is:
+The active config is:
 
 ```text
 configs/dataset_release.yaml
 ```
 
-The config must define:
+The config defines:
 
 ```text
 schema_version
@@ -272,7 +280,7 @@ safety policy
 expected output layout
 ```
 
-The first contract intentionally sets:
+The v0.1 metadata track intentionally sets:
 
 ```text
 include_embeddings = false
@@ -284,41 +292,48 @@ may_be_used_as_reconcile_input = false
 may_overwrite_operational_latest = false
 ```
 
-This prevents accidental over-release or accidental use of a public release as an
-operational source.
+The expected output layout must include:
+
+```text
+data.parquet
+schema.json
+manifest.json
+README.md
+data_quality_summary.json
+checksums.txt
+```
 
 ---
 
 ## 6. Validation expectations
 
-The release config validator should check:
+Config validation:
 
-- schema version;
-- release name/version/family;
-- source checkpoint fields;
-- expected row count;
-- retrieval build identity when present;
-- export format and output layout;
-- required columns;
-- forbidden columns;
-- license review status;
-- safety flags;
-- no publication without manual review;
-- no full text/PDF/raw payload/embedding release in metadata-only v0.1;
-- deterministic output-order policy.
+```bat
+python -m scripts.validation.check_dataset_release_config --strict --check-paths
+```
 
-Future release-output validators should also check:
+Local candidate export:
 
-- actual output schema;
-- unique IDs;
-- row counts;
-- null/coverage statistics;
-- duplicate rows;
-- foreign-key consistency;
-- build/fingerprint consistency;
-- checksums;
-- data-quality summary consistency;
-- deterministic regeneration where applicable.
+```bat
+python -m scripts.export.export_public_dataset --force
+```
+
+Output validation:
+
+```bat
+python -m scripts.validation.check_dataset_release_output --strict
+```
+
+Review-readiness validation:
+
+```bat
+python -m scripts.validation.check_dataset_release_review_readiness --strict
+```
+
+A generated candidate may be considered locally reproducible only when config
+validation and output validation are green. It may be considered for publication
+only after a separate manual license/provenance review and release decision.
 
 ---
 
@@ -347,182 +362,36 @@ and versioning constraints.
 
 ## 8. Current non-goals
 
-Not part of Dataset Export Contract v0.1:
+Not part of Dataset Release Track Checkpoint v0.1:
 
-- implementing the full dataset export pipeline;
-- publishing a dataset;
-- selecting a final public license;
-- generating graph exports;
-- generating retrieval pairs;
-- scheduling releases;
-- integrating releases into Airflow;
-- treating a release as operational truth;
-- exporting full text, PDFs, embeddings, or raw provider payloads.
-
----
-
-## 9. Definition of Done for Dataset Export Contract v0.1
-
-Complete when:
-
-- [ ] `configs/dataset_release.yaml` defines the v0.1 metadata-only contract;
-- [ ] `docs/dataset-release-v0.1.md` explains the release boundary and DoD;
-- [ ] `docs/dataset_strategy.md` is synchronized with the active contract;
-- [ ] `scripts/validation/check_dataset_release_config.py` validates the config;
-- [ ] smoke tests cover accepted and rejected config cases;
-- [ ] no export files are generated;
-- [ ] no public dataset is published;
-- [ ] no operational `latest` files are modified.
+- public upload;
+- final license approval;
+- provenance approval;
+- graph export;
+- paper-code links dataset;
+- topic cluster dataset;
+- temporal trends dataset;
+- retrieval pairs dataset;
+- Airflow scheduling for releases;
+- dataset API endpoint;
+- Streamlit dataset page;
+- automatic publication;
+- treating a release as operational truth.
 
 ---
 
-## 10. Operational interpretation
+## 9. Operational interpretation
 
-The dataset track should begin with a contract because dataset release is a
-public-facing boundary.
+The dataset track is now a safe local metadata-release candidate pipeline.
 
 Current accepted interpretation:
 
 ```text
-We can prepare the release contract now.
+We can generate and validate a local release candidate.
 We should not publish yet.
 We should not export everything by default.
 We should not let the release become an input source.
+Manual review remains required before any public release.
 ```
 
-The first dataset slice is therefore a safety and reproducibility layer, not a
-new data-ingestion or product-feature layer.
-
----
-
-## 11. Dataset Export Runner v0.1
-
-After the Dataset Export Contract v0.1 slice, the next bounded implementation
-slice is a local metadata export runner.
-
-Scope:
-
-```text
-scripts/export/export_public_dataset.py
-scripts/validation/check_dataset_release_output.py
-tests/smoke/test_public_dataset_export_contract.py
-tests/smoke/test_dataset_release_output_validator.py
-```
-
-The runner creates a local candidate release directory from
-`configs/dataset_release.yaml` and the accepted canonical corpus checkpoint:
-
-```text
-data/datasets_release/ml_research_radar_metadata/v0.1/
-├── data.parquet
-├── schema.json
-├── manifest.json
-├── README.md
-└── checksums.txt
-```
-
-This slice is still not a publication slice.
-
-Non-goals remain:
-
-- public upload to Kaggle, Hugging Face Datasets, or GitHub Releases;
-- embedding export;
-- full-text or PDF export;
-- raw provider payload export;
-- full source-record export;
-- graph export;
-- RAG or GraphRAG;
-- retrieval rebuild;
-- Qdrant promotion;
-- search or ranking behavior changes;
-- mutation of canonical latest or operational serving state.
-
-The output validator is intentionally separate from the config validator:
-
-```text
-check_dataset_release_config.py  -> validates the release contract
-check_dataset_release_output.py  -> validates the generated local candidate artifact
-```
-
-A generated candidate may be considered locally reproducible only when both the
-config validator and the output validator are green. It may be considered for
-publication only after a separate manual license/provenance review.
-
----
-
-## 12. Dataset Release Output Hardening v0.1
-
-After the initial local export runner, the next bounded dataset-layer slice adds a release-level data-quality summary:
-
-```text
-data_quality_summary.json
-```
-
-The goal is not to publish the dataset. The goal is to make the generated candidate easier to inspect and safer to review before any future publication decision.
-
-The summary should include:
-
-- row and column counts;
-- canonical ID uniqueness and duplicate counts;
-- field coverage statistics;
-- year range;
-- metadata completeness score summary;
-- source-family counts;
-- publication-type, language, and primary-category counts;
-- source-count and unique-source-count distributions.
-
-The output validator should treat this file as part of the required release layout and verify that it is readable, listed in `manifest.json`, included in `checksums.txt`, and consistent with `data.parquet` for core counts.
-
-This remains a local candidate release hardening slice. It must not introduce public upload, embedding export, full-text/PDF export, raw payload export, graph export, retrieval rebuild, Qdrant promotion, or search/ranking behavior changes.
-
----
-
-## 9. Review-readiness gate
-
-The dataset release track now includes a dedicated review-readiness gate for local candidate releases.
-
-The purpose of this gate is to separate three states that must not be collapsed:
-
-```text
-technical candidate generated
-technical candidate valid
-public publication approved
-```
-
-The current v0.1 path supports the first two states only. Public publication remains blocked until manual review.
-
-The review-readiness validator is:
-
-```text
-scripts/validation/check_dataset_release_review_readiness.py
-```
-
-Recommended command after generating and validating the candidate release:
-
-```bat
-python -m scripts.validation.check_dataset_release_review_readiness --strict
-```
-
-A successful report means:
-
-```text
-technical_candidate_ready = true
-manual_review_required = true
-publication_ready = false
-publication_block_reason = manual_review_not_completed
-```
-
-This is the intended state for the current dataset track.
-
-The validator checks that:
-
-- the local candidate release exists;
-- the output validator is green;
-- `manifest.json` still marks the artifact as not published;
-- manual review remains required;
-- publication before review is blocked by config and manifest policy;
-- `data_quality_summary.json` is present and consistent with review expectations;
-- duplicate canonical ID count is zero;
-- the release remains a derived artifact with no canonical truth impact.
-
-This gate does not replace manual review. It prepares a candidate artifact for manual review and prevents accidental publication semantics from entering the release metadata.
+The first public release, if approved later, must be an explicit separate slice.

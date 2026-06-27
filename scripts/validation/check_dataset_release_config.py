@@ -2,19 +2,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import yaml
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, Sequence
-
-try:
-    import yaml
-except ImportError as exc:  # pragma: no cover - project env is expected to include PyYAML
-    yaml = None
-    YAML_IMPORT_ERROR = exc
-else:
-    YAML_IMPORT_ERROR = None
-
 
 SCHEMA_VERSION = "dataset_release_config_v1"
 REPORT_SCHEMA_VERSION = "dataset_release_config_quality_v1"
@@ -399,6 +391,7 @@ def validate_config(
         "require_checksums_txt",
         "require_readme_md",
         "require_data_file",
+        "require_data_quality_summary_json",
         "require_deterministic_order",
         "require_no_forbidden_columns",
         "require_build_metadata",
@@ -458,6 +451,7 @@ def validate_config(
         "schema.json",
         "manifest.json",
         "README.md",
+        "data_quality_summary.json",
         "checksums.txt",
     }
     missing_layout = sorted(required_layout - expected_layout)
