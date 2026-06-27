@@ -4,13 +4,13 @@
 
 ```text
 document = primary living roadmap
-active checkpoint = Search API Semantics Cleanup v1
-base checkpoint = Retrieval Serving Checkpoint v1
+active checkpoint = Regression Runner DB Preflight v1
+base checkpoint = Artifact API filters validation + DoD gate
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = documentation semantics synchronization only
+scope of current branch = validation-runner DB preflight only
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -452,53 +452,69 @@ The gate does not rerun heavy benchmark jobs by default.
 
 ## 5. Current active slice
 
-### 5.1 Search API Semantics Cleanup v1
+### 5.1 Regression Runner DB Preflight v1
 
-Status: **current / documentation-only**
+Status: **current / validation-runner hardening**
 
 Goal:
 
 ```text
-Synchronize README, architecture, roadmap, API reference, and checkpoint docs
-with the accepted retrieval-serving behavior.
+Fail early and clearly when DB-backed regression steps are requested but the
+local Postgres serving layer is unavailable or incomplete.
 ```
 
 Scope:
 
-- update current baseline numbers;
-- clarify public `/search` vs experimental Qdrant search;
-- document `rank=false` as reference;
-- document `rank=true` as explicit optional behavior;
-- expand `/runtime` Qdrant diagnostics documentation;
-- document the retrieval-serving checkpoint gate;
-- keep Qdrant promotion deferred.
+- add an early read-only DB preflight to the Discovery API regression runner;
+- run the preflight before longer file-backed checks when DB-backed steps are selected;
+- cover `--include-artifact-api-filters` and `--include-db-smoke`;
+- verify Postgres ping and non-empty required tables;
+- preserve the existing Artifact API filters validator and DoD report-reader semantics.
+
+Required DB preflight tables:
+
+```text
+canonical_documents
+artifact_entities
+paper_artifact_links
+```
 
 Non-goals:
 
 ```text
-no runtime code changes
-no API behavior changes
-no Qdrant promotion
-no fallback
-no retrieval rebuild
-no ranking formula change
-no benchmark rerun
+no API behavior change
+no DB schema change
+no canonical truth change
+no retrieval/Qdrant/ranking change
+no enrichment fetcher change
+no new committed validation report
+no replacement for check_artifact_api_filters
 ```
 
 Suggested validation:
 
 ```bat
-python -m scripts.validation.check_retrieval_serving_checkpoint --dry-run
+python -m py_compile scripts/validation/run_discovery_api_regression.py
+python -m scripts.validation.run_discovery_api_regression --help
+python -m scripts.validation.run_discovery_api_regression ^
+  --skip-similar-rebuild ^
+  --include-artifact-api-filters ^
+  --include-dod
 ```
 
-Full local evidence can be rerun if desired:
+Optional negative smoke:
 
 ```bat
-python -m scripts.validation.check_retrieval_serving_checkpoint ^
-  --include-serving-performance-evidence ^
-  --include-qdrant-collection-live ^
-  --include-api-smoke
+docker compose -f infra/docker/docker-compose.yml stop postgres
+python -m scripts.validation.run_discovery_api_regression ^
+  --skip-similar-rebuild ^
+  --include-artifact-api-filters ^
+  --include-dod
+docker compose -f infra/docker/docker-compose.yml up -d postgres
 ```
+
+The negative smoke should fail at `db_runtime_preflight` before running the long
+regression sequence.
 
 ---
 

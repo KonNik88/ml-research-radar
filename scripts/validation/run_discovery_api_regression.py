@@ -23,6 +23,12 @@ DEFAULT_DOD_FLAGS = [
     "--require-golden-queries",
 ]
 
+DB_PREFLIGHT_REQUIRED_TABLES = [
+    "canonical_documents",
+    "artifact_entities",
+    "paper_artifact_links",
+]
+
 
 @dataclass(frozen=True)
 class Step:
@@ -54,6 +60,106 @@ def run_step(step: Step) -> bool:
 
 def python_cmd(module: str, *args: str) -> list[str]:
     return [sys.executable, "-m", module, *args]
+
+
+def needs_db_preflight(args: argparse.Namespace) -> bool:
+    return bool(args.include_artifact_api_filters or args.include_db_smoke)
+
+
+def _restore_env_var(name: str, previous_value: str | None) -> None:
+    if previous_value is None:
+        os.environ.pop(name, None)
+    else:
+        os.environ[name] = previous_value
+
+
+def run_db_preflight() -> bool:
+    print("")
+    print("=" * 100)
+    print("[RUN] db_runtime_preflight")
+    print("[INFO] DB-backed regression steps require Postgres and ML_RADAR_SEARCH_BACKEND=db.")
+    print("=" * 100)
+
+    previous_backend = os.environ.get("ML_RADAR_SEARCH_BACKEND")
+    os.environ["ML_RADAR_SEARCH_BACKEND"] = "db"
+
+    try:
+        from services.api.db import PostgresConfig, PostgresDocumentStore
+        from services.api.settings import get_settings
+
+        get_settings.cache_clear()
+        settings = get_settings()
+
+        print(f"[OK] configured_backend_mode={settings.search_backend}")
+        print(f"[OK] postgres_host={settings.postgres_host}")
+        print(f"[OK] postgres_port={settings.postgres_port}")
+        print(f"[OK] postgres_dbname={settings.postgres_dbname}")
+        print(f"[OK] postgres_user={settings.postgres_user}")
+
+        if settings.search_backend != "db":
+            print(
+                "[FAIL] db_preflight_backend_mode=False: "
+                f"expected db, got {settings.search_backend!r}"
+            )
+            return False
+
+        store = PostgresDocumentStore(
+            PostgresConfig(
+                host=settings.postgres_host,
+                port=settings.postgres_port,
+                dbname=settings.postgres_dbname,
+                user=settings.postgres_user,
+                password=settings.postgres_password,
+            )
+        )
+
+        if not store.ping():
+            print("[FAIL] db_preflight_ping=False")
+            return False
+
+        print("[OK] db_preflight_ping=True")
+
+        with store.connection() as conn, conn.cursor() as cur:
+            for table_name in DB_PREFLIGHT_REQUIRED_TABLES:
+                cur.execute("SELECT to_regclass(%s) AS table_ref", (table_name,))
+                row = cur.fetchone()
+                table_ref = row.get("table_ref") if row else None
+                if table_ref is None:
+                    print(f"[FAIL] db_preflight_table_exists_{table_name}=False")
+                    return False
+
+                cur.execute(f"SELECT COUNT(*) AS total FROM {table_name}")
+                count_row = cur.fetchone()
+                row_count = int(count_row["total"]) if count_row else 0
+
+                if row_count <= 0:
+                    print(f"[FAIL] db_preflight_table_non_empty_{table_name}=False")
+                    return False
+
+                print(f"[OK] db_preflight_table_exists_{table_name}=True")
+                print(f"[OK] db_preflight_table_rows_{table_name}={row_count}")
+
+        print("[OK] db_runtime_preflight passed")
+        return True
+
+    except Exception as exc:  # noqa: BLE001 - preflight must print actionable diagnostics.
+        print(f"[FAIL] db_runtime_preflight failed: {type(exc).__name__}: {exc}")
+        print(
+            "[INFO] Recommended action: start the Postgres container and rerun with "
+            "DB-backed checks enabled, for example `docker compose -f "
+            "infra/docker/docker-compose.yml up -d postgres` and "
+            "`set ML_RADAR_SEARCH_BACKEND=db`."
+        )
+        return False
+
+    finally:
+        try:
+            from services.api.settings import get_settings
+
+            get_settings.cache_clear()
+        except Exception:
+            pass
+        _restore_env_var("ML_RADAR_SEARCH_BACKEND", previous_backend)
 
 
 def dod_flags_for_args(args: argparse.Namespace) -> list[str]:
@@ -512,6 +618,13 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     if args.similar_top_k < 1:
         raise SystemExit("--similar-top-k must be >= 1")
+
+    if needs_db_preflight(args) and not run_db_preflight():
+        print("")
+        print("=" * 100)
+        print("[FAIL] Discovery API regression DB preflight failed")
+        print("=" * 100)
+        raise SystemExit(1)
 
     steps = build_steps(args)
 
