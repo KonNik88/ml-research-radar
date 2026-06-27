@@ -12,7 +12,8 @@ api behavior change: none
 
 This document records how the current Streamlit UI is wired after the Discovery
 API, Qdrant runtime visibility, Artifact Explorer, Paper Workspace, Artifact API
-filters validation, DoD gate, and discovery regression runner slices.
+filters validation, Artifact Explorer GitHub date filters UI sync, DoD gate,
+and discovery regression runner slices.
 
 It is not a product feature and it does not change application behavior. Its
 purpose is to make the current UI implementation easier to review, validate and
@@ -675,8 +676,24 @@ has_paper_links
 archived
 has_github_metadata
 github_status
+pushed_after
+pushed_before
+updated_after
+updated_before
 sort_by
 ```
+
+GitHub date/freshness filters are UI pass-through controls:
+
+```text
+pushed_after / pushed_before -> Artifact API pushed_at filtering over metadata.github.pushed_at
+updated_after / updated_before -> Artifact API updated_at filtering over materialized artifact_entities.updated_at
+```
+
+The UI does not parse, normalize or validate these date strings locally.
+Recommended input format is ISO-8601, for example `2024-01-01T00:00:00Z`.
+Date format and invalid range errors are API-owned and should be displayed by the
+UI through normal request error handling.
 
 Current UI sort modes:
 
@@ -688,6 +705,8 @@ owner_asc
 last_seen_desc
 stars_desc
 forks_desc
+pushed_desc
+updated_desc
 ```
 
 Current linked-paper controls:
@@ -717,65 +736,64 @@ It does not define paper ranking semantics.
 
 ---
 
-## 15. Current UI/API drift candidates
+## 15. Current UI/API drift candidates and polish backlog
 
-### 15.1 Artifact GitHub date filters are API-supported but not yet exposed in UI
+### 15.1 Resolved: Artifact GitHub date filters are exposed in UI
 
-The Artifact API supports:
+The `Artifact Explorer GitHub Date Filters UI v1` slice closes the previous
+UI/API drift where the Artifact API already supported GitHub date filters and
+sort modes, but Streamlit did not expose them.
+
+The Artifact Explorer now exposes these `GET /artifacts` parameters:
 
 ```text
 pushed_after
 pushed_before
 updated_after
 updated_before
-sort_by=pushed_desc
-sort_by=updated_desc
 ```
 
-Current Artifact Explorer UI does not yet expose:
+The Artifact Explorer now also exposes these sort modes:
 
 ```text
-pushed_after
-pushed_before
-updated_after
-updated_before
 pushed_desc
 updated_desc
 ```
 
-Recommended next code slice:
-
-```text
-Artifact Explorer GitHub Date Filters UI v1
-```
-
-Minimal scope:
+Implementation ownership:
 
 ```text
 services/ui/app.py
+  ARTIFACT_SORT_OPTIONS includes pushed_desc / updated_desc
+  init_ui_state() defines artifact_pushed_after / artifact_pushed_before
+  init_ui_state() defines artifact_updated_after / artifact_updated_before
+  render_artifact_explorer() exposes four text inputs
+  build_artifact_params() forwards non-empty date strings to GET /artifacts
+
 scripts/validation/check_streamlit_discovery_ui.py
-docs/discovery_ui_ownership_v1.md or docs/api_reference.md if needed
+  ARTIFACT_EXPLORER_UI_SNIPPETS includes the new sort modes, state keys and API params
 ```
 
-Expected additions:
+Semantics remain API-owned:
 
 ```text
-add pushed_desc / updated_desc to ARTIFACT_SORT_OPTIONS
-add session-state defaults for artifact_pushed_after / artifact_pushed_before
-add session-state defaults for artifact_updated_after / artifact_updated_before
-add four text inputs in Artifact Explorer
-send non-empty date values from build_artifact_params()
-add static validation snippets for the new UI controls
+pushed_* filters target metadata.github.pushed_at
+updated_* filters target materialized artifact_entities.updated_at
+UI does not parse or normalize dates locally
+UI shows API validation errors through normal request error handling
 ```
 
-Non-goals for that future slice:
+This was intentionally a UI/API sync only. It did not change:
 
 ```text
-no Artifact API behavior change
-no DB schema change
-no canonical truth change
-no retrieval/Qdrant/ranking change
-no live GitHub dependency
+Artifact API behavior
+DB schema
+canonical truth
+retrieval artifacts
+Qdrant behavior
+ranking behavior
+artifact enrichment fetchers
+live GitHub dependency
 ```
 
 ### 15.2 Artifact freshness display can be improved later
@@ -823,7 +841,7 @@ checks Qdrant experimental UI snippets
 checks Qdrant runtime status snippets
 checks topic cluster/map snippets
 checks cluster detail filter snippets
-checks Artifact Explorer snippets
+checks Artifact Explorer snippets, including GitHub date filter controls
 checks artifact-linked paper navigation snippets
 checks Paper workspace snippets
 checks Paper workspace artifact snippets
@@ -959,6 +977,10 @@ Artifact API filters check, when Artifact Explorer behavior is in scope:
 set ML_RADAR_SEARCH_BACKEND=db
 python -m scripts.validation.check_artifact_api_filters --strict
 ```
+
+For the Artifact Explorer GitHub date filters UI sync, this check should cover
+`pushed_desc`, `updated_desc`, date filter pass-through behavior, and invalid
+pushed/updated range rejection at the API layer.
 
 Discovery regression with Artifact API filters report + DoD:
 
