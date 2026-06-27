@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Sequence
+from typing import Any, Sequence
 
 
 DEFAULT_DOD_FLAGS = [
@@ -29,6 +32,9 @@ DB_PREFLIGHT_REQUIRED_TABLES = [
     "paper_artifact_links",
 ]
 
+DEFAULT_REPORTS_DIR = Path("artifacts/reports/validation")
+REPORT_SCHEMA_VERSION = "discovery_api_regression_runner_report_v1"
+
 
 @dataclass(frozen=True)
 class Step:
@@ -37,7 +43,56 @@ class Step:
     env: dict[str, str] | None = None
 
 
-def run_step(step: Step) -> bool:
+def utc_now_ts() -> str:
+    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+
+
+def utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def ensure_parent(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+
+def dump_json(path: Path, payload: dict[str, Any]) -> None:
+    ensure_parent(path)
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+
+
+def dump_text(path: Path, text: str) -> None:
+    ensure_parent(path)
+    path.write_text(text, encoding="utf-8")
+
+
+def normalize_path(path: Path | str) -> str:
+    return str(path).replace("\\", "/")
+
+
+def step_result(
+    *,
+    name: str,
+    cmd: list[str] | None,
+    env: dict[str, str] | None,
+    returncode: int,
+    duration_sec: float,
+    kind: str,
+) -> dict[str, Any]:
+    return {
+        "name": name,
+        "kind": kind,
+        "cmd": cmd,
+        "env": env or {},
+        "returncode": int(returncode),
+        "ok": returncode == 0,
+        "duration_sec": round(duration_sec, 3),
+    }
+
+
+def run_step(step: Step) -> dict[str, Any]:
     print("")
     print("=" * 100)
     print(f"[RUN] {step.name}")
@@ -48,14 +103,23 @@ def run_step(step: Step) -> bool:
     if step.env:
         env.update(step.env)
 
+    started_at = time.perf_counter()
     result = subprocess.run(step.cmd, env=env)
+    duration_sec = time.perf_counter() - started_at
 
     if result.returncode == 0:
         print(f"[OK] {step.name}")
-        return True
+    else:
+        print(f"[FAIL] {step.name} returncode={result.returncode}")
 
-    print(f"[FAIL] {step.name} returncode={result.returncode}")
-    return False
+    return step_result(
+        name=step.name,
+        cmd=step.cmd,
+        env=step.env,
+        returncode=result.returncode,
+        duration_sec=duration_sec,
+        kind="subprocess",
+    )
 
 
 def python_cmd(module: str, *args: str) -> list[str]:
@@ -160,6 +224,143 @@ def run_db_preflight() -> bool:
         except Exception:
             pass
         _restore_env_var("ML_RADAR_SEARCH_BACKEND", previous_backend)
+
+
+def run_db_preflight_step() -> dict[str, Any]:
+    started_at = time.perf_counter()
+    ok = run_db_preflight()
+    duration_sec = time.perf_counter() - started_at
+
+    return step_result(
+        name="db_runtime_preflight",
+        cmd=None,
+        env={"ML_RADAR_SEARCH_BACKEND": "db"},
+        returncode=0 if ok else 1,
+        duration_sec=duration_sec,
+        kind="preflight",
+    )
+
+
+def args_to_report_inputs(args: argparse.Namespace) -> dict[str, Any]:
+    return {
+        key: value
+        for key, value in sorted(vars(args).items())
+        if isinstance(value, (str, int, float, bool, type(None)))
+    }
+
+
+def build_markdown(report: dict[str, Any]) -> str:
+    lines: list[str] = []
+    lines.append("# Discovery API regression runner report")
+    lines.append("")
+    lines.append(f"- Generated at: `{report['generated_at_utc']}`")
+    lines.append(f"- Run ts: `{report['run_ts']}`")
+    lines.append(f"- Schema version: `{report['schema_version']}`")
+    lines.append("")
+
+    lines.append("## Summary")
+    for key, value in report["summary"].items():
+        lines.append(f"- {key}: `{value}`")
+    lines.append("")
+
+    lines.append("## Inputs")
+    for key, value in report["inputs"].items():
+        lines.append(f"- {key}: `{value}`")
+    lines.append("")
+
+    lines.append("## Steps")
+    lines.append("")
+    lines.append("| # | step | kind | ok | returncode | duration_sec | env | command |")
+    lines.append("|---:|---|---|---:|---:|---:|---|---|")
+    for index, step in enumerate(report["steps"], start=1):
+        command = " ".join(step["cmd"]) if step.get("cmd") else ""
+        env = ", ".join(f"{key}={value}" for key, value in step.get("env", {}).items())
+        lines.append(
+            "| "
+            f"{index} | `{step['name']}` | `{step['kind']}` | "
+            f"`{step['ok']}` | `{step['returncode']}` | "
+            f"`{step['duration_sec']}` | `{env}` | `{command}` |"
+        )
+    lines.append("")
+
+    lines.append("## Verdict")
+    for key, value in report["verdict"].items():
+        lines.append(f"- {key}: `{value}`")
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+def build_report(
+    *,
+    args: argparse.Namespace,
+    run_ts: str,
+    started_at: float,
+    steps: list[dict[str, Any]],
+) -> dict[str, Any]:
+    failed_steps = [step["name"] for step in steps if not step["ok"]]
+    ok = len(failed_steps) == 0
+
+    return {
+        "schema_version": REPORT_SCHEMA_VERSION,
+        "generated_at_utc": utc_now_iso(),
+        "run_ts": run_ts,
+        "inputs": args_to_report_inputs(args),
+        "summary": {
+            "ok": ok,
+            "steps_count": len(steps),
+            "failed_steps_count": len(failed_steps),
+            "duration_sec": round(time.perf_counter() - started_at, 3),
+        },
+        "steps": steps,
+        "verdict": {
+            "ok": ok,
+            "failed_steps": failed_steps,
+            "stopped_after_first_failure": bool(failed_steps),
+        },
+    }
+
+
+def write_report(
+    report: dict[str, Any],
+    *,
+    reports_dir: Path = DEFAULT_REPORTS_DIR,
+) -> dict[str, str]:
+    run_ts = str(report["run_ts"])
+
+    latest_json = reports_dir / "discovery_api_regression_runner_latest.json"
+    latest_md = reports_dir / "discovery_api_regression_runner_latest.md"
+    history_json = (
+        reports_dir
+        / "history"
+        / f"discovery_api_regression_runner_{run_ts}.json"
+    )
+    history_md = (
+        reports_dir
+        / "history"
+        / f"discovery_api_regression_runner_{run_ts}.md"
+    )
+
+    markdown = build_markdown(report)
+
+    dump_json(latest_json, report)
+    dump_text(latest_md, markdown)
+    dump_json(history_json, report)
+    dump_text(history_md, markdown)
+
+    return {
+        "latest_json": normalize_path(latest_json),
+        "latest_markdown": normalize_path(latest_md),
+        "history_json": normalize_path(history_json),
+        "history_markdown": normalize_path(history_md),
+    }
+
+
+def print_report_paths(paths: dict[str, str]) -> None:
+    print(f"[OK] latest JSON: {paths['latest_json']}")
+    print(f"[OK] latest Markdown: {paths['latest_markdown']}")
+    print(f"[OK] history JSON: {paths['history_json']}")
+    print(f"[OK] history Markdown: {paths['history_markdown']}")
 
 
 def dod_flags_for_args(args: argparse.Namespace) -> list[str]:
@@ -614,33 +815,62 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> None:
+    run_ts = utc_now_ts()
+    started_at = time.perf_counter()
     args = build_parser().parse_args(argv)
 
     if args.similar_top_k < 1:
         raise SystemExit("--similar-top-k must be >= 1")
 
-    if needs_db_preflight(args) and not run_db_preflight():
-        print("")
-        print("=" * 100)
-        print("[FAIL] Discovery API regression DB preflight failed")
-        print("=" * 100)
-        raise SystemExit(1)
+    step_results: list[dict[str, Any]] = []
+
+    if needs_db_preflight(args):
+        preflight_result = run_db_preflight_step()
+        step_results.append(preflight_result)
+
+        if not preflight_result["ok"]:
+            report = build_report(
+                args=args,
+                run_ts=run_ts,
+                started_at=started_at,
+                steps=step_results,
+            )
+            report_paths = write_report(report)
+
+            print("")
+            print("=" * 100)
+            print("[FAIL] Discovery API regression DB preflight failed")
+            print_report_paths(report_paths)
+            print("=" * 100)
+            raise SystemExit(1)
 
     steps = build_steps(args)
 
-    failed: list[str] = []
     for step in steps:
-        if not run_step(step):
-            failed.append(step.name)
+        result = run_step(step)
+        step_results.append(result)
+        if not result["ok"]:
             break
+
+    report = build_report(
+        args=args,
+        run_ts=run_ts,
+        started_at=started_at,
+        steps=step_results,
+    )
+    report_paths = write_report(report)
+    failed = report["verdict"]["failed_steps"]
 
     print("")
     print("=" * 100)
     if failed:
         print(f"[FAIL] Discovery API regression failed: {failed}")
+        print_report_paths(report_paths)
+        print("=" * 100)
         raise SystemExit(1)
 
     print("[OK] Discovery API regression passed")
+    print_report_paths(report_paths)
     print("=" * 100)
 
 

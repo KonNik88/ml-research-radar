@@ -39,6 +39,7 @@ Discovery Green Checkpoint — 2026-05
 Qdrant runtime visibility sync — 2026-06
 Artifact API filters validation + DoD gate — 2026-06
 Regression runner DB preflight — 2026-06
+Discovery regression runner summary report — 2026-06
 ```
 
 Current healthy baseline:
@@ -67,6 +68,7 @@ artifact_api_filters_check = ok
 artifact_api_filters_required_failed_count = 0
 artifact_api_filters_dod_gate = optional by default / required with --require-artifact-api-filters
 regression_runner_db_preflight = enabled for DB-backed regression steps
+discovery_api_regression_runner_report = enabled
 
 paper_features_rows_count = 60954
 ranking_profiles_count = 9
@@ -809,6 +811,72 @@ regression sequence and print the recommended recovery action, for example:
 
 ```bat
 docker compose -f infra/docker/docker-compose.yml up -d postgres
+```
+
+## Regression runner summary report
+
+The Discovery API regression runner writes a lightweight report for the runner
+execution itself. This is separate from reports produced by individual validators.
+
+Generated reports:
+
+```text
+artifacts/reports/validation/discovery_api_regression_runner_latest.json
+artifacts/reports/validation/discovery_api_regression_runner_latest.md
+artifacts/reports/validation/history/discovery_api_regression_runner_<timestamp>.json
+artifacts/reports/validation/history/discovery_api_regression_runner_<timestamp>.md
+```
+
+The report records:
+
+```text
+schema_version = discovery_api_regression_runner_report_v1
+selected CLI inputs
+overall ok / failed step count / total duration
+step name
+step kind
+step command
+step environment override
+step return code
+step duration
+step ok flag
+failed steps
+whether execution stopped after first failure
+```
+
+DB preflight is included as a reportable `preflight` step when DB-backed
+regression steps are selected. Normal validator commands are included as
+`subprocess` steps.
+
+Validation example:
+
+```bat
+python -m scripts.validation.run_discovery_api_regression ^
+  --skip-similar-rebuild ^
+  --include-artifact-api-filters ^
+  --include-dod
+
+python -c "import json; p='artifacts/reports/validation/discovery_api_regression_runner_latest.json'; r=json.load(open(p, encoding='utf-8')); assert r['schema_version']=='discovery_api_regression_runner_report_v1'; assert r['summary']['ok'] is True; assert r['summary']['failed_steps_count']==0; assert any(s['name']=='db_runtime_preflight' for s in r['steps']); print('runner summary ok')"
+```
+
+Expected healthy report summary:
+
+```text
+summary.ok = true
+summary.failed_steps_count = 0
+verdict.failed_steps = []
+db_runtime_preflight present when DB-backed steps are selected
+check_artifact_api_filters present when --include-artifact-api-filters is selected
+strict_dod_with_discovery_api present when --include-dod is selected
+```
+
+Important boundary:
+
+```text
+The regression runner summary report is operational evidence.
+It does not replace the individual validator reports.
+It is not currently a DoD input.
+Generated runner reports are not committed.
 ```
 
 ---

@@ -4,13 +4,13 @@
 
 ```text
 document = primary living roadmap
-active checkpoint = Regression Runner DB Preflight v1
-base checkpoint = Artifact API filters validation + DoD gate
+active checkpoint = Discovery Regression Runner Summary Report v1
+base checkpoint = Regression Runner DB Preflight v1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = validation-runner DB preflight only
+scope of current branch = validation-runner summary report only
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -448,35 +448,74 @@ api_runtime_smoke
 
 The gate does not rerun heavy benchmark jobs by default.
 
+### 4.14 Regression Runner DB Preflight v1
+
+Status: **done / green**
+
+Implemented an early read-only DB preflight in the Discovery API regression
+runner for DB-backed regression paths.
+
+Covered flags:
+
+```text
+--include-artifact-api-filters
+--include-db-smoke
+```
+
+Preflight checks:
+
+```text
+ML_RADAR_SEARCH_BACKEND resolves to db for the preflight
+Postgres ping succeeds
+canonical_documents exists and is non-empty
+artifact_entities exists and is non-empty
+paper_artifact_links exists and is non-empty
+```
+
+The preflight fails before the longer file-backed regression sequence when the
+local DB serving layer is unavailable or incomplete. It does not replace the
+Artifact API filters validator and does not write validation reports.
+
 ---
 
 ## 5. Current active slice
 
-### 5.1 Regression Runner DB Preflight v1
+### 5.1 Discovery Regression Runner Summary Report v1
 
-Status: **current / validation-runner hardening**
+Status: **current / validation-runner observability**
 
 Goal:
 
 ```text
-Fail early and clearly when DB-backed regression steps are requested but the
-local Postgres serving layer is unavailable or incomplete.
+Write one lightweight JSON/Markdown summary report for every Discovery API
+regression runner execution, including DB preflight and all subprocess steps.
 ```
 
 Scope:
 
-- add an early read-only DB preflight to the Discovery API regression runner;
-- run the preflight before longer file-backed checks when DB-backed steps are selected;
-- cover `--include-artifact-api-filters` and `--include-db-smoke`;
-- verify Postgres ping and non-empty required tables;
-- preserve the existing Artifact API filters validator and DoD report-reader semantics.
+- keep existing console behavior unchanged;
+- write latest and history reports for the regression runner itself;
+- record selected CLI inputs;
+- record each step name, kind, command, environment override, return code,
+  duration and pass/fail status;
+- include `db_runtime_preflight` as a reportable preflight step when DB-backed
+  steps are selected;
+- write failure reports even when the runner stops after the first failed step;
+- keep generated runner reports out of source control.
 
-Required DB preflight tables:
+Report outputs:
 
 ```text
-canonical_documents
-artifact_entities
-paper_artifact_links
+artifacts/reports/validation/discovery_api_regression_runner_latest.json
+artifacts/reports/validation/discovery_api_regression_runner_latest.md
+artifacts/reports/validation/history/discovery_api_regression_runner_<timestamp>.json
+artifacts/reports/validation/history/discovery_api_regression_runner_<timestamp>.md
+```
+
+Report schema:
+
+```text
+schema_version = discovery_api_regression_runner_report_v1
 ```
 
 Non-goals:
@@ -487,8 +526,9 @@ no DB schema change
 no canonical truth change
 no retrieval/Qdrant/ranking change
 no enrichment fetcher change
-no new committed validation report
-no replacement for check_artifact_api_filters
+no Artifact API validator contract change
+no DoD aggregator requirement for the runner report
+no committed generated runner reports
 ```
 
 Suggested validation:
@@ -500,21 +540,19 @@ python -m scripts.validation.run_discovery_api_regression ^
   --skip-similar-rebuild ^
   --include-artifact-api-filters ^
   --include-dod
+python -c "import json; p='artifacts/reports/validation/discovery_api_regression_runner_latest.json'; r=json.load(open(p, encoding='utf-8')); assert r['schema_version']=='discovery_api_regression_runner_report_v1'; assert r['summary']['ok'] is True; assert r['summary']['failed_steps_count']==0; assert any(s['name']=='db_runtime_preflight' for s in r['steps']); print('runner summary ok')"
 ```
 
-Optional negative smoke:
+Expected healthy summary includes:
 
-```bat
-docker compose -f infra/docker/docker-compose.yml stop postgres
-python -m scripts.validation.run_discovery_api_regression ^
-  --skip-similar-rebuild ^
-  --include-artifact-api-filters ^
-  --include-dod
-docker compose -f infra/docker/docker-compose.yml up -d postgres
+```text
+summary.ok = true
+summary.failed_steps_count = 0
+verdict.failed_steps = []
+db_runtime_preflight step present when DB-backed steps are selected
+check_artifact_api_filters step present when --include-artifact-api-filters is selected
+strict_dod_with_discovery_api step present when --include-dod is selected
 ```
-
-The negative smoke should fail at `db_runtime_preflight` before running the long
-regression sequence.
 
 ---
 
