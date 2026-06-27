@@ -38,6 +38,7 @@ Current working checkpoint:
 Discovery Green Checkpoint — 2026-05
 Qdrant runtime visibility sync — 2026-06
 Artifact API filters validation + DoD gate — 2026-06
+Regression runner DB preflight — 2026-06
 ```
 
 Current healthy baseline:
@@ -65,6 +66,7 @@ huggingface_found_count ≈ 77
 artifact_api_filters_check = ok
 artifact_api_filters_required_failed_count = 0
 artifact_api_filters_dod_gate = optional by default / required with --require-artifact-api-filters
+regression_runner_db_preflight = enabled for DB-backed regression steps
 
 paper_features_rows_count = 60954
 ranking_profiles_count = 9
@@ -552,7 +554,14 @@ Expected:
 ```text
 ok = true
 required_failed_count = 0
+runtime_backend_mode = db
+runtime_ready = true
+runtime_db_connected = true
 ```
+
+The standalone validator still owns the full Artifact API filter contract. The
+regression runner preflight added below is only an earlier environment/readiness
+check; it does not replace this validator and does not write validation reports.
 
 Generated reports:
 
@@ -739,6 +748,28 @@ The Discovery API regression runner can generate the Artifact API filters report
 before running the DoD aggregation step. This keeps the DoD aggregator as a
 report reader while still giving one command for the common regression path.
 
+DB-backed regression steps are guarded by an early preflight. When the runner is
+called with `--include-artifact-api-filters` or `--include-db-smoke`, it first
+checks the local DB environment before starting the longer file-backed
+regression sequence.
+
+The preflight verifies:
+
+```text
+configured backend mode resolves to db for the preflight
+Postgres connection ping succeeds
+canonical_documents exists and is non-empty
+artifact_entities exists and is non-empty
+paper_artifact_links exists and is non-empty
+```
+
+The preflight is intentionally read-only. It does not mutate canonical truth,
+Postgres tables, retrieval artifacts, Qdrant, ranking, enrichment outputs, or
+validation reports. It temporarily resolves DB settings for the preflight and
+then restores the caller environment before running the normal regression steps.
+
+Full local regression with Artifact API filters and DoD:
+
 ```bat
 python -m scripts.validation.run_discovery_api_regression ^
   --include-artifact-api-filters ^
@@ -755,6 +786,29 @@ python -m scripts.validation.run_discovery_api_regression ^
   --skip-similar-rebuild ^
   --include-artifact-api-filters ^
   --include-dod
+```
+
+Expected preflight output in a healthy local DB environment:
+
+```text
+[RUN] db_runtime_preflight
+[INFO] DB-backed regression steps require Postgres and ML_RADAR_SEARCH_BACKEND=db.
+[OK] configured_backend_mode=db
+[OK] db_preflight_ping=True
+[OK] db_preflight_table_exists_canonical_documents=True
+[OK] db_preflight_table_rows_canonical_documents=60954
+[OK] db_preflight_table_exists_artifact_entities=True
+[OK] db_preflight_table_rows_artifact_entities=7333
+[OK] db_preflight_table_exists_paper_artifact_links=True
+[OK] db_preflight_table_rows_paper_artifact_links=7430
+[OK] db_runtime_preflight passed
+```
+
+If Postgres is stopped or unreachable, the runner should fail before the long
+regression sequence and print the recommended recovery action, for example:
+
+```bat
+docker compose -f infra/docker/docker-compose.yml up -d postgres
 ```
 
 ---
