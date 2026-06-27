@@ -86,6 +86,8 @@ ARTIFACT_SORT_OPTIONS = [
     "last_seen_desc",
     "stars_desc",
     "forks_desc",
+    "pushed_desc",
+    "updated_desc",
 ]
 
 ARTIFACT_GITHUB_STATUS_OPTIONS = [
@@ -472,6 +474,10 @@ def init_ui_state() -> None:
         "artifact_archived": "Profile default",
         "artifact_github_status": "",
         "artifact_has_github_metadata": "Profile default",
+        "artifact_pushed_after": "",
+        "artifact_pushed_before": "",
+        "artifact_updated_after": "",
+        "artifact_updated_before": "",
         "artifact_sort_by": "linked_papers_desc",
         "selected_artifact_id": None,
         "artifact_detail_payload": None,
@@ -719,6 +725,10 @@ def build_artifact_params() -> dict[str, Any]:
     owner = st.session_state.get("artifact_owner", "").strip()
     language = st.session_state.get("artifact_language", "").strip()
     license_name = st.session_state.get("artifact_license", "").strip()
+    pushed_after = st.session_state.get("artifact_pushed_after", "").strip()
+    pushed_before = st.session_state.get("artifact_pushed_before", "").strip()
+    updated_after = st.session_state.get("artifact_updated_after", "").strip()
+    updated_before = st.session_state.get("artifact_updated_before", "").strip()
 
     if provider:
         params["provider"] = provider
@@ -768,6 +778,14 @@ def build_artifact_params() -> dict[str, Any]:
     github_status = st.session_state.get("artifact_github_status", "").strip()
     if github_status:
         params["github_status"] = github_status
+    if pushed_after:
+        params["pushed_after"] = pushed_after
+    if pushed_before:
+        params["pushed_before"] = pushed_before
+    if updated_after:
+        params["updated_after"] = updated_after
+    if updated_before:
+        params["updated_before"] = updated_before
 
     return params
 
@@ -1100,6 +1118,37 @@ def render_artifact_explorer(base_url: str) -> None:
         ARTIFACT_GITHUB_STATUS_OPTIONS,
         key="artifact_github_status",
         format_func=lambda value: value or "Any status",
+    )
+
+    date_cols = st.columns([1, 1, 1, 1])
+    with date_cols[0]:
+        st.text_input(
+            "Pushed after",
+            key="artifact_pushed_after",
+            placeholder="2024-01-01T00:00:00Z",
+        )
+    with date_cols[1]:
+        st.text_input(
+            "Pushed before",
+            key="artifact_pushed_before",
+            placeholder="2026-01-01T00:00:00Z",
+        )
+    with date_cols[2]:
+        st.text_input(
+            "Updated after",
+            key="artifact_updated_after",
+            placeholder="2024-01-01T00:00:00Z",
+        )
+    with date_cols[3]:
+        st.text_input(
+            "Updated before",
+            key="artifact_updated_before",
+            placeholder="2026-01-01T00:00:00Z",
+        )
+
+    st.caption(
+        "GitHub date filters are passed through to Artifact API. "
+        "Recommended format: ISO-8601, e.g. 2024-01-01T00:00:00Z."
     )
 
     if st.button("Load artifacts", type="primary", width="stretch"):

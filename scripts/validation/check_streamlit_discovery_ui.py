@@ -182,6 +182,16 @@ ARTIFACT_EXPLORER_UI_SNIPPETS = [
     "artifact_linked_papers_sort_by",
     "Load artifact detail",
     "/papers",
+    "pushed_desc",
+    "updated_desc",
+    "artifact_pushed_after",
+    "artifact_pushed_before",
+    "artifact_updated_after",
+    "artifact_updated_before",
+    "pushed_after",
+    "pushed_before",
+    "updated_after",
+    "updated_before",
 ]
 
 ARTIFACT_LINKED_PAPER_NAVIGATION_SNIPPETS = [
