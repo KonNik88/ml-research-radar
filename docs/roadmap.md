@@ -4,13 +4,14 @@
 
 ```text
 document = primary living roadmap
-active checkpoint = Dataset Release Track Checkpoint v0.1
+accepted checkpoint = Dataset Release Track Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
+current active slice = Paper–Artifact Graph Contract v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = dataset release track checkpoint synchronization only
+scope of current branch = graph contract only; no graph build/export/runtime behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -547,83 +548,142 @@ No public upload is performed in this track.
 
 ## 5. Current active slice
 
-### 5.1 Dataset Release Track Checkpoint v0.1
+### 5.1 Paper–Artifact Graph Contract v0.1
 
-Status: **current / dataset-release checkpoint synchronization**
+Status: **current / contract-only slice**
 
 Goal:
 
 ```text
-Synchronize the already implemented dataset-release track with current main,
-validate the local candidate pipeline, and document the not-published/manual-review boundary.
+Define the first explicit contract for a future derived paper-artifact evidence graph
+without building graph outputs or changing runtime behavior.
 ```
+
+This slice is intentionally small and foundational. It formalizes the graph
+boundary using the already validated canonical paper corpus, artifact evidence
+plane, provider metadata, canonical provenance, paper features, and topic-cluster
+layers.
 
 Scope:
 
-- sync `configs/dataset_release.yaml` with the implemented output layout;
-- require `data_quality_summary.json` in config validation;
-- keep export runner, output validator, and review-readiness gate aligned;
-- document the complete local candidate validation sequence;
-- keep generated dataset files and report history out of source control;
-- preserve the manual-review/publication boundary.
+- add `configs/paper_artifact_graph.yaml`;
+- add `docs/paper_artifact_graph_v0.md`;
+- add `scripts/validation/check_paper_artifact_graph_contract.py`;
+- add `tests/smoke/test_paper_artifact_graph_contract.py`;
+- validate required graph node types, edge types, identity policy, provenance
+  policy, safety flags, and future output layout;
+- document that graph outputs are future-layout only and are not generated in
+  this slice.
+
+Required node types:
+
+- `paper`;
+- `artifact`;
+- `provider`;
+- `source_family`;
+- `topic_cluster`.
+
+Required edge types:
+
+- `paper_has_artifact`;
+- `artifact_from_provider`;
+- `paper_observed_in_source_family`;
+- `paper_assigned_to_topic_cluster`.
+
+Identity policy:
+
+```text
+paper:<canonical_id>
+artifact:<artifact_id>
+provider:<provider>
+source_family:<source_family>
+topic_cluster:<cluster_id>
+```
+
+Provider values must be derived from normalized `artifact_entities.provider`
+values. The graph contract must not invent a broader provider enum than the
+artifact layer actually materializes.
+
+Future graph output layout is documented only as `future_layout_only`:
+
+```text
+nodes.parquet
+edges.parquet
+schema.json
+manifest.json
+README.md
+data_quality_summary.json
+checksums.txt
+```
 
 Validation sequence:
 
 ```bat
-python -m scripts.validation.check_dataset_release_config --strict --check-paths
-python -m scripts.export.export_public_dataset --force
-python -m scripts.validation.check_dataset_release_output --strict
-python -m scripts.validation.check_dataset_release_review_readiness --strict
+python -m py_compile scripts/validation/check_paper_artifact_graph_contract.py
+python -m pytest tests/smoke/test_paper_artifact_graph_contract.py -q
+python -m scripts.validation.check_paper_artifact_graph_contract --strict
+python -m scripts.validation.check_paper_artifact_graph_contract --strict --check-paths
 ```
 
-Expected review-readiness result:
+Expected validator result:
 
 ```text
-technical_candidate_ready = true
-manual_review_required = true
-publication_ready = false
-publication_block_reason = manual_review_not_completed
 required_failed_count = 0
 ```
 
 Non-goals:
 
 ```text
-no public upload
-no final license approval
+no graph builder
+no generated graph outputs
+no Neo4j / NetworkX / GraphRAG runtime
+no API changes
+no DB schema changes
 no canonical truth change
-no retrieval/Qdrant/ranking/API behavior change
-no graph export
-no RAG/full-text release
-no committed generated dataset artifacts
+no retrieval/Qdrant/ranking behavior change
+no Streamlit UI change
+no dataset publication
+no DoD required gate yet
 ```
 
 ---
 
 ## 6. Near-term roadmap
 
-### 6.1 Graph / NER / RAG Architecture Decision v0.1
+### 6.1 Paper–Artifact Graph Builder v0.1
 
 Purpose:
 
 ```text
-Define the staged architecture for the next functional layers before implementation.
+Build the first derived graph artifacts only after the Paper–Artifact Graph Contract v0.1 is accepted.
 ```
 
-Scope:
+Prerequisites:
 
-- Paper–Artifact Graph v0.1 boundary;
-- NER / entity extraction experiment boundary;
-- full-text and chunk provenance prerequisites for RAG;
-- API/runtime ownership boundaries;
-- generated artifact and validation expectations.
+- `configs/paper_artifact_graph.yaml` accepted;
+- `docs/paper_artifact_graph_v0.md` accepted;
+- graph contract validator green;
+- smoke tests green;
+- no unresolved contract/safety questions.
 
-Non-goals:
+Likely future scope:
 
-- no graph database implementation yet;
-- no production NER promotion yet;
-- no RAG answer layer yet;
-- no LangGraph orchestration yet.
+- read canonical paper corpus;
+- read trusted `paper_artifact_links` and `artifact_entities`;
+- read canonical provenance/source-family signals;
+- read topic-cluster assignments;
+- emit graph nodes and edges according to the accepted contract;
+- produce manifest, schema, data-quality summary, checksums, and validation
+  report.
+
+Non-goals for the future builder slice unless separately approved:
+
+- no Neo4j deployment;
+- no GraphRAG;
+- no public API changes;
+- no Streamlit UI changes;
+- no reconcile input;
+- no dataset publication.
 
 ### 6.2 Deployment Vector Backend Selector Design v1
 
@@ -735,6 +795,9 @@ new embedding model
 retrieval rebuild
 larger Golden Set expansion
 dataset publication
+Neo4j / graph runtime
+GraphRAG
+NER/entity extraction promotion
 full-text RAG
 Airflow / Kafka / Kubernetes
 production observability stack
@@ -750,6 +813,7 @@ Do not change retrieval defaults by intuition.
 Do not conflate public API modes with internal backend implementations.
 Do not treat Qdrant availability as a reason to promote Qdrant.
 Do not treat generated reports as source truth.
+Do not treat graph contracts as generated graph artifacts.
 Do not let docs drift from accepted behavior.
 ```
 
