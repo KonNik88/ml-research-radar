@@ -1,0 +1,231 @@
+schema_version: paper_artifact_graph_config_v1
+
+graph:
+  name: ml_research_radar_paper_artifact_graph
+  version: v0.1
+  status: contract_only
+  graph_family: paper_artifact_evidence_graph
+  description: >
+    Contract-only definition for a future derived paper-artifact evidence graph.
+    This slice defines node types, edge types, identity policy, provenance policy,
+    source checkpoint metadata, safety boundaries, and future output layout.
+    It does not build graph artifacts and does not change canonical truth,
+    retrieval, Qdrant, ranking, API, UI, or dataset publication behavior.
+
+source_checkpoint:
+  canonical_corpus_path: data/analytics/reconciled/canonical_documents.jsonl
+  expected_canonical_doc_count: 60954
+  retrieval_manifest_path: artifacts/retrieval/manifests/latest.json
+  retrieval_build_id: "20260504T164021Z"
+
+  artifact_entities_db_count: 7333
+  artifact_observations_db_count: 38246
+  paper_artifact_links_db_count: 7430
+
+  paper_features_path: data/features/paper_features_latest.jsonl
+  topic_clusters_latest_path: artifacts/clusters/topic/latest.json
+  topic_clusters_count: 80
+  topic_assignments_count: 60954
+
+nodes:
+  required_types:
+    - paper
+    - artifact
+    - provider
+    - source_family
+    - topic_cluster
+
+  id_policy:
+    paper: "paper:<canonical_id>"
+    artifact: "artifact:<artifact_id>"
+    provider: "provider:<provider>"
+    source_family: "source_family:<source_family>"
+    topic_cluster: "topic_cluster:<cluster_id>"
+
+  fields:
+    paper:
+      required:
+        - node_id
+        - node_type
+        - canonical_id
+        - title
+        - year
+        - source_count
+        - unique_source_count
+      optional:
+        - doi
+        - arxiv_id
+        - primary_category
+        - publication_type
+        - metadata_completeness_score
+        - has_trusted_artifact
+        - topic_cluster_id
+
+    artifact:
+      required:
+        - node_id
+        - node_type
+        - artifact_id
+        - provider
+        - artifact_type
+        - normalized_url
+      optional:
+        - owner
+        - name
+        - title
+        - description
+        - license
+        - stars
+        - forks
+        - downloads
+        - likes
+        - topics
+        - tags
+        - archived
+        - github_status
+        - huggingface_status
+        - last_seen_at
+        - fetched_at
+        - created_at
+        - updated_at
+        - pushed_at
+
+    provider:
+      required:
+        - node_id
+        - node_type
+        - provider
+      value_policy: derived_from_artifact_entities_provider
+
+    source_family:
+      required:
+        - node_id
+        - node_type
+        - source_family
+      value_policy: derived_from_canonical_provenance_sources_not_source_ids_only
+
+    topic_cluster:
+      required:
+        - node_id
+        - node_type
+        - cluster_id
+      optional:
+        - label
+        - label_candidates
+        - size
+        - cluster_build_id
+        - retrieval_build_id
+        - mean_radar_score
+        - artifact_ready_count
+
+edges:
+  required_types:
+    - paper_has_artifact
+    - artifact_from_provider
+    - paper_observed_in_source_family
+    - paper_assigned_to_topic_cluster
+
+  id_policy:
+    default: typed_source_target_hash
+
+  common_required_fields:
+    - edge_id
+    - edge_type
+    - source_node_id
+    - target_node_id
+    - provenance_kind
+    - source_layer
+    - confidence
+
+  fields:
+    paper_has_artifact:
+      source: paper_artifact_links
+      required:
+        - canonical_id
+        - artifact_id
+        - provider
+        - artifact_type
+        - relation_type
+        - confidence
+        - evidence_source
+      notes:
+        - "Trusted graph edges must be derived from paper_artifact_links, not directly from broad artifact_observations."
+
+    artifact_from_provider:
+      source: artifact_entities
+      required:
+        - artifact_id
+        - provider
+
+    paper_observed_in_source_family:
+      source: canonical_documents
+      required:
+        - canonical_id
+        - source_family
+      notes:
+        - "sources are row-level provenance; source_ids is a merged identifier map and must not be treated as strict provenance by itself."
+
+    paper_assigned_to_topic_cluster:
+      source: topic_clusters
+      required:
+        - canonical_id
+        - cluster_id
+        - cluster_build_id
+        - retrieval_build_id
+
+provenance:
+  required_kinds:
+    - canonical_provenance
+    - artifact_evidence
+    - provider_metadata
+    - topic_assignment
+    - derived_summary
+
+  allowed_source_layers:
+    - canonical_documents
+    - artifact_db
+    - artifact_extraction
+    - provider_enrichment
+    - paper_features
+    - topic_clusters
+    - topic_projection
+
+  policies:
+    artifact_metadata_not_paper_truth: true
+    graph_not_reconcile_input: true
+    source_ids_not_strict_provenance: true
+    trusted_artifact_edges_from_paper_artifact_links: true
+
+safety:
+  canonical_truth_impact: none
+  may_overwrite_operational_latest: false
+  may_be_used_as_reconcile_input: false
+  may_change_api_behavior: false
+  may_change_retrieval_behavior: false
+  may_change_qdrant_behavior: false
+  may_change_ranking_behavior: false
+  may_publish_without_manual_review: false
+
+outputs:
+  status: future_layout_only
+  generated_in_this_slice: false
+  expected_future_layout:
+    - nodes.parquet
+    - edges.parquet
+    - schema.json
+    - manifest.json
+    - README.md
+    - data_quality_summary.json
+    - checksums.txt
+
+validation:
+  require_schema_version: true
+  require_contract_only_status: true
+  require_source_checkpoint: true
+  require_required_node_types: true
+  require_required_edge_types: true
+  require_identity_policy: true
+  require_provenance_kinds: true
+  require_safety_flags: true
+  require_future_layout_only_outputs: true
+  require_no_publication: true
