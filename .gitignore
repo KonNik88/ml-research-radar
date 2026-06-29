@@ -1,6 +1,6 @@
-archive/
-artifacts/
-artifacts/reports/
+/archive/
+/artifacts/
+/artifacts/reports/
 
 __pycache__/
 *.pyc
@@ -35,3 +35,5 @@ data/features/
 collect_latest_reports.sh
 
 notebooks/
+
+/data/graphs/

@@ -1,0 +1,81 @@
+schema_version: paper_artifact_graph_builder_config_v1
+
+builder:
+  name: paper_artifact_graph_builder
+  version: v0.1
+  status: local_derived_builder
+  input_mode: file
+  live_db_dependency: false
+  output_format: jsonl
+  create_latest_pointer: false
+
+contract:
+  config_path: configs/paper_artifact_graph.yaml
+  required_schema_version: paper_artifact_graph_config_v1
+  required_graph_status: contract_only
+  required_outputs_status: future_layout_only
+
+graph:
+  name: ml_research_radar_paper_artifact_graph
+  version: v0.1
+  graph_family: paper_artifact_evidence_graph
+  canonical_truth: false
+  may_be_used_as_reconcile_input: false
+  publication_ready: false
+
+inputs:
+  canonical_documents_path: data/analytics/reconciled/canonical_documents.jsonl
+  artifact_entities_path: data/enriched/artifact_links/artifact_entities_latest.jsonl
+  artifact_links_path: data/enriched/artifact_links/artifact_links_latest.jsonl
+  topic_clusters_latest_path: artifacts/clusters/topic/latest.json
+
+optional_inputs:
+  github_metadata_path: data/enriched/github_artifacts/github_artifact_metadata_latest.jsonl
+  huggingface_metadata_path: data/enriched/huggingface_artifacts/huggingface_artifact_metadata_latest.jsonl
+  paper_features_path: data/features/paper_features_latest.jsonl
+
+features:
+  include_topic_clusters: true
+  include_paper_features: false
+  include_provider_metadata: false
+
+trusted_links:
+  source: artifact_links_latest
+  policy_source: radar_core.artifacts.trusted_links
+  policy_version: artifact_trusted_links_policy_v1
+  create_global_trusted_links_file: false
+  dedupe_key:
+    - canonical_id
+    - artifact_id
+    - relation_type
+
+outputs:
+  graph_dir: data/graphs/paper_artifact_graph/v0.1
+  nodes_path: data/graphs/paper_artifact_graph/v0.1/nodes.jsonl
+  edges_path: data/graphs/paper_artifact_graph/v0.1/edges.jsonl
+  schema_path: data/graphs/paper_artifact_graph/v0.1/schema.json
+  manifest_path: data/graphs/paper_artifact_graph/v0.1/manifest.json
+  data_quality_summary_path: data/graphs/paper_artifact_graph/v0.1/data_quality_summary.json
+  readme_path: data/graphs/paper_artifact_graph/v0.1/README.md
+  checksums_path: data/graphs/paper_artifact_graph/v0.1/checksums.txt
+
+expected_counts:
+  canonical_papers: 60954
+  artifact_entities_file: 7336
+  artifact_entities_db_reference: 7333
+  artifact_observations_file: 38246
+  trusted_unique_paper_artifact_links: 7430
+  topic_assignments: 60954
+  topic_clusters: 80
+
+safety:
+  mutate_canonical_documents: false
+  mutate_artifact_inputs: false
+  mutate_topic_inputs: false
+  mutate_retrieval_artifacts: false
+  mutate_qdrant: false
+  mutate_postgres: false
+  mutate_api: false
+  mutate_ranking: false
+  write_latest_pointer: false
+  create_global_trusted_links_file: false
