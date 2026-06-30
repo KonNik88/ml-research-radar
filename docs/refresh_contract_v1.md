@@ -1298,3 +1298,100 @@ Qdrant unavailable during file runtime when Qdrant-specific checks are not in sc
 ```text
 Viability first, candidate integration second, stable integration last.
 ```
+
+<!-- PAPER_ARTIFACT_GRAPH_BUILDER_V01_START -->
+## Paper-Artifact Graph Builder v0.1 checkpoint
+
+Status: local derived graph builder implemented and validated.
+
+New tracked files:
+
+- `configs/paper_artifact_graph_builder.yaml`
+- `radar_core/artifacts/__init__.py`
+- `radar_core/artifacts/trusted_links.py`
+- `scripts/export/build_paper_artifact_graph.py`
+- `scripts/validation/check_paper_artifact_graph_builder_config.py`
+- `scripts/validation/check_paper_artifact_graph_output.py`
+- `tests/smoke/test_trusted_artifact_links.py`
+- `tests/smoke/test_paper_artifact_graph_builder_config.py`
+- `tests/smoke/test_paper_artifact_graph_builder.py`
+- `tests/smoke/test_paper_artifact_graph_output_validator.py`
+- `docs/paper_artifact_graph_builder_v0.md`
+
+Generated local output, not committed:
+
+- `data/graphs/paper_artifact_graph/v0.1/nodes.jsonl`
+- `data/graphs/paper_artifact_graph/v0.1/edges.jsonl`
+- `data/graphs/paper_artifact_graph/v0.1/schema.json`
+- `data/graphs/paper_artifact_graph/v0.1/manifest.json`
+- `data/graphs/paper_artifact_graph/v0.1/data_quality_summary.json`
+- `data/graphs/paper_artifact_graph/v0.1/README.md`
+- `data/graphs/paper_artifact_graph/v0.1/checksums.txt`
+
+Git ignore update:
+
+- `/artifacts/` ignores root generated reports/artifacts only
+- `/data/graphs/` ignores generated local graph outputs
+- `radar_core/artifacts/` is intentionally tracked
+
+Validated commands:
+
+```bat
+python -m py_compile radar_core/artifacts/trusted_links.py
+python -m py_compile scripts/export/build_paper_artifact_graph.py
+python -m py_compile scripts/export/export_artifacts_postgres_v1.py
+python -m py_compile scripts/validation/check_artifact_links_quality.py
+python -m py_compile scripts/validation/check_paper_artifact_graph_builder_config.py
+python -m py_compile scripts/validation/check_paper_artifact_graph_output.py
+
+python -m pytest tests/smoke/test_trusted_artifact_links.py tests/smoke/test_paper_artifact_graph_builder_config.py tests/smoke/test_paper_artifact_graph_builder.py tests/smoke/test_paper_artifact_graph_output_validator.py -q
+
+python -m scripts.validation.check_artifact_links_quality --strict
+python -m scripts.validation.check_paper_artifact_graph_builder_config --strict
+python -m scripts.validation.check_paper_artifact_graph_builder_config --strict --check-paths
+python -m scripts.validation.check_paper_artifact_graph_output --strict
+```
+
+Expected result:
+
+```text
+34 passed
+ok=True
+required_failed_count=0
+required_failed_checks=[]
+```
+
+Accepted local graph output counters:
+
+```text
+nodes_count=68385
+edges_count=163757
+paper=60954
+artifact=7336
+provider=10
+source_family=5
+topic_cluster=80
+paper_has_artifact=7430
+paper_assigned_to_topic_cluster=60954
+artifact_from_provider=7336
+paper_observed_in_source_family=88037
+trusted_links_used_count=7430
+topic_edges_count=60954
+skipped_trusted_links_missing_paper=0
+skipped_trusted_links_missing_artifact=0
+topic_assignments_missing_paper=0
+topic_assignments_missing_cluster=0
+```
+
+Boundary notes:
+
+- graph is derived representation, not canonical truth
+- graph must not be used as reconcile input
+- builder is file-first
+- no live DB dependency
+- no public API change
+- no Qdrant/retrieval/ranking change
+- no latest pointer
+- no global trusted-links bridge
+- graph output remains local/generated and ignored by Git
+<!-- PAPER_ARTIFACT_GRAPH_BUILDER_V01_END -->

@@ -7,85 +7,19 @@ from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
-
+from radar_core.artifacts.trusted_links import (
+    BIBLIOGRAPHIC_OR_RESOLVER_DOMAINS,
+    TECHNICAL_NOISE_DOMAINS,
+    domain_matches,
+    is_trusted_observation,
+    url_host,
+)
 
 DEFAULT_ENTITIES_PATH = Path("data/enriched/artifact_links/artifact_entities_latest.jsonl")
 DEFAULT_LINKS_PATH = Path("data/enriched/artifact_links/artifact_links_latest.jsonl")
 DEFAULT_CANONICAL_PATH = Path("data/analytics/reconciled/canonical_documents.jsonl")
 REPORT_DIR = Path("artifacts/reports/validation")
 HISTORY_DIR = REPORT_DIR / "history"
-
-
-PROVIDER_SPECIFIC_TRUSTED_TYPES = {
-    "github_repository",
-    "gitlab_repository",
-    "bitbucket_repository",
-    "codeberg_repository",
-    "huggingface_model",
-    "huggingface_dataset",
-    "huggingface_space",
-    "figshare_artifact",
-    "zenodo_artifact",
-    "youtube_video",
-    "kaggle_dataset",
-}
-
-
-TRUSTED_GENERIC_FIELDS = {
-    "comment",
-    "code_links",
-    "dataset_links",
-    "model_links",
-    "repo_url",
-}
-
-
-TECHNICAL_NOISE_DOMAINS = {
-    "w3.org",
-    "www.w3.org",
-}
-
-
-BIBLIOGRAPHIC_OR_RESOLVER_DOMAINS = {
-    "arxiv.org",
-    "www.arxiv.org",
-    "doi.org",
-    "www.doi.org",
-    "dx.doi.org",
-    "openalex.org",
-    "www.openalex.org",
-    "semanticscholar.org",
-    "www.semanticscholar.org",
-    "api.semanticscholar.org",
-    "crossref.org",
-    "www.crossref.org",
-    "ncbi.nlm.nih.gov",
-    "www.ncbi.nlm.nih.gov",
-    "pubmed.ncbi.nlm.nih.gov",
-    "aclanthology.org",
-    "www.aclanthology.org",
-    "openreview.net",
-    "www.openreview.net",
-    "api.openreview.net",
-    "api2.openreview.net",
-    "portal.acm.org",
-    "dl.acm.org",
-    "acm.org",
-    "www.acm.org",
-    "springerlink.com",
-    "www.springerlink.com",
-    "link.springer.com",
-    "ieeexplore.ieee.org",
-    "proceedings.neurips.cc",
-    "papers.nips.cc",
-    "proceedings.mlr.press",
-    "openaccess.thecvf.com",
-    "hdl.handle.net",
-    "nbn-resolving.de",
-    "imstat.org",
-    "www.imstat.org",
-}
 
 
 ENTITY_REQUIRED_FIELDS = {
@@ -140,34 +74,6 @@ def write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
-
-def normalize_host(host: str | None) -> str:
-    host = (host or "").lower().strip()
-    if host.startswith("www."):
-        host = host[4:]
-    return host
-
-
-def url_host(url: str | None) -> str:
-    if not url:
-        return ""
-    try:
-        return normalize_host(urlparse(url).netloc)
-    except Exception:
-        return ""
-
-
-def domain_matches(host: str, domains: set[str]) -> bool:
-    host = normalize_host(host)
-
-    for domain in domains:
-        domain = normalize_host(domain)
-        if host == domain or host.endswith("." + domain):
-            return True
-
-    return False
-
-
 def load_canonical_ids(path: Path) -> set[str]:
     if not path.exists():
         return set()
@@ -188,45 +94,6 @@ def missing_required_fields(row: dict[str, Any], required: set[str]) -> list[str
         if value is None or value == "":
             missing.append(field)
     return sorted(missing)
-
-
-def is_trusted_observation(obs: dict[str, Any]) -> bool:
-    artifact_type = obs.get("artifact_type")
-    provider = obs.get("provider")
-    relation_type = obs.get("relation_type")
-    source_field = obs.get("source_field")
-    confidence = float(obs.get("confidence") or 0.0)
-    host = url_host(obs.get("normalized_url"))
-
-    if not obs.get("canonical_id"):
-        return False
-
-    if not obs.get("artifact_id"):
-        return False
-
-    if relation_type == "unknown":
-        return False
-
-    if domain_matches(host, TECHNICAL_NOISE_DOMAINS):
-        return False
-
-    if artifact_type in PROVIDER_SPECIFIC_TRUSTED_TYPES:
-        return confidence >= 0.65
-
-    if provider == "generic":
-        if confidence < 0.9:
-            return False
-
-        if source_field not in TRUSTED_GENERIC_FIELDS:
-            return False
-
-        if domain_matches(host, BIBLIOGRAPHIC_OR_RESOLVER_DOMAINS):
-            return False
-
-        return True
-
-    return False
-
 
 def build_report(
     *,

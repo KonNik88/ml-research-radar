@@ -819,3 +819,46 @@ Do not let docs drift from accepted behavior.
 
 The project should remain a coherent research-discovery platform rather than a
 collection of unrelated infrastructure experiments.
+
+<!-- PAPER_ARTIFACT_GRAPH_BUILDER_V01_START -->
+## Paper-Artifact Graph Builder v0.1
+
+Status: implemented local derived builder.
+
+This slice builds the first local derived paper-artifact graph artifact from accepted file-backed layers.
+
+Implemented components:
+
+- shared trusted-link helper: `radar_core/artifacts/trusted_links.py`
+- builder execution config: `configs/paper_artifact_graph_builder.yaml`
+- builder config validator: `scripts/validation/check_paper_artifact_graph_builder_config.py`
+- graph builder: `scripts/export/build_paper_artifact_graph.py`
+- graph output validator: `scripts/validation/check_paper_artifact_graph_output.py`
+- smoke tests for helper, config, builder, and output validator
+- generated output ignored via `/data/graphs/`
+
+Validated local graph output:
+
+- nodes: `68385`
+- edges: `163757`
+- papers: `60954`
+- artifacts: `7336`
+- providers: `10`
+- source families: `5`
+- topic clusters: `80`
+- trusted paper-artifact edges: `7430`
+- topic assignment edges: `60954`
+
+Boundaries preserved:
+
+- graph is derived, not canonical truth
+- graph is not a reconcile input
+- no live DB dependency
+- no Qdrant/retrieval/ranking changes
+- no API/UI changes
+- no latest pointer
+- no global `paper_artifact_links_latest.jsonl` bridge
+- generated graph output is not committed
+
+See: `docs/paper_artifact_graph_builder_v0.md`.
+<!-- PAPER_ARTIFACT_GRAPH_BUILDER_V01_END -->
