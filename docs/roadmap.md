@@ -6,12 +6,12 @@
 document = primary living roadmap
 accepted checkpoint = Dataset Release Track Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
-current active slice = Paper–Artifact Graph Contract v0.1
+current active slice = Paper–Artifact Graph Inspection v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = graph contract only; no graph build/export/runtime behavior changes
+scope of current branch = graph inspection only; no graph rebuild/API/UI/runtime behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -862,3 +862,43 @@ Boundaries preserved:
 
 See: `docs/paper_artifact_graph_builder_v0.md`.
 <!-- PAPER_ARTIFACT_GRAPH_BUILDER_V01_END -->
+
+<!-- PAPER_ARTIFACT_GRAPH_INSPECTION_V01_START -->
+## Paper-Artifact Graph Inspection v0.1
+
+Status: implemented local read-only inspection layer.
+
+This slice adds a compact QA/reporting layer over the generated Paper-Artifact Graph Builder v0.1 output.
+
+It validates that the generated graph is not only structurally valid, but also meaningful enough for human inspection:
+
+- provider distribution over artifact nodes
+- provider distribution over paper-artifact edges
+- source-family distribution
+- papers with trusted artifacts
+- artifacts linked to multiple papers
+- topic clusters with artifact-ready papers
+- sample paper -> artifact edges
+- sample topic -> paper -> artifact paths
+
+Accepted local inspection result:
+
+```text
+ok=True
+required_failed_count=0
+nodes_count=68385
+edges_count=163757
+papers_with_artifacts_count=6673
+topic_clusters_with_artifact_ready_papers_count=80
+```
+
+Boundary:
+
+- read-only inspection/report layer
+- no graph rebuild
+- no canonical truth changes
+- no DB/Qdrant/API/UI/retrieval/ranking changes
+- generated reports are not committed
+
+See: `docs/paper_artifact_graph_inspection_v0.md`.
+<!-- PAPER_ARTIFACT_GRAPH_INSPECTION_V01_END -->

@@ -41,7 +41,7 @@ Artifact API filters validation + DoD gate — 2026-06
 Regression runner DB preflight — 2026-06
 Discovery regression runner summary report — 2026-06
 Dataset release track checkpoint — 2026-06
-Paper–Artifact Graph Contract v0.1 — 2026-06 active contract-only slice
+Paper–Artifact Graph Inspection v0.1 — 2026-06 active read-only inspection slice
 ```
 
 Current healthy baseline:
@@ -72,8 +72,10 @@ artifact_api_filters_dod_gate = optional by default / required with --require-ar
 regression_runner_db_preflight = enabled for DB-backed regression steps
 discovery_api_regression_runner_report = enabled
 dataset_release_track_checkpoint = local_candidate_validation_enabled
-paper_artifact_graph_contract = contract_only_active
-paper_artifact_graph_contract_dod_gate = not required yet
+paper_artifact_graph_contract = accepted
+paper_artifact_graph_builder = accepted_local_derived_builder
+paper_artifact_graph_inspection = read_only_inspection_active
+paper_artifact_graph_dod_gate = not required yet
 
 paper_features_rows_count = 60954
 ranking_profiles_count = 9
@@ -1395,3 +1397,55 @@ Boundary notes:
 - no global trusted-links bridge
 - graph output remains local/generated and ignored by Git
 <!-- PAPER_ARTIFACT_GRAPH_BUILDER_V01_END -->
+
+<!-- PAPER_ARTIFACT_GRAPH_INSPECTION_V01_START -->
+## Paper-Artifact Graph Inspection v0.1 checkpoint
+
+Status: local read-only inspection layer implemented and validated.
+
+Tracked files:
+
+- `scripts/validation/check_paper_artifact_graph_inspection.py`
+- `tests/smoke/test_paper_artifact_graph_inspection.py`
+- `docs/paper_artifact_graph_inspection_v0.md`
+
+Generated reports, not committed:
+
+- `artifacts/reports/validation/paper_artifact_graph_inspection_latest.json`
+- `artifacts/reports/validation/paper_artifact_graph_inspection_latest.md`
+- `artifacts/reports/validation/history/paper_artifact_graph_inspection_<run_ts>.json`
+- `artifacts/reports/validation/history/paper_artifact_graph_inspection_<run_ts>.md`
+
+Validation commands:
+
+```bat
+python -m py_compile scripts/validation/check_paper_artifact_graph_inspection.py
+python -m pytest tests/smoke/test_paper_artifact_graph_inspection.py -q
+python -m scripts.validation.check_paper_artifact_graph_inspection --strict
+```
+
+Expected result:
+
+```text
+3 passed
+ok=True
+required_failed_count=0
+```
+
+Accepted local inspection counters:
+
+```text
+nodes_count=68385
+edges_count=163757
+papers_with_artifacts_count=6673
+topic_clusters_with_artifact_ready_papers_count=80
+```
+
+Boundary notes:
+
+- inspection is read-only
+- graph remains derived representation, not canonical truth
+- graph must not be used as reconcile input
+- no DB/Qdrant/API/UI/retrieval/ranking behavior change
+- generated inspection reports are ignored and not committed
+<!-- PAPER_ARTIFACT_GRAPH_INSPECTION_V01_END -->
