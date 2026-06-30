@@ -6,12 +6,12 @@
 document = primary living roadmap
 accepted checkpoint = Dataset Release Track Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
-current active slice = Paper–Artifact Graph Inspection v0.1
+current active slice = Paper–Artifact Graph Query CLI v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = graph inspection only; no graph rebuild/API/UI/runtime behavior changes
+scope of current branch = graph query CLI only; no graph rebuild/API/UI/runtime behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -902,3 +902,58 @@ Boundary:
 
 See: `docs/paper_artifact_graph_inspection_v0.md`.
 <!-- PAPER_ARTIFACT_GRAPH_INSPECTION_V01_END -->
+
+<!-- PAPER_ARTIFACT_GRAPH_QUERY_CLI_V01_START -->
+## Paper-Artifact Graph Query CLI v0.1
+
+Status: implemented local read-only query CLI.
+
+This slice adds an offline command-line query layer over the generated Paper-Artifact Graph Builder v0.1 output.
+
+It supports:
+
+- paper → artifacts / topic clusters / source families
+- artifact → linked papers / providers
+- provider → top artifacts ranked by linked paper count
+- topic cluster → artifact-ready papers
+
+Implemented files:
+
+- `scripts/graph/__init__.py`
+- `scripts/graph/query_paper_artifact_graph.py`
+- `tests/smoke/test_paper_artifact_graph_query_cli.py`
+- `docs/paper_artifact_graph_query_cli_v0.md`
+
+Accepted local validation:
+
+```text
+python -m py_compile scripts/graph/query_paper_artifact_graph.py
+python -m pytest tests/smoke/test_paper_artifact_graph_query_cli.py -q
+7 passed
+```
+
+Accepted local graph-query examples:
+
+```text
+provider=github
+artifacts=5953
+paper_artifact_links=6019
+
+topic_cluster=7
+papers=465
+artifact_ready_papers=21
+paper_artifact_links=21
+```
+
+Boundary:
+
+- read-only CLI over generated graph output
+- no graph rebuild
+- no canonical truth changes
+- no reconcile input
+- no DB/Qdrant/API/UI/retrieval/ranking changes
+- no generated reports
+- no Neo4j/NetworkX/GraphRAG runtime
+
+See: `docs/paper_artifact_graph_query_cli_v0.md`.
+<!-- PAPER_ARTIFACT_GRAPH_QUERY_CLI_V01_END -->
