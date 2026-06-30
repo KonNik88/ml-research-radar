@@ -9,19 +9,11 @@ from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
 import psycopg as pg_driver
 
 from radar_core.artifacts.trusted_links import (
-    BIBLIOGRAPHIC_OR_RESOLVER_DOMAINS,
     PROVIDER_SPECIFIC_TRUSTED_TYPES,
-    TECHNICAL_NOISE_DOMAINS,
-    TRUSTED_GENERIC_FIELDS,
     build_trusted_link_rows,
-    domain_matches,
-    is_trusted_observation,
-    normalize_host,
-    url_host,
 )
 
 

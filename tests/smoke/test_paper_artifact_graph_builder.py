@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 import yaml
 
 from scripts.export.build_paper_artifact_graph import build_graph
@@ -277,3 +278,37 @@ def test_dry_run_does_not_write_outputs(tmp_path: Path):
 
     graph_dir = tmp_path / "data" / "graphs" / "paper_artifact_graph" / "v0.1"
     assert not graph_dir.exists()
+
+def test_existing_output_dir_requires_force(tmp_path: Path):
+    config_path = make_fixture_config(tmp_path)
+
+    first_result = build_graph(config_path=config_path)
+    graph_dir = Path(first_result["graph_dir"])
+    assert graph_dir.exists()
+
+    with pytest.raises(FileExistsError, match="Use --force"):
+        build_graph(config_path=config_path)
+
+    second_result = build_graph(config_path=config_path, force=True)
+
+    assert Path(second_result["graph_dir"]).exists()
+    assert (graph_dir / "nodes.jsonl").exists()
+    assert (graph_dir / "edges.jsonl").exists()
+
+
+def test_missing_topic_assignments_path_fails_when_topic_clusters_enabled(tmp_path: Path):
+    config_path = make_fixture_config(tmp_path)
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+
+    topic_latest_path = Path(config["inputs"]["topic_clusters_latest_path"])
+    write_json(
+        topic_latest_path,
+        {
+            "schema_version": "topic_clusters_latest_v1",
+            "cluster_build_id": "topic_build_1",
+            "retrieval_build_id": "retrieval_1",
+        },
+    )
+
+    with pytest.raises(ValueError, match="assignments_path"):
+        build_graph(config_path=config_path)
