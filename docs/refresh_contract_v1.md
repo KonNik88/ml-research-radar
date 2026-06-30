@@ -41,7 +41,7 @@ Artifact API filters validation + DoD gate — 2026-06
 Regression runner DB preflight — 2026-06
 Discovery regression runner summary report — 2026-06
 Dataset release track checkpoint — 2026-06
-Paper–Artifact Graph Inspection v0.1 — 2026-06 active read-only inspection slice
+Paper–Artifact Graph Query CLI v0.1 — 2026-06 active read-only query CLI slice
 ```
 
 Current healthy baseline:
@@ -74,7 +74,8 @@ discovery_api_regression_runner_report = enabled
 dataset_release_track_checkpoint = local_candidate_validation_enabled
 paper_artifact_graph_contract = accepted
 paper_artifact_graph_builder = accepted_local_derived_builder
-paper_artifact_graph_inspection = read_only_inspection_active
+paper_artifact_graph_inspection = accepted_read_only_inspection
+paper_artifact_graph_query_cli = read_only_query_cli_active
 paper_artifact_graph_dod_gate = not required yet
 
 paper_features_rows_count = 60954
@@ -1449,3 +1450,60 @@ Boundary notes:
 - no DB/Qdrant/API/UI/retrieval/ranking behavior change
 - generated inspection reports are ignored and not committed
 <!-- PAPER_ARTIFACT_GRAPH_INSPECTION_V01_END -->
+
+<!-- PAPER_ARTIFACT_GRAPH_QUERY_CLI_V01_START -->
+## Paper-Artifact Graph Query CLI v0.1 checkpoint
+
+Status: local read-only query CLI implemented and validated.
+
+Tracked files:
+
+- `scripts/graph/__init__.py`
+- `scripts/graph/query_paper_artifact_graph.py`
+- `tests/smoke/test_paper_artifact_graph_query_cli.py`
+- `docs/paper_artifact_graph_query_cli_v0.md`
+
+Validation commands:
+
+```bat
+python -m py_compile scripts/graph/query_paper_artifact_graph.py
+python -m pytest tests/smoke/test_paper_artifact_graph_query_cli.py -q
+python -m scripts.graph.query_paper_artifact_graph --provider github --top-k 5
+python -m scripts.graph.query_paper_artifact_graph --provider github --top-k 5 --format markdown
+python -m scripts.graph.query_paper_artifact_graph --topic-cluster 7 --top-k 5
+```
+
+Expected result:
+
+```text
+7 passed
+provider query returns found=True
+topic-cluster query returns found=True
+```
+
+Accepted local provider-query counters:
+
+```text
+provider=github
+artifacts=5953
+paper_artifact_links=6019
+```
+
+Accepted local topic-cluster query counters:
+
+```text
+topic_cluster=7
+papers=465
+artifact_ready_papers=21
+paper_artifact_links=21
+```
+
+Boundary notes:
+
+- CLI is read-only
+- graph remains derived representation, not canonical truth
+- graph must not be used as reconcile input
+- no graph rebuild
+- no DB/Qdrant/API/UI/retrieval/ranking behavior change
+- no generated reports are written by the CLI
+<!-- PAPER_ARTIFACT_GRAPH_QUERY_CLI_V01_END -->
