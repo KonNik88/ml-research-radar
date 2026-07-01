@@ -41,7 +41,7 @@ Artifact API filters validation + DoD gate — 2026-06
 Regression runner DB preflight — 2026-06
 Discovery regression runner summary report — 2026-06
 Dataset release track checkpoint — 2026-06
-Paper–Artifact Graph Query CLI v0.1 — 2026-06 active read-only query CLI slice
+Paper–Artifact Graph Release Candidate v0.1 — 2026-07 active read-only release-candidate gate slice
 ```
 
 Current healthy baseline:
@@ -75,7 +75,8 @@ dataset_release_track_checkpoint = local_candidate_validation_enabled
 paper_artifact_graph_contract = accepted
 paper_artifact_graph_builder = accepted_local_derived_builder
 paper_artifact_graph_inspection = accepted_read_only_inspection
-paper_artifact_graph_query_cli = read_only_query_cli_active
+paper_artifact_graph_query_cli = accepted_read_only_query_cli
+paper_artifact_graph_release_candidate = read_only_release_candidate_active
 paper_artifact_graph_dod_gate = not required yet
 
 paper_features_rows_count = 60954
@@ -1507,3 +1508,111 @@ Boundary notes:
 - no DB/Qdrant/API/UI/retrieval/ranking behavior change
 - no generated reports are written by the CLI
 <!-- PAPER_ARTIFACT_GRAPH_QUERY_CLI_V01_END -->
+
+<!-- PAPER_ARTIFACT_GRAPH_RELEASE_CANDIDATE_V01_START -->
+## Paper-Artifact Graph Release Candidate v0.1 checkpoint
+
+Status: local read-only release-candidate readiness gate implemented and validated.
+
+Tracked files:
+
+- `scripts/validation/check_paper_artifact_graph_release_candidate.py`
+- `tests/smoke/test_paper_artifact_graph_release_candidate.py`
+- `docs/paper_artifact_graph_release_candidate_v0.md`
+
+Generated reports, not committed:
+
+- `artifacts/reports/validation/paper_artifact_graph_release_candidate_latest.json`
+- `artifacts/reports/validation/paper_artifact_graph_release_candidate_latest.md`
+- `artifacts/reports/validation/history/paper_artifact_graph_release_candidate_<run_ts>.json`
+- `artifacts/reports/validation/history/paper_artifact_graph_release_candidate_<run_ts>.md`
+
+Validation commands:
+
+```bat
+python -m py_compile scripts/validation/check_paper_artifact_graph_release_candidate.py
+python -m pytest tests/smoke/test_paper_artifact_graph_release_candidate.py -q
+python -m scripts.validation.check_paper_artifact_graph_release_candidate --strict
+```
+
+Expected result:
+
+```text
+5 passed
+
+{
+  "ok": true,
+  "required_failed_count": 0,
+  "strict": true,
+  "total_checks": 12,
+  "warning_count": 0
+}
+```
+
+Expected release-candidate verdict:
+
+```text
+technical_graph_candidate_ready=true
+manual_review_required=true
+publication_ready=false
+publication_block_reason=manual_review_not_completed
+required_failed_checks=[]
+warning_checks=[]
+```
+
+The validator checks:
+
+```text
+graph output files exist
+graph JSON/JSONL files are readable
+manifest safety flags preserve derived-layer boundaries
+builder input mode is file
+data_quality_summary.ok is true
+duplicate node/edge IDs are absent
+accepted graph v0.1 counters match
+checksums match
+inspection report is ok in strict mode
+GitHub provider smoke counters match accepted diagnostics
+```
+
+Accepted local graph counters:
+
+```text
+nodes_count=68385
+edges_count=163757
+paper=60954
+artifact=7336
+provider=10
+source_family=5
+topic_cluster=80
+paper_has_artifact=7430
+artifact_from_provider=7336
+paper_observed_in_source_family=88037
+paper_assigned_to_topic_cluster=60954
+```
+
+Accepted local inspection counters:
+
+```text
+papers_with_artifacts_count=6673
+topic_clusters_with_artifact_ready_papers_count=80
+```
+
+Accepted local provider smoke counters:
+
+```text
+provider=github
+artifacts=5953
+paper_artifact_links=6019
+```
+
+Boundary notes:
+
+- release-candidate validator is read-only
+- graph remains derived representation, not canonical truth
+- graph must not be used as reconcile input
+- no graph rebuild
+- no DB/Qdrant/API/UI/retrieval/ranking behavior change
+- no dataset publication
+- generated validation reports are ignored and not committed
+<!-- PAPER_ARTIFACT_GRAPH_RELEASE_CANDIDATE_V01_END -->

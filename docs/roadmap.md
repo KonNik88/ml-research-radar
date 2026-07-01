@@ -6,12 +6,12 @@
 document = primary living roadmap
 accepted checkpoint = Dataset Release Track Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
-current active slice = Paper–Artifact Graph Query CLI v0.1
+current active slice = Paper–Artifact Graph Release Candidate v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = graph query CLI only; no graph rebuild/API/UI/runtime behavior changes
+scope of current branch = graph release-candidate validator only; no graph rebuild/API/UI/runtime behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -957,3 +957,82 @@ Boundary:
 
 See: `docs/paper_artifact_graph_query_cli_v0.md`.
 <!-- PAPER_ARTIFACT_GRAPH_QUERY_CLI_V01_END -->
+
+<!-- PAPER_ARTIFACT_GRAPH_RELEASE_CANDIDATE_V01_START -->
+## Paper-Artifact Graph Release Candidate v0.1
+
+Status: implemented local read-only release-candidate readiness gate.
+
+This slice adds a release-candidate style validator over the already generated Paper-Artifact Graph Builder v0.1 output.
+
+It answers:
+
+```text
+Can the generated graph output be treated as a local reviewable candidate artifact?
+```
+
+Implemented files:
+
+- `scripts/validation/check_paper_artifact_graph_release_candidate.py`
+- `tests/smoke/test_paper_artifact_graph_release_candidate.py`
+- `docs/paper_artifact_graph_release_candidate_v0.md`
+
+Generated reports, not committed:
+
+- `artifacts/reports/validation/paper_artifact_graph_release_candidate_latest.json`
+- `artifacts/reports/validation/paper_artifact_graph_release_candidate_latest.md`
+- `artifacts/reports/validation/history/paper_artifact_graph_release_candidate_<run_ts>.json`
+- `artifacts/reports/validation/history/paper_artifact_graph_release_candidate_<run_ts>.md`
+
+Accepted local validation:
+
+```text
+python -m py_compile scripts/validation/check_paper_artifact_graph_release_candidate.py
+python -m pytest tests/smoke/test_paper_artifact_graph_release_candidate.py -q
+python -m scripts.validation.check_paper_artifact_graph_release_candidate --strict
+```
+
+Accepted result:
+
+```text
+5 passed
+ok=True
+required_failed_count=0
+warning_count=0
+```
+
+The validator checks:
+
+- graph output files exist
+- graph JSON/JSONL files are readable
+- manifest safety flags preserve derived-layer boundaries
+- builder input mode is file
+- data quality summary is ok
+- duplicate node/edge IDs are absent
+- accepted graph v0.1 counters match
+- checksums match
+- inspection report is ok in strict mode
+- GitHub provider smoke counters match accepted diagnostics
+
+Expected release-candidate verdict:
+
+```text
+technical_graph_candidate_ready=true
+manual_review_required=true
+publication_ready=false
+publication_block_reason=manual_review_not_completed
+```
+
+Boundary:
+
+- read-only validator over generated graph output
+- no graph rebuild
+- no canonical truth changes
+- no reconcile input changes
+- no DB/Qdrant/API/UI/retrieval/ranking changes
+- no dataset publication
+- no generated graph/package files committed
+- no Neo4j/NetworkX/GraphRAG runtime
+
+See: `docs/paper_artifact_graph_release_candidate_v0.md`.
+<!-- PAPER_ARTIFACT_GRAPH_RELEASE_CANDIDATE_V01_END -->
