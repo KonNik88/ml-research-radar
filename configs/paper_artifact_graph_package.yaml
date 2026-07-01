@@ -1,0 +1,64 @@
+schema_version: paper_artifact_graph_package_config_v1
+
+package:
+  name: paper_artifact_graph
+  version: v0.1
+  status: local_package_candidate
+  archive_name: paper_artifact_graph_v0.1.zip
+  archive_root: paper_artifact_graph_v0.1
+  publication_ready: false
+  manual_review_required: true
+  may_be_used_as_reconcile_input: false
+
+inputs:
+  graph_dir: data/graphs/paper_artifact_graph/v0.1
+  release_candidate_report_json: artifacts/reports/validation/paper_artifact_graph_release_candidate_latest.json
+  release_candidate_report_md: artifacts/reports/validation/paper_artifact_graph_release_candidate_latest.md
+
+outputs:
+  package_dir: data/graphs/paper_artifact_graph/packages/v0.1
+  zip_path: data/graphs/paper_artifact_graph/packages/v0.1/paper_artifact_graph_v0.1.zip
+  manifest_path: data/graphs/paper_artifact_graph/packages/v0.1/package_manifest.json
+  readme_path: data/graphs/paper_artifact_graph/packages/v0.1/README.md
+  checksums_path: data/graphs/paper_artifact_graph/packages/v0.1/checksums.txt
+
+validation:
+  report_dir: artifacts/reports/validation
+
+required_graph_files:
+  - nodes.jsonl
+  - edges.jsonl
+  - schema.json
+  - manifest.json
+  - data_quality_summary.json
+  - README.md
+  - checksums.txt
+
+expected_counts:
+  nodes_count: 68385
+  edges_count: 163757
+  node_paper_count: 60954
+  node_artifact_count: 7336
+  node_provider_count: 10
+  node_source_family_count: 5
+  node_topic_cluster_count: 80
+  edge_paper_has_artifact_count: 7430
+  edge_artifact_from_provider_count: 7336
+  edge_paper_observed_in_source_family_count: 88037
+  edge_paper_assigned_to_topic_cluster_count: 60954
+
+safety:
+  read_only_graph_input: true
+  rebuild_graph: false
+  mutate_canonical_documents: false
+  mutate_artifact_inputs: false
+  mutate_topic_inputs: false
+  mutate_retrieval_artifacts: false
+  mutate_qdrant: false
+  mutate_postgres: false
+  mutate_api: false
+  mutate_ui: false
+  mutate_ranking: false
+  publish_dataset: false
+  create_latest_pointer: false
+  create_graph_runtime: false

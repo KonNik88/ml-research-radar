@@ -4,14 +4,14 @@
 
 ```text
 document = primary living roadmap
-accepted checkpoint = Dataset Release Track Checkpoint v0.1
+accepted checkpoint = Paper–Artifact Graph Release Candidate v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
-current active slice = Paper–Artifact Graph Release Candidate v0.1
+current active slice = Paper–Artifact Graph Package v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = graph release-candidate validator only; no graph rebuild/API/UI/runtime behavior changes
+scope of current branch = graph package builder/validator only; no graph rebuild/API/UI/runtime behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -1036,3 +1036,84 @@ Boundary:
 
 See: `docs/paper_artifact_graph_release_candidate_v0.md`.
 <!-- PAPER_ARTIFACT_GRAPH_RELEASE_CANDIDATE_V01_END -->
+
+<!-- PAPER_ARTIFACT_GRAPH_PACKAGE_V01_START -->
+## Paper-Artifact Graph Package v0.1
+
+Status: implemented local package candidate layer.
+
+This slice adds a conservative local packaging step for the already generated and already release-candidate-validated Paper-Artifact Graph Builder v0.1 output.
+
+It answers:
+
+```text
+Can the local graph candidate be packaged into a portable local archive without changing graph data or runtime behavior?
+```
+
+Implemented files:
+
+- `configs/paper_artifact_graph_package.yaml`
+- `scripts/export/package_paper_artifact_graph.py`
+- `scripts/validation/check_paper_artifact_graph_package.py`
+- `tests/smoke/test_paper_artifact_graph_package.py`
+- `docs/paper_artifact_graph_package_v0.md`
+
+Generated local package output, not committed:
+
+- `data/graphs/paper_artifact_graph/packages/v0.1/paper_artifact_graph_v0.1.zip`
+- `data/graphs/paper_artifact_graph/packages/v0.1/package_manifest.json`
+- `data/graphs/paper_artifact_graph/packages/v0.1/README.md`
+- `data/graphs/paper_artifact_graph/packages/v0.1/checksums.txt`
+
+Accepted local validation:
+
+```text
+python -m py_compile scripts/export/package_paper_artifact_graph.py
+python -m py_compile scripts/validation/check_paper_artifact_graph_package.py
+python -m pytest tests/smoke/test_paper_artifact_graph_package.py -q
+python -m scripts.export.package_paper_artifact_graph --dry-run
+python -m scripts.export.package_paper_artifact_graph --force
+python -m scripts.validation.check_paper_artifact_graph_package --strict
+```
+
+Accepted result:
+
+```text
+5 passed
+package build ok=True
+included_files_count=9
+zip_size_bytes=14930380
+package validator ok=True
+required_failed_count=0
+warning_count=0
+```
+
+Archive contents:
+
+```text
+paper_artifact_graph_v0.1/nodes.jsonl
+paper_artifact_graph_v0.1/edges.jsonl
+paper_artifact_graph_v0.1/schema.json
+paper_artifact_graph_v0.1/manifest.json
+paper_artifact_graph_v0.1/data_quality_summary.json
+paper_artifact_graph_v0.1/README.md
+paper_artifact_graph_v0.1/checksums.txt
+paper_artifact_graph_v0.1/validation/paper_artifact_graph_release_candidate_latest.json
+paper_artifact_graph_v0.1/validation/paper_artifact_graph_release_candidate_latest.md
+```
+
+Boundary:
+
+- local package candidate only
+- no graph rebuild
+- no canonical truth changes
+- no reconcile input changes
+- no DB/Qdrant/API/UI/retrieval/ranking changes
+- no dataset publication
+- no latest pointer
+- no graph runtime
+- generated package output is not committed
+- no Neo4j/NetworkX/GraphRAG runtime
+
+See: `docs/paper_artifact_graph_package_v0.md`.
+<!-- PAPER_ARTIFACT_GRAPH_PACKAGE_V01_END -->
