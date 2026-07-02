@@ -41,7 +41,7 @@ Artifact API filters validation + DoD gate — 2026-06
 Regression runner DB preflight — 2026-06
 Discovery regression runner summary report — 2026-06
 Dataset release track checkpoint — 2026-06
-Paper–Artifact Graph Package v0.1 — 2026-07 active local package candidate slice
+Paper–Artifact Graph Line Checkpoint v0.1 — 2026-07 active read-only graph-line checkpoint slice
 ```
 
 Current healthy baseline:
@@ -77,7 +77,8 @@ paper_artifact_graph_builder = accepted_local_derived_builder
 paper_artifact_graph_inspection = accepted_read_only_inspection
 paper_artifact_graph_query_cli = accepted_read_only_query_cli
 paper_artifact_graph_release_candidate = accepted_read_only_release_candidate
-paper_artifact_graph_package = local_package_candidate_active
+paper_artifact_graph_package = accepted_local_package_candidate
+paper_artifact_graph_line_checkpoint = read_only_line_checkpoint_active
 paper_artifact_graph_dod_gate = not required yet
 
 paper_features_rows_count = 60954
@@ -1733,3 +1734,107 @@ Boundary notes:
 - no dataset publication
 - generated package output and validation reports are ignored and not committed
 <!-- PAPER_ARTIFACT_GRAPH_PACKAGE_V01_END -->
+
+<!-- PAPER_ARTIFACT_GRAPH_LINE_CHECKPOINT_V01_START -->
+## Paper-Artifact Graph Line Checkpoint v0.1 checkpoint
+
+Status: local read-only line checkpoint implemented and validated.
+
+Tracked files:
+
+- `configs/paper_artifact_graph_line_checkpoint.yaml`
+- `scripts/validation/check_paper_artifact_graph_line_checkpoint.py`
+- `tests/smoke/test_paper_artifact_graph_line_checkpoint.py`
+- `docs/paper_artifact_graph_line_checkpoint_v0.md`
+
+Generated validation reports, not committed:
+
+- `artifacts/reports/validation/paper_artifact_graph_line_checkpoint_latest.json`
+- `artifacts/reports/validation/paper_artifact_graph_line_checkpoint_latest.md`
+- `artifacts/reports/validation/history/paper_artifact_graph_line_checkpoint_<run_ts>.json`
+- `artifacts/reports/validation/history/paper_artifact_graph_line_checkpoint_<run_ts>.md`
+
+Validation commands:
+
+```bat
+python -m py_compile scripts/validation/check_paper_artifact_graph_line_checkpoint.py
+python -m pytest tests/smoke/test_paper_artifact_graph_line_checkpoint.py -q
+python -m scripts.validation.check_paper_artifact_graph_line_checkpoint --strict
+```
+
+Expected result:
+
+```text
+4 passed
+
+{
+  "ok": true,
+  "required_failed_count": 0,
+  "strict": true,
+  "total_checks": 14,
+  "warning_count": 0
+}
+```
+
+The checkpoint validates that the following completed graph-line components are present and internally consistent:
+
+```text
+contract
+builder
+output validator
+inspection
+query CLI
+release candidate
+package
+```
+
+The line checkpoint checks:
+
+```text
+line checkpoint config schema
+required graph-line tracked files are present
+required graph output files are present
+graph manifest is readable
+graph manifest safety flags preserve derived-layer boundaries
+graph counters match accepted checkpoint baseline
+inspection report is green
+release-candidate report is green
+package report is green
+required package files are present
+package manifest is readable
+package manifest safety flags preserve checkpoint boundaries
+package zip is readable
+checkpoint config safety flags preserve project boundaries
+```
+
+Accepted local graph counters:
+
+```text
+nodes_count=68385
+edges_count=163757
+paper=60954
+artifact=7336
+provider=10
+source_family=5
+topic_cluster=80
+paper_has_artifact=7430
+artifact_from_provider=7336
+paper_observed_in_source_family=88037
+paper_assigned_to_topic_cluster=60954
+trusted_links_used_count=7430
+topic_edges_count=60954
+```
+
+Boundary notes:
+
+- checkpoint validator is read-only
+- graph remains derived representation, not canonical truth
+- graph/package/checkpoint must not be used as reconcile input
+- no graph rebuild
+- no package rebuild
+- no DB/Qdrant/API/UI/retrieval/ranking behavior change
+- no dataset publication
+- no latest pointer
+- no graph runtime
+- generated checkpoint reports are ignored and not committed
+<!-- PAPER_ARTIFACT_GRAPH_LINE_CHECKPOINT_V01_END -->

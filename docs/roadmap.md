@@ -4,14 +4,14 @@
 
 ```text
 document = primary living roadmap
-accepted checkpoint = Paper–Artifact Graph Release Candidate v0.1
+accepted checkpoint = Paper–Artifact Graph Package v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
-current active slice = Paper–Artifact Graph Package v0.1
+current active slice = Paper–Artifact Graph Line Checkpoint v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = graph package builder/validator only; no graph rebuild/API/UI/runtime behavior changes
+scope of current branch = graph line checkpoint validator only; no graph rebuild/package rebuild/API/UI/runtime behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -1117,3 +1117,79 @@ Boundary:
 
 See: `docs/paper_artifact_graph_package_v0.md`.
 <!-- PAPER_ARTIFACT_GRAPH_PACKAGE_V01_END -->
+
+<!-- PAPER_ARTIFACT_GRAPH_LINE_CHECKPOINT_V01_START -->
+## Paper-Artifact Graph Line Checkpoint v0.1
+
+Status: implemented local read-only line checkpoint.
+
+This slice adds a final read-only checkpoint gate over the completed local Paper-Artifact Graph v0.1 line.
+
+It answers:
+
+```text
+Is the whole local paper-artifact graph line internally complete and safe to treat as a closed checkpoint?
+```
+
+Implemented files:
+
+- `configs/paper_artifact_graph_line_checkpoint.yaml`
+- `scripts/validation/check_paper_artifact_graph_line_checkpoint.py`
+- `tests/smoke/test_paper_artifact_graph_line_checkpoint.py`
+- `docs/paper_artifact_graph_line_checkpoint_v0.md`
+
+Generated reports, not committed:
+
+- `artifacts/reports/validation/paper_artifact_graph_line_checkpoint_latest.json`
+- `artifacts/reports/validation/paper_artifact_graph_line_checkpoint_latest.md`
+- `artifacts/reports/validation/history/paper_artifact_graph_line_checkpoint_<run_ts>.json`
+- `artifacts/reports/validation/history/paper_artifact_graph_line_checkpoint_<run_ts>.md`
+
+Accepted local validation:
+
+```text
+python -m py_compile scripts/validation/check_paper_artifact_graph_line_checkpoint.py
+python -m pytest tests/smoke/test_paper_artifact_graph_line_checkpoint.py -q
+python -m scripts.validation.check_paper_artifact_graph_line_checkpoint --strict
+```
+
+Accepted result:
+
+```text
+4 passed
+
+{
+  "ok": true,
+  "required_failed_count": 0,
+  "strict": true,
+  "total_checks": 14,
+  "warning_count": 0
+}
+```
+
+The checkpoint covers:
+
+- contract
+- builder
+- output validator
+- inspection
+- query CLI
+- release-candidate gate
+- package builder/validator
+
+Boundary:
+
+- read-only checkpoint only
+- no graph rebuild
+- no package rebuild
+- no canonical truth changes
+- no reconcile input changes
+- no DB/Qdrant/API/UI/retrieval/ranking changes
+- no dataset publication
+- no latest pointer
+- no graph runtime
+- generated checkpoint reports are not committed
+- no Neo4j/NetworkX/GraphRAG runtime
+
+See: `docs/paper_artifact_graph_line_checkpoint_v0.md`.
+<!-- PAPER_ARTIFACT_GRAPH_LINE_CHECKPOINT_V01_END -->
