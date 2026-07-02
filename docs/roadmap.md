@@ -4,14 +4,14 @@
 
 ```text
 document = primary living roadmap
-accepted checkpoint = Paper–Artifact Graph Package v0.1
+accepted checkpoint = Paper–Artifact Graph Line Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
-current active slice = Paper–Artifact Graph Line Checkpoint v0.1
+current active slice = Paper–Artifact Graph Manual Review Checklist v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = graph line checkpoint validator only; no graph rebuild/package rebuild/API/UI/runtime behavior changes
+scope of current branch = read-only manual-review gate only; no publication/graph rebuild/package rebuild/API/UI/runtime behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -546,146 +546,309 @@ publication_block_reason = manual_review_not_completed
 
 No public upload is performed in this track.
 
+### 4.17 Paper-Artifact Graph v0.1 local candidate line
+
+Status: **done / green local derived graph line / not published**
+
+Implemented sequence:
+
+```text
+contract
+→ builder
+→ output validator
+→ inspection / QA
+→ query CLI
+→ release candidate
+→ package
+→ line checkpoint
+```
+
+Current accepted local graph counters:
+
+```text
+nodes_count = 68385
+edges_count = 163757
+paper nodes = 60954
+artifact nodes = 7336
+provider nodes = 10
+source_family nodes = 5
+topic_cluster nodes = 80
+paper_has_artifact edges = 7430
+artifact_from_provider edges = 7336
+paper_observed_in_source_family edges = 88037
+paper_assigned_to_topic_cluster edges = 60954
+trusted_links_used_count = 7430
+topic_edges_count = 60954
+```
+
+Line checkpoint interpretation:
+
+```text
+paper_artifact_graph_line_complete = true
+technical local graph/package candidate = green
+manual_review_required = true
+publication_ready = false
+publication_block_reason = manual_review_not_completed
+```
+
+Boundary:
+
+```text
+graph/package/reports are derived and rebuildable
+graph is not canonical truth
+graph is not a reconcile input
+graph is not a DB source
+graph is not a runtime requirement
+graph is not an API/UI feature
+graph is not GraphRAG
+graph/package are not publication-ready without manual review
+```
+
 ## 5. Current active slice
 
-### 5.1 Paper–Artifact Graph Contract v0.1
+### 5.1 Paper–Artifact Graph Manual Review Checklist v0.1
 
-Status: **current / contract-only slice**
+Status: **current / read-only manual-review gate**
 
 Goal:
 
 ```text
-Define the first explicit contract for a future derived paper-artifact evidence graph
-without building graph outputs or changing runtime behavior.
+Define and validate the human manual-review gate that must remain between the local Paper-Artifact Graph v0.1 package and any future publication, external sharing, public API/UI exposure, or runtime graph use.
 ```
 
-This slice is intentionally small and foundational. It formalizes the graph
-boundary using the already validated canonical paper corpus, artifact evidence
-plane, provider metadata, canonical provenance, paper features, and topic-cluster
-layers.
+This slice exists after the completed local graph line:
+
+```text
+contract
+→ builder
+→ output validator
+→ inspection
+→ query CLI
+→ release candidate
+→ package
+→ line checkpoint
+→ manual review checklist
+```
 
 Scope:
 
-- add `configs/paper_artifact_graph.yaml`;
-- add `docs/paper_artifact_graph_v0.md`;
-- add `scripts/validation/check_paper_artifact_graph_contract.py`;
-- add `tests/smoke/test_paper_artifact_graph_contract.py`;
-- validate required graph node types, edge types, identity policy, provenance
-  policy, safety flags, and future output layout;
-- document that graph outputs are future-layout only and are not generated in
-  this slice.
+- add `configs/paper_artifact_graph_manual_review.yaml`;
+- add `docs/paper_artifact_graph_manual_review_v0.md`;
+- add `scripts/validation/check_paper_artifact_graph_manual_review.py`;
+- add `tests/smoke/test_paper_artifact_graph_manual_review.py`;
+- update `docs/roadmap.md`;
+- update `docs/refresh_contract_v1.md`;
+- validate manual-review categories, approval state, publication-block semantics, line-checkpoint evidence, package manifest safety, and read-only boundaries.
 
-Required node types:
-
-- `paper`;
-- `artifact`;
-- `provider`;
-- `source_family`;
-- `topic_cluster`.
-
-Required edge types:
-
-- `paper_has_artifact`;
-- `artifact_from_provider`;
-- `paper_observed_in_source_family`;
-- `paper_assigned_to_topic_cluster`.
-
-Identity policy:
+Key v0.1 semantic contract:
 
 ```text
-paper:<canonical_id>
-artifact:<artifact_id>
-provider:<provider>
-source_family:<source_family>
-topic_cluster:<cluster_id>
+pending categories block publication
+pending categories do not fail the validator
 ```
 
-Provider values must be derived from normalized `artifact_entities.provider`
-values. The graph contract must not invent a broader provider enum than the
-artifact layer actually materializes.
-
-Future graph output layout is documented only as `future_layout_only`:
+Default expected validator result:
 
 ```text
-nodes.parquet
-edges.parquet
-schema.json
-manifest.json
-README.md
-data_quality_summary.json
-checksums.txt
+summary.ok = true
+summary.required_failed_count = 0
+verdict.manual_review_required = true
+verdict.manual_review_complete = false
+verdict.publication_ready = false
+verdict.publication_block_reason = manual_review_not_completed
 ```
 
-Validation sequence:
+`summary.ok=true` means the manual-review gate is structurally valid and publication is correctly blocked. It does not mean that human review has been completed.
+
+Required manual-review categories:
+
+```text
+license_redistribution
+provider_terms
+artifact_metadata_caveats
+provenance_completeness
+trusted_link_policy_review
+sample_paper_artifact_path_review
+provider_distribution_sanity
+topic_cluster_artifact_coverage_sanity
+package_manifest_checksum_review
+readme_clarity
+known_limitations
+publication_target_decision
+manual_approval_state
+```
+
+Allowed category statuses:
+
+```text
+pending
+in_progress
+passed
+failed
+not_applicable
+```
+
+Allowed approval states:
+
+```text
+not_reviewed
+in_progress
+approved
+rejected
+```
+
+In v0.1, `approved` means only that the manual checklist has been approved. It does not publish anything. Publication remains a separate future slice/action.
+
+Required validation sequence:
 
 ```bat
-python -m py_compile scripts/validation/check_paper_artifact_graph_contract.py
-python -m pytest tests/smoke/test_paper_artifact_graph_contract.py -q
-python -m scripts.validation.check_paper_artifact_graph_contract --strict
-python -m scripts.validation.check_paper_artifact_graph_contract --strict --check-paths
+python -m py_compile scripts/validation/check_paper_artifact_graph_manual_review.py
+python -m pytest tests/smoke/test_paper_artifact_graph_manual_review.py -q
+python -m scripts.validation.check_paper_artifact_graph_manual_review --strict
 ```
 
-Expected validator result:
+Accepted local validation result:
 
 ```text
-required_failed_count = 0
+9 passed
+
+{
+  "ok": true,
+  "required_failed_count": 0,
+  "strict": true,
+  "total_checks": 20,
+  "warning_count": 0
+}
 ```
 
 Non-goals:
 
 ```text
-no graph builder
-no generated graph outputs
+no graph publication
+no external sharing
+no public graph API
+no Streamlit graph UI
+no graph runtime
 no Neo4j / NetworkX / GraphRAG runtime
-no API changes
-no DB schema changes
+no graph rebuild
+no package rebuild
 no canonical truth change
-no retrieval/Qdrant/ranking behavior change
-no Streamlit UI change
-no dataset publication
-no DoD required gate yet
+no reconcile input change
+no DB/Postgres change
+no Qdrant change
+no retrieval behavior change
+no ranking behavior change
+no API behavior change
+no UI behavior change
+no trusted-link policy redefinition
 ```
 
----
+Generated manual-review reports are operational evidence and are not committed by default.
 
 ## 6. Near-term roadmap
 
-### 6.1 Paper–Artifact Graph Builder v0.1
+### 6.1 Finish and merge Paper–Artifact Graph Manual Review Checklist v0.1
 
 Purpose:
 
 ```text
-Build the first derived graph artifacts only after the Paper–Artifact Graph Contract v0.1 is accepted.
+Close the governance gap between a technically complete local graph/package candidate and any future publication or exposure decision.
 ```
 
-Prerequisites:
+Definition of done:
 
-- `configs/paper_artifact_graph.yaml` accepted;
-- `docs/paper_artifact_graph_v0.md` accepted;
-- graph contract validator green;
-- smoke tests green;
-- no unresolved contract/safety questions.
+- manual-review config exists and validates;
+- validator is read-only and strict green;
+- smoke tests cover pending/default, unsafe, inconsistent, missing-category, bad-line-checkpoint, and bad-package-manifest cases;
+- docs explain pending-category semantics;
+- roadmap and refresh contract are updated;
+- no graph/package/runtime/publication layer is changed.
 
-Likely future scope:
+### 6.2 Paper–Artifact Graph Analytics v0.1
 
-- read canonical paper corpus;
-- read trusted `paper_artifact_links` and `artifact_entities`;
-- read canonical provenance/source-family signals;
-- read topic-cluster assignments;
-- emit graph nodes and edges according to the accepted contract;
-- produce manifest, schema, data-quality summary, checksums, and validation
-  report.
+Potential next read-only slice after manual-review gate.
 
-Non-goals for the future builder slice unless separately approved:
+Purpose:
 
-- no Neo4j deployment;
-- no GraphRAG;
-- no public API changes;
-- no Streamlit UI changes;
-- no reconcile input;
-- no dataset publication.
+```text
+Add local analytics over the already generated Paper-Artifact Graph without exposing it as runtime/API/UI.
+```
 
-### 6.2 Deployment Vector Backend Selector Design v1
+Possible outputs:
+
+- provider coverage report;
+- artifact-ready paper distribution;
+- topic-cluster artifact readiness report;
+- source-family versus artifact coverage diagnostics;
+- multi-paper artifact diagnostics;
+- limitations report for manual review.
+
+Non-goals:
+
+- no graph rebuild unless explicitly requested;
+- no publication;
+- no API/UI/runtime;
+- no canonical/reconcile changes.
+
+### 6.3 Paper–Artifact Graph API Design v0.1
+
+Purpose:
+
+```text
+Design possible future API semantics before implementing any graph endpoint.
+```
+
+This should be a design-only slice unless separately approved.
+
+Questions to resolve:
+
+- which graph queries are safe to expose;
+- whether graph output remains local/offline or becomes a serving artifact;
+- how to prevent graph from being interpreted as canonical truth;
+- how to document provenance and trust boundaries;
+- whether endpoint output should mirror Query CLI semantics;
+- whether API needs additional manual-review/publication gates.
+
+Non-goals:
+
+- no endpoint implementation;
+- no Streamlit graph UI;
+- no runtime graph database;
+- no GraphRAG.
+
+### 6.4 Publication Preparation v0.1
+
+Only after manual review is actually completed.
+
+Purpose:
+
+```text
+Prepare a separate publication or external-sharing decision for the graph/package candidate.
+```
+
+Possible scope:
+
+- publication target selection;
+- license and redistribution decision;
+- final README limitations;
+- release notes;
+- archive retention policy;
+- explicit public-upload procedure.
+
+Publication must remain a separate PR/slice from the manual-review validator.
+
+### 6.5 Citation / Reference Graph Contract v0.1
+
+Potential separate future line.
+
+Important boundary:
+
+```text
+Citation/reference graph should be a separate derived paper→paper graph line.
+It should not be mixed directly into Paper-Artifact Graph v0.1.
+```
+
+### 6.6 Deployment Vector Backend Selector Design v1
 
 Purpose:
 
@@ -709,7 +872,7 @@ Non-goals:
 - do not silently switch `/search`;
 - do not remove file dense as reference.
 
-### 6.3 Public Qdrant Promotion v1
+### 6.7 Public Qdrant Promotion v1
 
 Prerequisites:
 
@@ -722,7 +885,7 @@ Prerequisites:
 
 Promotion must be a separate PR.
 
-### 6.4 Ranking / reranking research
+### 6.8 Ranking / reranking research
 
 Potential future slices:
 
@@ -734,7 +897,7 @@ Potential future slices:
 
 The current heuristic ranking must not be promoted without new evidence.
 
-### 6.5 Next retrieval generation
+### 6.9 Next retrieval generation
 
 Potential future work:
 
@@ -745,10 +908,9 @@ Potential future work:
 - parity/evaluation re-run;
 - new retrieval manifest and build-scoped docs.
 
-Any material retrieval rebuild invalidates current build-scoped evidence and
-requires fresh validators.
+Any material retrieval rebuild invalidates current build-scoped evidence and requires fresh validators.
 
-### 6.6 Full text / RAG
+### 6.10 Full text / RAG
 
 Future staged path:
 
@@ -763,7 +925,7 @@ full-text acquisition policy
 
 RAG must not be introduced as an ungrounded chat layer.
 
-### 6.7 Observability and orchestration
+### 6.11 Observability and orchestration
 
 Future staged path:
 
@@ -779,14 +941,16 @@ Future staged path:
 
 These remain future architecture options, not immediate tasks.
 
----
-
 ## 7. Work explicitly deferred
 
 Deferred:
 
 ```text
 public Qdrant promotion
+public graph API
+Streamlit graph UI
+graph runtime / Neo4j / NetworkX runtime
+GraphRAG over Paper-Artifact Graph
 deployment-level vector backend selector implementation
 Qdrant-backed public hybrid
 Qdrant-backed similar-paper migration
@@ -1193,3 +1357,85 @@ Boundary:
 
 See: `docs/paper_artifact_graph_line_checkpoint_v0.md`.
 <!-- PAPER_ARTIFACT_GRAPH_LINE_CHECKPOINT_V01_END -->
+
+<!-- PAPER_ARTIFACT_GRAPH_MANUAL_REVIEW_V01_START -->
+## Paper-Artifact Graph Manual Review Checklist v0.1
+
+Status: implemented local read-only manual-review gate.
+
+This slice adds a structured manual-review checklist and validator over the already completed local Paper-Artifact Graph v0.1 line and package candidate.
+
+It answers:
+
+```text
+What must a human review before the Paper-Artifact Graph v0.1 package can be published, shared externally, or exposed through a public runtime/API/UI surface?
+```
+
+Tracked files:
+
+- `configs/paper_artifact_graph_manual_review.yaml`
+- `scripts/validation/check_paper_artifact_graph_manual_review.py`
+- `tests/smoke/test_paper_artifact_graph_manual_review.py`
+- `docs/paper_artifact_graph_manual_review_v0.md`
+
+Generated reports, not committed:
+
+- `artifacts/reports/validation/paper_artifact_graph_manual_review_latest.json`
+- `artifacts/reports/validation/paper_artifact_graph_manual_review_latest.md`
+- `artifacts/reports/validation/history/paper_artifact_graph_manual_review_<run_ts>.json`
+- `artifacts/reports/validation/history/paper_artifact_graph_manual_review_<run_ts>.md`
+
+Accepted local validation:
+
+```text
+python -m py_compile scripts/validation/check_paper_artifact_graph_manual_review.py
+python -m pytest tests/smoke/test_paper_artifact_graph_manual_review.py -q
+python -m scripts.validation.check_paper_artifact_graph_manual_review --strict
+```
+
+Accepted result:
+
+```text
+9 passed
+
+{
+  "ok": true,
+  "required_failed_count": 0,
+  "strict": true,
+  "total_checks": 20,
+  "warning_count": 0
+}
+```
+
+Key v0.1 semantics:
+
+```text
+pending categories block publication
+pending categories do not fail the validator
+```
+
+Default verdict:
+
+```text
+manual_review_required=true
+manual_review_complete=false
+publication_ready=false
+publication_block_reason=manual_review_not_completed
+```
+
+Boundary:
+
+- read-only manual-review validator only
+- no publication
+- no graph rebuild
+- no package rebuild
+- no canonical truth changes
+- no reconcile input changes
+- no DB/Qdrant/API/UI/retrieval/ranking changes
+- no latest pointer
+- no graph runtime
+- no Neo4j/NetworkX/GraphRAG runtime
+- no trusted-link policy redefinition
+
+See: `docs/paper_artifact_graph_manual_review_v0.md`.
+<!-- PAPER_ARTIFACT_GRAPH_MANUAL_REVIEW_V01_END -->

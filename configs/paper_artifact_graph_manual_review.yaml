@@ -1,0 +1,133 @@
+schema_version: paper_artifact_graph_manual_review_config_v1
+
+review:
+  name: paper_artifact_graph_manual_review
+  version: v0.1
+  status: local_manual_review_gate
+  graph_version: v0.1
+  approval_state: not_reviewed
+  manual_review_required: true
+  manual_review_complete: false
+  publication_ready: false
+  publication_block_reason: manual_review_not_completed
+  may_be_used_as_reconcile_input: false
+
+inputs:
+  line_checkpoint_report: artifacts/reports/validation/paper_artifact_graph_line_checkpoint_latest.json
+  package_manifest: data/graphs/paper_artifact_graph/packages/v0.1/package_manifest.json
+  package_report: artifacts/reports/validation/paper_artifact_graph_package_latest.json
+  release_candidate_report: artifacts/reports/validation/paper_artifact_graph_release_candidate_latest.json
+  inspection_report: artifacts/reports/validation/paper_artifact_graph_inspection_latest.json
+
+validation:
+  report_dir: artifacts/reports/validation
+
+manual_review:
+  status_policy:
+    pending_blocks_publication: true
+    pending_fails_validator: false
+    approved_does_not_publish: true
+  allowed_category_statuses:
+    - pending
+    - in_progress
+    - passed
+    - failed
+    - not_applicable
+  required_category_ids:
+    - license_redistribution
+    - provider_terms
+    - artifact_metadata_caveats
+    - provenance_completeness
+    - trusted_link_policy_review
+    - sample_paper_artifact_path_review
+    - provider_distribution_sanity
+    - topic_cluster_artifact_coverage_sanity
+    - package_manifest_checksum_review
+    - readme_clarity
+    - known_limitations
+    - publication_target_decision
+    - manual_approval_state
+  categories:
+    - id: license_redistribution
+      title: License and redistribution status
+      required: true
+      status: pending
+      reviewer_note: ""
+    - id: provider_terms
+      title: Provider terms and external artifact caveats
+      required: true
+      status: pending
+      reviewer_note: ""
+    - id: artifact_metadata_caveats
+      title: Artifact metadata caveats
+      required: true
+      status: pending
+      reviewer_note: ""
+    - id: provenance_completeness
+      title: Provenance completeness
+      required: true
+      status: pending
+      reviewer_note: ""
+    - id: trusted_link_policy_review
+      title: Trusted-link policy review
+      required: true
+      status: pending
+      reviewer_note: "Acknowledge radar_core/artifacts/trusted_links.py; do not redefine trusted-link logic here."
+    - id: sample_paper_artifact_path_review
+      title: Sample paper-to-artifact path review
+      required: true
+      status: pending
+      reviewer_note: ""
+    - id: provider_distribution_sanity
+      title: Provider distribution sanity
+      required: true
+      status: pending
+      reviewer_note: ""
+    - id: topic_cluster_artifact_coverage_sanity
+      title: Topic-cluster artifact coverage sanity
+      required: true
+      status: pending
+      reviewer_note: ""
+    - id: package_manifest_checksum_review
+      title: Package manifest and checksum review
+      required: true
+      status: pending
+      reviewer_note: ""
+    - id: readme_clarity
+      title: README clarity
+      required: true
+      status: pending
+      reviewer_note: ""
+    - id: known_limitations
+      title: Known limitations
+      required: true
+      status: pending
+      reviewer_note: ""
+    - id: publication_target_decision
+      title: Publication target decision
+      required: true
+      status: pending
+      reviewer_note: ""
+    - id: manual_approval_state
+      title: Manual approval state
+      required: true
+      status: pending
+      reviewer_note: ""
+
+safety:
+  read_only_manual_review: true
+  rebuild_graph: false
+  rebuild_package: false
+  mutate_canonical_documents: false
+  mutate_artifact_inputs: false
+  mutate_topic_inputs: false
+  mutate_retrieval_artifacts: false
+  mutate_qdrant: false
+  mutate_postgres: false
+  mutate_api: false
+  mutate_ui: false
+  mutate_ranking: false
+  publish_dataset: false
+  create_latest_pointer: false
+  create_graph_runtime: false
+  may_be_used_as_reconcile_input: false
