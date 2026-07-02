@@ -1,0 +1,92 @@
+schema_version: paper_artifact_graph_line_checkpoint_config_v1
+
+checkpoint:
+  name: paper_artifact_graph_line_checkpoint
+  version: v0.1
+  status: local_line_checkpoint
+  publication_ready: false
+  manual_review_required: true
+  may_be_used_as_reconcile_input: false
+
+inputs:
+  graph_dir: data/graphs/paper_artifact_graph/v0.1
+  package_dir: data/graphs/paper_artifact_graph/packages/v0.1
+  inspection_report: artifacts/reports/validation/paper_artifact_graph_inspection_latest.json
+  release_candidate_report: artifacts/reports/validation/paper_artifact_graph_release_candidate_latest.json
+  package_report: artifacts/reports/validation/paper_artifact_graph_package_latest.json
+
+validation:
+  report_dir: artifacts/reports/validation
+
+required_tracked_files:
+  - configs/paper_artifact_graph.yaml
+  - configs/paper_artifact_graph_builder.yaml
+  - configs/paper_artifact_graph_package.yaml
+  - scripts/export/build_paper_artifact_graph.py
+  - scripts/validation/check_paper_artifact_graph_output.py
+  - scripts/validation/check_paper_artifact_graph_inspection.py
+  - scripts/graph/query_paper_artifact_graph.py
+  - scripts/validation/check_paper_artifact_graph_release_candidate.py
+  - scripts/export/package_paper_artifact_graph.py
+  - scripts/validation/check_paper_artifact_graph_package.py
+  - docs/paper_artifact_graph_v0.md
+  - docs/paper_artifact_graph_builder_v0.md
+  - docs/paper_artifact_graph_inspection_v0.md
+  - docs/paper_artifact_graph_query_cli_v0.md
+  - docs/paper_artifact_graph_release_candidate_v0.md
+  - docs/paper_artifact_graph_package_v0.md
+
+required_graph_files:
+  - nodes.jsonl
+  - edges.jsonl
+  - schema.json
+  - manifest.json
+  - data_quality_summary.json
+  - README.md
+  - checksums.txt
+
+required_package_files:
+  - paper_artifact_graph_v0.1.zip
+  - package_manifest.json
+  - README.md
+  - checksums.txt
+
+expected_counts:
+  nodes_count: 68385
+  edges_count: 163757
+  node_paper_count: 60954
+  node_artifact_count: 7336
+  node_provider_count: 10
+  node_source_family_count: 5
+  node_topic_cluster_count: 80
+  edge_paper_has_artifact_count: 7430
+  edge_artifact_from_provider_count: 7336
+  edge_paper_observed_in_source_family_count: 88037
+  edge_paper_assigned_to_topic_cluster_count: 60954
+  trusted_links_used_count: 7430
+  topic_edges_count: 60954
+
+line_components:
+  contract: accepted
+  builder: accepted_local_derived_builder
+  output_validator: accepted_strict_validator
+  inspection: accepted_read_only_inspection
+  query_cli: accepted_read_only_query_cli
+  release_candidate: accepted_read_only_release_candidate
+  package: accepted_local_package_candidate
+
+safety:
+  read_only_checkpoint: true
+  rebuild_graph: false
+  mutate_canonical_documents: false
+  mutate_artifact_inputs: false
+  mutate_topic_inputs: false
+  mutate_retrieval_artifacts: false
+  mutate_qdrant: false
+  mutate_postgres: false
+  mutate_api: false
+  mutate_ui: false
+  mutate_ranking: false
+  publish_dataset: false
+  create_latest_pointer: false
+  create_graph_runtime: false
