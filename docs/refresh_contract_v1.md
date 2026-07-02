@@ -41,7 +41,8 @@ Artifact API filters validation + DoD gate — 2026-06
 Regression runner DB preflight — 2026-06
 Discovery regression runner summary report — 2026-06
 Dataset release track checkpoint — 2026-06
-Paper–Artifact Graph Line Checkpoint v0.1 — 2026-07 active read-only graph-line checkpoint slice
+Paper–Artifact Graph Line Checkpoint v0.1 — 2026-07 completed read-only graph-line checkpoint
+Paper–Artifact Graph Manual Review Checklist v0.1 — 2026-07 active read-only manual-review governance slice
 ```
 
 Current healthy baseline:
@@ -78,8 +79,10 @@ paper_artifact_graph_inspection = accepted_read_only_inspection
 paper_artifact_graph_query_cli = accepted_read_only_query_cli
 paper_artifact_graph_release_candidate = accepted_read_only_release_candidate
 paper_artifact_graph_package = accepted_local_package_candidate
-paper_artifact_graph_line_checkpoint = read_only_line_checkpoint_active
+paper_artifact_graph_line_checkpoint = accepted_read_only_line_checkpoint
+paper_artifact_graph_manual_review = active_read_only_manual_review_gate
 paper_artifact_graph_dod_gate = not required yet
+paper_artifact_graph_manual_review_dod_gate = not required yet
 
 paper_features_rows_count = 60954
 ranking_profiles_count = 9
@@ -661,103 +664,178 @@ python -m scripts.validation.check_streamlit_discovery_ui --strict --check-api
 
 ---
 
-# E. Paper–Artifact Graph Contract v0.1 validation
+# E. Paper–Artifact Graph Manual Review Checklist v0.1 validation
 
-Use this when changing the contract-only future graph layer definition.
-This validation does not build graph artifacts and does not change canonical truth,
-Postgres serving, retrieval, Qdrant, ranking, API behavior, Streamlit UI, or
-dataset publication behavior.
+Use this when checking the current read-only manual-review gate for the local Paper-Artifact Graph v0.1 package.
 
-Config:
+This validation does not publish the graph package and does not change canonical truth, Postgres serving, retrieval artifacts, Qdrant, ranking, API behavior, Streamlit behavior, graph output, or package output.
+
+Current local graph-line sequence:
 
 ```text
-configs/paper_artifact_graph.yaml
+contract
+→ builder
+→ output validator
+→ inspection
+→ query CLI
+→ release candidate
+→ package
+→ line checkpoint
+→ manual review checklist
 ```
 
-Contract documentation:
+Manual-review config:
 
 ```text
-docs/paper_artifact_graph_v0.md
+configs/paper_artifact_graph_manual_review.yaml
+```
+
+Manual-review documentation:
+
+```text
+docs/paper_artifact_graph_manual_review_v0.md
 ```
 
 Validator:
 
 ```text
-scripts/validation/check_paper_artifact_graph_contract.py
+scripts/validation/check_paper_artifact_graph_manual_review.py
 ```
 
 Smoke tests:
 
 ```text
-tests/smoke/test_paper_artifact_graph_contract.py
+tests/smoke/test_paper_artifact_graph_manual_review.py
 ```
 
-Required checks for the contract slice:
+Recommended validation sequence:
 
 ```bat
-python -m py_compile scripts/validation/check_paper_artifact_graph_contract.py
-python -m pytest tests/smoke/test_paper_artifact_graph_contract.py -q
-python -m scripts.validation.check_paper_artifact_graph_contract --strict
-python -m scripts.validation.check_paper_artifact_graph_contract --strict --check-paths
+python -m py_compile scripts/validation/check_paper_artifact_graph_manual_review.py
+python -m pytest tests/smoke/test_paper_artifact_graph_manual_review.py -q
+python -m scripts.validation.check_paper_artifact_graph_manual_review --strict
 ```
 
-Expected validator result:
+Expected current result:
 
 ```text
-ok = true
-required_failed_count = 0
-required_failed_checks = []
+9 passed
+
+{
+  "ok": true,
+  "required_failed_count": 0,
+  "strict": true,
+  "total_checks": 20,
+  "warning_count": 0
+}
 ```
 
-The validator checks:
+Key v0.1 semantic contract:
 
 ```text
-schema_version = paper_artifact_graph_config_v1
-graph.status = contract_only
-required node types are present
-required edge types are present
-typed graph node ID policy is present
-edge ID policy is typed_source_target_hash
-provenance kinds and source layers are declared
-safety flags prohibit canonical/API/retrieval/Qdrant/ranking behavior changes
-outputs.status = future_layout_only
-generated_in_this_slice = false
-publication without manual review is prohibited
+pending manual-review categories block publication
+pending manual-review categories do not fail the validator
+```
+
+Default expected verdict:
+
+```text
+manual_review_required = true
+manual_review_complete = false
+publication_ready = false
+publication_block_reason = manual_review_not_completed
+```
+
+`summary.ok=true` means the manual-review gate is structurally valid and publication is correctly blocked. It does not mean human review is complete.
+
+Required manual-review categories:
+
+```text
+license_redistribution
+provider_terms
+artifact_metadata_caveats
+provenance_completeness
+trusted_link_policy_review
+sample_paper_artifact_path_review
+provider_distribution_sanity
+topic_cluster_artifact_coverage_sanity
+package_manifest_checksum_review
+readme_clarity
+known_limitations
+publication_target_decision
+manual_approval_state
+```
+
+Allowed category statuses:
+
+```text
+pending
+in_progress
+passed
+failed
+not_applicable
+```
+
+Allowed approval states:
+
+```text
+not_reviewed
+in_progress
+approved
+rejected
+```
+
+Required inputs:
+
+```text
+artifacts/reports/validation/paper_artifact_graph_line_checkpoint_latest.json
+data/graphs/paper_artifact_graph/packages/v0.1/package_manifest.json
+```
+
+Optional diagnostic inputs:
+
+```text
+artifacts/reports/validation/paper_artifact_graph_package_latest.json
+artifacts/reports/validation/paper_artifact_graph_release_candidate_latest.json
+artifacts/reports/validation/paper_artifact_graph_inspection_latest.json
 ```
 
 Generated reports:
 
 ```text
-artifacts/reports/validation/paper_artifact_graph_contract_latest.json
-artifacts/reports/validation/paper_artifact_graph_contract_latest.md
-artifacts/reports/validation/history/paper_artifact_graph_contract_<timestamp>.json
-artifacts/reports/validation/history/paper_artifact_graph_contract_<timestamp>.md
+artifacts/reports/validation/paper_artifact_graph_manual_review_latest.json
+artifacts/reports/validation/paper_artifact_graph_manual_review_latest.md
+artifacts/reports/validation/history/paper_artifact_graph_manual_review_<run_ts>.json
+artifacts/reports/validation/history/paper_artifact_graph_manual_review_<run_ts>.md
 ```
 
 Important boundary:
 
 ```text
-The graph contract is a derived-layer contract, not a generated graph artifact.
+The manual-review checklist is a read-only governance gate.
+It must not publish the graph package.
+It must not rebuild graph output.
+It must not rebuild package output.
 It must not be used as a reconcile input.
 It must not overwrite operational latest files.
+It must not redefine trusted-link policy.
 It does not add a DoD required gate in this slice.
 Generated reports are not committed.
 ```
 
-Future graph output layout may be documented in the config as
-`future_layout_only`, but the following files are not generated by this slice:
+If `approval_state=approved` is ever used in v0.1, it means only that the checklist was approved. It still does not perform publication. Publication remains a separate future slice/action.
 
-```text
-nodes.parquet
-edges.parquet
-schema.json
-manifest.json
-README.md
-data_quality_summary.json
-checksums.txt
+## Related Paper–Artifact Graph validators
+
+Use these when debugging the underlying graph line, not as part of ordinary manual-review edits:
+
+```bat
+python -m scripts.validation.check_paper_artifact_graph_output --strict
+python -m scripts.validation.check_paper_artifact_graph_inspection --strict
+python -m scripts.validation.check_paper_artifact_graph_release_candidate --strict
+python -m scripts.validation.check_paper_artifact_graph_package --strict
+python -m scripts.validation.check_paper_artifact_graph_line_checkpoint --strict
 ```
-
----
 
 # F. Artifact API filters validation and DoD gate
 
@@ -1180,10 +1258,7 @@ dod_passed = true
 required_failed_count = 0
 ```
 
-Paper–Artifact Graph Contract v0.1 is intentionally not a required strict DoD
-gate in this contract-only slice. It has its own validator and smoke tests, but
-DoD integration should be reconsidered only after a graph builder/output
-validator exists.
+Paper–Artifact Graph Manual Review Checklist v0.1 is intentionally not a required strict DoD gate in this slice. It has its own validator and smoke tests. DoD integration should be reconsidered only after the project decides whether graph publication/exposure becomes part of the standard refresh contract.
 
 If local `--help` does not show these gates, sync the DoD script before treating local docs as current.
 
@@ -1838,3 +1913,92 @@ Boundary notes:
 - no graph runtime
 - generated checkpoint reports are ignored and not committed
 <!-- PAPER_ARTIFACT_GRAPH_LINE_CHECKPOINT_V01_END -->
+
+<!-- PAPER_ARTIFACT_GRAPH_MANUAL_REVIEW_V01_START -->
+## Paper-Artifact Graph Manual Review Checklist v0.1 checkpoint
+
+Status: local read-only manual-review gate implemented and validated.
+
+Tracked files:
+
+- `configs/paper_artifact_graph_manual_review.yaml`
+- `scripts/validation/check_paper_artifact_graph_manual_review.py`
+- `tests/smoke/test_paper_artifact_graph_manual_review.py`
+- `docs/paper_artifact_graph_manual_review_v0.md`
+
+Generated validation reports, not committed:
+
+- `artifacts/reports/validation/paper_artifact_graph_manual_review_latest.json`
+- `artifacts/reports/validation/paper_artifact_graph_manual_review_latest.md`
+- `artifacts/reports/validation/history/paper_artifact_graph_manual_review_<run_ts>.json`
+- `artifacts/reports/validation/history/paper_artifact_graph_manual_review_<run_ts>.md`
+
+Validation commands:
+
+```bat
+python -m py_compile scripts/validation/check_paper_artifact_graph_manual_review.py
+python -m pytest tests/smoke/test_paper_artifact_graph_manual_review.py -q
+python -m scripts.validation.check_paper_artifact_graph_manual_review --strict
+```
+
+Expected result:
+
+```text
+9 passed
+
+{
+  "ok": true,
+  "required_failed_count": 0,
+  "strict": true,
+  "total_checks": 20,
+  "warning_count": 0
+}
+```
+
+Key semantic contract:
+
+```text
+pending categories block publication
+pending categories do not fail the validator
+```
+
+Default verdict:
+
+```text
+manual_review_required=true
+manual_review_complete=false
+publication_ready=false
+publication_block_reason=manual_review_not_completed
+```
+
+The validator checks:
+
+```text
+manual-review config schema
+review metadata
+approval_state validity
+required category presence
+category status validity
+pending-category publication block semantics
+line checkpoint report green
+package manifest readable
+package manifest safety flags
+package remains publication_ready=false
+manual-review safety flags preserve project boundaries
+```
+
+Boundary notes:
+
+- validator is read-only
+- pending manual-review categories are normal default state
+- graph/package/manual-review reports remain derived evidence
+- graph/package/manual-review must not be used as reconcile input
+- no graph rebuild
+- no package rebuild
+- no publication
+- no DB/Qdrant/API/UI/retrieval/ranking behavior change
+- no latest pointer
+- no graph runtime
+- no Neo4j/NetworkX/GraphRAG runtime
+- no trusted-link policy redefinition
+<!-- PAPER_ARTIFACT_GRAPH_MANUAL_REVIEW_V01_END -->
