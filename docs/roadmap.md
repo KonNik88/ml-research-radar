@@ -4,14 +4,14 @@
 
 ```text
 document = primary living roadmap
-accepted checkpoint = Paper–Artifact Graph Line Checkpoint v0.1
+accepted checkpoint = Paper–Artifact Graph Manual Review Checklist v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
-current active slice = Paper–Artifact Graph Manual Review Checklist v0.1
+current active slice = Paper–Artifact Graph Analytics v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = read-only manual-review gate only; no publication/graph rebuild/package rebuild/API/UI/runtime behavior changes
+scope of current branch = read-only graph analytics/report only; no publication/graph rebuild/package rebuild/API/UI/runtime behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -604,19 +604,77 @@ graph is not GraphRAG
 graph/package are not publication-ready without manual review
 ```
 
+### 4.18 Paper-Artifact Graph Manual Review Checklist v0.1
+
+Status: **done / green local read-only governance gate / not published**
+
+Implemented after the completed local graph line and package candidate:
+
+```text
+contract
+→ builder
+→ output validator
+→ inspection / QA
+→ query CLI
+→ release candidate
+→ package
+→ line checkpoint
+→ manual review checklist
+```
+
+Accepted local validation:
+
+```text
+9 passed
+ok = true
+required_failed_count = 0
+strict = true
+total_checks = 20
+warning_count = 0
+```
+
+Key semantic contract:
+
+```text
+pending manual-review categories block publication
+pending manual-review categories do not fail the validator
+```
+
+Default verdict:
+
+```text
+manual_review_required = true
+manual_review_complete = false
+publication_ready = false
+publication_block_reason = manual_review_not_completed
+```
+
+Boundary:
+
+```text
+manual-review gate is read-only
+manual-review reports are derived evidence
+graph/package/manual-review are not canonical truth
+graph/package/manual-review are not reconcile inputs
+manual-review does not publish anything
+manual-review does not rebuild graph or package outputs
+manual-review does not redefine trusted-link policy
+manual-review does not change DB/Qdrant/API/UI/retrieval/ranking behavior
+```
+
 ## 5. Current active slice
 
-### 5.1 Paper–Artifact Graph Manual Review Checklist v0.1
+### 5.1 Paper–Artifact Graph Analytics v0.1
 
-Status: **current / read-only manual-review gate**
+Status: **current / read-only analytics and report layer**
 
 Goal:
 
 ```text
-Define and validate the human manual-review gate that must remain between the local Paper-Artifact Graph v0.1 package and any future publication, external sharing, public API/UI exposure, or runtime graph use.
+Add a local analytics/report layer over the already generated Paper-Artifact Graph v0.1 output so manual review and future exposure decisions have compact evidence about coverage, distributions, and limitations.
 ```
 
-This slice exists after the completed local graph line:
+This slice exists after the completed local governance sequence:
 
 ```text
 contract
@@ -628,97 +686,66 @@ contract
 → package
 → line checkpoint
 → manual review checklist
+→ analytics report
 ```
 
 Scope:
 
-- add `configs/paper_artifact_graph_manual_review.yaml`;
-- add `docs/paper_artifact_graph_manual_review_v0.md`;
-- add `scripts/validation/check_paper_artifact_graph_manual_review.py`;
-- add `tests/smoke/test_paper_artifact_graph_manual_review.py`;
+- add `configs/paper_artifact_graph_analytics.yaml`;
+- add `docs/paper_artifact_graph_analytics_v0.md`;
+- add `scripts/validation/check_paper_artifact_graph_analytics.py`;
+- add `tests/smoke/test_paper_artifact_graph_analytics.py`;
 - update `docs/roadmap.md`;
 - update `docs/refresh_contract_v1.md`;
-- validate manual-review categories, approval state, publication-block semantics, line-checkpoint evidence, package manifest safety, and read-only boundaries.
+- compute compact read-only analytics over existing graph output;
+- emit JSON/Markdown reports for local review;
+- preserve all canonical, serving, retrieval, Qdrant, ranking, API, UI, package, and publication boundaries.
 
-Key v0.1 semantic contract:
-
-```text
-pending categories block publication
-pending categories do not fail the validator
-```
-
-Default expected validator result:
+Analytics report focus:
 
 ```text
-summary.ok = true
-summary.required_failed_count = 0
-verdict.manual_review_required = true
-verdict.manual_review_complete = false
-verdict.publication_ready = false
-verdict.publication_block_reason = manual_review_not_completed
+node and edge type counters
+provider distribution over artifact nodes
+provider distribution over paper-artifact links
+source-family distribution
+topic-cluster artifact readiness
+papers with trusted artifacts
+artifacts linked to papers
+multi-paper artifact diagnostics
+isolated artifact diagnostics
+top multi-paper artifacts
+small sample IDs for manual inspection
 ```
-
-`summary.ok=true` means the manual-review gate is structurally valid and publication is correctly blocked. It does not mean that human review has been completed.
-
-Required manual-review categories:
-
-```text
-license_redistribution
-provider_terms
-artifact_metadata_caveats
-provenance_completeness
-trusted_link_policy_review
-sample_paper_artifact_path_review
-provider_distribution_sanity
-topic_cluster_artifact_coverage_sanity
-package_manifest_checksum_review
-readme_clarity
-known_limitations
-publication_target_decision
-manual_approval_state
-```
-
-Allowed category statuses:
-
-```text
-pending
-in_progress
-passed
-failed
-not_applicable
-```
-
-Allowed approval states:
-
-```text
-not_reviewed
-in_progress
-approved
-rejected
-```
-
-In v0.1, `approved` means only that the manual checklist has been approved. It does not publish anything. Publication remains a separate future slice/action.
 
 Required validation sequence:
 
 ```bat
-python -m py_compile scripts/validation/check_paper_artifact_graph_manual_review.py
-python -m pytest tests/smoke/test_paper_artifact_graph_manual_review.py -q
-python -m scripts.validation.check_paper_artifact_graph_manual_review --strict
+python -m py_compile scripts/validation/check_paper_artifact_graph_analytics.py
+python -m pytest tests/smoke/test_paper_artifact_graph_analytics.py -q
+python -m scripts.validation.check_paper_artifact_graph_analytics --strict
 ```
 
 Accepted local validation result:
 
 ```text
-9 passed
+8 passed
 
 {
   "ok": true,
   "required_failed_count": 0,
   "strict": true,
-  "total_checks": 20,
+  "total_checks": 40,
   "warning_count": 0
 }
+```
+
+Expected generated reports, not committed:
+
+```text
+artifacts/reports/validation/paper_artifact_graph_analytics_latest.json
+artifacts/reports/validation/paper_artifact_graph_analytics_latest.md
+artifacts/reports/validation/history/paper_artifact_graph_analytics_<run_ts>.json
+artifacts/reports/validation/history/paper_artifact_graph_analytics_<run_ts>.md
 ```
 
 Non-goals:
@@ -741,52 +768,53 @@ no ranking behavior change
 no API behavior change
 no UI behavior change
 no trusted-link policy redefinition
+no manual approval state change
 ```
 
-Generated manual-review reports are operational evidence and are not committed by default.
+Generated analytics reports are local operational evidence and are not committed by default.
 
 ## 6. Near-term roadmap
 
-### 6.1 Finish and merge Paper–Artifact Graph Manual Review Checklist v0.1
+### 6.1 Finish and merge Paper–Artifact Graph Analytics v0.1
 
 Purpose:
 
 ```text
-Close the governance gap between a technically complete local graph/package candidate and any future publication or exposure decision.
+Close the read-only analytics/report layer that supports manual review with compact graph coverage and distribution evidence.
 ```
 
 Definition of done:
 
-- manual-review config exists and validates;
-- validator is read-only and strict green;
-- smoke tests cover pending/default, unsafe, inconsistent, missing-category, bad-line-checkpoint, and bad-package-manifest cases;
-- docs explain pending-category semantics;
+- analytics config exists and validates;
+- analytics validator is read-only and strict green;
+- smoke tests cover valid graph analytics, unsafe config, broken graph, missing files, and report-writing behavior;
+- docs explain what analytics reports are and are not;
 - roadmap and refresh contract are updated;
 - no graph/package/runtime/publication layer is changed.
 
-### 6.2 Paper–Artifact Graph Analytics v0.1
+### 6.2 Paper–Artifact Graph Manual Review Evidence Pack v0.1
 
-Potential next read-only slice after manual-review gate.
+Potential next read-only slice after analytics.
 
 Purpose:
 
 ```text
-Add local analytics over the already generated Paper-Artifact Graph without exposing it as runtime/API/UI.
+Bundle manual-review-relevant evidence from line checkpoint, manual-review gate, package, release candidate, inspection, query CLI, and analytics reports without publishing the graph package.
 ```
 
-Possible outputs:
+Possible scope:
 
-- provider coverage report;
-- artifact-ready paper distribution;
-- topic-cluster artifact readiness report;
-- source-family versus artifact coverage diagnostics;
-- multi-paper artifact diagnostics;
-- limitations report for manual review.
+- collect paths and summaries of existing graph-line reports;
+- create one local review index document;
+- list manual-review categories and matching evidence references;
+- preserve pending-category semantics;
+- keep publication blocked.
 
 Non-goals:
 
-- no graph rebuild unless explicitly requested;
 - no publication;
+- no package rebuild;
+- no manual approval automation;
 - no API/UI/runtime;
 - no canonical/reconcile changes.
 
@@ -835,7 +863,7 @@ Possible scope:
 - archive retention policy;
 - explicit public-upload procedure.
 
-Publication must remain a separate PR/slice from the manual-review validator.
+Publication must remain a separate PR/slice from validators and local evidence reports.
 
 ### 6.5 Citation / Reference Graph Contract v0.1
 
@@ -1439,3 +1467,87 @@ Boundary:
 
 See: `docs/paper_artifact_graph_manual_review_v0.md`.
 <!-- PAPER_ARTIFACT_GRAPH_MANUAL_REVIEW_V01_END -->
+
+<!-- PAPER_ARTIFACT_GRAPH_ANALYTICS_V01_START -->
+## Paper-Artifact Graph Analytics v0.1
+
+Status: implemented local read-only analytics/report layer.
+
+This slice adds a compact analytics report over the already generated Paper-Artifact Graph v0.1 output.
+
+It answers:
+
+```text
+What does the local Paper-Artifact Graph v0.1 candidate look like in terms of provider coverage, artifact readiness, source-family evidence, topic-cluster coverage, and multi-paper artifact structure?
+```
+
+Tracked files:
+
+- `configs/paper_artifact_graph_analytics.yaml`
+- `scripts/validation/check_paper_artifact_graph_analytics.py`
+- `tests/smoke/test_paper_artifact_graph_analytics.py`
+- `docs/paper_artifact_graph_analytics_v0.md`
+
+Generated reports, not committed:
+
+- `artifacts/reports/validation/paper_artifact_graph_analytics_latest.json`
+- `artifacts/reports/validation/paper_artifact_graph_analytics_latest.md`
+- `artifacts/reports/validation/history/paper_artifact_graph_analytics_<run_ts>.json`
+- `artifacts/reports/validation/history/paper_artifact_graph_analytics_<run_ts>.md`
+
+Accepted local validation:
+
+```text
+python -m py_compile scripts/validation/check_paper_artifact_graph_analytics.py
+python -m pytest tests/smoke/test_paper_artifact_graph_analytics.py -q
+python -m scripts.validation.check_paper_artifact_graph_analytics --strict
+```
+
+Accepted result:
+
+```text
+8 passed
+
+{
+  "ok": true,
+  "required_failed_count": 0,
+  "strict": true,
+  "total_checks": 40,
+  "warning_count": 0
+}
+```
+
+The report covers:
+
+```text
+node and edge counts
+node and edge type counts
+papers with trusted artifacts
+artifacts linked to papers
+multi-paper artifacts
+isolated artifacts
+provider distribution over artifact nodes
+provider distribution over paper-artifact links
+source-family distribution
+topic-cluster artifact-ready paper coverage
+top multi-paper artifacts
+small sample IDs for manual inspection
+```
+
+Boundary:
+
+- read-only analytics/report layer only
+- no publication
+- no graph rebuild
+- no package rebuild
+- no canonical truth changes
+- no reconcile input changes
+- no DB/Qdrant/API/UI/retrieval/ranking changes
+- no latest pointer
+- no graph runtime
+- no Neo4j/NetworkX/GraphRAG runtime
+- no trusted-link policy redefinition
+- no manual approval state change
+
+See: `docs/paper_artifact_graph_analytics_v0.md`.
+<!-- PAPER_ARTIFACT_GRAPH_ANALYTICS_V01_END -->
