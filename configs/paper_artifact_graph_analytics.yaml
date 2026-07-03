@@ -1,0 +1,60 @@
+schema_version: paper_artifact_graph_analytics_config_v1
+analytics:
+  name: paper_artifact_graph_analytics
+  version: v0.1
+  status: local_read_only_analytics
+  graph_version: v0.1
+  publication_ready: false
+  manual_review_support: true
+  may_be_used_as_reconcile_input: false
+inputs:
+  graph_dir: data/graphs/paper_artifact_graph/v0.1
+  nodes_path: data/graphs/paper_artifact_graph/v0.1/nodes.jsonl
+  edges_path: data/graphs/paper_artifact_graph/v0.1/edges.jsonl
+  manifest_path: data/graphs/paper_artifact_graph/v0.1/manifest.json
+  data_quality_summary_path: data/graphs/paper_artifact_graph/v0.1/data_quality_summary.json
+validation:
+  report_dir: artifacts/reports/validation
+  strict_default: true
+expected_counts:
+  nodes_count: 68385
+  edges_count: 163757
+  node_paper_count: 60954
+  node_artifact_count: 7336
+  node_provider_count: 10
+  node_source_family_count: 5
+  node_topic_cluster_count: 80
+  edge_paper_has_artifact_count: 7430
+  edge_artifact_from_provider_count: 7336
+  edge_paper_observed_in_source_family_count: 88037
+  edge_paper_assigned_to_topic_cluster_count: 60954
+expected_analytics:
+  min_papers_with_artifacts_count: 1
+  min_artifacts_with_linked_papers_count: 1
+  min_provider_count: 1
+  min_topic_clusters_with_artifact_ready_papers_count: 1
+  required_provider_smoke:
+    provider: github
+    min_artifacts: 1
+    min_paper_artifact_links: 1
+outputs:
+  latest_json: artifacts/reports/validation/paper_artifact_graph_analytics_latest.json
+  latest_md: artifacts/reports/validation/paper_artifact_graph_analytics_latest.md
+  history_dir: artifacts/reports/validation/history
+safety:
+  read_only_analytics: true
+  rebuild_graph: false
+  rebuild_package: false
+  mutate_canonical_documents: false
+  mutate_artifact_inputs: false
+  mutate_topic_inputs: false
+  mutate_retrieval_artifacts: false
+  mutate_qdrant: false
+  mutate_postgres: false
+  mutate_api: false
+  mutate_ui: false
+  mutate_ranking: false
+  publish_dataset: false
+  create_latest_pointer: false
+  create_graph_runtime: false
+  may_be_used_as_reconcile_input: false
