@@ -358,16 +358,24 @@ no ranking changes
 
 ---
 
-## Future slices
+## Follow-up slices
 
-Recommended future order:
+Completed after this contract:
 
 ```text
 Citation / Reference Graph Builder v0.1
 → Output Validator v0.1
-→ Inspection / Analytics v0.1
+→ Reference-id Normalization Fix v0.1.1
+→ Inspection v0.1
 → Query CLI v0.1
-→ Release Candidate / Package / Line Checkpoint
+```
+
+Recommended future order:
+
+```text
+Citation / Reference Graph Release Candidate v0.1
+→ Package v0.1
+→ Line Checkpoint v0.1
 → API Design v0.1
 → DB Materialization only if needed
 → Streamlit UI only after API semantics are accepted

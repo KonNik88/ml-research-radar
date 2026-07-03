@@ -81,7 +81,7 @@ resolution ratio is expected for v0.1 because the current canonical corpus is a
 curated 60,954-paper ML/AI corpus, not a complete OpenAlex/Semantic Scholar/
 Crossref universe.
 
-Current accepted inspection diagnostics:
+Current accepted inspection diagnostics after the reference-id normalization fix:
 
 ```text
 nodes_count = 529295
@@ -90,6 +90,8 @@ resolved_reference_edges_count = 6165
 unresolved_reference_edges_count = 703234
 reference_resolution_ratio = 0.00869
 ```
+
+OpenAlex references from `referenced_ids` are normalized as `openalex_id` values, for example `openalex_id:W2194775991`, rather than DOI-like URL values.
 
 ---
 
