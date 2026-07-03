@@ -45,7 +45,8 @@ Paper–Artifact Graph Line Checkpoint v0.1 — 2026-07 completed read-only grap
 Paper–Artifact Graph Manual Review Checklist v0.1 — 2026-07 completed read-only manual-review governance slice
 Paper–Artifact Graph Analytics v0.1 — 2026-07 completed read-only graph analytics/report slice
 Citation / Reference Graph Contract v0.1 — 2026-07 completed contract-only derived citation/reference graph slice
-Citation / Reference Graph Builder v0.1 — 2026-07 active file-first derived citation/reference graph builder slice
+Citation / Reference Graph Builder v0.1 — 2026-07 completed file-first derived citation/reference graph builder slice
+Citation / Reference Graph Inspection v0.1 — 2026-07 active read-only citation/reference graph inspection/report slice
 ```
 
 Current healthy baseline:
@@ -86,12 +87,14 @@ paper_artifact_graph_line_checkpoint = accepted_read_only_line_checkpoint
 paper_artifact_graph_manual_review = accepted_read_only_manual_review_gate
 paper_artifact_graph_analytics = accepted_read_only_analytics_report
 citation_reference_graph_contract = accepted_contract_only
-citation_reference_graph_builder = active_local_derived_builder
+citation_reference_graph_builder = accepted_local_derived_builder
+citation_reference_graph_inspection = active_read_only_inspection
 paper_artifact_graph_dod_gate = not required yet
 paper_artifact_graph_manual_review_dod_gate = not required yet
 paper_artifact_graph_analytics_dod_gate = not required yet
 citation_reference_graph_dod_gate = not required yet
 citation_reference_graph_builder_dod_gate = not required yet
+citation_reference_graph_inspection_dod_gate = not required yet
 
 paper_features_rows_count = 60954
 ranking_profiles_count = 9
@@ -673,148 +676,123 @@ python -m scripts.validation.check_streamlit_discovery_ui --strict --check-api
 
 ---
 
-# E. Citation / Reference Graph Builder v0.1 validation
+# E. Citation / Reference Graph Inspection v0.1 validation
 
-Use this when checking the current file-first local derived citation/reference graph builder and output validator.
+Use this when checking the current read-only inspection/report layer for the local Citation / Reference Graph v0.1 output.
 
-This validation builds local generated graph output under `data/graphs/citation_reference_graph/v0.1/`. It does not change canonical truth, Postgres serving, retrieval artifacts, Qdrant, ranking, API behavior, Streamlit behavior, DB schema, package output, or any publication state.
+This validation reads the generated graph output under `data/graphs/citation_reference_graph/v0.1/`. It does not rebuild graph output and does not change canonical truth, Postgres serving, retrieval artifacts, Qdrant, ranking, API behavior, Streamlit behavior, DB schema, package output, or any publication state.
 
-This slice follows the accepted contract-only checkpoint and starts the builder/output-validator portion of the separate citation/reference graph line:
+This slice follows the accepted builder/output-validator checkpoint and adds the inspection/report portion of the separate citation/reference graph line:
 
 ```text
 contract
 → builder
 → output validator
+→ inspection
 ```
 
-Builder script:
+Inspection script:
 
 ```text
-scripts/export/build_citation_reference_graph.py
+scripts/validation/check_citation_reference_graph_inspection.py
 ```
 
-Output validator:
+Inspection documentation:
 
 ```text
-scripts/validation/check_citation_reference_graph_output.py
-```
-
-Builder documentation:
-
-```text
-docs/citation_reference_graph_builder_v0.md
+docs/citation_reference_graph_inspection_v0.md
 ```
 
 Smoke tests:
 
 ```text
-tests/smoke/test_citation_reference_graph_builder.py
-tests/smoke/test_citation_reference_graph_output_validator.py
+tests/smoke/test_citation_reference_graph_inspection.py
 ```
 
-Primary input:
-
-```text
-data/analytics/reconciled/canonical_documents.jsonl
-```
-
-Generated local output, not committed:
+Required local graph inputs:
 
 ```text
 data/graphs/citation_reference_graph/v0.1/nodes.jsonl
 data/graphs/citation_reference_graph/v0.1/edges.jsonl
-data/graphs/citation_reference_graph/v0.1/schema.json
 data/graphs/citation_reference_graph/v0.1/manifest.json
 data/graphs/citation_reference_graph/v0.1/data_quality_summary.json
-data/graphs/citation_reference_graph/v0.1/README.md
-data/graphs/citation_reference_graph/v0.1/checksums.txt
 ```
 
 Recommended validation sequence:
 
 ```bat
-python -m py_compile scripts/export/build_citation_reference_graph.py
-python -m py_compile scripts/validation/check_citation_reference_graph_output.py
-python -m pytest tests/smoke/test_citation_reference_graph_builder.py tests/smoke/test_citation_reference_graph_output_validator.py -q
-python -m scripts.export.build_citation_reference_graph --dry-run
-python -m scripts.export.build_citation_reference_graph --force
-python -m scripts.validation.check_citation_reference_graph_output --strict
+python -m py_compile scripts/validation/check_citation_reference_graph_inspection.py
+python -m pytest tests/smoke/test_citation_reference_graph_inspection.py -q
+python -m scripts.validation.check_citation_reference_graph_inspection --strict
 ```
 
 Expected current result:
 
 ```text
-11 passed
+7 passed
 
-builder:
-ok = true
-nodes_count = 531059
-edges_count = 745700
-
-output validator:
 {
   "ok": true,
   "required_failed_count": 0,
-  "total_checks": 36,
+  "total_checks": 35,
   "warning_count": 0
 }
 ```
 
-Accepted local graph counters:
+Accepted local inspection counters:
 
 ```text
 nodes_count = 531059
 edges_count = 745700
-
-paper nodes = 60954
-external_reference nodes = 470100
-source_family nodes = 5
-
-paper_references_paper edges = 3045
-paper_references_external edges = 706538
-paper_has_reference_source_family edges = 36117
+resolved_reference_edges_count = 3045
+unresolved_reference_edges_count = 706538
+reference_resolution_ratio = 0.004291
 ```
 
 Current v0.1 interpretation:
 
 ```text
-Most explicit references currently remain unresolved external references.
-This is expected for v0.1 and is not treated as a builder failure.
-The internal paper→paper links are conservative resolved links only.
+reference_resolution_ratio ≈ 0.43%
+Most explicit references remain unresolved external_reference evidence.
+This is a quality/coverage diagnostic, not a failure of the inspection slice.
+Internal paper→paper reference edges remain conservative resolved links only.
 ```
 
-The builder creates:
+The inspection report computes:
 
 ```text
-paper nodes from canonical documents
-external_reference nodes for unresolved explicit references
-source_family nodes from canonical provenance evidence
-paper_references_paper edges for conservatively resolved internal references
-paper_references_external edges for unresolved explicit references
-paper_has_reference_source_family edges for source-family reference evidence
-schema, manifest, README, data-quality summary, and checksums
+resolved versus unresolved reference edges
+reference_resolution_ratio
+papers with outgoing reference edges
+papers with internal reference edges
+papers with external reference edges
+papers with incoming internal reference edges
+papers without outgoing explicit reference edges
+reference type distribution
+reference field distribution
+source-family distribution
+top referenced canonical papers
+top external references
+sample paper→paper edges
+sample paper→external_reference edges
 ```
 
-The output validator checks:
+Generated reports:
 
 ```text
-required output files exist
-JSON and JSONL files are readable
-schema version and graph identity are correct
-manifest safety flags preserve derived-layer boundaries
-data_quality_summary is green
-node IDs are unique
-edge IDs are unique
-required node and edge types are present
-accepted v0.1 counters match
-checksums match
-no unsafe publication/API/UI/runtime/DB/reconcile flags are enabled
+artifacts/reports/validation/citation_reference_graph_inspection_latest.json
+artifacts/reports/validation/citation_reference_graph_inspection_latest.md
+artifacts/reports/validation/history/citation_reference_graph_inspection_<run_ts>.json
+artifacts/reports/validation/history/citation_reference_graph_inspection_<run_ts>.md
 ```
 
 Important boundary:
 
 ```text
-The citation/reference graph builder is a file-first local derived builder.
+The citation/reference graph inspection layer is read-only.
+It must not rebuild graph output.
+It must not publish anything.
+It must not package anything.
 It must not change canonical truth.
 It must not run reconcile.
 It must not mutate Postgres.
@@ -827,16 +805,17 @@ It must not change ranking behavior.
 It must not require NetworkX/Neo4j/GraphRAG runtime.
 It must not be used as a reconcile input.
 It does not add a DoD required gate in this slice.
-Generated graph output is not committed.
+Generated reports are not committed.
 ```
 
 ## Related graph validators
 
-Use these when debugging already completed graph-line components, not as part of ordinary citation/reference builder edits:
+Use these when debugging already completed graph-line components, not as part of ordinary citation/reference inspection edits:
 
 ```bat
 python -m scripts.validation.check_citation_reference_graph_contract --strict
 python -m scripts.validation.check_citation_reference_graph_contract --strict --check-paths
+python -m scripts.validation.check_citation_reference_graph_output --strict
 python -m scripts.validation.check_paper_artifact_graph_output --strict
 python -m scripts.validation.check_paper_artifact_graph_inspection --strict
 python -m scripts.validation.check_paper_artifact_graph_release_candidate --strict
@@ -1268,7 +1247,7 @@ dod_passed = true
 required_failed_count = 0
 ```
 
-Citation / Reference Graph Builder v0.1 is intentionally not a required strict DoD gate in this builder slice. It has its own builder, output validator, and smoke tests. DoD integration should be reconsidered only after citation/reference graph inspection, release-candidate/package, and graph-line checkpoint evidence exist.
+Citation / Reference Graph Inspection v0.1 is intentionally not a required strict DoD gate in this inspection slice. It has its own validator and smoke tests. DoD integration should be reconsidered only after citation/reference graph release-candidate/package and graph-line checkpoint evidence exist.
 
 If local `--help` does not show these gates, sync the DoD script before treating local docs as current.
 
@@ -1380,6 +1359,7 @@ Hugging Face skipped_invalid_external_id extraction/noise states
 GitHub not_found repositories preserved as historical artifact evidence
 heuristic topic label_candidates being imperfect
 Qdrant unavailable during file runtime when Qdrant-specific checks are not in scope
+Low citation/reference `reference_resolution_ratio` in v0.1 inspection when output validator remains green
 ```
 
 ---
@@ -2260,3 +2240,86 @@ Boundary notes:
 - no ranking changes
 - generated graph output is ignored and not committed
 <!-- CITATION_REFERENCE_GRAPH_BUILDER_V01_END -->
+
+<!-- CITATION_REFERENCE_GRAPH_INSPECTION_V01_START -->
+## Citation / Reference Graph Inspection v0.1 checkpoint
+
+Status: local read-only citation/reference graph inspection/report layer implemented and validated.
+
+Tracked files:
+
+- `scripts/validation/check_citation_reference_graph_inspection.py`
+- `tests/smoke/test_citation_reference_graph_inspection.py`
+- `docs/citation_reference_graph_inspection_v0.md`
+
+Generated validation reports, not committed:
+
+- `artifacts/reports/validation/citation_reference_graph_inspection_latest.json`
+- `artifacts/reports/validation/citation_reference_graph_inspection_latest.md`
+- `artifacts/reports/validation/history/citation_reference_graph_inspection_<run_ts>.json`
+- `artifacts/reports/validation/history/citation_reference_graph_inspection_<run_ts>.md`
+
+Validation commands:
+
+```bat
+python -m py_compile scripts/validation/check_citation_reference_graph_inspection.py
+python -m pytest tests/smoke/test_citation_reference_graph_inspection.py -q
+python -m scripts.validation.check_citation_reference_graph_inspection --strict
+```
+
+Expected result:
+
+```text
+7 passed
+
+{
+  "ok": true,
+  "required_failed_count": 0,
+  "total_checks": 35,
+  "warning_count": 0
+}
+```
+
+Accepted local inspection counters:
+
+```text
+nodes_count = 531059
+edges_count = 745700
+resolved_reference_edges_count = 3045
+unresolved_reference_edges_count = 706538
+reference_resolution_ratio = 0.004291
+```
+
+The validator/report checks:
+
+```text
+required graph files exist
+manifest safety flags preserve derived-layer boundaries
+data_quality_summary is green
+node and edge type counters
+resolved versus unresolved reference edges
+reference_resolution_ratio
+papers with outgoing/internal/external/incoming reference evidence
+papers without outgoing explicit reference edges
+reference type and field distributions
+source-family distribution
+top referenced canonical papers
+top external references
+sample paper→paper and paper→external_reference edges
+```
+
+Boundary notes:
+
+- inspection validator is read-only
+- inspection reports are derived evidence
+- graph/inspection must not be used as reconcile input
+- no graph rebuild
+- no package rebuild
+- no publication
+- no DB/Qdrant/API/UI/retrieval/ranking behavior change
+- no latest pointer
+- no graph runtime
+- no Neo4j/NetworkX/GraphRAG runtime
+- generated inspection reports are ignored and not committed
+<!-- CITATION_REFERENCE_GRAPH_INSPECTION_V01_END -->
+
