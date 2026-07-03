@@ -46,7 +46,9 @@ Paper–Artifact Graph Manual Review Checklist v0.1 — 2026-07 completed read-o
 Paper–Artifact Graph Analytics v0.1 — 2026-07 completed read-only graph analytics/report slice
 Citation / Reference Graph Contract v0.1 — 2026-07 completed contract-only derived citation/reference graph slice
 Citation / Reference Graph Builder v0.1 — 2026-07 completed file-first derived citation/reference graph builder slice
-Citation / Reference Graph Inspection v0.1 — 2026-07 active read-only citation/reference graph inspection/report slice
+Citation / Reference Graph Inspection v0.1 — 2026-07 completed read-only citation/reference graph inspection/report slice
+Citation / Reference Graph Reference Normalization Fix v0.1.1 — 2026-07 completed OpenAlex/reference-id normalization fix
+Citation / Reference Graph Query CLI v0.1 — 2026-07 completed read-only offline citation/reference graph query slice
 ```
 
 Current healthy baseline:
@@ -88,13 +90,16 @@ paper_artifact_graph_manual_review = accepted_read_only_manual_review_gate
 paper_artifact_graph_analytics = accepted_read_only_analytics_report
 citation_reference_graph_contract = accepted_contract_only
 citation_reference_graph_builder = accepted_local_derived_builder
-citation_reference_graph_inspection = active_read_only_inspection
+citation_reference_graph_inspection = accepted_read_only_inspection
+citation_reference_graph_reference_normalization_fix = accepted_openalex_reference_id_normalization
+citation_reference_graph_query_cli = accepted_read_only_query_cli
 paper_artifact_graph_dod_gate = not required yet
 paper_artifact_graph_manual_review_dod_gate = not required yet
 paper_artifact_graph_analytics_dod_gate = not required yet
 citation_reference_graph_dod_gate = not required yet
 citation_reference_graph_builder_dod_gate = not required yet
 citation_reference_graph_inspection_dod_gate = not required yet
+citation_reference_graph_query_cli_dod_gate = not required yet
 
 paper_features_rows_count = 60954
 ranking_profiles_count = 9
@@ -678,17 +683,19 @@ python -m scripts.validation.check_streamlit_discovery_ui --strict --check-api
 
 # E. Citation / Reference Graph Inspection v0.1 validation
 
-Use this when checking the current read-only inspection/report layer for the local Citation / Reference Graph v0.1 output.
+Use this when checking the accepted read-only inspection/report layer for the local Citation / Reference Graph v0.1 output.
 
 This validation reads the generated graph output under `data/graphs/citation_reference_graph/v0.1/`. It does not rebuild graph output and does not change canonical truth, Postgres serving, retrieval artifacts, Qdrant, ranking, API behavior, Streamlit behavior, DB schema, package output, or any publication state.
 
-This slice follows the accepted builder/output-validator checkpoint and adds the inspection/report portion of the separate citation/reference graph line:
+This accepted slice follows the builder/output-validator checkpoint and adds the inspection/report portion of the separate citation/reference graph line:
 
 ```text
 contract
 → builder
 → output validator
+→ reference-id normalization fix
 → inspection
+→ query CLI
 ```
 
 Inspection script:
@@ -739,23 +746,24 @@ Expected current result:
 }
 ```
 
-Accepted local inspection counters:
+Accepted local inspection counters after the reference-id normalization fix:
 
 ```text
-nodes_count = 531059
-edges_count = 745700
-resolved_reference_edges_count = 3045
-unresolved_reference_edges_count = 706538
-reference_resolution_ratio = 0.004291
+nodes_count = 529295
+edges_count = 745516
+resolved_reference_edges_count = 6165
+unresolved_reference_edges_count = 703234
+reference_resolution_ratio = 0.00869
 ```
 
 Current v0.1 interpretation:
 
 ```text
-reference_resolution_ratio ≈ 0.43%
+reference_resolution_ratio ≈ 0.87%
 Most explicit references remain unresolved external_reference evidence.
 This is a quality/coverage diagnostic, not a failure of the inspection slice.
 Internal paper→paper reference edges remain conservative resolved links only.
+OpenAlex references from `referenced_ids` are now normalized as `openalex_id`, not DOI-like URL values.
 ```
 
 The inspection report computes:
@@ -784,6 +792,75 @@ artifacts/reports/validation/citation_reference_graph_inspection_latest.json
 artifacts/reports/validation/citation_reference_graph_inspection_latest.md
 artifacts/reports/validation/history/citation_reference_graph_inspection_<run_ts>.json
 artifacts/reports/validation/history/citation_reference_graph_inspection_<run_ts>.md
+```
+
+## Citation / Reference Graph Query CLI v0.1 validation
+
+Use this when checking the accepted read-only offline query CLI over the generated Citation / Reference Graph v0.1 output. The CLI reads the local graph output and does not rebuild graph output, write validation reports, change canonical truth, mutate DB state, change API/UI behavior, or require NetworkX/Neo4j/GraphRAG runtime.
+
+CLI script:
+
+```text
+scripts/graph/query_citation_reference_graph.py
+```
+
+CLI documentation:
+
+```text
+docs/citation_reference_graph_query_cli_v0.md
+```
+
+Smoke tests:
+
+```text
+tests/smoke/test_citation_reference_graph_query_cli.py
+```
+
+Recommended validation sequence:
+
+```bat
+python -m py_compile scripts/graph/query_citation_reference_graph.py
+python -m pytest tests/smoke/test_citation_reference_graph_query_cli.py -q
+python -m scripts.graph.query_citation_reference_graph --top-referenced-papers --top-k 5
+python -m scripts.graph.query_citation_reference_graph --top-external-references --top-k 5 --format markdown
+```
+
+Expected current result:
+
+```text
+8 passed
+JSON output returns found=true for top referenced papers
+Markdown output returns found=true for top external references
+```
+
+Accepted current graph/query counters:
+
+```text
+nodes_count = 529295
+edges_count = 745516
+resolved_reference_edges_count = 6165
+unresolved_reference_edges_count = 703234
+reference_resolution_ratio = 0.00869
+```
+
+Supported query modes:
+
+```text
+paper -> outgoing references
+paper <- incoming internal citing papers
+external_reference -> citing papers
+top internal referenced canonical papers
+top unresolved external references
+source_family -> reference-bearing papers
+```
+
+Important v0.1 caveat:
+
+```text
+The graph is built from explicit canonical metadata reference fields only.
+It does not parse paper full text, PDFs, HTML body text, bibliography/reference sections, in-text citation contexts, or raw reference strings without metadata identifiers.
+Unresolved references are preserved as external_reference nodes.
+Low internal resolution ratio is expected for v0.1.
 ```
 
 Important boundary:
@@ -816,6 +893,8 @@ Use these when debugging already completed graph-line components, not as part of
 python -m scripts.validation.check_citation_reference_graph_contract --strict
 python -m scripts.validation.check_citation_reference_graph_contract --strict --check-paths
 python -m scripts.validation.check_citation_reference_graph_output --strict
+python -m scripts.graph.query_citation_reference_graph --top-referenced-papers --top-k 5
+python -m scripts.graph.query_citation_reference_graph --top-external-references --top-k 5 --format markdown
 python -m scripts.validation.check_paper_artifact_graph_output --strict
 python -m scripts.validation.check_paper_artifact_graph_inspection --strict
 python -m scripts.validation.check_paper_artifact_graph_release_candidate --strict
@@ -1247,7 +1326,7 @@ dod_passed = true
 required_failed_count = 0
 ```
 
-Citation / Reference Graph Inspection v0.1 is intentionally not a required strict DoD gate in this inspection slice. It has its own validator and smoke tests. DoD integration should be reconsidered only after citation/reference graph release-candidate/package and graph-line checkpoint evidence exist.
+Citation / Reference Graph Inspection v0.1 and Query CLI v0.1 are intentionally not required strict DoD gates in this docs/counter-refresh slice. They have their own validators, smoke tests, and CLI smoke commands. DoD integration should be reconsidered only after citation/reference graph release-candidate/package and graph-line checkpoint evidence exist.
 
 If local `--help` does not show these gates, sync the DoD script before treating local docs as current.
 
@@ -2187,15 +2266,15 @@ python -m scripts.export.build_citation_reference_graph --force
 python -m scripts.validation.check_citation_reference_graph_output --strict
 ```
 
-Expected result:
+Expected result after reference-id normalization fix:
 
 ```text
-11 passed
+13 passed
 
 builder:
 ok = true
-nodes_count = 531059
-edges_count = 745700
+nodes_count = 529295
+edges_count = 745516
 
 output validator:
 {
@@ -2209,15 +2288,15 @@ output validator:
 Accepted local graph counters:
 
 ```text
-nodes_count = 531059
-edges_count = 745700
+nodes_count = 529295
+edges_count = 745516
 
 paper = 60954
-external_reference = 470100
+external_reference = 468336
 source_family = 5
 
-paper_references_paper = 3045
-paper_references_external = 706538
+paper_references_paper = 6165
+paper_references_external = 703234
 paper_has_reference_source_family = 36117
 ```
 
@@ -2283,11 +2362,11 @@ Expected result:
 Accepted local inspection counters:
 
 ```text
-nodes_count = 531059
-edges_count = 745700
-resolved_reference_edges_count = 3045
-unresolved_reference_edges_count = 706538
-reference_resolution_ratio = 0.004291
+nodes_count = 529295
+edges_count = 745516
+resolved_reference_edges_count = 6165
+unresolved_reference_edges_count = 703234
+reference_resolution_ratio = 0.00869
 ```
 
 The validator/report checks:
@@ -2323,3 +2402,54 @@ Boundary notes:
 - generated inspection reports are ignored and not committed
 <!-- CITATION_REFERENCE_GRAPH_INSPECTION_V01_END -->
 
+
+
+<!-- CITATION_REFERENCE_GRAPH_QUERY_CLI_V01_START -->
+## Citation / Reference Graph Query CLI v0.1 checkpoint
+
+Status: local read-only offline query CLI implemented and validated.
+
+Tracked files:
+
+- `scripts/graph/query_citation_reference_graph.py`
+- `tests/smoke/test_citation_reference_graph_query_cli.py`
+- `docs/citation_reference_graph_query_cli_v0.md`
+
+Validation commands:
+
+```bat
+python -m py_compile scripts/graph/query_citation_reference_graph.py
+python -m pytest tests/smoke/test_citation_reference_graph_query_cli.py -q
+python -m scripts.graph.query_citation_reference_graph --top-referenced-papers --top-k 5
+python -m scripts.graph.query_citation_reference_graph --top-external-references --top-k 5 --format markdown
+```
+
+Expected result:
+
+```text
+8 passed
+JSON output works
+Markdown output works
+```
+
+Accepted current graph/query counters:
+
+```text
+nodes_count = 529295
+edges_count = 745516
+paper_references_paper = 6165
+paper_references_external = 703234
+reference_resolution_ratio = 0.00869
+```
+
+Boundary notes:
+
+- CLI is read-only
+- graph remains derived representation, not canonical truth
+- graph must not be used as reconcile input
+- no graph rebuild
+- no generated validation reports by default
+- no DB/Qdrant/API/UI/retrieval/ranking behavior change
+- no publication/package
+- no Neo4j/NetworkX/GraphRAG runtime
+<!-- CITATION_REFERENCE_GRAPH_QUERY_CLI_V01_END -->

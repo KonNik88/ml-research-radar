@@ -3,7 +3,7 @@
 ## Status
 
 ```text
-status = local derived builder
+status = local derived builder accepted after reference-id normalization fix
 publication_status = not_published
 runtime_status = offline_file_artifact_only
 ```
@@ -104,6 +104,18 @@ Unresolved references are preserved as `external_reference` nodes instead of bei
 
 `references_count` and `cited_by_count` are diagnostic fields only. They are not treated as edge truth.
 
+### Reference-id normalization fix
+
+The accepted post-builder normalization fix preserves OpenAlex identifiers from `referenced_ids` as OpenAlex references instead of misclassifying URL-like values as DOI-like references.
+
+Current accepted behavior:
+
+```text
+https://openalex.org/W... -> reference_type = openalex_id, reference_value = W...
+W... -> reference_type = openalex_id, reference_value = W...
+10.<prefix>/<suffix> -> reference_type = doi
+```
+
 ---
 
 ## Builder command
@@ -188,6 +200,53 @@ Those reports are local operational evidence and are not committed by default.
 
 ---
 
+## Accepted current output after reference-id normalization fix
+
+Accepted local validation:
+
+```text
+python -m py_compile scripts/export/build_citation_reference_graph.py
+python -m pytest tests/smoke/test_citation_reference_graph_builder.py tests/smoke/test_citation_reference_graph_output_validator.py -q
+python -m scripts.export.build_citation_reference_graph --force
+python -m scripts.validation.check_citation_reference_graph_output --strict
+```
+
+Accepted result:
+
+```text
+13 passed
+builder ok = true
+output validator ok = true
+required_failed_count = 0
+warning_count = 0
+```
+
+Accepted local graph counters:
+
+```text
+nodes_count = 529295
+edges_count = 745516
+
+paper = 60954
+external_reference = 468336
+source_family = 5
+
+paper_references_paper = 6165
+paper_references_external = 703234
+paper_has_reference_source_family = 36117
+reference_resolution_ratio = 0.00869
+```
+
+Interpretation:
+
+```text
+Most explicit references remain unresolved external_reference evidence.
+This is expected for v0.1 because the canonical corpus is a curated 60,954-paper ML/AI corpus, not a complete external scholarly graph.
+Internal paper->paper links remain conservative resolved links only.
+```
+
+---
+
 ## Boundaries
 
 This slice intentionally does not add:
@@ -214,11 +273,16 @@ The graph output must not be used as a reconcile input.
 
 ## Future slices
 
-Possible future work after this builder is green:
+Later completed slices:
 
 ```text
 Citation / Reference Graph Inspection v0.1
 Citation / Reference Graph Query CLI v0.1
+```
+
+Possible future work after the accepted Query CLI checkpoint:
+
+```text
 Citation / Reference Graph Release Candidate v0.1
 Citation / Reference Graph Package v0.1
 Citation / Reference Graph Line Checkpoint v0.1

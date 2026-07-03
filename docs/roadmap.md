@@ -4,14 +4,14 @@
 
 ```text
 document = primary living roadmap
-accepted checkpoint = Citation / Reference Graph Builder v0.1
+accepted checkpoint = Citation / Reference Graph Query CLI v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
-current active slice = Citation / Reference Graph Inspection v0.1
+current active slice = Citation / Reference Graph Docs Counter Refresh v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = read-only citation/reference graph inspection/report layer only; no graph rebuild/DB/API/UI/runtime behavior changes
+scope of current branch = docs-only citation/reference graph counter/status refresh after normalization fix and Query CLI merge; no graph rebuild/DB/API/UI/runtime behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -783,15 +783,15 @@ contract
 → output validator
 ```
 
-Accepted local validation:
+Accepted local validation after reference-id normalization fix:
 
 ```text
-11 passed
+13 passed
 
 builder:
 ok = true
-nodes_count = 531059
-edges_count = 745700
+nodes_count = 529295
+edges_count = 745516
 
 output validator:
 ok = true
@@ -803,24 +803,25 @@ warning_count = 0
 Accepted local graph counters:
 
 ```text
-nodes_count = 531059
-edges_count = 745700
+nodes_count = 529295
+edges_count = 745516
 
 paper nodes = 60954
-external_reference nodes = 470100
+external_reference nodes = 468336
 source_family nodes = 5
 
-paper_references_paper edges = 3045
-paper_references_external edges = 706538
+paper_references_paper edges = 6165
+paper_references_external edges = 703234
 paper_has_reference_source_family edges = 36117
 ```
 
-Current v0.1 interpretation:
+Current v0.1 interpretation after reference-id normalization fix:
 
 ```text
 Most explicit references currently remain unresolved external references.
 This is expected for v0.1 and is not treated as a builder failure.
 The internal paper→paper links are conservative resolved links only.
+OpenAlex references from referenced_ids are normalized as openalex_id, not DOI-like URL values.
 ```
 
 Boundary:
@@ -836,120 +837,174 @@ builder does not introduce NetworkX/Neo4j/GraphRAG runtime
 builder does not publish or package anything
 ```
 
+
+### 4.22 Citation / Reference Graph Reference Normalization Fix v0.1.1
+
+Status: **done / green local builder bugfix**
+
+Implemented after the first Query CLI smoke exposed that OpenAlex URLs from `referenced_ids` could be mislabeled as DOI-like references.
+
+Accepted fix:
+
+```text
+OpenAlex URL / ID references from referenced_ids -> reference_type = openalex_id
+DOI references -> reference_type = doi only when they match DOI syntax
+```
+
+Accepted local validation:
+
+```text
+13 passed
+builder ok = true
+output validator ok = true
+inspection ok = true
+required_failed_count = 0
+warning_count = 0
+```
+
+Updated local graph counters after rebuild:
+
+```text
+nodes_count = 529295
+edges_count = 745516
+paper nodes = 60954
+external_reference nodes = 468336
+source_family nodes = 5
+paper_references_paper edges = 6165
+paper_references_external edges = 703234
+paper_has_reference_source_family edges = 36117
+reference_resolution_ratio = 0.00869
+```
+
+Boundary:
+
+```text
+normalization fix does not add new source fields
+normalization fix does not parse full text
+normalization fix does not change canonical truth
+normalization fix does not change DB/Qdrant/API/UI/retrieval/ranking behavior
+```
+
+### 4.23 Citation / Reference Graph Inspection v0.1
+
+Status: **done / green local read-only inspection/report layer**
+
+Implemented after the builder/output-validator checkpoint and updated after the reference-id normalization fix.
+
+Accepted local validation:
+
+```text
+7 passed
+ok = true
+required_failed_count = 0
+total_checks = 35
+warning_count = 0
+```
+
+Accepted local inspection counters after reference-id normalization fix:
+
+```text
+nodes_count = 529295
+edges_count = 745516
+resolved_reference_edges_count = 6165
+unresolved_reference_edges_count = 703234
+reference_resolution_ratio = 0.00869
+```
+
+Boundary:
+
+```text
+inspection is read-only
+inspection reports are derived evidence
+graph/inspection must not be used as reconcile input
+inspection does not rebuild graph output
+inspection does not change DB/Qdrant/API/UI/retrieval/ranking behavior
+```
+
+### 4.24 Citation / Reference Graph Query CLI v0.1
+
+Status: **done / green local read-only offline query CLI**
+
+Implemented after the accepted builder, output validator, inspection layer, and reference-id normalization fix.
+
+Supported query modes:
+
+```text
+paper -> outgoing references
+paper <- incoming internal citing papers
+external_reference -> citing papers
+top internal referenced canonical papers
+top unresolved external references
+source_family -> reference-bearing papers
+```
+
+Accepted local validation:
+
+```text
+8 passed
+JSON output works
+Markdown output works
+```
+
+Accepted local graph/query counters:
+
+```text
+nodes_count = 529295
+edges_count = 745516
+paper_references_paper = 6165
+paper_references_external = 703234
+reference_resolution_ratio = 0.00869
+```
+
+Boundary:
+
+```text
+CLI is read-only
+CLI does not rebuild graph output
+CLI writes no validation reports by default
+CLI does not change canonical truth
+CLI does not change DB/Qdrant/API/UI/retrieval/ranking behavior
+CLI does not introduce NetworkX/Neo4j/GraphRAG runtime
+```
+
+
 ## 5. Current active slice
 
-### 5.1 Citation / Reference Graph Inspection v0.1
+### 5.1 Citation / Reference Graph Docs Counter Refresh v0.1
 
-Status: **current / local read-only inspection and report layer**
+Status: **current / docs-only counter and status refresh**
 
 Goal:
 
 ```text
-Inspect coverage, limitations, and reference-resolution quality of the generated citation/reference graph before any API/UI/runtime/package decision.
-```
-
-This slice follows the accepted builder/output-validator checkpoint:
-
-```text
-contract
-→ builder
-→ output validator
-→ inspection
+Update shared project docs after the Citation / Reference Graph reference-id normalization fix and Query CLI v0.1 merge.
 ```
 
 Scope:
 
-- add `scripts/validation/check_citation_reference_graph_inspection.py`;
-- add `tests/smoke/test_citation_reference_graph_inspection.py`;
-- add `docs/citation_reference_graph_inspection_v0.md`;
 - update `docs/roadmap.md`;
 - update `docs/refresh_contract_v1.md`;
-- read the generated local graph output under `data/graphs/citation_reference_graph/v0.1/`;
-- compute compact read-only diagnostics over nodes, edges, reference resolution, source-family coverage, top referenced papers, top external references, and sample edges;
-- emit local JSON/Markdown inspection reports under `artifacts/reports/validation/`;
-- preserve all canonical, serving, retrieval, Qdrant, ranking, API, UI, package, and publication boundaries.
+- update `docs/citation_reference_graph_builder_v0.md`;
+- update `docs/citation_reference_graph_inspection_v0.md`;
+- keep `docs/citation_reference_graph_query_cli_v0.md` aligned with accepted post-normalization counters;
+- optionally refresh `docs/citation_reference_graph_v0.md` future-slice wording.
 
-Required local graph input:
-
-```text
-data/graphs/citation_reference_graph/v0.1/nodes.jsonl
-data/graphs/citation_reference_graph/v0.1/edges.jsonl
-data/graphs/citation_reference_graph/v0.1/manifest.json
-data/graphs/citation_reference_graph/v0.1/data_quality_summary.json
-```
-
-Generated inspection reports, not committed:
+Accepted post-normalization counters:
 
 ```text
-artifacts/reports/validation/citation_reference_graph_inspection_latest.json
-artifacts/reports/validation/citation_reference_graph_inspection_latest.md
-artifacts/reports/validation/history/citation_reference_graph_inspection_<run_ts>.json
-artifacts/reports/validation/history/citation_reference_graph_inspection_<run_ts>.md
-```
-
-Inspection report focus:
-
-```text
-resolved versus unresolved reference edges
-reference_resolution_ratio
-papers with outgoing reference edges
-papers with internal reference edges
-papers with external reference edges
-papers with incoming internal reference edges
-papers without outgoing explicit reference edges
-reference type distribution
-reference field distribution
-source-family distribution
-top referenced canonical papers
-top external references
-sample paper→paper edges
-sample paper→external_reference edges
-```
-
-Required validation sequence:
-
-```bat
-python -m py_compile scripts/validation/check_citation_reference_graph_inspection.py
-python -m pytest tests/smoke/test_citation_reference_graph_inspection.py -q
-python -m scripts.validation.check_citation_reference_graph_inspection --strict
-```
-
-Accepted local validation result:
-
-```text
-7 passed
-
-{
-  "ok": true,
-  "required_failed_count": 0,
-  "total_checks": 35,
-  "warning_count": 0
-}
-```
-
-Accepted local inspection counters:
-
-```text
-nodes_count = 531059
-edges_count = 745700
-resolved_reference_edges_count = 3045
-unresolved_reference_edges_count = 706538
-reference_resolution_ratio = 0.004291
-```
-
-Current v0.1 interpretation:
-
-```text
-reference_resolution_ratio ≈ 0.43%
-Most explicit references remain unresolved external_reference evidence.
-This is a quality/coverage diagnostic, not a failure of the inspection slice.
-Internal paper→paper reference edges remain conservative resolved links only.
+nodes_count = 529295
+edges_count = 745516
+paper_references_paper = 6165
+paper_references_external = 703234
+external_reference_nodes_count = 468336
+reference_resolution_ratio = 0.00869
 ```
 
 Non-goals:
 
 ```text
 no graph rebuild
+no validator code changes
 no DB materialization
 no DB schema change
 no public graph API
@@ -959,7 +1014,6 @@ no Neo4j runtime
 no GraphRAG
 no publication
 no package
-no manual approval
 no canonical refresh/reconcile
 no retrieval rebuild
 no embedding model replacement
@@ -967,56 +1021,26 @@ no Qdrant promotion
 no ranking changes
 ```
 
-Generated citation/reference graph inspection reports are local operational evidence and are not committed by default.
-
 ## 6. Near-term roadmap
 
-### 6.1 Finish and merge Citation / Reference Graph Inspection v0.1
+### 6.1 Finish Citation / Reference Graph Docs Counter Refresh v0.1
 
 Purpose:
 
 ```text
-Close the first local read-only inspection/report layer over the generated citation/reference graph output.
+Close documentation drift after reference-id normalization and Query CLI merge.
 ```
 
 Definition of done:
 
-- inspection script compiles;
-- smoke tests cover valid graph inspection, missing files, unsafe manifest/data quality, and report writing behavior;
-- strict inspection validator is green;
-- accepted inspection counters are documented;
-- roadmap and refresh contract are updated;
-- generated inspection reports remain ignored and uncommitted;
+- shared docs use post-normalization counters;
+- roadmap says Query CLI is the accepted checkpoint;
+- refresh/runbook includes Query CLI validation commands;
+- builder and inspection docs document the accepted post-normalization counters;
+- no generated graph/report/package outputs are committed;
 - no graph rebuild, DB/API/UI/runtime, reconcile, retrieval, Qdrant, ranking, package, or publication layer is changed.
 
-### 6.2 Citation / Reference Graph Query CLI v0.1
-
-Purpose:
-
-```text
-Add an offline read-only query surface over the generated citation/reference graph before API or UI design.
-```
-
-Possible selectors:
-
-- paper → outgoing references;
-- paper → incoming references if generated or indexable;
-- external_reference → citing papers;
-- source_family → reference-bearing papers;
-- top referenced canonical papers;
-- top external references.
-
-Non-goals:
-
-- no graph rebuild;
-- no DB materialization;
-- no API/UI/runtime;
-- no publication;
-- no package;
-- no canonical/reconcile changes;
-- no retrieval/Qdrant/ranking changes.
-
-### 6.3 Citation / Reference Graph Release Candidate / Package / Line Checkpoint
+### 6.2 Citation / Reference Graph Release Candidate / Package / Line Checkpoint
 
 Purpose:
 
@@ -1026,7 +1050,13 @@ Close the local citation/reference graph line as a reviewable, packaged, non-pub
 
 This should mirror the conservative graph-line pattern already used for Paper-Artifact Graph v0.1.
 
-### 6.4 Citation / Reference Graph API Design v0.1
+Prerequisite:
+
+```text
+Docs Counter Refresh v0.1 accepted, with post-normalization counters documented.
+```
+
+### 6.3 Citation / Reference Graph API Design v0.1
 
 Purpose:
 
@@ -1052,7 +1082,7 @@ Non-goals:
 - no runtime graph database;
 - no GraphRAG.
 
-### 6.5 Paper–Artifact Graph Manual Review Evidence Pack v0.1
+### 6.4 Paper–Artifact Graph Manual Review Evidence Pack v0.1
 
 Potential later read-only slice.
 
@@ -1070,7 +1100,7 @@ Non-goals:
 - no API/UI/runtime;
 - no canonical/reconcile changes.
 
-### 6.6 Paper–Artifact Graph API Design v0.1
+### 6.5 Paper–Artifact Graph API Design v0.1
 
 Purpose:
 
@@ -1096,7 +1126,7 @@ Non-goals:
 - no runtime graph database;
 - no GraphRAG.
 
-### 6.7 Publication Preparation v0.1
+### 6.6 Publication Preparation v0.1
 
 Only after manual review is actually completed.
 
@@ -1117,7 +1147,7 @@ Possible scope:
 
 Publication must remain a separate PR/slice from validators and local evidence reports.
 
-### 6.8 Deployment Vector Backend Selector Design v1
+### 6.7 Deployment Vector Backend Selector Design v1
 
 Purpose:
 
@@ -1141,7 +1171,7 @@ Non-goals:
 - do not silently switch `/search`;
 - do not remove file dense as reference.
 
-### 6.9 Public Qdrant Promotion v1
+### 6.8 Public Qdrant Promotion v1
 
 Prerequisites:
 
@@ -1154,7 +1184,7 @@ Prerequisites:
 
 Promotion must be a separate PR.
 
-### 6.10 Ranking / reranking research
+### 6.9 Ranking / reranking research
 
 Potential future slices:
 
@@ -1166,7 +1196,7 @@ Potential future slices:
 
 The current heuristic ranking must not be promoted without new evidence.
 
-### 6.11 Next retrieval generation
+### 6.10 Next retrieval generation
 
 Potential future work:
 
@@ -1179,7 +1209,7 @@ Potential future work:
 
 Any material retrieval rebuild invalidates current build-scoped evidence and requires fresh validators.
 
-### 6.12 Full text / RAG
+### 6.11 Full text / RAG
 
 Future staged path:
 
@@ -1194,7 +1224,7 @@ full-text acquisition policy
 
 RAG must not be introduced as an ungrounded chat layer.
 
-### 6.13 Observability and orchestration
+### 6.12 Observability and orchestration
 
 Future staged path:
 
@@ -1935,15 +1965,15 @@ python -m scripts.export.build_citation_reference_graph --force
 python -m scripts.validation.check_citation_reference_graph_output --strict
 ```
 
-Accepted result:
+Accepted result after reference-id normalization fix:
 
 ```text
-11 passed
+13 passed
 
 builder:
 ok = true
-nodes_count = 531059
-edges_count = 745700
+nodes_count = 529295
+edges_count = 745516
 
 output validator:
 ok = true
@@ -1955,15 +1985,15 @@ warning_count = 0
 Accepted local graph counters:
 
 ```text
-nodes_count = 531059
-edges_count = 745700
+nodes_count = 529295
+edges_count = 745516
 
 paper = 60954
-external_reference = 470100
+external_reference = 468336
 source_family = 5
 
-paper_references_paper = 3045
-paper_references_external = 706538
+paper_references_paper = 6165
+paper_references_external = 703234
 paper_has_reference_source_family = 36117
 ```
 
@@ -2038,11 +2068,11 @@ Accepted result:
 Accepted local inspection counters:
 
 ```text
-nodes_count = 531059
-edges_count = 745700
-resolved_reference_edges_count = 3045
-unresolved_reference_edges_count = 706538
-reference_resolution_ratio = 0.004291
+nodes_count = 529295
+edges_count = 745516
+resolved_reference_edges_count = 6165
+unresolved_reference_edges_count = 703234
+reference_resolution_ratio = 0.00869
 ```
 
 The report covers:
@@ -2080,3 +2110,68 @@ Boundary:
 See: `docs/citation_reference_graph_inspection_v0.md`.
 <!-- CITATION_REFERENCE_GRAPH_INSPECTION_V01_END -->
 
+
+
+<!-- CITATION_REFERENCE_GRAPH_QUERY_CLI_V01_START -->
+## Citation / Reference Graph Query CLI v0.1
+
+Status: implemented local read-only offline query CLI.
+
+This slice adds a small offline command-line query surface over the generated Citation / Reference Graph v0.1 output.
+
+Tracked files:
+
+- `scripts/graph/query_citation_reference_graph.py`
+- `tests/smoke/test_citation_reference_graph_query_cli.py`
+- `docs/citation_reference_graph_query_cli_v0.md`
+
+Accepted local validation:
+
+```text
+python -m py_compile scripts/graph/query_citation_reference_graph.py
+python -m pytest tests/smoke/test_citation_reference_graph_query_cli.py -q
+python -m scripts.graph.query_citation_reference_graph --top-referenced-papers --top-k 5
+python -m scripts.graph.query_citation_reference_graph --top-external-references --top-k 5 --format markdown
+```
+
+Accepted result:
+
+```text
+8 passed
+JSON output works
+Markdown output works
+```
+
+Accepted local graph/query counters:
+
+```text
+nodes_count = 529295
+edges_count = 745516
+paper_references_paper = 6165
+paper_references_external = 703234
+reference_resolution_ratio = 0.00869
+```
+
+Supported selectors:
+
+```text
+paper -> outgoing references
+paper <- incoming internal citing papers
+external_reference -> citing papers
+top internal referenced canonical papers
+top unresolved external references
+source_family -> reference-bearing papers
+```
+
+Boundary:
+
+- read-only CLI over generated graph output
+- no graph rebuild
+- no canonical truth changes
+- no reconcile input
+- no DB/Qdrant/API/UI/retrieval/ranking changes
+- no generated reports by default
+- no Neo4j/NetworkX/GraphRAG runtime
+
+See: `docs/citation_reference_graph_query_cli_v0.md`.
+<!-- CITATION_REFERENCE_GRAPH_QUERY_CLI_V01_END -->

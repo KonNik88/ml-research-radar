@@ -1,6 +1,6 @@
 # Citation / Reference Graph Inspection v0.1
 
-Status: local read-only inspection/report layer.
+Status: local read-only inspection/report layer accepted after reference-id normalization fix.
 
 ## Purpose
 
@@ -65,6 +65,26 @@ python -m scripts.validation.check_citation_reference_graph_inspection --strict
 
 The validator reads existing graph output and writes JSON/Markdown inspection reports.
 
+Accepted current validation:
+
+```text
+7 passed
+ok = true
+required_failed_count = 0
+total_checks = 35
+warning_count = 0
+```
+
+Accepted current inspection counters after reference-id normalization fix:
+
+```text
+nodes_count = 529295
+edges_count = 745516
+resolved_reference_edges_count = 6165
+unresolved_reference_edges_count = 703234
+reference_resolution_ratio = 0.00869
+```
+
 ## Inspection metrics
 
 The report includes:
@@ -100,7 +120,7 @@ sample_paper_to_external_edges
 
 The first builder output is conservative. Most explicit references are expected to remain unresolved external references because the builder only resolves references when an identifier maps uniquely to an existing canonical paper.
 
-A low `reference_resolution_ratio` is therefore not automatically a failure in v0.1. It is diagnostic evidence for future reference-resolution and source-quality work.
+The current accepted `reference_resolution_ratio` is `0.00869`. A low ratio is not automatically a failure in v0.1. It is diagnostic evidence for future reference-resolution and source-quality work.
 
 ## Safety boundary
 
@@ -123,10 +143,11 @@ be used as a reconcile input
 
 ## Next possible slices
 
-After this inspection slice is accepted, possible next steps are:
+After this inspection slice, the Query CLI v0.1 slice was accepted.
+
+Possible next steps are:
 
 ```text
-Citation / Reference Graph Query CLI v0.1
 Citation / Reference Graph Release Candidate v0.1
 Citation / Reference Graph Package v0.1
 Citation / Reference Graph Line Checkpoint v0.1
