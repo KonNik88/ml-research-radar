@@ -4,14 +4,14 @@
 
 ```text
 document = primary living roadmap
-accepted checkpoint = Paper–Artifact Graph Manual Review Checklist v0.1
+accepted checkpoint = Paper–Artifact Graph Analytics v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
-current active slice = Paper–Artifact Graph Analytics v0.1
+current active slice = Citation / Reference Graph Contract v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = read-only graph analytics/report only; no publication/graph rebuild/package rebuild/API/UI/runtime behavior changes
+scope of current branch = contract-only derived citation/reference graph definition; no builder/generated graph output/DB/API/UI/runtime behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -662,25 +662,17 @@ manual-review does not redefine trusted-link policy
 manual-review does not change DB/Qdrant/API/UI/retrieval/ranking behavior
 ```
 
-## 5. Current active slice
+### 4.19 Paper-Artifact Graph Analytics v0.1
 
-### 5.1 Paper–Artifact Graph Analytics v0.1
+Status: **done / green local read-only analytics report / not published**
 
-Status: **current / read-only analytics and report layer**
-
-Goal:
-
-```text
-Add a local analytics/report layer over the already generated Paper-Artifact Graph v0.1 output so manual review and future exposure decisions have compact evidence about coverage, distributions, and limitations.
-```
-
-This slice exists after the completed local governance sequence:
+Implemented after the completed local graph line, manual-review gate, and package candidate:
 
 ```text
 contract
 → builder
 → output validator
-→ inspection
+→ inspection / QA
 → query CLI
 → release candidate
 → package
@@ -689,17 +681,16 @@ contract
 → analytics report
 ```
 
-Scope:
+Accepted local validation:
 
-- add `configs/paper_artifact_graph_analytics.yaml`;
-- add `docs/paper_artifact_graph_analytics_v0.md`;
-- add `scripts/validation/check_paper_artifact_graph_analytics.py`;
-- add `tests/smoke/test_paper_artifact_graph_analytics.py`;
-- update `docs/roadmap.md`;
-- update `docs/refresh_contract_v1.md`;
-- compute compact read-only analytics over existing graph output;
-- emit JSON/Markdown reports for local review;
-- preserve all canonical, serving, retrieval, Qdrant, ranking, API, UI, package, and publication boundaries.
+```text
+8 passed
+ok = true
+required_failed_count = 0
+strict = true
+total_checks = 40
+warning_count = 0
+```
 
 Analytics report focus:
 
@@ -717,98 +708,255 @@ top multi-paper artifacts
 small sample IDs for manual inspection
 ```
 
+Boundary:
+
+```text
+analytics report is read-only
+analytics reports are derived evidence
+graph/package/manual-review/analytics are not canonical truth
+graph/package/manual-review/analytics are not reconcile inputs
+analytics does not publish anything
+analytics does not rebuild graph or package outputs
+analytics does not change manual-review approval state
+analytics does not redefine trusted-link policy
+analytics does not change DB/Qdrant/API/UI/retrieval/ranking behavior
+```
+
+## 5. Current active slice
+
+### 5.1 Citation / Reference Graph Contract v0.1
+
+Status: **current / contract-only derived citation-reference graph definition**
+
+Goal:
+
+```text
+Define the first explicit contract for a future derived paper→paper and paper→external-reference graph, without building graph outputs or changing canonical/reconcile/API/UI/runtime/DB behavior.
+```
+
+This slice starts a separate graph line from Paper-Artifact Graph v0.1:
+
+```text
+Paper-Artifact Graph = paper → artifact evidence graph
+Citation / Reference Graph = paper → paper / paper → external reference evidence graph
+```
+
+Scope:
+
+- add `configs/citation_reference_graph.yaml`;
+- add `docs/citation_reference_graph_v0.md`;
+- add `scripts/validation/check_citation_reference_graph_contract.py`;
+- add `tests/smoke/test_citation_reference_graph_contract.py`;
+- update `docs/roadmap.md`;
+- update `docs/refresh_contract_v1.md`;
+- validate node types, edge types, identity policy, reference-field policy, provenance policy, safety flags, and future output layout;
+- document that graph outputs are future-layout only and are not generated in this slice.
+
+Required node types:
+
+```text
+paper
+external_reference
+source_family
+```
+
+Required edge types:
+
+```text
+paper_references_paper
+paper_references_external
+paper_has_reference_source_family
+```
+
+Source fields for a future builder:
+
+```text
+referenced_ids
+referenced_dois
+referenced_arxiv_ids
+references_count
+cited_by_count
+sources
+external_ids
+canonical_id
+```
+
+Key contract semantics:
+
+```text
+references_count / cited_by_count = diagnostic metadata
+paper_references_* edges = explicit reference evidence only
+unresolved references stay external
+source_family nodes derive from canonical provenance rows, not source_ids only
+citation/reference graph is derived evidence, not paper truth
+```
+
+Future graph output layout is documented only as `future_layout_only`:
+
+```text
+data/graphs/citation_reference_graph/v0.1/
+├── nodes.jsonl
+├── edges.jsonl
+├── schema.json
+├── manifest.json
+├── README.md
+├── data_quality_summary.json
+└── checksums.txt
+```
+
 Required validation sequence:
 
 ```bat
-python -m py_compile scripts/validation/check_paper_artifact_graph_analytics.py
-python -m pytest tests/smoke/test_paper_artifact_graph_analytics.py -q
-python -m scripts.validation.check_paper_artifact_graph_analytics --strict
+python -m py_compile scripts/validation/check_citation_reference_graph_contract.py
+python -m pytest tests/smoke/test_citation_reference_graph_contract.py -q
+python -m scripts.validation.check_citation_reference_graph_contract --strict
+python -m scripts.validation.check_citation_reference_graph_contract --strict --check-paths
 ```
 
 Accepted local validation result:
 
 ```text
-8 passed
+10 passed
 
 {
   "ok": true,
   "required_failed_count": 0,
-  "strict": true,
-  "total_checks": 40,
+  "total_checks": 48,
   "warning_count": 0
 }
-```
 
-Expected generated reports, not committed:
-
-```text
-artifacts/reports/validation/paper_artifact_graph_analytics_latest.json
-artifacts/reports/validation/paper_artifact_graph_analytics_latest.md
-artifacts/reports/validation/history/paper_artifact_graph_analytics_<run_ts>.json
-artifacts/reports/validation/history/paper_artifact_graph_analytics_<run_ts>.md
+{
+  "ok": true,
+  "required_failed_count": 0,
+  "total_checks": 50,
+  "warning_count": 0
+}
 ```
 
 Non-goals:
 
 ```text
-no graph publication
-no external sharing
+no builder
+no generated graph output
+no package
+no publication
+no manual approval
+no DB materialization
+no DB schema change
 no public graph API
 no Streamlit graph UI
-no graph runtime
-no Neo4j / NetworkX / GraphRAG runtime
-no graph rebuild
-no package rebuild
-no canonical truth change
-no reconcile input change
-no DB/Postgres change
-no Qdrant change
-no retrieval behavior change
-no ranking behavior change
-no API behavior change
-no UI behavior change
-no trusted-link policy redefinition
-no manual approval state change
+no NetworkX runtime
+no Neo4j runtime
+no GraphRAG
+no canonical refresh/reconcile
+no retrieval rebuild
+no embedding model replacement
+no Qdrant promotion
+no ranking changes
 ```
 
-Generated analytics reports are local operational evidence and are not committed by default.
+Generated citation/reference graph contract reports are operational evidence and are not committed by default.
 
 ## 6. Near-term roadmap
 
-### 6.1 Finish and merge Paper–Artifact Graph Analytics v0.1
+### 6.1 Finish and merge Citation / Reference Graph Contract v0.1
 
 Purpose:
 
 ```text
-Close the read-only analytics/report layer that supports manual review with compact graph coverage and distribution evidence.
+Close the contract-only layer for a future derived paper-reference graph before building any graph output.
 ```
 
 Definition of done:
 
-- analytics config exists and validates;
-- analytics validator is read-only and strict green;
-- smoke tests cover valid graph analytics, unsafe config, broken graph, missing files, and report-writing behavior;
-- docs explain what analytics reports are and are not;
+- citation/reference graph config exists and validates;
+- validator is read-only and strict green;
+- smoke tests cover valid config, missing/unsafe flags, node/edge policy, future layout, and path-aware validation;
+- docs explain reference-field semantics and safety boundaries;
 - roadmap and refresh contract are updated;
-- no graph/package/runtime/publication layer is changed.
+- no builder, graph output, DB/API/UI/runtime, reconcile, retrieval, Qdrant, or ranking layer is changed.
 
-### 6.2 Paper–Artifact Graph Manual Review Evidence Pack v0.1
+### 6.2 Citation / Reference Graph Builder v0.1
 
-Potential next read-only slice after analytics.
+Potential next slice after the contract is accepted.
+
+Purpose:
+
+```text
+Build the first local derived citation/reference graph artifact from current canonical reference fields.
+```
+
+Likely future scope:
+
+- read `data/analytics/reconciled/canonical_documents.jsonl`;
+- create `paper` nodes from canonical papers;
+- create `external_reference` nodes for unresolved identifiers;
+- create `source_family` nodes from canonical provenance rows;
+- create `paper_references_paper` edges only when reference identifiers resolve to canonical papers;
+- create `paper_references_external` edges for unresolved identifiers;
+- create `paper_has_reference_source_family` edges for source-family evidence;
+- emit local generated output under `data/graphs/citation_reference_graph/v0.1/`.
+
+Non-goals:
+
+- no DB materialization;
+- no API/UI/runtime;
+- no publication;
+- no canonical/reconcile changes;
+- no retrieval/Qdrant/ranking changes.
+
+### 6.3 Citation / Reference Graph Output Validator and Inspection v0.1
+
+Purpose:
+
+```text
+Validate structural integrity and inspect coverage/limitations of the generated citation/reference graph before any exposure decision.
+```
+
+Possible diagnostics:
+
+- resolved versus unresolved references;
+- reference source-family distribution;
+- papers with outgoing references;
+- papers with no explicit reference edges despite nonzero `references_count`;
+- top referenced canonical papers;
+- unresolved DOI/arXiv/reference-key distribution;
+- sample paper→paper and paper→external-reference paths.
+
+### 6.4 Citation / Reference Graph Query CLI v0.1
+
+Purpose:
+
+```text
+Add an offline read-only query surface over the generated citation/reference graph before API or UI design.
+```
+
+Possible selectors:
+
+- paper → outgoing references;
+- paper → incoming references if generated or indexable;
+- external_reference → citing papers;
+- source_family → reference-bearing papers.
+
+### 6.5 Citation / Reference Graph Release Candidate / Package / Line Checkpoint
+
+Purpose:
+
+```text
+Close the local citation/reference graph line as a reviewable, packaged, non-public derived artifact.
+```
+
+This should mirror the conservative graph-line pattern already used for Paper-Artifact Graph v0.1.
+
+### 6.6 Paper–Artifact Graph Manual Review Evidence Pack v0.1
+
+Potential later read-only slice.
 
 Purpose:
 
 ```text
 Bundle manual-review-relevant evidence from line checkpoint, manual-review gate, package, release candidate, inspection, query CLI, and analytics reports without publishing the graph package.
 ```
-
-Possible scope:
-
-- collect paths and summaries of existing graph-line reports;
-- create one local review index document;
-- list manual-review categories and matching evidence references;
-- preserve pending-category semantics;
-- keep publication blocked.
 
 Non-goals:
 
@@ -818,7 +966,7 @@ Non-goals:
 - no API/UI/runtime;
 - no canonical/reconcile changes.
 
-### 6.3 Paper–Artifact Graph API Design v0.1
+### 6.7 Paper–Artifact Graph API Design v0.1
 
 Purpose:
 
@@ -844,14 +992,14 @@ Non-goals:
 - no runtime graph database;
 - no GraphRAG.
 
-### 6.4 Publication Preparation v0.1
+### 6.8 Publication Preparation v0.1
 
 Only after manual review is actually completed.
 
 Purpose:
 
 ```text
-Prepare a separate publication or external-sharing decision for the graph/package candidate.
+Prepare a separate publication or external-sharing decision for graph/package candidates.
 ```
 
 Possible scope:
@@ -865,18 +1013,7 @@ Possible scope:
 
 Publication must remain a separate PR/slice from validators and local evidence reports.
 
-### 6.5 Citation / Reference Graph Contract v0.1
-
-Potential separate future line.
-
-Important boundary:
-
-```text
-Citation/reference graph should be a separate derived paper→paper graph line.
-It should not be mixed directly into Paper-Artifact Graph v0.1.
-```
-
-### 6.6 Deployment Vector Backend Selector Design v1
+### 6.9 Deployment Vector Backend Selector Design v1
 
 Purpose:
 
@@ -900,7 +1037,7 @@ Non-goals:
 - do not silently switch `/search`;
 - do not remove file dense as reference.
 
-### 6.7 Public Qdrant Promotion v1
+### 6.10 Public Qdrant Promotion v1
 
 Prerequisites:
 
@@ -913,7 +1050,7 @@ Prerequisites:
 
 Promotion must be a separate PR.
 
-### 6.8 Ranking / reranking research
+### 6.11 Ranking / reranking research
 
 Potential future slices:
 
@@ -925,7 +1062,7 @@ Potential future slices:
 
 The current heuristic ranking must not be promoted without new evidence.
 
-### 6.9 Next retrieval generation
+### 6.12 Next retrieval generation
 
 Potential future work:
 
@@ -938,7 +1075,7 @@ Potential future work:
 
 Any material retrieval rebuild invalidates current build-scoped evidence and requires fresh validators.
 
-### 6.10 Full text / RAG
+### 6.13 Full text / RAG
 
 Future staged path:
 
@@ -953,7 +1090,7 @@ full-text acquisition policy
 
 RAG must not be introduced as an ungrounded chat layer.
 
-### 6.11 Observability and orchestration
+### 6.14 Observability and orchestration
 
 Future staged path:
 
@@ -976,6 +1113,7 @@ Deferred:
 ```text
 public Qdrant promotion
 public graph API
+Citation / Reference Graph API/UI/runtime exposure
 Streamlit graph UI
 graph runtime / Neo4j / NetworkX runtime
 GraphRAG over Paper-Artifact Graph
@@ -1551,3 +1689,106 @@ Boundary:
 
 See: `docs/paper_artifact_graph_analytics_v0.md`.
 <!-- PAPER_ARTIFACT_GRAPH_ANALYTICS_V01_END -->
+
+<!-- CITATION_REFERENCE_GRAPH_CONTRACT_V01_START -->
+## Citation / Reference Graph Contract v0.1
+
+Status: implemented local contract-only derived citation/reference graph definition.
+
+This slice defines the first contract for a future citation/reference graph line separate from Paper-Artifact Graph v0.1.
+
+It answers:
+
+```text
+What should a derived paper→paper and paper→external-reference graph look like before any builder, DB materialization, API, UI, graph runtime, or GraphRAG work begins?
+```
+
+Tracked files:
+
+- `configs/citation_reference_graph.yaml`
+- `scripts/validation/check_citation_reference_graph_contract.py`
+- `tests/smoke/test_citation_reference_graph_contract.py`
+- `docs/citation_reference_graph_v0.md`
+
+Generated reports, not committed:
+
+- `artifacts/reports/validation/citation_reference_graph_contract_latest.json`
+- `artifacts/reports/validation/citation_reference_graph_contract_latest.md`
+- `artifacts/reports/validation/history/citation_reference_graph_contract_<run_ts>.json`
+- `artifacts/reports/validation/history/citation_reference_graph_contract_<run_ts>.md`
+
+Accepted local validation:
+
+```text
+python -m py_compile scripts/validation/check_citation_reference_graph_contract.py
+python -m pytest tests/smoke/test_citation_reference_graph_contract.py -q
+python -m scripts.validation.check_citation_reference_graph_contract --strict
+python -m scripts.validation.check_citation_reference_graph_contract --strict --check-paths
+```
+
+Accepted result:
+
+```text
+10 passed
+
+{
+  "ok": true,
+  "required_failed_count": 0,
+  "total_checks": 48,
+  "warning_count": 0
+}
+
+{
+  "ok": true,
+  "required_failed_count": 0,
+  "total_checks": 50,
+  "warning_count": 0
+}
+```
+
+Required future node types:
+
+```text
+paper
+external_reference
+source_family
+```
+
+Required future edge types:
+
+```text
+paper_references_paper
+paper_references_external
+paper_has_reference_source_family
+```
+
+Key v0.1 semantics:
+
+```text
+references_count / cited_by_count are diagnostic metadata
+explicit reference fields create future graph edge evidence
+unresolved references remain external_reference nodes
+source_family nodes derive from canonical provenance rows, not source_ids only
+```
+
+Boundary:
+
+- contract-only validator and documentation only
+- no builder
+- no generated graph output
+- no package
+- no publication
+- no manual approval
+- no DB materialization
+- no DB schema change
+- no public graph API
+- no Streamlit graph UI
+- no NetworkX/Neo4j/GraphRAG runtime
+- no canonical refresh/reconcile
+- no retrieval rebuild
+- no embedding model replacement
+- no Qdrant promotion
+- no ranking changes
+
+See: `docs/citation_reference_graph_v0.md`.
+<!-- CITATION_REFERENCE_GRAPH_CONTRACT_V01_END -->

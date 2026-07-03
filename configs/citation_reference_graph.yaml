@@ -1,0 +1,154 @@
+schema_version: citation_reference_graph_config_v1
+
+graph:
+  name: citation_reference_graph
+  version: v0.1
+  status: contract_only
+  graph_family: paper_reference_evidence_graph
+  description: >-
+    Derived paper-to-paper and paper-to-external-reference graph contract for
+    ML Research Radar. This slice defines the graph contract only; it does not
+    build graph outputs and does not change runtime behavior.
+
+source_checkpoint:
+  canonical_corpus_path: data/analytics/reconciled/canonical_documents.jsonl
+  expected_canonical_doc_count: 60954
+  retrieval_manifest_path: artifacts/retrieval/manifests/latest.json
+  retrieval_build_id: 20260504T164021Z
+  reference_fields:
+    - referenced_ids
+    - referenced_dois
+    - referenced_arxiv_ids
+    - references_count
+    - cited_by_count
+  source_provenance_field: sources
+
+nodes:
+  required_types:
+    - paper
+    - external_reference
+    - source_family
+  id_policy:
+    paper: "paper:<canonical_id>"
+    external_reference: "external_reference:<reference_key_hash>"
+    source_family: "source_family:<source_family>"
+  fields:
+    paper:
+      required:
+        - node_id
+        - node_type
+        - canonical_id
+        - title
+        - year
+        - doi
+        - arxiv_id
+    external_reference:
+      required:
+        - node_id
+        - node_type
+        - reference_key
+        - reference_type
+        - normalized_value
+        - resolution_status
+      allowed_reference_types:
+        - doi
+        - arxiv_id
+        - openalex_id
+        - semantic_scholar_id
+        - raw_external_id
+      allowed_resolution_statuses:
+        - resolved_to_canonical
+        - unresolved_external
+    source_family:
+      required:
+        - node_id
+        - node_type
+        - source_family
+      value_policy: derived_from_canonical_provenance_sources_not_source_ids_only
+
+edges:
+  required_types:
+    - paper_references_paper
+    - paper_references_external
+    - paper_has_reference_source_family
+  id_policy:
+    default: typed_source_target_hash
+  common_required_fields:
+    - edge_id
+    - edge_type
+    - source_node_id
+    - target_node_id
+    - provenance_kind
+    - source_layer
+    - confidence
+  fields:
+    paper_references_paper:
+      source: canonical_documents
+      match_policy: resolved_reference_identifier_to_canonical_paper
+      target_node_type: paper
+    paper_references_external:
+      source: canonical_documents
+      match_policy: unresolved_reference_identifier_preserved_as_external_reference
+      target_node_type: external_reference
+    paper_has_reference_source_family:
+      source: canonical_documents
+      match_policy: derived_from_reference_bearing_canonical_provenance
+      target_node_type: source_family
+
+provenance:
+  required_kinds:
+    - canonical_reference
+    - external_identifier_reference
+    - source_family_reference
+    - derived_summary
+  allowed_source_layers:
+    - canonical_documents
+    - canonical_reference_fields
+    - source_provenance
+  policies:
+    graph_not_reconcile_input: true
+    reference_edges_derived_from_canonical_fields: true
+    unresolved_references_stay_external: true
+    citation_count_not_edge_truth: true
+    source_ids_not_strict_provenance: true
+    references_count_is_diagnostic_not_edge_count_gate: true
+
+safety:
+  canonical_truth_impact: none
+  may_overwrite_operational_latest: false
+  may_be_used_as_reconcile_input: false
+  may_change_db_schema: false
+  may_change_api_behavior: false
+  may_change_streamlit_behavior: false
+  may_change_retrieval_behavior: false
+  may_change_qdrant_behavior: false
+  may_change_ranking_behavior: false
+  may_require_graph_runtime: false
+  may_publish_without_manual_review: false
+
+outputs:
+  status: future_layout_only
+  generated_in_this_slice: false
+  expected_future_output_dir: data/graphs/citation_reference_graph/v0.1
+  expected_future_output_layout:
+    - nodes.jsonl
+    - edges.jsonl
+    - schema.json
+    - manifest.json
+    - README.md
+    - data_quality_summary.json
+    - checksums.txt
+
+validation:
+  report_dir: artifacts/reports/validation
+  require_schema_version: true
+  require_contract_only_status: true
+  require_source_checkpoint: true
+  require_required_node_types: true
+  require_required_edge_types: true
+  require_identity_policy: true
+  require_reference_field_policy: true
+  require_provenance_policy: true
+  require_safety_flags: true
+  require_future_layout_only_outputs: true
+  require_no_publication: true
