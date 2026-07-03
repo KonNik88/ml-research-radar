@@ -43,7 +43,8 @@ Discovery regression runner summary report — 2026-06
 Dataset release track checkpoint — 2026-06
 Paper–Artifact Graph Line Checkpoint v0.1 — 2026-07 completed read-only graph-line checkpoint
 Paper–Artifact Graph Manual Review Checklist v0.1 — 2026-07 completed read-only manual-review governance slice
-Paper–Artifact Graph Analytics v0.1 — 2026-07 active read-only graph analytics/report slice
+Paper–Artifact Graph Analytics v0.1 — 2026-07 completed read-only graph analytics/report slice
+Citation / Reference Graph Contract v0.1 — 2026-07 active contract-only derived citation/reference graph slice
 ```
 
 Current healthy baseline:
@@ -82,10 +83,12 @@ paper_artifact_graph_release_candidate = accepted_read_only_release_candidate
 paper_artifact_graph_package = accepted_local_package_candidate
 paper_artifact_graph_line_checkpoint = accepted_read_only_line_checkpoint
 paper_artifact_graph_manual_review = accepted_read_only_manual_review_gate
-paper_artifact_graph_analytics = active_read_only_analytics_report
+paper_artifact_graph_analytics = accepted_read_only_analytics_report
+citation_reference_graph_contract = active_contract_only
 paper_artifact_graph_dod_gate = not required yet
 paper_artifact_graph_manual_review_dod_gate = not required yet
 paper_artifact_graph_analytics_dod_gate = not required yet
+citation_reference_graph_dod_gate = not required yet
 
 paper_features_rows_count = 60954
 ranking_profiles_count = 9
@@ -667,126 +670,175 @@ python -m scripts.validation.check_streamlit_discovery_ui --strict --check-api
 
 ---
 
-# E. Paper–Artifact Graph Analytics v0.1 validation
+# E. Citation / Reference Graph Contract v0.1 validation
 
-Use this when checking the current read-only analytics/report layer for the local Paper-Artifact Graph v0.1 output.
+Use this when checking the current contract-only derived citation/reference graph definition.
 
-This validation does not publish the graph package and does not change canonical truth, Postgres serving, retrieval artifacts, Qdrant, ranking, API behavior, Streamlit behavior, graph output, package output, or manual-review approval state.
+This validation does not build graph outputs and does not change canonical truth, Postgres serving, retrieval artifacts, Qdrant, ranking, API behavior, Streamlit behavior, graph output, package output, or manual-review approval state.
 
-Current local graph-line sequence:
+This slice starts a separate graph line from Paper-Artifact Graph v0.1:
+
+```text
+Paper-Artifact Graph = paper → artifact evidence graph
+Citation / Reference Graph = paper → paper / paper → external reference evidence graph
+```
+
+Current intended citation/reference graph-line sequence:
 
 ```text
 contract
 → builder
 → output validator
-→ inspection
+→ inspection / analytics
 → query CLI
 → release candidate
 → package
 → line checkpoint
-→ manual review checklist
-→ analytics report
+→ API design only after local evidence is accepted
 ```
 
-Analytics config:
+Contract config:
 
 ```text
-configs/paper_artifact_graph_analytics.yaml
+configs/citation_reference_graph.yaml
 ```
 
-Analytics documentation:
+Contract documentation:
 
 ```text
-docs/paper_artifact_graph_analytics_v0.md
+docs/citation_reference_graph_v0.md
 ```
 
 Validator/report script:
 
 ```text
-scripts/validation/check_paper_artifact_graph_analytics.py
+scripts/validation/check_citation_reference_graph_contract.py
 ```
 
 Smoke tests:
 
 ```text
-tests/smoke/test_paper_artifact_graph_analytics.py
+tests/smoke/test_citation_reference_graph_contract.py
 ```
 
 Recommended validation sequence:
 
 ```bat
-python -m py_compile scripts/validation/check_paper_artifact_graph_analytics.py
-python -m pytest tests/smoke/test_paper_artifact_graph_analytics.py -q
-python -m scripts.validation.check_paper_artifact_graph_analytics --strict
+python -m py_compile scripts/validation/check_citation_reference_graph_contract.py
+python -m pytest tests/smoke/test_citation_reference_graph_contract.py -q
+python -m scripts.validation.check_citation_reference_graph_contract --strict
+python -m scripts.validation.check_citation_reference_graph_contract --strict --check-paths
 ```
 
 Expected current result:
 
 ```text
-8 passed
+10 passed
 
 {
   "ok": true,
   "required_failed_count": 0,
-  "strict": true,
-  "total_checks": 40,
+  "total_checks": 48,
+  "warning_count": 0
+}
+
+{
+  "ok": true,
+  "required_failed_count": 0,
+  "total_checks": 50,
   "warning_count": 0
 }
 ```
 
-The analytics report computes:
+The contract validator checks:
 
 ```text
-node and edge counts
-node and edge type counts
-papers with trusted artifacts
-artifacts linked to papers
-multi-paper artifacts
-isolated artifacts
-provider distribution over artifact nodes
-provider distribution over paper-artifact links
-source-family distribution
-topic-cluster artifact-ready paper coverage
-top multi-paper artifacts
-small sample IDs for manual inspection
+config schema version
+contract-only status
+source checkpoint declaration
+required node types
+required edge types
+node ID policy
+edge ID policy
+reference field policy
+provenance kinds and source layers
+provenance safety policies
+future-layout-only output declaration
+safety flags preventing canonical/DB/API/UI/retrieval/Qdrant/ranking/runtime changes
+path-aware canonical/retrieval input existence when --check-paths is used
 ```
 
-Required inputs:
+Required future node types:
 
 ```text
-data/graphs/paper_artifact_graph/v0.1/nodes.jsonl
-data/graphs/paper_artifact_graph/v0.1/edges.jsonl
-data/graphs/paper_artifact_graph/v0.1/manifest.json
-data/graphs/paper_artifact_graph/v0.1/data_quality_summary.json
+paper
+external_reference
+source_family
+```
+
+Required future edge types:
+
+```text
+paper_references_paper
+paper_references_external
+paper_has_reference_source_family
+```
+
+Future source fields:
+
+```text
+referenced_ids
+referenced_dois
+referenced_arxiv_ids
+references_count
+cited_by_count
+sources
+external_ids
+canonical_id
+```
+
+Key v0.1 semantic contract:
+
+```text
+references_count / cited_by_count = diagnostic metadata
+paper_references_* edges = explicit reference evidence only
+unresolved references stay external
+source_family nodes derive from canonical provenance rows, not source_ids only
+citation/reference graph is derived evidence, not paper truth
 ```
 
 Generated reports:
 
 ```text
-artifacts/reports/validation/paper_artifact_graph_analytics_latest.json
-artifacts/reports/validation/paper_artifact_graph_analytics_latest.md
-artifacts/reports/validation/history/paper_artifact_graph_analytics_<run_ts>.json
-artifacts/reports/validation/history/paper_artifact_graph_analytics_<run_ts>.md
+artifacts/reports/validation/citation_reference_graph_contract_latest.json
+artifacts/reports/validation/citation_reference_graph_contract_latest.md
+artifacts/reports/validation/history/citation_reference_graph_contract_<run_ts>.json
+artifacts/reports/validation/history/citation_reference_graph_contract_<run_ts>.md
 ```
 
 Important boundary:
 
 ```text
-The analytics layer is a read-only report layer.
-It must not publish the graph package.
-It must not rebuild graph output.
-It must not rebuild package output.
+The citation/reference graph contract is contract-only.
+It must not build graph outputs.
+It must not publish anything.
+It must not change canonical truth.
+It must not run reconcile.
+It must not change DB schema.
+It must not change API behavior.
+It must not change Streamlit behavior.
+It must not change retrieval behavior.
+It must not change Qdrant behavior.
+It must not change ranking behavior.
+It must not require NetworkX/Neo4j/GraphRAG runtime.
 It must not be used as a reconcile input.
-It must not overwrite operational latest files.
-It must not redefine trusted-link policy.
-It must not change manual-review approval state.
 It does not add a DoD required gate in this slice.
 Generated reports are not committed.
 ```
 
-## Related Paper–Artifact Graph validators
+## Related graph validators
 
-Use these when debugging the underlying graph line, not as part of ordinary analytics edits:
+Use these when debugging the already completed Paper-Artifact Graph line, not as part of ordinary citation/reference contract edits:
 
 ```bat
 python -m scripts.validation.check_paper_artifact_graph_output --strict
@@ -795,6 +847,7 @@ python -m scripts.validation.check_paper_artifact_graph_release_candidate --stri
 python -m scripts.validation.check_paper_artifact_graph_package --strict
 python -m scripts.validation.check_paper_artifact_graph_line_checkpoint --strict
 python -m scripts.validation.check_paper_artifact_graph_manual_review --strict
+python -m scripts.validation.check_paper_artifact_graph_analytics --strict
 ```
 
 # F. Artifact API filters validation and DoD gate
@@ -1218,7 +1271,7 @@ dod_passed = true
 required_failed_count = 0
 ```
 
-Paper–Artifact Graph Analytics v0.1 is intentionally not a required strict DoD gate in this slice. It has its own validator and smoke tests. DoD integration should be reconsidered only after the project decides whether graph publication/exposure becomes part of the standard refresh contract.
+Citation / Reference Graph Contract v0.1 is intentionally not a required strict DoD gate in this contract-only slice. It has its own validator and smoke tests. DoD integration should be reconsidered only after a citation/reference graph builder, output validator, and graph-line checkpoint exist.
 
 If local `--help` does not show these gates, sync the DoD script before treating local docs as current.
 
@@ -2037,3 +2090,88 @@ Boundary notes:
 - no trusted-link policy redefinition
 - no manual approval state change
 <!-- PAPER_ARTIFACT_GRAPH_ANALYTICS_V01_END -->
+
+<!-- CITATION_REFERENCE_GRAPH_CONTRACT_V01_START -->
+## Citation / Reference Graph Contract v0.1 checkpoint
+
+Status: local contract-only citation/reference graph definition implemented and validated.
+
+Tracked files:
+
+- `configs/citation_reference_graph.yaml`
+- `scripts/validation/check_citation_reference_graph_contract.py`
+- `tests/smoke/test_citation_reference_graph_contract.py`
+- `docs/citation_reference_graph_v0.md`
+
+Generated validation reports, not committed:
+
+- `artifacts/reports/validation/citation_reference_graph_contract_latest.json`
+- `artifacts/reports/validation/citation_reference_graph_contract_latest.md`
+- `artifacts/reports/validation/history/citation_reference_graph_contract_<run_ts>.json`
+- `artifacts/reports/validation/history/citation_reference_graph_contract_<run_ts>.md`
+
+Validation commands:
+
+```bat
+python -m py_compile scripts/validation/check_citation_reference_graph_contract.py
+python -m pytest tests/smoke/test_citation_reference_graph_contract.py -q
+python -m scripts.validation.check_citation_reference_graph_contract --strict
+python -m scripts.validation.check_citation_reference_graph_contract --strict --check-paths
+```
+
+Expected result:
+
+```text
+10 passed
+
+{
+  "ok": true,
+  "required_failed_count": 0,
+  "total_checks": 48,
+  "warning_count": 0
+}
+
+{
+  "ok": true,
+  "required_failed_count": 0,
+  "total_checks": 50,
+  "warning_count": 0
+}
+```
+
+The contract validates:
+
+```text
+config schema version
+contract-only status
+source checkpoint declaration
+required future node types
+required future edge types
+node and edge identity policies
+reference-field policy
+provenance kinds and source layers
+future-layout-only output declaration
+safety flags preserving project boundaries
+optional path-aware canonical/retrieval input existence
+```
+
+Boundary notes:
+
+- contract-only validator and documentation
+- no builder
+- no generated graph output
+- no package
+- no publication
+- no manual approval
+- no DB materialization
+- no DB schema change
+- no public graph API
+- no Streamlit graph UI
+- no NetworkX/Neo4j/GraphRAG runtime
+- no canonical refresh/reconcile
+- no retrieval rebuild
+- no embedding model replacement
+- no Qdrant promotion
+- no ranking changes
+- generated contract reports are ignored and not committed
+<!-- CITATION_REFERENCE_GRAPH_CONTRACT_V01_END -->
