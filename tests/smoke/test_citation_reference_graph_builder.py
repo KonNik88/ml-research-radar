@@ -96,6 +96,56 @@ def fixture_project(tmp_path: Path) -> dict[str, Path]:
     return {"canonical_path": canonical_path, "config_path": config_path, "output_dir": output_dir}
 
 
+def test_openalex_url_reference_id_is_not_misclassified_as_doi() -> None:
+    assert builder._infer_reference_type("https://openalex.org/W2194775991") == "openalex_id"
+    assert builder._normalize_reference_value("https://openalex.org/W2194775991", "openalex_id") == "W2194775991"
+    assert builder._normalize_doi("https://openalex.org/W2194775991") is None
+
+
+def test_referenced_ids_openalex_url_resolves_to_canonical(tmp_path: Path) -> None:
+    canonical_path = tmp_path / "canonical_documents.jsonl"
+    output_dir = tmp_path / "graph"
+    config_path = tmp_path / "citation_reference_graph.yaml"
+    _write_jsonl(
+        canonical_path,
+        [
+            {
+                "canonical_id": "source",
+                "title": "Source",
+                "year": 2024,
+                "sources": ["openalex_alignment"],
+                "referenced_ids": ["https://openalex.org/W2194775991"],
+                "references_count": 1,
+            },
+            {
+                "canonical_id": "target",
+                "title": "Target",
+                "year": 2023,
+                "openalex_id": "https://openalex.org/W2194775991",
+                "sources": ["openalex_alignment"],
+            },
+        ],
+    )
+    config = {
+        "schema_version": "citation_reference_graph_config_v1",
+        "source_checkpoint": {"canonical_corpus_path": str(canonical_path), "expected_canonical_doc_count": 2},
+        "outputs": {"expected_future_output_dir": str(output_dir)},
+    }
+    config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+
+    result = builder.build_graph(config_path=config_path, canonical_path=canonical_path, output_dir=output_dir)
+
+    assert result["counts"]["paper_references_paper_edges_count"] == 1
+    assert result["counts"]["paper_references_external_edges_count"] == 0
+    edges = _read_jsonl(output_dir / "edges.jsonl")
+    assert any(
+        edge["edge_type"] == "paper_references_paper"
+        and edge["reference_type"] == "openalex_id"
+        and edge["reference_value"] == "W2194775991"
+        for edge in edges
+    )
+
+
 def test_builder_writes_expected_graph_files(fixture_project: dict[str, Path]) -> None:
     result = builder.build_graph(
         config_path=fixture_project["config_path"],

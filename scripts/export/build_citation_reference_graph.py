@@ -21,6 +21,7 @@ MANIFEST_SCHEMA_VERSION = "citation_reference_graph_manifest_v1"
 DATA_QUALITY_SCHEMA_VERSION = "citation_reference_graph_data_quality_summary_v1"
 
 DOI_PREFIX_RE = re.compile(r"^(?:https?://(?:dx\.)?doi\.org/|doi:\s*)", re.IGNORECASE)
+DOI_VALUE_RE = re.compile(r"^10\.\d{4,9}/\S+$", re.IGNORECASE)
 ARXIV_PREFIX_RE = re.compile(r"^(?:https?://arxiv\.org/(?:abs|pdf)/|arxiv:\s*)", re.IGNORECASE)
 ARXIV_VERSION_RE = re.compile(r"v\d+$", re.IGNORECASE)
 OPENALEX_RE = re.compile(r"(?:https?://openalex\.org/)?(W\d+)$", re.IGNORECASE)
@@ -131,7 +132,7 @@ def _normalize_doi(value: Any) -> str | None:
         return None
     text = DOI_PREFIX_RE.sub("", text.strip())
     text = text.strip().strip(" .;,").lower()
-    if not text or "/" not in text:
+    if not text or not DOI_VALUE_RE.match(text):
         return None
     return text
 
@@ -185,14 +186,14 @@ def _infer_reference_type(value: Any, explicit_type: Any = None) -> str:
         if normalized in {"semanticscholar", "semantic_scholar", "s2", "corpusid"}:
             return "semantic_scholar_id"
     text = _string_or_none(value) or ""
-    if _normalize_doi(text):
-        return "doi"
     if _normalize_openalex_id(text):
         return "openalex_id"
     if _normalize_semantic_scholar_id(text):
         return "semantic_scholar_id"
     if _normalize_arxiv_id(text) and ARXIV_ID_RE.match(text.strip().replace("arXiv:", "")):
         return "arxiv_id"
+    if _normalize_doi(text):
+        return "doi"
     return "raw_external_id"
 
 
