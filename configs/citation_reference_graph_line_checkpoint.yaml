@@ -1,0 +1,94 @@
+schema_version: citation_reference_graph_line_checkpoint_config_v1
+
+checkpoint:
+  name: citation_reference_graph_line_checkpoint
+  version: v0.1
+  status: local_line_checkpoint
+  publication_ready: false
+  manual_review_required: true
+  manual_review_complete: false
+  may_be_used_as_reconcile_input: false
+
+inputs:
+  graph_dir: data/graphs/citation_reference_graph/v0.1
+  package_dir: data/graphs/citation_reference_graph/packages/v0.1
+  output_report_json: artifacts/reports/validation/citation_reference_graph_output_latest.json
+  inspection_report_json: artifacts/reports/validation/citation_reference_graph_inspection_latest.json
+  release_candidate_report_json: artifacts/reports/validation/citation_reference_graph_release_candidate_latest.json
+  package_report_json: artifacts/reports/validation/citation_reference_graph_package_latest.json
+  package_manifest_path: data/graphs/citation_reference_graph/packages/v0.1/package_manifest.json
+
+validation:
+  report_dir: artifacts/reports/validation
+
+tracked_files:
+  - configs/citation_reference_graph_line_checkpoint.yaml
+  - scripts/validation/check_citation_reference_graph_line_checkpoint.py
+  - tests/smoke/test_citation_reference_graph_line_checkpoint.py
+  - docs/citation_reference_graph_line_checkpoint_v0.md
+
+required_graph_files:
+  - nodes.jsonl
+  - edges.jsonl
+  - schema.json
+  - manifest.json
+  - data_quality_summary.json
+  - README.md
+  - checksums.txt
+
+required_package_files:
+  - citation_reference_graph_v0.1.zip
+  - package_manifest.json
+  - README.md
+  - checksums.txt
+
+accepted_components:
+  contract: accepted_contract_only
+  builder: accepted_local_derived_builder
+  output_validator: accepted_strict_validator
+  reference_normalization_fix: accepted_openalex_reference_id_normalization
+  inspection: accepted_read_only_inspection
+  query_cli: accepted_read_only_query_cli
+  docs_counter_refresh: accepted_docs_counter_refresh
+  release_candidate: accepted_read_only_release_candidate
+  package: accepted_local_package_candidate
+
+expected_counts:
+  nodes_count: 529295
+  edges_count: 745516
+  node_paper_count: 60954
+  node_external_reference_count: 468336
+  node_source_family_count: 5
+  edge_paper_references_paper_count: 6165
+  edge_paper_references_external_count: 703234
+  edge_paper_has_reference_source_family_count: 36117
+
+expected_quality:
+  resolved_reference_edges_count: 6165
+  unresolved_reference_edges_count: 703234
+  reference_resolution_ratio: 0.00869
+
+safety:
+  read_only_checkpoint: true
+  read_existing_graph_output: true
+  read_existing_package_output: true
+  rebuild_graph: false
+  rebuild_package: false
+  mutate_canonical_documents: false
+  mutate_retrieval_artifacts: false
+  mutate_qdrant: false
+  mutate_postgres: false
+  mutate_db_schema: false
+  mutate_api: false
+  mutate_ui: false
+  mutate_ranking: false
+  publish_dataset: false
+  publish_graph: false
+  create_latest_pointer: false
+  create_graph_runtime: false
+  require_networkx_runtime: false
+  require_neo4j_runtime: false
+  require_graphrag_runtime: false
+  parse_full_text: false
+  parse_pdfs: false
+  parse_bibliography_sections: false
