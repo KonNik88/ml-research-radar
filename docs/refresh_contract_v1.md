@@ -51,7 +51,8 @@ Citation / Reference Graph Reference Normalization Fix v0.1.1 — 2026-07 comple
 Citation / Reference Graph Query CLI v0.1 — 2026-07 completed read-only offline citation/reference graph query slice
 Citation / Reference Graph Docs Counter Refresh v0.1 — 2026-07 completed docs-only counter/status refresh
 Citation / Reference Graph Release Candidate v0.1 — 2026-07 completed read-only release-candidate readiness gate
-Citation / Reference Graph Package v0.1 — 2026-07 active local package candidate layer
+Citation / Reference Graph Package v0.1 — 2026-07 completed local package candidate layer
+Citation / Reference Graph Line Checkpoint v0.1 — 2026-07 active read-only line checkpoint
 ```
 
 Current healthy baseline:
@@ -97,7 +98,8 @@ citation_reference_graph_inspection = accepted_read_only_inspection
 citation_reference_graph_reference_normalization_fix = accepted_openalex_reference_id_normalization
 citation_reference_graph_query_cli = accepted_read_only_query_cli
 citation_reference_graph_release_candidate = accepted_read_only_release_candidate
-citation_reference_graph_package = active_local_package_candidate
+citation_reference_graph_package = accepted_local_package_candidate
+citation_reference_graph_line_checkpoint = active_read_only_line_checkpoint
 paper_artifact_graph_dod_gate = not required yet
 paper_artifact_graph_manual_review_dod_gate = not required yet
 paper_artifact_graph_analytics_dod_gate = not required yet
@@ -1171,6 +1173,91 @@ The package must not parse full text, PDFs, or bibliography/reference sections.
 The package must not require NetworkX/Neo4j/GraphRAG runtime.
 The package must not be used as a reconcile input.
 Generated package output and reports are not committed.
+```
+
+
+## Citation / Reference Graph Line Checkpoint v0.1 validation
+
+Use this when checking the active read-only line checkpoint over the completed local Citation / Reference Graph v0.1 line.
+
+This validation reads existing graph output, existing package output, and latest validation reports. It does not rebuild graph output, rebuild package output, publish anything, change canonical truth, mutate DB state, change API/UI behavior, or require NetworkX/Neo4j/GraphRAG runtime.
+
+Line-checkpoint script:
+
+```text
+scripts/validation/check_citation_reference_graph_line_checkpoint.py
+```
+
+Line-checkpoint documentation:
+
+```text
+docs/citation_reference_graph_line_checkpoint_v0.md
+```
+
+Smoke tests:
+
+```text
+tests/smoke/test_citation_reference_graph_line_checkpoint.py
+```
+
+Recommended validation sequence:
+
+```bat
+python -m py_compile scripts/validation/check_citation_reference_graph_line_checkpoint.py
+python -m pytest tests/smoke/test_citation_reference_graph_line_checkpoint.py -q
+python -m scripts.validation.check_citation_reference_graph_line_checkpoint --strict
+```
+
+Expected current result:
+
+```text
+5 passed
+ok = true
+required_failed_count = 0
+warning_count = 0
+```
+
+Required existing local inputs:
+
+```text
+data/graphs/citation_reference_graph/v0.1/
+data/graphs/citation_reference_graph/packages/v0.1/
+artifacts/reports/validation/citation_reference_graph_output_latest.json
+artifacts/reports/validation/citation_reference_graph_inspection_latest.json
+artifacts/reports/validation/citation_reference_graph_release_candidate_latest.json
+artifacts/reports/validation/citation_reference_graph_package_latest.json
+```
+
+Expected line-checkpoint verdict:
+
+```text
+citation_reference_graph_line_complete = true
+line_checkpoint_ready = true
+manual_review_required = true
+manual_review_complete = false
+publication_ready = false
+publication_block_reason = manual_review_not_completed
+```
+
+Important boundary:
+
+```text
+The citation/reference graph line-checkpoint validator is read-only.
+It must not rebuild graph output.
+It must not rebuild package output.
+It must not publish anything.
+It must not change canonical truth.
+It must not run reconcile.
+It must not mutate Postgres.
+It must not change DB schema.
+It must not change API behavior.
+It must not change Streamlit behavior.
+It must not change retrieval behavior.
+It must not change Qdrant behavior.
+It must not change ranking behavior.
+It must not require NetworkX/Neo4j/GraphRAG runtime.
+It must not be used as a reconcile input.
+Generated reports are not committed.
 ```
 
 

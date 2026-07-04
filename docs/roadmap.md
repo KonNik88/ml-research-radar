@@ -4,14 +4,14 @@
 
 ```text
 document = primary living roadmap
-accepted checkpoint = Citation / Reference Graph Release Candidate v0.1
+accepted checkpoint = Citation / Reference Graph Package v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
-current active slice = Citation / Reference Graph Package v0.1
+current active slice = Citation / Reference Graph Line Checkpoint v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = local citation/reference graph package candidate layer only; no graph rebuild/publication/DB/API/UI/runtime behavior changes
+scope of current branch = read-only citation/reference graph line-checkpoint only; no graph rebuild/package rebuild/publication/DB/API/UI/runtime behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -1064,16 +1064,68 @@ release-candidate does not change DB/Qdrant/API/UI/retrieval/ranking behavior
 ```
 
 
+### 4.26 Citation / Reference Graph Package v0.1
+
+Status: **done / green local package candidate layer / not published**
+
+Implemented after the accepted release-candidate readiness gate:
+
+```text
+contract
+→ builder
+→ output validator
+→ reference-id normalization fix
+→ inspection / QA report
+→ query CLI
+→ docs counter refresh
+→ release candidate
+→ package
+```
+
+Accepted local validation:
+
+```text
+5 passed
+release candidate ok = true
+package build ok = true
+package validator ok = true
+required_failed_count = 0
+warning_count = 0
+```
+
+Accepted local package evidence:
+
+```text
+included_files_count = 9
+zip_size_bytes = 65516030
+manual_review_required = true
+manual_review_complete = false
+publication_ready = false
+publication_block_reason = manual_review_not_completed
+```
+
+Boundary:
+
+```text
+package is local generated output
+package is not canonical truth
+package is not a reconcile input
+package is not publication-ready
+package does not rebuild graph output
+package does not change DB/Qdrant/API/UI/retrieval/ranking behavior
+package does not parse full text, PDFs, or bibliography sections
+```
+
 ## 5. Current active slice
 
-### 5.1 Citation / Reference Graph Package v0.1
+### 5.1 Citation / Reference Graph Line Checkpoint v0.1
 
-Status: **current / local package candidate layer / not published**
+Status: **current / local read-only line checkpoint / not published**
 
 Goal:
 
 ```text
-Package the already generated and release-candidate-validated Citation / Reference Graph v0.1 output as a local non-public portable candidate artifact.
+Close the local Citation / Reference Graph v0.1 line as an internally complete, reviewable, non-public derived artifact line.
 ```
 
 This slice follows the accepted local graph line so far:
@@ -1088,31 +1140,22 @@ contract
 → docs counter refresh
 → release-candidate readiness gate
 → package builder / package validator
+→ line checkpoint
 ```
 
 Scope:
 
-- add `configs/citation_reference_graph_package.yaml`;
-- add `scripts/export/package_citation_reference_graph.py`;
-- add `scripts/validation/check_citation_reference_graph_package.py`;
-- add `tests/smoke/test_citation_reference_graph_package.py`;
-- add `docs/citation_reference_graph_package_v0.md`;
+- add `configs/citation_reference_graph_line_checkpoint.yaml`;
+- add `scripts/validation/check_citation_reference_graph_line_checkpoint.py`;
+- add `tests/smoke/test_citation_reference_graph_line_checkpoint.py`;
+- add `docs/citation_reference_graph_line_checkpoint_v0.md`;
 - update `docs/roadmap.md`;
 - update `docs/refresh_contract_v1.md`;
 - read the generated local graph output under `data/graphs/citation_reference_graph/v0.1/`;
-- require a green latest release-candidate report before packaging;
-- generate a local package under `data/graphs/citation_reference_graph/packages/v0.1/`;
-- validate package manifest, checksums, zip contents, counters, and safety boundaries;
+- read the generated local package output under `data/graphs/citation_reference_graph/packages/v0.1/`;
+- require green latest output, inspection, release-candidate, and package reports;
+- validate graph/package manifests, counters, safety boundaries, and package zip readability;
 - preserve all canonical, serving, retrieval, Qdrant, ranking, API, UI, runtime, full-text, and publication boundaries.
-
-Generated package output, not committed:
-
-```text
-data/graphs/citation_reference_graph/packages/v0.1/citation_reference_graph_v0.1.zip
-data/graphs/citation_reference_graph/packages/v0.1/package_manifest.json
-data/graphs/citation_reference_graph/packages/v0.1/README.md
-data/graphs/citation_reference_graph/packages/v0.1/checksums.txt
-```
 
 Accepted post-normalization counters:
 
@@ -1128,10 +1171,11 @@ paper_has_reference_source_family edges = 36117
 reference_resolution_ratio = 0.00869
 ```
 
-Expected package verdict:
+Expected line-checkpoint verdict:
 
 ```text
-package_candidate_ready = true
+citation_reference_graph_line_complete = true
+line_checkpoint_ready = true
 manual_review_required = true
 manual_review_complete = false
 publication_ready = false
@@ -1142,6 +1186,7 @@ Non-goals:
 
 ```text
 no graph rebuild
+no package rebuild
 no publication
 no DB materialization
 no DB schema change
@@ -1158,34 +1203,31 @@ no Qdrant promotion
 no ranking changes
 ```
 
-Generated package files and package validation reports are local operational evidence and are not committed by default.
+Generated line-checkpoint reports are local operational evidence and are not committed by default.
 
 ## 6. Near-term roadmap
 
-### 6.1 Finish and merge Citation / Reference Graph Package v0.1
+### 6.1 Finish and merge Citation / Reference Graph Line Checkpoint v0.1
 
 Purpose:
 
 ```text
-Close the local package candidate layer over the generated and release-candidate-validated citation/reference graph output.
+Close the local line checkpoint over the generated, validated, queryable, release-candidate-checked, and packaged citation/reference graph output.
 ```
 
 Definition of done:
 
-- package config is present and safe;
-- package builder compiles;
-- package validator compiles;
-- smoke tests cover package green path, dry-run no-write behavior, failed release-candidate report rejection, checksum mismatch detection, and validator no-write mode;
-- package dry-run is green;
-- package build with `--force` is green;
-- strict package validator is green;
+- line checkpoint config is present and safe;
+- line checkpoint validator compiles;
+- smoke tests cover green path, failed package report detection, graph count mismatch detection, unsafe package manifest detection, and validator no-write mode;
+- strict line checkpoint validator is green;
+- output, inspection, release-candidate, and package reports are green;
 - accepted post-normalization counters are documented;
-- package verdict preserves manual-review/publication block semantics;
-- generated package output remains ignored and uncommitted;
-- generated package validation reports remain ignored and uncommitted;
-- no graph rebuild, DB/API/UI/runtime, reconcile, retrieval, Qdrant, ranking, full-text parsing, or publication layer is changed.
+- line-checkpoint verdict preserves manual-review/publication block semantics;
+- generated line-checkpoint validation reports remain ignored and uncommitted;
+- no graph rebuild, package rebuild, DB/API/UI/runtime, reconcile, retrieval, Qdrant, ranking, full-text parsing, or publication layer is changed.
 
-### 6.2 Citation / Reference Graph Line Checkpoint v0.1
+### 6.2 Citation / Reference Graph Manual Review Checklist v0.1
 
 Purpose:
 
@@ -1219,7 +1261,7 @@ no canonical/reconcile changes
 no retrieval/Qdrant/ranking changes
 ```
 
-### 6.3 Citation / Reference Graph Manual Review Checklist v0.1
+### 6.3 Citation / Reference Graph API Design v0.1
 
 Purpose:
 
@@ -1238,7 +1280,7 @@ publication_ready = false
 publication_block_reason = manual_review_not_completed
 ```
 
-### 6.4 Citation / Reference Graph API Design v0.1
+### 6.4 Citation / Reference Graph Analytics v0.1
 
 Purpose:
 
