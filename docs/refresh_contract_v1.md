@@ -50,7 +50,8 @@ Citation / Reference Graph Inspection v0.1 — 2026-07 completed read-only citat
 Citation / Reference Graph Reference Normalization Fix v0.1.1 — 2026-07 completed OpenAlex/reference-id normalization fix
 Citation / Reference Graph Query CLI v0.1 — 2026-07 completed read-only offline citation/reference graph query slice
 Citation / Reference Graph Docs Counter Refresh v0.1 — 2026-07 completed docs-only counter/status refresh
-Citation / Reference Graph Release Candidate v0.1 — 2026-07 active read-only release-candidate readiness gate
+Citation / Reference Graph Release Candidate v0.1 — 2026-07 completed read-only release-candidate readiness gate
+Citation / Reference Graph Package v0.1 — 2026-07 active local package candidate layer
 ```
 
 Current healthy baseline:
@@ -95,6 +96,8 @@ citation_reference_graph_builder = accepted_local_derived_builder
 citation_reference_graph_inspection = accepted_read_only_inspection
 citation_reference_graph_reference_normalization_fix = accepted_openalex_reference_id_normalization
 citation_reference_graph_query_cli = accepted_read_only_query_cli
+citation_reference_graph_release_candidate = accepted_read_only_release_candidate
+citation_reference_graph_package = active_local_package_candidate
 paper_artifact_graph_dod_gate = not required yet
 paper_artifact_graph_manual_review_dod_gate = not required yet
 paper_artifact_graph_analytics_dod_gate = not required yet
@@ -102,6 +105,8 @@ citation_reference_graph_dod_gate = not required yet
 citation_reference_graph_builder_dod_gate = not required yet
 citation_reference_graph_inspection_dod_gate = not required yet
 citation_reference_graph_query_cli_dod_gate = not required yet
+citation_reference_graph_release_candidate_dod_gate = not required yet
+citation_reference_graph_package_dod_gate = not required yet
 
 paper_features_rows_count = 60954
 ranking_profiles_count = 9
@@ -1019,6 +1024,156 @@ Generated reports are not committed.
 ```
 
 
+## Citation / Reference Graph Package v0.1 validation
+
+Use this when checking the active local package candidate layer over the generated and release-candidate-validated Citation / Reference Graph v0.1 output.
+
+This validation reads the existing local graph output, latest release-candidate report, and generated package files. It does not rebuild graph output, publish anything, change canonical truth, mutate DB state, change API/UI behavior, parse full text/PDFs/bibliography sections, or require NetworkX/Neo4j/GraphRAG runtime.
+
+Package config:
+
+```text
+configs/citation_reference_graph_package.yaml
+```
+
+Package builder:
+
+```text
+scripts/export/package_citation_reference_graph.py
+```
+
+Package validator:
+
+```text
+scripts/validation/check_citation_reference_graph_package.py
+```
+
+Package documentation:
+
+```text
+docs/citation_reference_graph_package_v0.md
+```
+
+Smoke tests:
+
+```text
+tests/smoke/test_citation_reference_graph_package.py
+```
+
+Required local graph inputs:
+
+```text
+data/graphs/citation_reference_graph/v0.1/nodes.jsonl
+data/graphs/citation_reference_graph/v0.1/edges.jsonl
+data/graphs/citation_reference_graph/v0.1/schema.json
+data/graphs/citation_reference_graph/v0.1/manifest.json
+data/graphs/citation_reference_graph/v0.1/data_quality_summary.json
+data/graphs/citation_reference_graph/v0.1/README.md
+data/graphs/citation_reference_graph/v0.1/checksums.txt
+```
+
+Required release-candidate input:
+
+```text
+artifacts/reports/validation/citation_reference_graph_release_candidate_latest.json
+artifacts/reports/validation/citation_reference_graph_release_candidate_latest.md
+```
+
+Generated package output, not committed:
+
+```text
+data/graphs/citation_reference_graph/packages/v0.1/citation_reference_graph_v0.1.zip
+data/graphs/citation_reference_graph/packages/v0.1/package_manifest.json
+data/graphs/citation_reference_graph/packages/v0.1/README.md
+data/graphs/citation_reference_graph/packages/v0.1/checksums.txt
+```
+
+Generated package validation reports, not committed:
+
+```text
+artifacts/reports/validation/citation_reference_graph_package_latest.json
+artifacts/reports/validation/citation_reference_graph_package_latest.md
+artifacts/reports/validation/history/citation_reference_graph_package_<run_ts>.json
+artifacts/reports/validation/history/citation_reference_graph_package_<run_ts>.md
+```
+
+Recommended validation sequence:
+
+```bat
+python -m py_compile scripts/export/package_citation_reference_graph.py
+python -m py_compile scripts/validation/check_citation_reference_graph_package.py
+python -m pytest tests/smoke/test_citation_reference_graph_package.py -q
+python -m scripts.validation.check_citation_reference_graph_release_candidate --strict
+python -m scripts.export.package_citation_reference_graph --dry-run
+python -m scripts.export.package_citation_reference_graph --force
+python -m scripts.validation.check_citation_reference_graph_package --strict
+```
+
+Expected current result:
+
+```text
+5 passed
+
+package dry-run:
+dry_run = true
+included_files_count = 9
+
+package build:
+ok = true
+included_files_count = 9
+
+package validator:
+ok = true
+required_failed_count = 0
+warning_count = 0
+```
+
+Accepted package counters:
+
+```text
+nodes_count = 529295
+edges_count = 745516
+paper_nodes_count = 60954
+external_reference_nodes_count = 468336
+source_family_nodes_count = 5
+paper_references_paper_edges_count = 6165
+paper_references_external_edges_count = 703234
+paper_has_reference_source_family_edges_count = 36117
+reference_resolution_ratio = 0.00869
+```
+
+Expected package verdict:
+
+```text
+package_candidate_ready = true
+manual_review_required = true
+manual_review_complete = false
+publication_ready = false
+publication_block_reason = manual_review_not_completed
+```
+
+Important boundary:
+
+```text
+The citation/reference graph package builder does not rebuild graph output.
+The citation/reference graph package validator is read-only.
+The package must not publish anything.
+The package must not change canonical truth.
+The package must not run reconcile.
+The package must not mutate Postgres.
+The package must not change DB schema.
+The package must not change API behavior.
+The package must not change Streamlit behavior.
+The package must not change retrieval behavior.
+The package must not change Qdrant behavior.
+The package must not change ranking behavior.
+The package must not parse full text, PDFs, or bibliography/reference sections.
+The package must not require NetworkX/Neo4j/GraphRAG runtime.
+The package must not be used as a reconcile input.
+Generated package output and reports are not committed.
+```
+
+
 # F. Artifact API filters validation and DoD gate
 
 Use this when changing DB-backed Artifact API filters, artifact/date metadata
@@ -1440,7 +1595,7 @@ dod_passed = true
 required_failed_count = 0
 ```
 
-Citation / Reference Graph Inspection v0.1, Query CLI v0.1, and Release Candidate v0.1 are intentionally not required strict DoD gates in this release-candidate slice. They have their own validators, smoke tests, and CLI smoke commands. DoD integration should be reconsidered only after citation/reference graph package and graph-line checkpoint evidence exist.
+Citation / Reference Graph Inspection v0.1, Query CLI v0.1, Release Candidate v0.1, and Package v0.1 are intentionally not required strict DoD gates in this package slice. They have their own validators, smoke tests, and CLI smoke commands. DoD integration should be reconsidered only after citation/reference graph-line checkpoint evidence exists.
 
 If local `--help` does not show these gates, sync the DoD script before treating local docs as current.
 
@@ -2662,3 +2817,65 @@ Boundary notes:
 - no graph runtime
 - generated validation reports are ignored and not committed
 <!-- CITATION_REFERENCE_GRAPH_RELEASE_CANDIDATE_V01_END -->
+
+
+<!-- CITATION_REFERENCE_GRAPH_PACKAGE_V01_START -->
+## Citation / Reference Graph Package v0.1
+
+Status: implemented local package candidate layer.
+
+This slice packages the already generated and already release-candidate-validated Citation / Reference Graph Builder v0.1 output into a local non-public portable archive.
+
+Implemented files:
+
+- `configs/citation_reference_graph_package.yaml`
+- `scripts/export/package_citation_reference_graph.py`
+- `scripts/validation/check_citation_reference_graph_package.py`
+- `tests/smoke/test_citation_reference_graph_package.py`
+- `docs/citation_reference_graph_package_v0.md`
+
+Generated local package output, not committed:
+
+- `data/graphs/citation_reference_graph/packages/v0.1/citation_reference_graph_v0.1.zip`
+- `data/graphs/citation_reference_graph/packages/v0.1/package_manifest.json`
+- `data/graphs/citation_reference_graph/packages/v0.1/README.md`
+- `data/graphs/citation_reference_graph/packages/v0.1/checksums.txt`
+
+Accepted local validation:
+
+```text
+python -m py_compile scripts/export/package_citation_reference_graph.py
+python -m py_compile scripts/validation/check_citation_reference_graph_package.py
+python -m pytest tests/smoke/test_citation_reference_graph_package.py -q
+python -m scripts.export.package_citation_reference_graph --dry-run
+python -m scripts.export.package_citation_reference_graph --force
+python -m scripts.validation.check_citation_reference_graph_package --strict
+```
+
+Expected result:
+
+```text
+5 passed
+package build ok=True
+included_files_count=9
+package validator ok=True
+required_failed_count=0
+warning_count=0
+```
+
+Boundary:
+
+- local package candidate only
+- no graph rebuild
+- no canonical truth changes
+- no reconcile input changes
+- no DB/Qdrant/API/UI/retrieval/ranking changes
+- no full-text/PDF/bibliography parsing
+- no dataset publication
+- no latest pointer
+- no graph runtime
+- generated package output is not committed
+- no Neo4j/NetworkX/GraphRAG runtime
+
+See: `docs/citation_reference_graph_package_v0.md`.
+<!-- CITATION_REFERENCE_GRAPH_PACKAGE_V01_END -->
