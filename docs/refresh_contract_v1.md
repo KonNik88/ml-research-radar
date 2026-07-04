@@ -49,6 +49,8 @@ Citation / Reference Graph Builder v0.1 — 2026-07 completed file-first derived
 Citation / Reference Graph Inspection v0.1 — 2026-07 completed read-only citation/reference graph inspection/report slice
 Citation / Reference Graph Reference Normalization Fix v0.1.1 — 2026-07 completed OpenAlex/reference-id normalization fix
 Citation / Reference Graph Query CLI v0.1 — 2026-07 completed read-only offline citation/reference graph query slice
+Citation / Reference Graph Docs Counter Refresh v0.1 — 2026-07 completed docs-only counter/status refresh
+Citation / Reference Graph Release Candidate v0.1 — 2026-07 active read-only release-candidate readiness gate
 ```
 
 Current healthy baseline:
@@ -905,6 +907,118 @@ python -m scripts.validation.check_paper_artifact_graph_analytics --strict
 ```
 
 
+## Citation / Reference Graph Release Candidate v0.1 validation
+
+Use this when checking the active read-only release-candidate readiness gate over the generated Citation / Reference Graph v0.1 output.
+
+This validation reads the existing local graph output and latest validation reports. It does not rebuild graph output, package graph output, publish anything, change canonical truth, mutate DB state, change API/UI behavior, or require NetworkX/Neo4j/GraphRAG runtime.
+
+Release-candidate script:
+
+```text
+scripts/validation/check_citation_reference_graph_release_candidate.py
+```
+
+Release-candidate documentation:
+
+```text
+docs/citation_reference_graph_release_candidate_v0.md
+```
+
+Smoke tests:
+
+```text
+tests/smoke/test_citation_reference_graph_release_candidate.py
+```
+
+Required local graph inputs:
+
+```text
+data/graphs/citation_reference_graph/v0.1/nodes.jsonl
+data/graphs/citation_reference_graph/v0.1/edges.jsonl
+data/graphs/citation_reference_graph/v0.1/schema.json
+data/graphs/citation_reference_graph/v0.1/manifest.json
+data/graphs/citation_reference_graph/v0.1/data_quality_summary.json
+data/graphs/citation_reference_graph/v0.1/README.md
+data/graphs/citation_reference_graph/v0.1/checksums.txt
+```
+
+Strict-mode report inputs:
+
+```text
+artifacts/reports/validation/citation_reference_graph_output_latest.json
+artifacts/reports/validation/citation_reference_graph_inspection_latest.json
+```
+
+Recommended validation sequence:
+
+```bat
+python -m py_compile scripts/validation/check_citation_reference_graph_release_candidate.py
+python -m pytest tests/smoke/test_citation_reference_graph_release_candidate.py -q
+python -m scripts.validation.check_citation_reference_graph_output --strict
+python -m scripts.validation.check_citation_reference_graph_inspection --strict
+python -m scripts.validation.check_citation_reference_graph_release_candidate --strict
+```
+
+Expected current result:
+
+```text
+6 passed
+
+{
+  "ok": true,
+  "required_failed_count": 0,
+  "strict": true,
+  "warning_count": 0
+}
+```
+
+Accepted local release-candidate counters:
+
+```text
+nodes_count = 529295
+edges_count = 745516
+paper_nodes_count = 60954
+external_reference_nodes_count = 468336
+source_family_nodes_count = 5
+paper_references_paper_edges_count = 6165
+paper_references_external_edges_count = 703234
+paper_has_reference_source_family_edges_count = 36117
+reference_resolution_ratio = 0.00869
+```
+
+Expected release-candidate verdict:
+
+```text
+technical_graph_candidate_ready = true
+manual_review_required = true
+manual_review_complete = false
+publication_ready = false
+publication_block_reason = manual_review_not_completed
+```
+
+Important boundary:
+
+```text
+The citation/reference graph release-candidate validator is read-only.
+It must not rebuild graph output.
+It must not package graph output.
+It must not publish anything.
+It must not change canonical truth.
+It must not run reconcile.
+It must not mutate Postgres.
+It must not change DB schema.
+It must not change API behavior.
+It must not change Streamlit behavior.
+It must not change retrieval behavior.
+It must not change Qdrant behavior.
+It must not change ranking behavior.
+It must not require NetworkX/Neo4j/GraphRAG runtime.
+It must not be used as a reconcile input.
+Generated reports are not committed.
+```
+
+
 # F. Artifact API filters validation and DoD gate
 
 Use this when changing DB-backed Artifact API filters, artifact/date metadata
@@ -1326,7 +1440,7 @@ dod_passed = true
 required_failed_count = 0
 ```
 
-Citation / Reference Graph Inspection v0.1 and Query CLI v0.1 are intentionally not required strict DoD gates in this docs/counter-refresh slice. They have their own validators, smoke tests, and CLI smoke commands. DoD integration should be reconsidered only after citation/reference graph release-candidate/package and graph-line checkpoint evidence exist.
+Citation / Reference Graph Inspection v0.1, Query CLI v0.1, and Release Candidate v0.1 are intentionally not required strict DoD gates in this release-candidate slice. They have their own validators, smoke tests, and CLI smoke commands. DoD integration should be reconsidered only after citation/reference graph package and graph-line checkpoint evidence exist.
 
 If local `--help` does not show these gates, sync the DoD script before treating local docs as current.
 
@@ -2453,3 +2567,98 @@ Boundary notes:
 - no publication/package
 - no Neo4j/NetworkX/GraphRAG runtime
 <!-- CITATION_REFERENCE_GRAPH_QUERY_CLI_V01_END -->
+
+<!-- CITATION_REFERENCE_GRAPH_RELEASE_CANDIDATE_V01_START -->
+## Citation / Reference Graph Release Candidate v0.1 checkpoint
+
+Status: local read-only release-candidate readiness gate implemented and validated.
+
+Tracked files:
+
+- `scripts/validation/check_citation_reference_graph_release_candidate.py`
+- `tests/smoke/test_citation_reference_graph_release_candidate.py`
+- `docs/citation_reference_graph_release_candidate_v0.md`
+
+Generated validation reports, not committed:
+
+- `artifacts/reports/validation/citation_reference_graph_release_candidate_latest.json`
+- `artifacts/reports/validation/citation_reference_graph_release_candidate_latest.md`
+- `artifacts/reports/validation/history/citation_reference_graph_release_candidate_<run_ts>.json`
+- `artifacts/reports/validation/history/citation_reference_graph_release_candidate_<run_ts>.md`
+
+Validation commands:
+
+```bat
+python -m py_compile scripts/validation/check_citation_reference_graph_release_candidate.py
+python -m pytest tests/smoke/test_citation_reference_graph_release_candidate.py -q
+python -m scripts.validation.check_citation_reference_graph_output --strict
+python -m scripts.validation.check_citation_reference_graph_inspection --strict
+python -m scripts.validation.check_citation_reference_graph_release_candidate --strict
+```
+
+Expected result:
+
+```text
+6 passed
+
+{
+  "ok": true,
+  "required_failed_count": 0,
+  "strict": true,
+  "warning_count": 0
+}
+```
+
+The validator checks:
+
+```text
+graph output files exist
+schema/manifest/data_quality_summary are readable and safe
+node and edge IDs are unique
+edges reference existing nodes
+edge confidence values are in [0, 1]
+accepted post-normalization graph counters match
+checksums match
+OpenAlex references remain normalized as openalex_id
+latest output validator report is green in strict mode
+latest inspection report is green in strict mode
+query CLI file exists
+```
+
+Accepted local graph counters:
+
+```text
+nodes_count=529295
+edges_count=745516
+paper=60954
+external_reference=468336
+source_family=5
+paper_references_paper=6165
+paper_references_external=703234
+paper_has_reference_source_family=36117
+reference_resolution_ratio=0.00869
+```
+
+Expected release-candidate verdict:
+
+```text
+technical_graph_candidate_ready=true
+manual_review_required=true
+manual_review_complete=false
+publication_ready=false
+publication_block_reason=manual_review_not_completed
+```
+
+Boundary notes:
+
+- release-candidate validator is read-only
+- graph remains derived representation, not canonical truth
+- graph must not be used as reconcile input
+- no graph rebuild
+- no package rebuild
+- no DB/Qdrant/API/UI/retrieval/ranking behavior change
+- no dataset publication
+- no latest pointer
+- no graph runtime
+- generated validation reports are ignored and not committed
+<!-- CITATION_REFERENCE_GRAPH_RELEASE_CANDIDATE_V01_END -->
