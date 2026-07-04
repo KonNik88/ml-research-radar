@@ -4,14 +4,14 @@
 
 ```text
 document = primary living roadmap
-accepted checkpoint = Citation / Reference Graph Docs Counter Refresh v0.1
+accepted checkpoint = Citation / Reference Graph Release Candidate v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
-current active slice = Citation / Reference Graph Release Candidate v0.1
+current active slice = Citation / Reference Graph Package v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = read-only citation/reference graph release-candidate readiness gate only; no graph rebuild/package/DB/API/UI/runtime behavior changes
+scope of current branch = local citation/reference graph package candidate layer only; no graph rebuild/publication/DB/API/UI/runtime behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -1011,67 +1011,24 @@ no package
 no publication
 ```
 
+### 4.26 Citation / Reference Graph Release Candidate v0.1
 
-## 5. Current active slice
+Status: **done / green local read-only release-candidate readiness gate / not published**
 
-### 5.1 Citation / Reference Graph Release Candidate v0.1
+Implemented after the accepted citation/reference graph Query CLI and docs counter refresh.
 
-Status: **current / local read-only release-candidate readiness gate**
-
-Goal:
-
-```text
-Check whether the already generated Citation / Reference Graph v0.1 output can be treated as a local reviewable candidate artifact.
-```
-
-This slice follows the accepted local graph line so far:
+Accepted local validation:
 
 ```text
-contract
-→ builder
-→ output validator
-→ reference-id normalization fix
-→ inspection / QA report
-→ query CLI
-→ docs counter refresh
-→ release-candidate readiness gate
+6 passed
+ok = true
+required_failed_count = 0
+strict = true
+total_checks = 17
+warning_count = 0
 ```
 
-Scope:
-
-- add `scripts/validation/check_citation_reference_graph_release_candidate.py`;
-- add `tests/smoke/test_citation_reference_graph_release_candidate.py`;
-- add `docs/citation_reference_graph_release_candidate_v0.md`;
-- read the generated local graph output under `data/graphs/citation_reference_graph/v0.1/`;
-- read latest output and inspection validation reports in strict mode;
-- check accepted post-normalization counters;
-- check checksum consistency;
-- preserve the OpenAlex normalization fix as a release-candidate smoke check;
-- emit local JSON/Markdown release-candidate reports under `artifacts/reports/validation/`;
-- preserve all canonical, serving, retrieval, Qdrant, ranking, API, UI, package, and publication boundaries.
-
-Required local graph input:
-
-```text
-data/graphs/citation_reference_graph/v0.1/nodes.jsonl
-data/graphs/citation_reference_graph/v0.1/edges.jsonl
-data/graphs/citation_reference_graph/v0.1/schema.json
-data/graphs/citation_reference_graph/v0.1/manifest.json
-data/graphs/citation_reference_graph/v0.1/data_quality_summary.json
-data/graphs/citation_reference_graph/v0.1/README.md
-data/graphs/citation_reference_graph/v0.1/checksums.txt
-```
-
-Generated release-candidate reports, not committed:
-
-```text
-artifacts/reports/validation/citation_reference_graph_release_candidate_latest.json
-artifacts/reports/validation/citation_reference_graph_release_candidate_latest.md
-artifacts/reports/validation/history/citation_reference_graph_release_candidate_<run_ts>.json
-artifacts/reports/validation/history/citation_reference_graph_release_candidate_<run_ts>.md
-```
-
-Accepted post-normalization counters:
+Accepted release-candidate counters:
 
 ```text
 nodes_count = 529295
@@ -1095,11 +1052,96 @@ publication_ready = false
 publication_block_reason = manual_review_not_completed
 ```
 
+Boundary:
+
+```text
+release-candidate validator is read-only
+release-candidate reports are derived evidence
+graph/release-candidate must not be used as reconcile input
+release-candidate does not rebuild graph output
+release-candidate does not package or publish graph output
+release-candidate does not change DB/Qdrant/API/UI/retrieval/ranking behavior
+```
+
+
+## 5. Current active slice
+
+### 5.1 Citation / Reference Graph Package v0.1
+
+Status: **current / local package candidate layer / not published**
+
+Goal:
+
+```text
+Package the already generated and release-candidate-validated Citation / Reference Graph v0.1 output as a local non-public portable candidate artifact.
+```
+
+This slice follows the accepted local graph line so far:
+
+```text
+contract
+→ builder
+→ output validator
+→ reference-id normalization fix
+→ inspection / QA report
+→ query CLI
+→ docs counter refresh
+→ release-candidate readiness gate
+→ package builder / package validator
+```
+
+Scope:
+
+- add `configs/citation_reference_graph_package.yaml`;
+- add `scripts/export/package_citation_reference_graph.py`;
+- add `scripts/validation/check_citation_reference_graph_package.py`;
+- add `tests/smoke/test_citation_reference_graph_package.py`;
+- add `docs/citation_reference_graph_package_v0.md`;
+- update `docs/roadmap.md`;
+- update `docs/refresh_contract_v1.md`;
+- read the generated local graph output under `data/graphs/citation_reference_graph/v0.1/`;
+- require a green latest release-candidate report before packaging;
+- generate a local package under `data/graphs/citation_reference_graph/packages/v0.1/`;
+- validate package manifest, checksums, zip contents, counters, and safety boundaries;
+- preserve all canonical, serving, retrieval, Qdrant, ranking, API, UI, runtime, full-text, and publication boundaries.
+
+Generated package output, not committed:
+
+```text
+data/graphs/citation_reference_graph/packages/v0.1/citation_reference_graph_v0.1.zip
+data/graphs/citation_reference_graph/packages/v0.1/package_manifest.json
+data/graphs/citation_reference_graph/packages/v0.1/README.md
+data/graphs/citation_reference_graph/packages/v0.1/checksums.txt
+```
+
+Accepted post-normalization counters:
+
+```text
+nodes_count = 529295
+edges_count = 745516
+paper nodes = 60954
+external_reference nodes = 468336
+source_family nodes = 5
+paper_references_paper edges = 6165
+paper_references_external edges = 703234
+paper_has_reference_source_family edges = 36117
+reference_resolution_ratio = 0.00869
+```
+
+Expected package verdict:
+
+```text
+package_candidate_ready = true
+manual_review_required = true
+manual_review_complete = false
+publication_ready = false
+publication_block_reason = manual_review_not_completed
+```
+
 Non-goals:
 
 ```text
 no graph rebuild
-no package
 no publication
 no DB materialization
 no DB schema change
@@ -1116,55 +1158,34 @@ no Qdrant promotion
 no ranking changes
 ```
 
-Generated release-candidate reports are local operational evidence and are not committed by default.
+Generated package files and package validation reports are local operational evidence and are not committed by default.
 
 ## 6. Near-term roadmap
 
-### 6.1 Finish and merge Citation / Reference Graph Release Candidate v0.1
+### 6.1 Finish and merge Citation / Reference Graph Package v0.1
 
 Purpose:
 
 ```text
-Close the local read-only release-candidate readiness gate over the generated citation/reference graph output.
+Close the local package candidate layer over the generated and release-candidate-validated citation/reference graph output.
 ```
 
 Definition of done:
 
-- release-candidate script compiles;
-- smoke tests cover valid graph readiness, checksum mismatch, strict report requirements, manifest safety flags, OpenAlex normalization smoke, and no-write CLI mode;
-- strict release-candidate validator is green;
+- package config is present and safe;
+- package builder compiles;
+- package validator compiles;
+- smoke tests cover package green path, dry-run no-write behavior, failed release-candidate report rejection, checksum mismatch detection, and validator no-write mode;
+- package dry-run is green;
+- package build with `--force` is green;
+- strict package validator is green;
 - accepted post-normalization counters are documented;
-- release-candidate verdict preserves manual-review/publication block semantics;
-- generated release-candidate reports remain ignored and uncommitted;
-- no graph rebuild, DB/API/UI/runtime, reconcile, retrieval, Qdrant, ranking, package, or publication layer is changed.
+- package verdict preserves manual-review/publication block semantics;
+- generated package output remains ignored and uncommitted;
+- generated package validation reports remain ignored and uncommitted;
+- no graph rebuild, DB/API/UI/runtime, reconcile, retrieval, Qdrant, ranking, full-text parsing, or publication layer is changed.
 
-### 6.2 Citation / Reference Graph Package v0.1
-
-Purpose:
-
-```text
-Package the already generated and release-candidate-validated citation/reference graph as a local non-public portable candidate artifact.
-```
-
-This should mirror the conservative package pattern already used for Paper-Artifact Graph v0.1.
-
-Prerequisite:
-
-```text
-Citation / Reference Graph Release Candidate v0.1 accepted and green.
-```
-
-Non-goals:
-
-```text
-no graph rebuild
-no publication
-no API/UI/runtime
-no canonical/reconcile changes
-no retrieval/Qdrant/ranking changes
-```
-
-### 6.3 Citation / Reference Graph Line Checkpoint v0.1
+### 6.2 Citation / Reference Graph Line Checkpoint v0.1
 
 Purpose:
 
@@ -1185,6 +1206,36 @@ contract
 → release candidate
 → package
 → line checkpoint
+```
+
+Non-goals:
+
+```text
+no graph rebuild
+no package rebuild unless explicitly requested
+no publication
+no API/UI/runtime
+no canonical/reconcile changes
+no retrieval/Qdrant/ranking changes
+```
+
+### 6.3 Citation / Reference Graph Manual Review Checklist v0.1
+
+Purpose:
+
+```text
+Define what a human must review before any citation/reference graph package can be published, shared externally, or exposed through DB/API/UI/runtime surfaces.
+```
+
+Default semantics should mirror the existing Paper-Artifact Graph manual-review gate:
+
+```text
+pending categories block publication
+pending categories do not fail the validator
+manual_review_required = true
+manual_review_complete = false
+publication_ready = false
+publication_block_reason = manual_review_not_completed
 ```
 
 ### 6.4 Citation / Reference Graph API Design v0.1
@@ -1213,7 +1264,7 @@ Non-goals:
 - no runtime graph database;
 - no GraphRAG.
 
-### 6.4 Paper–Artifact Graph Manual Review Evidence Pack v0.1
+### 6.5 Paper–Artifact Graph Manual Review Evidence Pack v0.1
 
 Potential later read-only slice.
 
@@ -1231,7 +1282,7 @@ Non-goals:
 - no API/UI/runtime;
 - no canonical/reconcile changes.
 
-### 6.5 Paper–Artifact Graph API Design v0.1
+### 6.6 Paper–Artifact Graph API Design v0.1
 
 Purpose:
 
@@ -1257,7 +1308,7 @@ Non-goals:
 - no runtime graph database;
 - no GraphRAG.
 
-### 6.6 Publication Preparation v0.1
+### 6.7 Publication Preparation v0.1
 
 Only after manual review is actually completed.
 
@@ -1278,7 +1329,7 @@ Possible scope:
 
 Publication must remain a separate PR/slice from validators and local evidence reports.
 
-### 6.7 Deployment Vector Backend Selector Design v1
+### 6.8 Deployment Vector Backend Selector Design v1
 
 Purpose:
 
@@ -1302,7 +1353,7 @@ Non-goals:
 - do not silently switch `/search`;
 - do not remove file dense as reference.
 
-### 6.8 Public Qdrant Promotion v1
+### 6.9 Public Qdrant Promotion v1
 
 Prerequisites:
 
@@ -1315,7 +1366,7 @@ Prerequisites:
 
 Promotion must be a separate PR.
 
-### 6.9 Ranking / reranking research
+### 6.10 Ranking / reranking research
 
 Potential future slices:
 
@@ -1327,7 +1378,7 @@ Potential future slices:
 
 The current heuristic ranking must not be promoted without new evidence.
 
-### 6.10 Next retrieval generation
+### 6.11 Next retrieval generation
 
 Potential future work:
 
@@ -1340,7 +1391,7 @@ Potential future work:
 
 Any material retrieval rebuild invalidates current build-scoped evidence and requires fresh validators.
 
-### 6.11 Full text / RAG
+### 6.12 Full text / RAG
 
 Future staged path:
 
@@ -1355,7 +1406,7 @@ full-text acquisition policy
 
 RAG must not be introduced as an ungrounded chat layer.
 
-### 6.12 Observability and orchestration
+### 6.13 Observability and orchestration
 
 Future staged path:
 
@@ -2306,3 +2357,65 @@ Boundary:
 
 See: `docs/citation_reference_graph_query_cli_v0.md`.
 <!-- CITATION_REFERENCE_GRAPH_QUERY_CLI_V01_END -->
+
+
+<!-- CITATION_REFERENCE_GRAPH_PACKAGE_V01_START -->
+## Citation / Reference Graph Package v0.1
+
+Status: implemented local package candidate layer.
+
+This slice packages the already generated and already release-candidate-validated Citation / Reference Graph Builder v0.1 output into a local non-public portable archive.
+
+Implemented files:
+
+- `configs/citation_reference_graph_package.yaml`
+- `scripts/export/package_citation_reference_graph.py`
+- `scripts/validation/check_citation_reference_graph_package.py`
+- `tests/smoke/test_citation_reference_graph_package.py`
+- `docs/citation_reference_graph_package_v0.md`
+
+Generated local package output, not committed:
+
+- `data/graphs/citation_reference_graph/packages/v0.1/citation_reference_graph_v0.1.zip`
+- `data/graphs/citation_reference_graph/packages/v0.1/package_manifest.json`
+- `data/graphs/citation_reference_graph/packages/v0.1/README.md`
+- `data/graphs/citation_reference_graph/packages/v0.1/checksums.txt`
+
+Accepted local validation:
+
+```text
+python -m py_compile scripts/export/package_citation_reference_graph.py
+python -m py_compile scripts/validation/check_citation_reference_graph_package.py
+python -m pytest tests/smoke/test_citation_reference_graph_package.py -q
+python -m scripts.export.package_citation_reference_graph --dry-run
+python -m scripts.export.package_citation_reference_graph --force
+python -m scripts.validation.check_citation_reference_graph_package --strict
+```
+
+Expected result:
+
+```text
+5 passed
+package build ok=True
+included_files_count=9
+package validator ok=True
+required_failed_count=0
+warning_count=0
+```
+
+Boundary:
+
+- local package candidate only
+- no graph rebuild
+- no canonical truth changes
+- no reconcile input changes
+- no DB/Qdrant/API/UI/retrieval/ranking changes
+- no full-text/PDF/bibliography parsing
+- no dataset publication
+- no latest pointer
+- no graph runtime
+- generated package output is not committed
+- no Neo4j/NetworkX/GraphRAG runtime
+
+See: `docs/citation_reference_graph_package_v0.md`.
+<!-- CITATION_REFERENCE_GRAPH_PACKAGE_V01_END -->

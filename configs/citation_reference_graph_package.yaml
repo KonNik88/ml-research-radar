@@ -1,0 +1,72 @@
+schema_version: citation_reference_graph_package_config_v1
+
+package:
+  name: citation_reference_graph
+  version: v0.1
+  status: local_package_candidate
+  archive_name: citation_reference_graph_v0.1.zip
+  archive_root: citation_reference_graph_v0.1
+  publication_ready: false
+  manual_review_required: true
+  may_be_used_as_reconcile_input: false
+
+inputs:
+  graph_dir: data/graphs/citation_reference_graph/v0.1
+  release_candidate_report_json: artifacts/reports/validation/citation_reference_graph_release_candidate_latest.json
+  release_candidate_report_md: artifacts/reports/validation/citation_reference_graph_release_candidate_latest.md
+
+outputs:
+  package_dir: data/graphs/citation_reference_graph/packages/v0.1
+  zip_path: data/graphs/citation_reference_graph/packages/v0.1/citation_reference_graph_v0.1.zip
+  manifest_path: data/graphs/citation_reference_graph/packages/v0.1/package_manifest.json
+  readme_path: data/graphs/citation_reference_graph/packages/v0.1/README.md
+  checksums_path: data/graphs/citation_reference_graph/packages/v0.1/checksums.txt
+
+validation:
+  report_dir: artifacts/reports/validation
+
+required_graph_files:
+  - nodes.jsonl
+  - edges.jsonl
+  - schema.json
+  - manifest.json
+  - data_quality_summary.json
+  - README.md
+  - checksums.txt
+
+expected_counts:
+  nodes_count: 529295
+  edges_count: 745516
+  node_paper_count: 60954
+  node_external_reference_count: 468336
+  node_source_family_count: 5
+  edge_paper_references_paper_count: 6165
+  edge_paper_references_external_count: 703234
+  edge_paper_has_reference_source_family_count: 36117
+
+expected_quality:
+  resolved_reference_edges_count: 6165
+  unresolved_reference_edges_count: 703234
+  reference_resolution_ratio: 0.00869
+
+safety:
+  read_only_graph_input: true
+  rebuild_graph: false
+  mutate_canonical_documents: false
+  mutate_retrieval_artifacts: false
+  mutate_qdrant: false
+  mutate_postgres: false
+  mutate_db_schema: false
+  mutate_api: false
+  mutate_ui: false
+  mutate_ranking: false
+  publish_dataset: false
+  publish_graph: false
+  create_latest_pointer: false
+  create_graph_runtime: false
+  require_networkx_runtime: false
+  require_neo4j_runtime: false
+  require_graphrag_runtime: false
+  parse_full_text: false
+  parse_pdfs: false
+  parse_bibliography_sections: false
