@@ -1261,6 +1261,100 @@ Generated reports are not committed.
 ```
 
 
+## Citation / Reference Graph Manual Review Checklist v0.1 validation
+
+Use this when checking the active read-only manual-review governance gate over the completed local Citation / Reference Graph v0.1 line and package candidate.
+
+This validation reads the line checkpoint report and package manifest. It does not rebuild graph output, rebuild package output, publish anything, change canonical truth, run reconcile, mutate DB state, change API/UI behavior, or require NetworkX/Neo4j/GraphRAG runtime.
+
+Manual-review script:
+
+```text
+scripts/validation/check_citation_reference_graph_manual_review.py
+```
+
+Manual-review documentation:
+
+```text
+docs/citation_reference_graph_manual_review_v0.md
+```
+
+Smoke tests:
+
+```text
+tests/smoke/test_citation_reference_graph_manual_review.py
+```
+
+Required local inputs:
+
+```text
+artifacts/reports/validation/citation_reference_graph_line_checkpoint_latest.json
+data/graphs/citation_reference_graph/packages/v0.1/package_manifest.json
+```
+
+Recommended validation sequence:
+
+```bat
+python -m py_compile scripts/validation/check_citation_reference_graph_manual_review.py
+python -m pytest tests/smoke/test_citation_reference_graph_manual_review.py -q
+python -m scripts.validation.check_citation_reference_graph_manual_review --strict
+```
+
+Expected current result:
+
+```text
+ok = true
+required_failed_count = 0
+warning_count = 0
+manual_review_required = true
+manual_review_complete = false
+publication_ready = false
+publication_block_reason = manual_review_not_completed
+```
+
+Important v0.1 semantics:
+
+```text
+pending categories block publication
+pending categories do not fail the validator
+summary.ok=true means the gate is structurally valid, not that review is complete
+```
+
+Citation/reference-specific caveats preserved by the gate:
+
+```text
+metadata_reference_fields_only = true
+full_text_parsed = false
+pdfs_parsed = false
+bibliography_sections_parsed = false
+raw_reference_strings_without_identifiers_parsed = false
+unresolved_references_preserved_as_external_reference_nodes = true
+reference_resolution_ratio = 0.00869
+```
+
+Important boundary:
+
+```text
+The citation/reference graph manual-review checklist is read-only.
+It must not rebuild graph output.
+It must not rebuild package output.
+It must not publish anything.
+It must not change canonical truth.
+It must not run reconcile.
+It must not mutate Postgres.
+It must not change DB schema.
+It must not change API behavior.
+It must not change Streamlit behavior.
+It must not change retrieval behavior.
+It must not change Qdrant behavior.
+It must not change ranking behavior.
+It must not require NetworkX/Neo4j/GraphRAG runtime.
+It must not parse full text, PDFs, or bibliography/reference sections.
+It must not be used as a reconcile input.
+Generated reports are not committed.
+```
+
+
 # F. Artifact API filters validation and DoD gate
 
 Use this when changing DB-backed Artifact API filters, artifact/date metadata

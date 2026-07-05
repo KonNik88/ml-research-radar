@@ -1,0 +1,187 @@
+schema_version: citation_reference_graph_manual_review_config_v1
+review:
+  name: citation_reference_graph_manual_review
+  version: v0.1
+  status: local_manual_review_gate
+  graph_version: v0.1
+  approval_state: not_reviewed
+  manual_review_required: true
+  manual_review_complete: false
+  publication_ready: false
+  publication_block_reason: manual_review_not_completed
+  may_be_used_as_reconcile_input: false
+inputs:
+  line_checkpoint_report: artifacts/reports/validation/citation_reference_graph_line_checkpoint_latest.json
+  package_manifest: data/graphs/citation_reference_graph/packages/v0.1/package_manifest.json
+  package_report: artifacts/reports/validation/citation_reference_graph_package_latest.json
+  release_candidate_report: artifacts/reports/validation/citation_reference_graph_release_candidate_latest.json
+  inspection_report: artifacts/reports/validation/citation_reference_graph_inspection_latest.json
+validation:
+  report_dir: artifacts/reports/validation
+manual_review:
+  status_policy:
+    pending_blocks_publication: true
+    pending_fails_validator: false
+    approved_does_not_publish: true
+  allowed_category_statuses:
+  - pending
+  - in_progress
+  - passed
+  - failed
+  - not_applicable
+  required_category_ids:
+  - license_redistribution
+  - source_provider_terms
+  - reference_metadata_caveats
+  - explicit_reference_fields_only
+  - unresolved_external_reference_caveats
+  - low_resolution_ratio_caveat
+  - openalex_normalization_review
+  - doi_reference_policy_review
+  - source_family_reference_distribution_review
+  - top_internal_referenced_papers_review
+  - top_external_references_review
+  - full_text_not_parsed_caveat
+  - bibliography_not_parsed_caveat
+  - package_manifest_checksum_review
+  - readme_clarity
+  - known_limitations
+  - publication_target_decision
+  - manual_approval_state
+  categories:
+  - id: license_redistribution
+    title: License and redistribution status
+    required: true
+    status: pending
+    reviewer_note: Review whether the packaged citation/reference graph can be redistributed
+      or shared externally.
+  - id: source_provider_terms
+    title: Source provider terms and citation metadata caveats
+    required: true
+    status: pending
+    reviewer_note: Review source/provider terms for reference metadata carried from
+      upstream sources.
+  - id: reference_metadata_caveats
+    title: Reference metadata caveats
+    required: true
+    status: pending
+    reviewer_note: Acknowledge that graph edges are built from explicit metadata reference
+      identifiers only.
+  - id: explicit_reference_fields_only
+    title: Explicit reference fields only
+    required: true
+    status: pending
+    reviewer_note: Confirm that v0.1 uses referenced_dois, referenced_ids, and referenced_arxiv_ids
+      only.
+  - id: unresolved_external_reference_caveats
+    title: Unresolved external-reference caveats
+    required: true
+    status: pending
+    reviewer_note: Review that unresolved references are preserved as external_reference
+      nodes.
+  - id: low_resolution_ratio_caveat
+    title: Low resolution-ratio caveat
+    required: true
+    status: pending
+    reviewer_note: Document reference_resolution_ratio=0.00869 as an expected v0.1
+      limitation, not a validator failure.
+  - id: openalex_normalization_review
+    title: OpenAlex normalization review
+    required: true
+    status: pending
+    reviewer_note: Confirm OpenAlex IDs from referenced_ids remain openalex_id, not
+      DOI-like URL values.
+  - id: doi_reference_policy_review
+    title: DOI reference policy review
+    required: true
+    status: pending
+    reviewer_note: Review DOI normalization and matching caveats for reference edges.
+  - id: source_family_reference_distribution_review
+    title: Source-family reference distribution review
+    required: true
+    status: pending
+    reviewer_note: Review source-family distribution for reference-bearing papers.
+  - id: top_internal_referenced_papers_review
+    title: Top internal referenced papers review
+    required: true
+    status: pending
+    reviewer_note: Inspect top resolved canonical papers and their incoming internal
+      reference counts.
+  - id: top_external_references_review
+    title: Top external references review
+    required: true
+    status: pending
+    reviewer_note: Inspect top unresolved external references and their citing-paper
+      counts.
+  - id: full_text_not_parsed_caveat
+    title: Full text not parsed caveat
+    required: true
+    status: pending
+    reviewer_note: Confirm that v0.1 does not parse paper full text, PDFs, HTML bodies,
+      or in-text citation contexts.
+  - id: bibliography_not_parsed_caveat
+    title: Bibliography/reference sections not parsed caveat
+    required: true
+    status: pending
+    reviewer_note: Confirm that v0.1 does not parse bibliography/reference sections
+      or raw reference strings without metadata identifiers.
+  - id: package_manifest_checksum_review
+    title: Package manifest and checksum review
+    required: true
+    status: pending
+    reviewer_note: Review package manifest and checksum evidence before any external
+      sharing.
+  - id: readme_clarity
+    title: README clarity
+    required: true
+    status: pending
+    reviewer_note: Review README wording for source, scope, caveats, and publication
+      status clarity.
+  - id: known_limitations
+    title: Known limitations
+    required: true
+    status: pending
+    reviewer_note: Confirm limitations are visible before publication/API/UI/runtime
+      decisions.
+  - id: publication_target_decision
+    title: Publication target decision
+    required: true
+    status: pending
+    reviewer_note: Decide whether any publication or external sharing target exists;
+      no publication is performed here.
+  - id: manual_approval_state
+    title: Manual approval state
+    required: true
+    status: pending
+    reviewer_note: Record final human approval state; default remains not_reviewed.
+expected_citation_reference_caveats:
+  metadata_reference_fields_only: true
+  full_text_parsed: false
+  pdfs_parsed: false
+  bibliography_sections_parsed: false
+  raw_reference_strings_without_identifiers_parsed: false
+  unresolved_references_preserved_as_external_reference_nodes: true
+  reference_resolution_ratio: 0.00869
+safety:
+  read_only_manual_review: true
+  rebuild_graph: false
+  rebuild_package: false
+  mutate_canonical_documents: false
+  mutate_retrieval_artifacts: false
+  mutate_qdrant: false
+  mutate_postgres: false
+  mutate_db_schema: false
+  mutate_api: false
+  mutate_ui: false
+  mutate_ranking: false
+  publish_dataset: false
+  publish_graph: false
+  create_latest_pointer: false
+  create_graph_runtime: false
+  require_networkx_runtime: false
+  require_neo4j_runtime: false
+  require_graphrag_runtime: false
+  parse_full_text: false
+  parse_pdfs: false
+  parse_bibliography_sections: false
+  may_be_used_as_reconcile_input: false
