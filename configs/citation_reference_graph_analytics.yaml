@@ -1,0 +1,81 @@
+schema_version: citation_reference_graph_analytics_config_v1
+analytics:
+  name: citation_reference_graph_analytics
+  version: v0.1
+  status: local_read_only_analytics
+  graph_version: v0.1
+  publication_ready: false
+  manual_review_support: true
+  may_be_used_as_reconcile_input: false
+inputs:
+  graph_dir: data/graphs/citation_reference_graph/v0.1
+  nodes_path: data/graphs/citation_reference_graph/v0.1/nodes.jsonl
+  edges_path: data/graphs/citation_reference_graph/v0.1/edges.jsonl
+  manifest_path: data/graphs/citation_reference_graph/v0.1/manifest.json
+  data_quality_summary_path: data/graphs/citation_reference_graph/v0.1/data_quality_summary.json
+  manual_review_report: artifacts/reports/validation/citation_reference_graph_manual_review_latest.json
+validation:
+  report_dir: artifacts/reports/validation
+  strict_default: true
+expected_counts:
+  nodes_count: 529295
+  edges_count: 745516
+  node_paper_count: 60954
+  node_external_reference_count: 468336
+  node_source_family_count: 5
+  edge_paper_references_paper_count: 6165
+  edge_paper_references_external_count: 703234
+  edge_paper_has_reference_source_family_count: 36117
+expected_analytics:
+  resolved_reference_edges_count: 6165
+  unresolved_reference_edges_count: 703234
+  reference_resolution_ratio: 0.00869
+  min_papers_with_outgoing_reference_edges_count: 1
+  min_papers_with_internal_reference_edges_count: 1
+  min_papers_with_external_reference_edges_count: 1
+  min_papers_with_incoming_internal_reference_edges_count: 1
+  min_reference_type_count: 1
+  min_reference_field_count: 1
+  min_source_family_count: 1
+  required_reference_types:
+    - doi
+    - openalex_id
+  required_source_families:
+    - arxiv
+    - openalex
+    - semantic_scholar
+    - crossref
+manual_review_caveats:
+  metadata_reference_fields_only: true
+  full_text_parsed: false
+  pdfs_parsed: false
+  bibliography_sections_parsed: false
+  raw_reference_strings_without_identifiers_parsed: false
+  unresolved_references_preserved_as_external_reference_nodes: true
+  low_resolution_ratio_expected_in_v0_1: true
+  reference_resolution_ratio: 0.00869
+outputs:
+  latest_json: artifacts/reports/validation/citation_reference_graph_analytics_latest.json
+  latest_md: artifacts/reports/validation/citation_reference_graph_analytics_latest.md
+  history_dir: artifacts/reports/validation/history
+safety:
+  read_only_analytics: true
+  rebuild_graph: false
+  rebuild_package: false
+  approve_manual_review: false
+  mutate_canonical_documents: false
+  mutate_reconcile_inputs: false
+  mutate_retrieval_artifacts: false
+  mutate_qdrant: false
+  mutate_postgres: false
+  mutate_db_schema: false
+  mutate_api: false
+  mutate_streamlit: false
+  mutate_ranking: false
+  publish_dataset: false
+  create_latest_pointer: false
+  create_graph_runtime: false
+  parse_full_text: false
+  parse_pdfs: false
+  parse_bibliography_sections: false
+  may_be_used_as_reconcile_input: false
