@@ -52,7 +52,9 @@ Citation / Reference Graph Query CLI v0.1 — 2026-07 completed read-only offlin
 Citation / Reference Graph Docs Counter Refresh v0.1 — 2026-07 completed docs-only counter/status refresh
 Citation / Reference Graph Release Candidate v0.1 — 2026-07 completed read-only release-candidate readiness gate
 Citation / Reference Graph Package v0.1 — 2026-07 completed local package candidate layer
-Citation / Reference Graph Line Checkpoint v0.1 — 2026-07 active read-only line checkpoint
+Citation / Reference Graph Line Checkpoint v0.1 — 2026-07 completed read-only line checkpoint
+Citation / Reference Graph Manual Review Checklist v0.1 — 2026-07 completed read-only manual-review governance gate
+Citation / Reference Graph Analytics v0.1 — 2026-07 active read-only analytics/report layer
 ```
 
 Current healthy baseline:
@@ -99,7 +101,9 @@ citation_reference_graph_reference_normalization_fix = accepted_openalex_referen
 citation_reference_graph_query_cli = accepted_read_only_query_cli
 citation_reference_graph_release_candidate = accepted_read_only_release_candidate
 citation_reference_graph_package = accepted_local_package_candidate
-citation_reference_graph_line_checkpoint = active_read_only_line_checkpoint
+citation_reference_graph_line_checkpoint = accepted_read_only_line_checkpoint
+citation_reference_graph_manual_review = accepted_read_only_manual_review_gate
+citation_reference_graph_analytics = active_read_only_analytics_report
 paper_artifact_graph_dod_gate = not required yet
 paper_artifact_graph_manual_review_dod_gate = not required yet
 paper_artifact_graph_analytics_dod_gate = not required yet
@@ -1339,6 +1343,117 @@ The citation/reference graph manual-review checklist is read-only.
 It must not rebuild graph output.
 It must not rebuild package output.
 It must not publish anything.
+It must not change canonical truth.
+It must not run reconcile.
+It must not mutate Postgres.
+It must not change DB schema.
+It must not change API behavior.
+It must not change Streamlit behavior.
+It must not change retrieval behavior.
+It must not change Qdrant behavior.
+It must not change ranking behavior.
+It must not require NetworkX/Neo4j/GraphRAG runtime.
+It must not parse full text, PDFs, or bibliography/reference sections.
+It must not be used as a reconcile input.
+Generated reports are not committed.
+```
+
+
+## Citation / Reference Graph Analytics v0.1 validation
+
+Use this when checking the active read-only analytics/report layer over the completed local Citation / Reference Graph v0.1 line and manual-review gate.
+
+This validation reads the generated graph output and latest manual-review report. It does not rebuild graph output, rebuild package output, publish anything, approve manual review, change canonical truth, run reconcile, mutate DB state, change API/UI behavior, or require NetworkX/Neo4j/GraphRAG runtime.
+
+Analytics script:
+
+```text
+scripts/validation/check_citation_reference_graph_analytics.py
+```
+
+Analytics documentation:
+
+```text
+docs/citation_reference_graph_analytics_v0.md
+```
+
+Smoke tests:
+
+```text
+tests/smoke/test_citation_reference_graph_analytics.py
+```
+
+Required local inputs:
+
+```text
+data/graphs/citation_reference_graph/v0.1/nodes.jsonl
+data/graphs/citation_reference_graph/v0.1/edges.jsonl
+data/graphs/citation_reference_graph/v0.1/manifest.json
+data/graphs/citation_reference_graph/v0.1/data_quality_summary.json
+artifacts/reports/validation/citation_reference_graph_manual_review_latest.json
+```
+
+Recommended validation sequence:
+
+```bat
+python -m py_compile scripts/validation/check_citation_reference_graph_analytics.py
+python -m pytest tests/smoke/test_citation_reference_graph_analytics.py -q
+python -m scripts.validation.check_citation_reference_graph_analytics --strict
+```
+
+Expected current result:
+
+```text
+ok = true
+required_failed_count = 0
+warning_count = 0
+nodes_count = 529295
+edges_count = 745516
+resolved_reference_edges_count = 6165
+unresolved_reference_edges_count = 703234
+reference_resolution_ratio = 0.00869
+```
+
+Computed analytics include:
+
+```text
+resolved versus unresolved reference edges
+reference_resolution_ratio
+papers with outgoing reference edges
+papers with internal reference edges
+papers with external reference edges
+papers with incoming internal reference edges
+papers without outgoing explicit reference edges
+reference type distribution
+reference field distribution
+source-family distribution
+top referenced canonical papers
+top external references
+sample paper→paper edges
+sample paper→external_reference edges
+manual-review caveat summary
+```
+
+Citation/reference-specific caveats preserved by the analytics layer:
+
+```text
+metadata_reference_fields_only = true
+full_text_parsed = false
+pdfs_parsed = false
+bibliography_sections_parsed = false
+raw_reference_strings_without_identifiers_parsed = false
+unresolved_references_preserved_as_external_reference_nodes = true
+reference_resolution_ratio = 0.00869
+```
+
+Important boundary:
+
+```text
+The citation/reference graph analytics layer is read-only.
+It must not rebuild graph output.
+It must not rebuild package output.
+It must not publish anything.
+It must not approve manual review.
 It must not change canonical truth.
 It must not run reconcile.
 It must not mutate Postgres.

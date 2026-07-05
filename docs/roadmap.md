@@ -4,14 +4,14 @@
 
 ```text
 document = primary living roadmap
-accepted checkpoint = Citation / Reference Graph Line Checkpoint v0.1
+accepted checkpoint = Citation / Reference Graph Manual Review Checklist v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
-current active slice = Citation / Reference Graph Manual Review Checklist v0.1
+current active slice = Citation / Reference Graph Analytics v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = read-only citation/reference graph manual-review checklist only; no graph rebuild/package rebuild/publication/DB/API/UI/runtime behavior changes
+scope of current branch = read-only citation/reference graph analytics/report layer only; no graph rebuild/package rebuild/publication/manual approval/DB/API/UI/runtime behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -1169,19 +1169,11 @@ line checkpoint does not change canonical/reconcile/DB/API/UI/retrieval/Qdrant/r
 line checkpoint does not parse full text, PDFs, or bibliography/reference sections
 ```
 
-## 5. Current active slice
+### 4.28 Citation / Reference Graph Manual Review Checklist v0.1
 
-### 5.1 Citation / Reference Graph Manual Review Checklist v0.1
+Status: **done / green local read-only manual-review governance gate / not published**
 
-Status: **current / local read-only manual-review governance gate**
-
-Goal:
-
-```text
-Define what a human must review before the Citation / Reference Graph v0.1 package can be published, shared externally, exposed through API/UI, materialized into DB serving, or used by a runtime graph/GraphRAG layer.
-```
-
-This slice follows the completed local graph line:
+Implemented after the completed local citation/reference graph line checkpoint:
 
 ```text
 contract
@@ -1197,33 +1189,118 @@ contract
 → manual review checklist
 ```
 
-Scope:
-
-- add `configs/citation_reference_graph_manual_review.yaml`;
-- add `scripts/validation/check_citation_reference_graph_manual_review.py`;
-- add `tests/smoke/test_citation_reference_graph_manual_review.py`;
-- add `docs/citation_reference_graph_manual_review_v0.md`;
-- read the latest line checkpoint report and package manifest;
-- preserve default `manual_review_required=true`, `manual_review_complete=false`, and `publication_ready=false`;
-- explicitly document citation/reference caveats: metadata-only references, unresolved external references, low resolution ratio, no full-text/PDF/bibliography parsing;
-- preserve all canonical, reconcile, serving, retrieval, Qdrant, ranking, API, UI, package, and publication boundaries.
-
-Expected default verdict:
+Accepted local validation:
 
 ```text
-manual_review_gate_valid = true
+11 passed
+ok = true
+required_failed_count = 0
+strict = true
+total_checks = 21
+warning_count = 0
+full citation/reference smoke set = 55 passed
+```
+
+Key semantics:
+
+```text
+pending manual-review categories block publication
+pending manual-review categories do not fail the validator
+summary.ok=true means the gate is structurally valid, not that human review is complete
+```
+
+Default verdict:
+
+```text
 manual_review_required = true
 manual_review_complete = false
 publication_ready = false
 publication_block_reason = manual_review_not_completed
-pending_categories_block_publication = true
-pending_categories_fail_validator = false
+```
+
+Citation/reference caveats preserved by the gate:
+
+```text
+metadata_reference_fields_only = true
+full_text_parsed = false
+pdfs_parsed = false
+bibliography_sections_parsed = false
+raw_reference_strings_without_identifiers_parsed = false
+unresolved_references_preserved_as_external_reference_nodes = true
+reference_resolution_ratio = 0.00869
+```
+
+Boundary:
+
+```text
+manual-review gate is read-only
+manual-review gate does not rebuild graph or package output
+manual-review gate does not publish anything
+manual-review gate does not change canonical/reconcile/DB/API/UI/retrieval/Qdrant/ranking behavior
+manual-review gate does not parse full text, PDFs, or bibliography/reference sections
+```
+
+## 5. Current active slice
+
+### 5.1 Citation / Reference Graph Analytics v0.1
+
+Status: **current / local read-only analytics/report layer**
+
+Goal:
+
+```text
+Compute a compact read-only analytics report over the already generated Citation / Reference Graph v0.1 output to support manual review and future design decisions.
+```
+
+This slice follows the completed local graph line and manual-review gate:
+
+```text
+contract
+→ builder
+→ output validator
+→ reference-id normalization fix
+→ inspection
+→ query CLI
+→ docs counter refresh
+→ release candidate
+→ package
+→ line checkpoint
+→ manual review checklist
+→ analytics report
+```
+
+Scope:
+
+- add `configs/citation_reference_graph_analytics.yaml`;
+- add `scripts/validation/check_citation_reference_graph_analytics.py`;
+- add `tests/smoke/test_citation_reference_graph_analytics.py`;
+- add `docs/citation_reference_graph_analytics_v0.md`;
+- read the generated local graph output under `data/graphs/citation_reference_graph/v0.1/`;
+- read the latest manual-review report;
+- compute resolved/unresolved reference coverage, reference type distribution, reference field distribution, source-family distribution, top internal referenced papers, top external references, and small samples;
+- preserve citation/reference caveats: metadata-only references, no full-text/PDF/bibliography parsing, unresolved external references, and low internal resolution ratio;
+- emit local JSON/Markdown analytics reports under `artifacts/reports/validation/`;
+- preserve all canonical, reconcile, serving, retrieval, Qdrant, ranking, API, UI, package, manual approval, and publication boundaries.
+
+Accepted post-normalization counters remain:
+
+```text
+nodes_count = 529295
+edges_count = 745516
+paper nodes = 60954
+external_reference nodes = 468336
+source_family nodes = 5
+paper_references_paper edges = 6165
+paper_references_external edges = 703234
+paper_has_reference_source_family edges = 36117
+reference_resolution_ratio = 0.00869
 ```
 
 Non-goals:
 
 ```text
 no publication
+no manual approval automation
 no graph rebuild
 no package rebuild
 no DB materialization
@@ -1241,83 +1318,49 @@ no Qdrant promotion
 no ranking changes
 ```
 
-
 ## 6. Near-term roadmap
 
-### 6.1 Finish and merge Citation / Reference Graph Manual Review Checklist v0.1
+### 6.1 Finish and merge Citation / Reference Graph Analytics v0.1
 
 Purpose:
 
 ```text
-Close the local line checkpoint over the generated, validated, queryable, release-candidate-checked, and packaged citation/reference graph output.
+Close the read-only analytics/report support layer over the completed local citation/reference graph line and manual-review gate.
 ```
 
 Definition of done:
 
-- line checkpoint config is present and safe;
-- line checkpoint validator compiles;
-- smoke tests cover green path, failed package report detection, graph count mismatch detection, unsafe package manifest detection, and validator no-write mode;
-- strict line checkpoint validator is green;
-- output, inspection, release-candidate, and package reports are green;
+- analytics config is present and safe;
+- analytics validator compiles;
+- smoke tests cover green path, no-write mode, missing required edge type, count mismatch, manifest safety drift, data-quality failure, manual-review report failure, unsafe config flag, missing reference type, caveat drift, and validator no-write mode;
+- strict analytics validator is green;
 - accepted post-normalization counters are documented;
-- line-checkpoint verdict preserves manual-review/publication block semantics;
-- generated line-checkpoint validation reports remain ignored and uncommitted;
-- no graph rebuild, package rebuild, DB/API/UI/runtime, reconcile, retrieval, Qdrant, ranking, full-text parsing, or publication layer is changed.
+- metadata-only/no-full-text/no-bibliography caveats are preserved;
+- generated analytics validation reports remain ignored and uncommitted;
+- no graph rebuild, package rebuild, manual approval, DB/API/UI/runtime, reconcile, retrieval, Qdrant, ranking, full-text parsing, or publication layer is changed.
 
-### 6.2 Citation / Reference Graph Manual Review Checklist v0.1
+### 6.2 Citation / Reference Graph Review Evidence Pack v0.1
+
+Potential later read-only slice.
 
 Purpose:
 
 ```text
-Close the read-only manual-review governance gate over the completed local citation/reference graph line and package candidate.
-```
-
-Expected completed line by then:
-
-```text
-contract
-→ builder
-→ output validator
-→ normalization fix
-→ inspection
-→ query CLI
-→ docs refresh
-→ release candidate
-→ package
-→ line checkpoint
+Bundle manual-review-relevant evidence from line checkpoint, manual-review gate, package, release candidate, inspection, query CLI, and analytics reports without publishing the graph package.
 ```
 
 Non-goals:
 
 ```text
-no graph rebuild
-no package rebuild unless explicitly requested
 no publication
+no package rebuild unless explicitly requested
+no manual approval automation
 no API/UI/runtime
 no canonical/reconcile changes
 no retrieval/Qdrant/ranking changes
 ```
 
 ### 6.3 Citation / Reference Graph API Design v0.1
-
-Purpose:
-
-```text
-Define what a human must review before any citation/reference graph package can be published, shared externally, or exposed through DB/API/UI/runtime surfaces.
-```
-
-Default semantics should mirror the existing Paper-Artifact Graph manual-review gate:
-
-```text
-pending categories block publication
-pending categories do not fail the validator
-manual_review_required = true
-manual_review_complete = false
-publication_ready = false
-publication_block_reason = manual_review_not_completed
-```
-
-### 6.4 Citation / Reference Graph Analytics v0.1
 
 Purpose:
 
@@ -1333,6 +1376,7 @@ Questions to resolve:
 - whether graph output remains local/offline or becomes a serving artifact;
 - how to prevent graph from being interpreted as canonical truth;
 - how to document unresolved references and source-family evidence;
+- how to expose metadata-only/no-full-text caveats;
 - whether endpoint output should mirror Query CLI semantics;
 - whether DB materialization is required before API exposure.
 
