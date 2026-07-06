@@ -1,0 +1,105 @@
+schema_version: graph_review_evidence_pack_config_v1
+
+pack:
+  name: graph_review_evidence_pack
+  version: v0.1
+  status: local_read_only_review_evidence
+  purpose: >-
+    Consolidate local derived graph-line evidence for manual-review support and
+    future design decisions without rebuilding graphs, implementing runtime
+    graph APIs, publishing packages, or mutating canonical/serving layers.
+  publication_ready: false
+  manual_review_required: true
+  may_be_used_as_reconcile_input: false
+
+inputs:
+  citation_reference_graph:
+    graph_dir: data/graphs/citation_reference_graph/v0.1
+    manifest_path: data/graphs/citation_reference_graph/v0.1/manifest.json
+    data_quality_summary_path: data/graphs/citation_reference_graph/v0.1/data_quality_summary.json
+    release_candidate_report_path: artifacts/reports/validation/citation_reference_graph_release_candidate_latest.json
+    package_report_path: artifacts/reports/validation/citation_reference_graph_package_latest.json
+    line_checkpoint_report_path: artifacts/reports/validation/citation_reference_graph_line_checkpoint_latest.json
+    manual_review_report_path: artifacts/reports/validation/citation_reference_graph_manual_review_latest.json
+    analytics_report_path: artifacts/reports/validation/citation_reference_graph_analytics_latest.json
+  paper_artifact_graph:
+    graph_dir: data/graphs/paper_artifact_graph/v0.1
+    manifest_path: data/graphs/paper_artifact_graph/v0.1/manifest.json
+    data_quality_summary_path: data/graphs/paper_artifact_graph/v0.1/data_quality_summary.json
+    release_candidate_report_path: artifacts/reports/validation/paper_artifact_graph_release_candidate_latest.json
+    package_report_path: artifacts/reports/validation/paper_artifact_graph_package_latest.json
+    line_checkpoint_report_path: artifacts/reports/validation/paper_artifact_graph_line_checkpoint_latest.json
+    manual_review_report_path: artifacts/reports/validation/paper_artifact_graph_manual_review_latest.json
+    analytics_report_path: artifacts/reports/validation/paper_artifact_graph_analytics_latest.json
+
+outputs:
+  report_dir: artifacts/reports/validation
+  latest_json_name: graph_review_evidence_pack_latest.json
+  latest_md_name: graph_review_evidence_pack_latest.md
+  history_dir: artifacts/reports/validation/history
+
+expected_graphs:
+  citation_reference_graph:
+    display_name: Citation / Reference Graph v0.1
+    nodes_count: 529295
+    edges_count: 745516
+    publication_ready: false
+    manual_review_required: true
+    manual_review_complete: false
+    counters:
+      paper_nodes: 60954
+      external_reference_nodes: 468336
+      source_family_nodes: 5
+      paper_references_paper_edges: 6165
+      paper_references_external_edges: 703234
+      paper_has_reference_source_family_edges: 36117
+    caveats:
+      metadata_reference_fields_only: true
+      full_text_parsed: false
+      pdfs_parsed: false
+      bibliography_sections_parsed: false
+      unresolved_references_preserved_as_external_reference_nodes: true
+      expected_reference_resolution_ratio: 0.00869
+  paper_artifact_graph:
+    display_name: Paper–Artifact Graph v0.1
+    nodes_count: 68385
+    edges_count: 163757
+    publication_ready: false
+    manual_review_required: true
+    manual_review_complete: false
+    counters:
+      paper_nodes: 60954
+      artifact_nodes: 7336
+      provider_nodes: 10
+      source_family_nodes: 5
+      topic_cluster_nodes: 80
+      paper_has_artifact_edges: 7430
+      artifact_from_provider_edges: 7336
+      paper_observed_in_source_family_edges: 88037
+      paper_assigned_to_topic_cluster_edges: 60954
+    caveats:
+      trusted_artifact_links_only: true
+      raw_artifact_observations_are_not_paper_has_artifact_edges: true
+      graph_is_not_artifact_source_of_truth: true
+
+safety:
+  read_only_pack: true
+  rebuild_graph: false
+  rebuild_package: false
+  mutate_canonical_documents: false
+  mutate_reconcile_outputs: false
+  mutate_artifact_inputs: false
+  mutate_reference_inputs: false
+  mutate_topic_inputs: false
+  mutate_retrieval_artifacts: false
+  mutate_qdrant: false
+  mutate_postgres: false
+  mutate_api: false
+  mutate_ui: false
+  mutate_ranking: false
+  publish_dataset: false
+  create_latest_pointer: false
+  create_graph_runtime: false
+  implement_public_graph_api: false
+  implement_graphrag: false
+  may_be_used_as_reconcile_input: false

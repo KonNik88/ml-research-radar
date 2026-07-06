@@ -4,14 +4,15 @@
 
 ```text
 document = primary living roadmap
-accepted checkpoint = Citation / Reference Graph Manual Review Checklist v0.1
+accepted checkpoint = Current State Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
-current active slice = Citation / Reference Graph Analytics v0.1
+current active direction = review / regression / design-hardening
+current active slice = Current State Checkpoint v0.1 documentation/checkpoint slice
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = read-only citation/reference graph analytics/report layer only; no graph rebuild/package rebuild/publication/manual approval/DB/API/UI/runtime behavior changes
+scope of current branch = documentation/checkpoint hardening only; no canonical/retrieval/Qdrant/Postgres/API/UI/ranking/runtime/publication behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -19,7 +20,123 @@ architectural invariants that must remain stable, and the recommended order of
 future work.
 
 The project prefers complete, validated vertical slices over broad feature
-expansion.
+expansion. After the completed local graph lines, the next safe direction is
+review, regression, and design-hardening before any new runtime, public API,
+GraphRAG, graph DB, or Qdrant-promotion work.
+
+---
+
+## 0. Current State Checkpoint v0.1
+
+Status: **accepted documentation / transfer / design-hardening baseline**
+
+The current accepted project-state checkpoint is documented in:
+
+```text
+docs/project_state_current_v0.1.md
+```
+
+The checkpoint is intentionally documentation-only:
+
+```text
+canonical_truth = false
+may_be_used_as_reconcile_input = false
+mutates_canonical_documents = false
+mutates_retrieval_artifacts = false
+mutates_qdrant = false
+mutates_postgres = false
+mutates_api = false
+mutates_ui = false
+mutates_ranking = false
+publishes_dataset = false
+creates_runtime_graph = false
+```
+
+Accepted current direction:
+
+```text
+review / regression / design-hardening first
+runtime / public API / GraphRAG / Qdrant promotion only after a separate accepted design slice
+```
+
+Recommended immediate safe slices:
+
+1. **Current State Checkpoint v0.1** — consolidate the accepted project state and layer boundaries.
+2. **Graph Review Evidence Pack v0.1** — local read-only evidence pack for Citation / Reference Graph and Paper–Artifact Graph manual review support.
+3. **Citation / Reference Graph API Design v0.1** — design-only API contract; no endpoint implementation.
+4. **Regression / DoD hardening** — optional gates, accepted-checkpoint checks, and validation wiring only.
+
+Explicit immediate non-goals:
+
+- no GraphRAG implementation;
+- no Neo4j/NetworkX runtime;
+- no public graph API endpoint implementation;
+- no Qdrant promotion;
+- no graph DB materialization layer;
+- no publication/upload;
+- no mutation of canonical truth, retrieval, DB, API, UI, ranking, or Qdrant.
+
+Core invariants to preserve:
+
+```text
+canonical_documents.jsonl = paper truth
+retrieval / DB / artifacts / graph / reports / API / UI = derived layers
+Qdrant = optional/experimental derived vector-serving layer
+graph outputs = local derived evidence/review artifacts
+trusted artifact links ≠ raw artifact observations
+legacy has_code_link ≠ trusted artifact evidence
+manual_review summary.ok ≠ publication approval
+```
+
+Current baseline markers:
+
+```text
+canonical_doc_count = 60,954
+multisource_doc_count = 9,192
+retrieval_build_id = 20260504T164021Z
+embedding_model = sentence-transformers/all-MiniLM-L6-v2
+embedding_dim = 384
+topic_clusters_count = 80
+topic_assignments_count = 60,954
+```
+
+Graph line markers:
+
+Citation / Reference Graph v0.1:
+
+```text
+nodes_count = 529,295
+edges_count = 745,516
+paper_references_paper = 6,165
+paper_references_external = 703,234
+reference_resolution_ratio = 0.00869
+publication_ready = false
+manual_review_required = true
+```
+
+Paper–Artifact Graph v0.1:
+
+```text
+nodes_count = 68,385
+edges_count = 163,757
+paper_has_artifact = 7,430
+artifact_from_provider = 7,336
+paper_observed_in_source_family = 88,037
+paper_assigned_to_topic_cluster = 60,954
+publication_ready = false
+manual_review_required = true
+```
+
+Boundary:
+
+```text
+Current State Checkpoint v0.1 is not a new runtime layer.
+It is not a graph API.
+It is not a GraphRAG step.
+It is not Qdrant promotion.
+It is not publication.
+It is a transfer-safe architectural checkpoint for future slices.
+```
 
 ---
 
@@ -1240,19 +1357,12 @@ manual-review gate does not change canonical/reconcile/DB/API/UI/retrieval/Qdran
 manual-review gate does not parse full text, PDFs, or bibliography/reference sections
 ```
 
-## 5. Current active slice
+### 4.29 Citation / Reference Graph Analytics v0.1
 
-### 5.1 Citation / Reference Graph Analytics v0.1
+Status: **done / green local read-only analytics/report layer / not published**
 
-Status: **current / local read-only analytics/report layer**
-
-Goal:
-
-```text
-Compute a compact read-only analytics report over the already generated Citation / Reference Graph v0.1 output to support manual review and future design decisions.
-```
-
-This slice follows the completed local graph line and manual-review gate:
+Implemented after the completed local citation/reference graph line, package candidate,
+line checkpoint, and manual-review gate:
 
 ```text
 contract
@@ -1269,18 +1379,25 @@ contract
 → analytics report
 ```
 
-Scope:
+Accepted local validation:
 
-- add `configs/citation_reference_graph_analytics.yaml`;
-- add `scripts/validation/check_citation_reference_graph_analytics.py`;
-- add `tests/smoke/test_citation_reference_graph_analytics.py`;
-- add `docs/citation_reference_graph_analytics_v0.md`;
-- read the generated local graph output under `data/graphs/citation_reference_graph/v0.1/`;
-- read the latest manual-review report;
-- compute resolved/unresolved reference coverage, reference type distribution, reference field distribution, source-family distribution, top internal referenced papers, top external references, and small samples;
-- preserve citation/reference caveats: metadata-only references, no full-text/PDF/bibliography parsing, unresolved external references, and low internal resolution ratio;
-- emit local JSON/Markdown analytics reports under `artifacts/reports/validation/`;
-- preserve all canonical, reconcile, serving, retrieval, Qdrant, ranking, API, UI, package, manual approval, and publication boundaries.
+```text
+analytics smoke tests = 11 passed
+strict analytics validator = green
+```
+
+Analytics report focus:
+
+```text
+resolved / unresolved reference coverage
+reference type distribution
+reference field distribution
+source-family distribution
+top internal referenced papers
+top unresolved external references
+manual-review samples
+metadata-only / no-full-text / no-bibliography caveats
+```
 
 Accepted post-normalization counters remain:
 
@@ -1296,57 +1413,100 @@ paper_has_reference_source_family edges = 36117
 reference_resolution_ratio = 0.00869
 ```
 
-Non-goals:
+Boundary:
 
 ```text
-no publication
-no manual approval automation
-no graph rebuild
-no package rebuild
-no DB materialization
-no DB schema change
-no public graph API
-no Streamlit graph UI
-no NetworkX runtime
-no Neo4j runtime
-no GraphRAG
-no full-text/PDF/bibliography parsing
-no canonical refresh/reconcile
-no retrieval rebuild
-no embedding model replacement
-no Qdrant promotion
-no ranking changes
+analytics report is read-only
+analytics reports are derived evidence
+analytics does not rebuild graph output
+analytics does not rebuild package output
+analytics does not approve manual review
+analytics does not publish anything
+analytics does not change canonical/reconcile/DB/API/UI/retrieval/Qdrant/ranking behavior
+analytics does not parse full text, PDFs, or bibliography/reference sections
 ```
 
-## 6. Near-term roadmap
 
-### 6.1 Finish and merge Citation / Reference Graph Analytics v0.1
+## 5. Current active direction
 
-Purpose:
+### 5.1 Current State Checkpoint v0.1
+
+Status: **current documentation/checkpoint hardening slice**
+
+Goal:
 
 ```text
-Close the read-only analytics/report support layer over the completed local citation/reference graph line and manual-review gate.
+Consolidate the accepted project state, layer boundaries, graph-line status,
+and safe next-step direction in a single roadmap/checkpoint pair.
+```
+
+Tracked checkpoint files:
+
+```text
+docs/project_state_current_v0.1.md
+docs/roadmap.md
+checks/check_project_state_current.py
 ```
 
 Definition of done:
 
-- analytics config is present and safe;
-- analytics validator compiles;
-- smoke tests cover green path, no-write mode, missing required edge type, count mismatch, manifest safety drift, data-quality failure, manual-review report failure, unsafe config flag, missing reference type, caveat drift, and validator no-write mode;
-- strict analytics validator is green;
-- accepted post-normalization counters are documented;
-- metadata-only/no-full-text/no-bibliography caveats are preserved;
-- generated analytics validation reports remain ignored and uncommitted;
-- no graph rebuild, package rebuild, manual approval, DB/API/UI/runtime, reconcile, retrieval, Qdrant, ranking, full-text parsing, or publication layer is changed.
+- `docs/project_state_current_v0.1.md` exists and records accepted current-state markers;
+- `docs/roadmap.md` points to the checkpoint and no longer treats graph analytics as the active slice;
+- `checks/check_project_state_current.py` validates required checkpoint markers;
+- trusted artifact-link policy smoke remains green;
+- retrieval artifact smoke remains green or is recorded as already passed for this docs/checkpoint slice;
+- no canonical, retrieval, Qdrant, Postgres, API, UI, ranking, graph-output, package, or publication behavior is changed.
 
-### 6.2 Citation / Reference Graph Review Evidence Pack v0.1
+Boundary:
 
-Potential later read-only slice.
+```text
+docs/checkpoint only
+no graph rebuild
+no package rebuild
+no API endpoint implementation
+no runtime graph
+no GraphRAG
+no Qdrant promotion
+no publication
+```
+
+Next safe directions after this checkpoint:
+
+1. **Graph Review Evidence Pack v0.1** — local read-only evidence pack over both completed graph lines.
+2. **Citation / Reference Graph API Design v0.1** — design-only; no endpoint implementation.
+3. **Regression / DoD hardening** — optional gates and accepted-checkpoint validation wiring.
+
+
+## 6. Near-term roadmap
+
+### 6.1 Graph Review Evidence Pack v0.1
+
+Recommended next read-only slice.
 
 Purpose:
 
 ```text
-Bundle manual-review-relevant evidence from line checkpoint, manual-review gate, package, release candidate, inspection, query CLI, and analytics reports without publishing the graph package.
+Bundle manual-review-relevant evidence from both completed local graph lines
+without publishing graph packages or exposing graph runtime/API/UI surfaces.
+```
+
+Expected inputs:
+
+- Citation / Reference Graph line checkpoint;
+- Citation / Reference Graph manual-review checklist;
+- Citation / Reference Graph release candidate and package reports;
+- Citation / Reference Graph inspection/query/analytics reports;
+- Paper–Artifact Graph line checkpoint;
+- Paper–Artifact Graph manual-review checklist;
+- Paper–Artifact Graph release candidate and package reports;
+- Paper–Artifact Graph inspection/query/analytics reports.
+
+Expected output:
+
+```text
+local JSON/Markdown review evidence pack
+publication_ready = false
+manual_review_required = true
 ```
 
 Non-goals:
@@ -1355,12 +1515,17 @@ Non-goals:
 no publication
 no package rebuild unless explicitly requested
 no manual approval automation
-no API/UI/runtime
+no public graph API
+no Streamlit graph UI
+no runtime graph database
+no GraphRAG
 no canonical/reconcile changes
 no retrieval/Qdrant/ranking changes
 ```
 
-### 6.3 Citation / Reference Graph API Design v0.1
+### 6.2 Citation / Reference Graph API Design v0.1
+
+Potential later design-only slice.
 
 Purpose:
 
@@ -1368,7 +1533,7 @@ Purpose:
 Design possible future API semantics before implementing any citation/reference graph endpoint.
 ```
 
-This should be design-only unless separately approved.
+This must be design-only unless separately approved.
 
 Questions to resolve:
 
@@ -1376,44 +1541,61 @@ Questions to resolve:
 - whether graph output remains local/offline or becomes a serving artifact;
 - how to prevent graph from being interpreted as canonical truth;
 - how to document unresolved references and source-family evidence;
-- how to expose metadata-only/no-full-text caveats;
+- how to expose metadata-only/no-full-text/no-bibliography caveats;
 - whether endpoint output should mirror Query CLI semantics;
-- whether DB materialization is required before API exposure.
+- whether DB materialization is required before API exposure;
+- which validators must be green before implementation.
 
 Non-goals:
 
-- no endpoint implementation;
-- no Streamlit graph UI;
-- no runtime graph database;
-- no GraphRAG.
+```text
+no endpoint implementation
+no Streamlit graph UI
+no runtime graph database
+no GraphRAG
+no DB materialization
+no publication
+```
 
-### 6.5 Paper–Artifact Graph Manual Review Evidence Pack v0.1
+### 6.3 Regression / DoD hardening
 
-Potential later read-only slice.
+Potential later validation slice.
 
 Purpose:
 
 ```text
-Bundle manual-review-relevant evidence from line checkpoint, manual-review gate, package, release candidate, inspection, query CLI, and analytics reports without publishing the graph package.
+Wire accepted checkpoint and graph-review evidence into optional regression/DoD gates
+without making optional graph/API/artifact checks mandatory by default.
 ```
+
+Possible scope:
+
+- add optional accepted-checkpoint validation gate;
+- add optional graph-review evidence pack validation gate;
+- ensure Artifact API filter checks remain opt-in DB-backed gates;
+- preserve current file/DB/Qdrant boundaries;
+- improve report naming and failure summaries.
 
 Non-goals:
 
-- no publication;
-- no package rebuild;
-- no manual approval automation;
-- no API/UI/runtime;
-- no canonical/reconcile changes.
+```text
+no canonical refresh
+no retrieval rebuild
+no graph rebuild
+no API behavior change
+no UI behavior change
+no Qdrant promotion
+```
 
-### 6.6 Paper–Artifact Graph API Design v0.1
+### 6.4 Paper–Artifact Graph API Design v0.1
+
+Potential later design-only slice.
 
 Purpose:
 
 ```text
-Design possible future API semantics before implementing any graph endpoint.
+Design possible future API semantics before implementing any paper-artifact graph endpoint.
 ```
-
-This should be a design-only slice unless separately approved.
 
 Questions to resolve:
 
@@ -1426,12 +1608,14 @@ Questions to resolve:
 
 Non-goals:
 
-- no endpoint implementation;
-- no Streamlit graph UI;
-- no runtime graph database;
-- no GraphRAG.
+```text
+no endpoint implementation
+no Streamlit graph UI
+no runtime graph database
+no GraphRAG
+```
 
-### 6.7 Publication Preparation v0.1
+### 6.5 Publication Preparation v0.1
 
 Only after manual review is actually completed.
 
@@ -1452,7 +1636,7 @@ Possible scope:
 
 Publication must remain a separate PR/slice from validators and local evidence reports.
 
-### 6.8 Deployment Vector Backend Selector Design v1
+### 6.6 Deployment Vector Backend Selector Design v1
 
 Purpose:
 
@@ -1476,7 +1660,7 @@ Non-goals:
 - do not silently switch `/search`;
 - do not remove file dense as reference.
 
-### 6.9 Public Qdrant Promotion v1
+### 6.7 Public Qdrant Promotion v1
 
 Prerequisites:
 
@@ -1489,7 +1673,7 @@ Prerequisites:
 
 Promotion must be a separate PR.
 
-### 6.10 Ranking / reranking research
+### 6.8 Ranking / reranking research
 
 Potential future slices:
 
@@ -1501,7 +1685,7 @@ Potential future slices:
 
 The current heuristic ranking must not be promoted without new evidence.
 
-### 6.11 Next retrieval generation
+### 6.9 Next retrieval generation
 
 Potential future work:
 
@@ -1514,7 +1698,7 @@ Potential future work:
 
 Any material retrieval rebuild invalidates current build-scoped evidence and requires fresh validators.
 
-### 6.12 Full text / RAG
+### 6.10 Full text / RAG
 
 Future staged path:
 
@@ -1529,7 +1713,7 @@ full-text acquisition policy
 
 RAG must not be introduced as an ungrounded chat layer.
 
-### 6.13 Observability and orchestration
+### 6.11 Observability and orchestration
 
 Future staged path:
 
