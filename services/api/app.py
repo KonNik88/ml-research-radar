@@ -15,12 +15,14 @@ from radar_core.retrieval.dense_backend import (
     DenseBackendResultError,
     DenseBackendUnavailableError,
 )
+from services.api.citation_graph_service import build_citation_graph_status
 from services.api.discovery_service import get_discovery_service
 from services.api.logging import get_logger
 from services.api.runtime import get_runtime
 from services.api.schemas import (
     ApiInfoResponse,
     ArtifactListResponse,
+    CitationGraphStatusResponse,
     DiscoveryPaperDetailResponse,
     DiscoveryPaperTopicClusterResponse,
     DiscoveryProfilesResponse,
@@ -303,6 +305,11 @@ def runtime_snapshot(
             refresh_qdrant=refresh_qdrant,
         )
     )
+
+
+@app.get("/citation-graph/status", response_model=CitationGraphStatusResponse)
+def citation_graph_status() -> CitationGraphStatusResponse:
+    return build_citation_graph_status(settings=settings)
 
 
 @app.post("/reload", response_model=ReloadResponse)

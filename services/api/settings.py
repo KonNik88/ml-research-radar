@@ -69,6 +69,23 @@ class ApiSettings(BaseSettings):
     postgres_user: str = Field(default="ml_radar")
     postgres_password: str = Field(default="ml_radar_dev")
 
+    # Citation / Reference Graph API settings.
+    # This feature is intentionally disabled by default. The first API slice
+    # exposes only a read-only diagnostic status endpoint and does not load
+    # graph artifacts or implement traversal endpoints.
+    citation_graph_api_enabled: bool = Field(default=False)
+    citation_graph_exposure_mode: str = Field(default="local_inspection")
+    citation_graph_root: Path = Field(
+        default=Path("data/graphs/citation_reference_graph/v0.1")
+    )
+    citation_graph_reports_root: Path = Field(
+        default=Path("artifacts/reports/validation")
+    )
+    citation_graph_version: str = Field(default="v0.1")
+    citation_graph_default_limit: int = Field(default=50, ge=1)
+    citation_graph_max_limit: int = Field(default=100, ge=1)
+    citation_graph_require_review_for_public: bool = Field(default=True)
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> ApiSettings:
