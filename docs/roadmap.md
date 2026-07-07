@@ -7,12 +7,12 @@ document = primary living roadmap
 accepted checkpoint = Current State Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
 current active direction = review / regression / design-hardening
-current active slice = Current State Checkpoint v0.1 documentation/checkpoint slice
+current active slice = Graph API response fixture / stale-version design planning
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = documentation/checkpoint hardening only; no canonical/retrieval/Qdrant/Postgres/API/UI/ranking/runtime/publication behavior changes
+scope of current branch = roadmap/design hardening only; no canonical/retrieval/Qdrant/Postgres/API/UI/ranking/runtime/publication behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -59,12 +59,17 @@ review / regression / design-hardening first
 runtime / public API / GraphRAG / Qdrant promotion only after a separate accepted design slice
 ```
 
-Recommended immediate safe slices:
+Recently completed safe slices:
 
 1. **Current State Checkpoint v0.1** — consolidate the accepted project state and layer boundaries.
 2. **Graph Review Evidence Pack v0.1** — local read-only evidence pack for Citation / Reference Graph and Paper–Artifact Graph manual review support.
 3. **Citation / Reference Graph API Design v0.1** — design-only API contract; no endpoint implementation.
-4. **Regression / DoD hardening** — optional gates, accepted-checkpoint checks, and validation wiring only.
+
+Recommended next safe slices:
+
+1. **Graph API Response Fixture Design v0.1** — design expected JSON fixtures and caveat envelopes before endpoint implementation.
+2. **Graph Runtime Stale-Version Compatibility Design v0.1** — define how graph package/output versions are compared with active canonical/retrieval baselines.
+3. **Regression / DoD hardening** — optional gates, accepted-checkpoint checks, and validation wiring only.
 
 Explicit immediate non-goals:
 
@@ -1426,41 +1431,117 @@ analytics does not change canonical/reconcile/DB/API/UI/retrieval/Qdrant/ranking
 analytics does not parse full text, PDFs, or bibliography/reference sections
 ```
 
+### 4.30 Citation / Reference Graph API Design v0.1
+
+Status: **done / green design-only API contract / no endpoint implementation**
+
+Implemented after the completed local citation/reference graph line, analytics
+report, current-state checkpoint, and graph review evidence pack:
+
+```text
+contract
+→ builder
+→ output validator
+→ reference-id normalization fix
+→ inspection
+→ query CLI
+→ docs counter refresh
+→ release candidate
+→ package
+→ line checkpoint
+→ manual review checklist
+→ analytics report
+→ graph review evidence pack
+→ API design contract
+```
+
+Accepted local validation:
+
+```text
+python -m scripts.validation.check_citation_reference_graph_api_design --strict
+ok = true
+required_failed_count = 0
+warning_count = 0
+
+python -m pytest tests/smoke/test_citation_reference_graph_api_design.py -q
+4 passed
+```
+
+Design contract scope:
+
+```text
+possible future citation/reference graph API surface
+query modes
+response envelope and caveats
+error semantics
+runtime/storage options
+implementation gates
+open design questions
+```
+
+Boundary:
+
+```text
+design-only
+no endpoint implementation
+no runtime graph loader
+no graph DB materialization
+no Postgres schema change
+no Streamlit graph UI
+no GraphRAG
+no Qdrant promotion
+no retrieval rebuild
+no ranking change
+no canonical refresh
+no publication
+```
+
+Required interpretation:
+
+```text
+accepted API design does not authorize endpoint implementation by itself
+implementation requires a separate accepted implementation plan and gates
+manual_review_required = true
+manual_review_complete = false
+publication_ready = false
+```
+
 
 ## 5. Current active direction
 
-### 5.1 Current State Checkpoint v0.1
+### 5.1 Post-design graph API hardening
 
-Status: **current documentation/checkpoint hardening slice**
+Status: **current planning direction after accepted design-only checkpoint**
 
 Goal:
 
 ```text
-Consolidate the accepted project state, layer boundaries, graph-line status,
-and safe next-step direction in a single roadmap/checkpoint pair.
+Prepare graph API implementation safely by designing response fixtures,
+stale-version compatibility, and regression gates before any endpoint code.
 ```
 
-Tracked checkpoint files:
+Accepted design/checkpoint files:
 
 ```text
 docs/project_state_current_v0.1.md
 docs/roadmap.md
-checks/check_project_state_current.py
+docs/graph_review_evidence_pack_v0.md
+docs/citation_reference_graph_api_design_v0.1.md
+scripts/validation/check_citation_reference_graph_api_design.py
+tests/smoke/test_citation_reference_graph_api_design.py
 ```
 
-Definition of done:
+Definition of done for the current planning direction:
 
-- `docs/project_state_current_v0.1.md` exists and records accepted current-state markers;
-- `docs/roadmap.md` points to the checkpoint and no longer treats graph analytics as the active slice;
-- `checks/check_project_state_current.py` validates required checkpoint markers;
-- trusted artifact-link policy smoke remains green;
-- retrieval artifact smoke remains green or is recorded as already passed for this docs/checkpoint slice;
+- roadmap records Current State Checkpoint, Graph Review Evidence Pack, and Citation / Reference Graph API Design as completed safe design/review layers;
+- no roadmap language treats accepted API design as permission to implement endpoints immediately;
+- the next slices remain fixture/stale-version/regression design work, not runtime work;
 - no canonical, retrieval, Qdrant, Postgres, API, UI, ranking, graph-output, package, or publication behavior is changed.
 
 Boundary:
 
 ```text
-docs/checkpoint only
+docs/design/checkpoint only
 no graph rebuild
 no package rebuild
 no API endpoint implementation
@@ -1470,18 +1551,19 @@ no Qdrant promotion
 no publication
 ```
 
-Next safe directions after this checkpoint:
+Next safe directions after the accepted API design checkpoint:
 
-1. **Graph Review Evidence Pack v0.1** — local read-only evidence pack over both completed graph lines.
-2. **Citation / Reference Graph API Design v0.1** — design-only; no endpoint implementation.
-3. **Regression / DoD hardening** — optional gates and accepted-checkpoint validation wiring.
+1. **Graph API Response Fixture Design v0.1** — expected JSON response/error/caveat fixtures for candidate endpoints.
+2. **Graph Runtime Stale-Version Compatibility Design v0.1** — version/build compatibility rules before any runtime loader.
+3. **Graph API Implementation Plan v0.1** — implementation plan only, with explicit gates and rollback.
+4. **Regression / DoD hardening** — optional gates and accepted-checkpoint validation wiring.
 
 
 ## 6. Near-term roadmap
 
 ### 6.1 Graph Review Evidence Pack v0.1
 
-Recommended next read-only slice.
+Status: **done / green local read-only evidence pack / not published**
 
 Purpose:
 
@@ -1525,7 +1607,7 @@ no retrieval/Qdrant/ranking changes
 
 ### 6.2 Citation / Reference Graph API Design v0.1
 
-Potential later design-only slice.
+Status: **done / green design-only API contract / no endpoint implementation**
 
 Purpose:
 
@@ -1533,7 +1615,8 @@ Purpose:
 Design possible future API semantics before implementing any citation/reference graph endpoint.
 ```
 
-This must be design-only unless separately approved.
+This was completed as a design-only slice. It does not authorize endpoint
+implementation by itself.
 
 Questions to resolve:
 
@@ -1557,7 +1640,74 @@ no DB materialization
 no publication
 ```
 
-### 6.3 Regression / DoD hardening
+### 6.3 Graph API Response Fixture Design v0.1
+
+Recommended next design-only slice.
+
+Purpose:
+
+```text
+Define expected JSON response, error, pagination, and caveat fixtures for the
+candidate citation/reference graph API before any endpoint implementation.
+```
+
+Possible scope:
+
+- status response fixture;
+- outgoing references response fixture;
+- incoming citations response fixture;
+- external reference linked-papers response fixture;
+- source-family diagnostics fixture;
+- top referenced papers fixture;
+- top external references fixture;
+- unsafe/missing graph error fixtures;
+- manual-review incomplete caveat fixture;
+- response envelope marker checks.
+
+Non-goals:
+
+```text
+no endpoint implementation
+no runtime graph loader
+no DB materialization
+no API behavior change
+no UI behavior change
+no GraphRAG
+no publication
+```
+
+### 6.4 Graph Runtime Stale-Version Compatibility Design v0.1
+
+Potential next design-only slice.
+
+Purpose:
+
+```text
+Define how future graph runtime/package loaders compare graph output versions
+against active canonical corpus, retrieval build, graph manifest, and package
+metadata before serving graph evidence.
+```
+
+Possible scope:
+
+- accepted graph version markers;
+- canonical corpus count/build compatibility;
+- graph manifest checksum expectations;
+- package/report freshness checks;
+- failure semantics for stale or unsafe graph outputs;
+- explicit local-only/public exposure distinction.
+
+Non-goals:
+
+```text
+no endpoint implementation
+no runtime graph loader
+no DB materialization
+no graph rebuild
+no publication
+```
+
+### 6.5 Regression / DoD hardening
 
 Potential later validation slice.
 
@@ -1587,7 +1737,7 @@ no UI behavior change
 no Qdrant promotion
 ```
 
-### 6.4 Paper–Artifact Graph API Design v0.1
+### 6.6 Paper–Artifact Graph API Design v0.1
 
 Potential later design-only slice.
 
@@ -1615,7 +1765,7 @@ no runtime graph database
 no GraphRAG
 ```
 
-### 6.5 Publication Preparation v0.1
+### 6.7 Publication Preparation v0.1
 
 Only after manual review is actually completed.
 
@@ -1636,7 +1786,7 @@ Possible scope:
 
 Publication must remain a separate PR/slice from validators and local evidence reports.
 
-### 6.6 Deployment Vector Backend Selector Design v1
+### 6.8 Deployment Vector Backend Selector Design v1
 
 Purpose:
 
@@ -1660,7 +1810,7 @@ Non-goals:
 - do not silently switch `/search`;
 - do not remove file dense as reference.
 
-### 6.7 Public Qdrant Promotion v1
+### 6.9 Public Qdrant Promotion v1
 
 Prerequisites:
 
@@ -1673,7 +1823,7 @@ Prerequisites:
 
 Promotion must be a separate PR.
 
-### 6.8 Ranking / reranking research
+### 6.10 Ranking / reranking research
 
 Potential future slices:
 
