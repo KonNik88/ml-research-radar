@@ -535,3 +535,33 @@ class QdrantSearchResponse(BaseModel):
     collection_name: str
     meta: QdrantSearchMeta
     results: list[QdrantSearchResultItem]
+
+
+class CitationGraphStatusGraph(BaseModel):
+    name: str = "citation_reference_graph"
+    version: str = "v0.1"
+    runtime_enabled: bool = False
+    available: bool = False
+    exposure_mode: str = "local_inspection"
+
+    metadata_reference_fields_only: bool = True
+    full_text_parsed: bool = False
+    pdfs_parsed: bool = False
+    bibliography_sections_parsed: bool = False
+
+    manual_review_required: bool = True
+    manual_review_complete: bool = False
+    publication_ready: bool = False
+    may_be_used_as_reconcile_input: bool = False
+    not_a_complete_citation_index: bool = True
+
+
+class CitationGraphStatusResponse(BaseModel):
+    graph: CitationGraphStatusGraph
+    query: dict[str, Any] = Field(default_factory=dict)
+    items: list[Any] = Field(default_factory=list)
+    page: dict[str, Any] = Field(default_factory=dict)
+    caveats: list[str] = Field(default_factory=list)
+    availability: dict[str, Any] = Field(default_factory=dict)
+    error_code: str | None = None
+    message: str | None = None
