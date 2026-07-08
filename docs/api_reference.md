@@ -18,6 +18,8 @@ canonical JSONL truth
 → paper features
 → ranking / paper detail / similar papers
 → topic clusters / projection
+→ local graph evidence/review artifacts
+→ disabled-by-default Citation Graph status surface
 → Discovery API
 → Streamlit Discovery UI
 ```
@@ -33,6 +35,8 @@ artifact DB = derived evidence/materialization layer
 paper_features / ranking / detail / similar / topic clusters = derived discovery layer
 Discovery API = product/discovery API over derived layers
 Streamlit UI = thin API client
+Citation / Reference Graph status API = disabled-by-default status-only safety surface
+Citation / Reference Graph traversal/runtime API = not implemented
 ```
 
 ---
@@ -43,6 +47,8 @@ Current checkpoint:
 
 ```text
 Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1
+Citation Graph API Disabled Status Endpoint v0.1
+API documentation sync after disabled status endpoint
 ```
 
 Current canonical baseline:
@@ -529,6 +535,143 @@ last_reload_at
 ```
 
 ---
+
+
+# Citation / Reference Graph Status API
+
+## Current implementation status
+
+The API currently exposes only the first safe citation/reference graph status
+surface:
+
+```text
+GET /citation-graph/status
+```
+
+Current v0.1 semantics:
+
+```text
+endpoint_exists = true
+status_only = true
+disabled_by_default = true
+feature_flag = ML_RADAR_CITATION_GRAPH_API_ENABLED
+graph_runtime_loader = not implemented
+graph_traversal_endpoints = not implemented
+graph_db_materialization = not implemented
+streamlit_graph_ui = not implemented
+graphrag = not implemented
+publication_ready = false
+manual_review_required = true
+```
+
+This endpoint is intentionally a safety/status surface, not a graph query API.
+It must not be interpreted as publication approval, graph runtime promotion, or
+permission to expose traversal data.
+
+## `GET /citation-graph/status`
+
+Returns the current citation/reference graph API status.
+
+Current expected behavior:
+
+- responds without loading graph nodes or edges;
+- works independently of Qdrant;
+- does not mutate canonical documents;
+- does not mutate graph outputs;
+- does not mutate Postgres;
+- does not change `/search`;
+- does not change Discovery API behavior;
+- reports that the graph API is disabled by default unless explicitly enabled;
+- preserves manual-review and publication caveats.
+
+Current default configuration:
+
+```bat
+set ML_RADAR_CITATION_GRAPH_API_ENABLED=false
+```
+
+The status endpoint may be used by tests, operators, and future UI/runtime work
+to verify that the graph API surface is present while traversal remains closed.
+
+Current non-goals:
+
+```text
+no outgoing-reference endpoint
+no incoming-citation endpoint
+no external-reference lookup endpoint
+no source-family graph diagnostics endpoint
+no top referenced papers endpoint
+no top external references endpoint
+no graph file loader in this slice
+no graph DB serving layer
+no Streamlit graph surface
+no GraphRAG
+no Qdrant dependency
+no public graph data exposure
+```
+
+Implementation files introduced by the disabled status slice:
+
+```text
+services/api/citation_graph_service.py
+services/api/settings.py
+services/api/schemas.py
+services/api/app.py
+tests/integration/test_api_citation_graph_status.py
+```
+
+Recommended validation:
+
+```bat
+python -m py_compile services/api/settings.py services/api/schemas.py services/api/citation_graph_service.py services/api/app.py
+
+set ML_RADAR_SEARCH_BACKEND=file
+python -m pytest tests/integration/test_api_citation_graph_status.py -q
+python -m pytest tests/integration/test_api_smoke.py -q
+
+set ML_RADAR_SEARCH_BACKEND=db
+python -m pytest tests/integration/test_api_citation_graph_status.py -q
+python -m pytest tests/integration/test_api_db_smoke.py -q
+```
+
+Extended regression used for the accepted implementation slice:
+
+```bat
+set ML_RADAR_SEARCH_BACKEND=file
+python -m pytest tests/integration/test_api_reload.py -q
+python -m pytest tests/integration/test_api_search_filters.py -q
+python -m pytest tests/integration/test_api_errors.py -q
+
+set ML_RADAR_SEARCH_BACKEND=db
+python -m pytest tests/integration/test_api_search_db_backend.py -q
+```
+
+Accepted local validation result:
+
+```text
+test_api_citation_graph_status.py = 3 passed
+test_api_smoke.py = 7 passed
+test_api_reload.py = 4 passed
+test_api_search_filters.py = 7 passed
+test_api_errors.py = 4 passed
+test_api_db_smoke.py = 7 passed
+test_api_search_db_backend.py = 2 passed
+```
+
+## Boundary
+
+The disabled status endpoint does not make the local Citation / Reference Graph
+a runtime truth source. The graph remains a local derived evidence/review layer:
+
+```text
+canonical_documents.jsonl = paper truth
+citation/reference graph output = derived local evidence
+status endpoint = API safety/status surface only
+traversal endpoints = not implemented
+manual_review_complete = false
+publication_ready = false
+```
+
 
 # Search API
 
@@ -1449,6 +1592,8 @@ Expected current green baseline:
 
 ```text
 No public /search behavior change in this cleanup.
+Citation graph status endpoint exists, but traversal/runtime endpoints do not.
+Citation graph API is disabled by default.
 No Qdrant promotion.
 No fallback.
 No retrieval rebuild.

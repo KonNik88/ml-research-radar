@@ -5,7 +5,7 @@
 ```text
 document = consolidated current-state checkpoint
 checkpoint_version = v0.1
-checkpoint_date = 2026-07-06
+checkpoint_date = 2026-07-08
 scope = documentation / transfer / design-hardening baseline
 canonical_truth = false
 may_be_used_as_reconcile_input = false
@@ -22,7 +22,7 @@ creates_runtime_graph = false
 
 This document is a compact transfer and orientation checkpoint for **ML Research Radar**.
 It records the current validated project model, accepted layer boundaries, current counters,
-completed work, and recommended next slices.
+completed work, current API status surface, and recommended next slices.
 
 It is not a new source of truth. The paper-level source of truth remains:
 
@@ -266,6 +266,37 @@ DenseBackendResultError        -> 503 dense_backend_invalid_result
 ```
 
 Qdrant failures must not make file runtime unhealthy.
+
+
+Citation/reference graph API status surface:
+
+```text
+GET /citation-graph/status
+```
+
+Current status endpoint semantics:
+
+```text
+status_only = true
+disabled_by_default = true
+feature_flag = ML_RADAR_CITATION_GRAPH_API_ENABLED
+graph_runtime_loader = not implemented
+graph_traversal_endpoints = not implemented
+graph_db_materialization = not implemented
+streamlit_graph_ui = not implemented
+graphrag = not implemented
+publication_ready = false
+manual_review_required = true
+```
+
+Boundary:
+
+```text
+The status endpoint is an API safety/status surface only.
+It does not load graph nodes or edges.
+It does not expose outgoing references, incoming citations, external-reference lookup, or top-reference queries.
+It does not change /search, Discovery API, DB, Qdrant, ranking, canonical truth, graph output, package output, or publication state.
+```
 
 ## 4.4 Artifact evidence plane
 
@@ -598,21 +629,44 @@ review / regression / design-hardening first
 runtime / public API / GraphRAG / Qdrant promotion only after accepted design slice
 ```
 
-Recommended next slices:
+Recently completed safe slices after this checkpoint baseline:
 
 1. **Graph Review Evidence Pack v0.1**
    - local review/evidence report over both graph lines;
    - no runtime/API/UI/DB/Qdrant/retrieval/ranking changes;
-   - no publication;
-   - no graph rebuild unless explicitly scoped.
+   - no publication.
 
 2. **Citation / Reference Graph API Design v0.1**
    - design-only;
-   - describe safe future query modes, caveats, failure semantics, boundaries;
-   - no endpoint implementation;
-   - no runtime graph loading.
+   - safe future query modes, caveats, failure semantics, and boundaries;
+   - no endpoint implementation by itself.
 
-3. **Regression / DoD / docs hardening**
+3. **Graph API Response Fixture Design v0.1**
+   - expected response/error/caveat fixtures before endpoint implementation.
+
+4. **Graph Runtime Stale-Version Compatibility Design v0.1**
+   - fail-closed compatibility semantics for stale/unsafe graph outputs.
+
+5. **Citation / Reference Graph API Implementation Plan v0.1**
+   - implementation plan only;
+   - first code slice limited to disabled status endpoint.
+
+6. **Citation Graph API Disabled Status Endpoint v0.1**
+   - first code slice;
+   - `GET /citation-graph/status`;
+   - disabled by default;
+   - no traversal endpoints;
+   - no graph runtime loader.
+
+Recommended next slices:
+
+1. **Citation Graph Status Compatibility Probe v0.1**
+   - read-only status compatibility checks over existing graph/package/report state;
+   - no traversal endpoints;
+   - no graph DB materialization;
+   - no Streamlit graph UI.
+
+2. **Regression / DoD / docs hardening**
    - optional gates;
    - checkpoint validation;
    - stale-counter protection;
@@ -628,7 +682,7 @@ Recommended next slices:
 
 Do not do these without a separate accepted design:
 
-- public graph API implementation;
+- graph traversal API implementation;
 - GraphRAG;
 - Neo4j/NetworkX runtime;
 - DB materialization of graph as serving truth;
@@ -643,35 +697,38 @@ Do not do these without a separate accepted design:
 
 ## 9. Suggested immediate plan
 
-Current dialogue should start with a documentation checkpoint slice:
-
-```text
-Current State Checkpoint v0.1
-```
+Current dialogue should close with a small documentation sync slice after the
+first disabled-by-default citation graph status endpoint.
 
 Minimal implementation:
 
 ```text
+docs/api_reference.md
+docs/roadmap.md
 docs/project_state_current_v0.1.md
-roadmap status update / link to the checkpoint
+docs/refresh_contract_v1.md
 ```
 
 Suggested validation:
 
 ```text
 git diff --check
-python -m pytest tests/smoke/test_retrieval_artifacts_smoke.py -q  # optional, if env supports it
-python -m pytest tests/smoke/test_trusted_artifact_links.py -q      # optional, if env supports it
 ```
 
-For docs-only changes, the minimum acceptable check is:
+Optional API confirmation before/after docs sync:
 
-```text
-git diff --check
+```bat
+set ML_RADAR_SEARCH_BACKEND=file
+python -m pytest tests/integration/test_api_citation_graph_status.py -q
+python -m pytest tests/integration/test_api_smoke.py -q
+
+set ML_RADAR_SEARCH_BACKEND=db
+python -m pytest tests/integration/test_api_citation_graph_status.py -q
+python -m pytest tests/integration/test_api_db_smoke.py -q
 ```
 
 Suggested commit message:
 
 ```text
-docs: add current project state checkpoint
+docs: sync citation graph status endpoint docs
 ```

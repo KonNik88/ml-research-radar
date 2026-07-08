@@ -54,7 +54,14 @@ Citation / Reference Graph Release Candidate v0.1 — 2026-07 completed read-onl
 Citation / Reference Graph Package v0.1 — 2026-07 completed local package candidate layer
 Citation / Reference Graph Line Checkpoint v0.1 — 2026-07 completed read-only line checkpoint
 Citation / Reference Graph Manual Review Checklist v0.1 — 2026-07 completed read-only manual-review governance gate
-Citation / Reference Graph Analytics v0.1 — 2026-07 active read-only analytics/report layer
+Citation / Reference Graph Analytics v0.1 — 2026-07 completed read-only analytics/report layer
+Graph Review Evidence Pack v0.1 — 2026-07 completed local read-only graph review evidence pack
+Citation / Reference Graph API Design v0.1 — 2026-07 completed design-only API contract
+Graph API Response Fixture Design v0.1 — 2026-07 completed design-only response/caveat fixture contract
+Graph Runtime Stale-Version Compatibility Design v0.1 — 2026-07 completed design-only compatibility contract
+Citation / Reference Graph API Implementation Plan v0.1 — 2026-07 completed implementation-plan-only checkpoint
+Citation Graph API Disabled Status Endpoint v0.1 — 2026-07 completed status-only disabled-by-default API slice
+Citation Graph API Docs Sync v0.1 — 2026-07 active docs synchronization slice
 ```
 
 Current healthy baseline:
@@ -103,7 +110,15 @@ citation_reference_graph_release_candidate = accepted_read_only_release_candidat
 citation_reference_graph_package = accepted_local_package_candidate
 citation_reference_graph_line_checkpoint = accepted_read_only_line_checkpoint
 citation_reference_graph_manual_review = accepted_read_only_manual_review_gate
-citation_reference_graph_analytics = active_read_only_analytics_report
+citation_reference_graph_analytics = accepted_read_only_analytics_report
+graph_review_evidence_pack = accepted_local_read_only_review_evidence_pack
+citation_reference_graph_api_design = accepted_design_only
+citation_reference_graph_api_response_fixtures = accepted_design_only
+citation_reference_graph_runtime_compatibility_design = accepted_design_only
+citation_reference_graph_api_implementation_plan = accepted_plan_only
+citation_graph_api_disabled_status_endpoint = implemented_disabled_by_default_status_only
+citation_graph_api_traversal_endpoints = not_implemented
+citation_graph_runtime_loader = not_implemented
 paper_artifact_graph_dod_gate = not required yet
 paper_artifact_graph_manual_review_dod_gate = not required yet
 paper_artifact_graph_analytics_dod_gate = not required yet
@@ -286,6 +301,7 @@ ml_radar_qdrant = Up
 python -m scripts.validation.check_qdrant_collection --strict
 set ML_RADAR_SEARCH_BACKEND=file
 python -m pytest tests/integration/test_api_smoke.py -q
+python -m pytest tests/integration/test_api_citation_graph_status.py -q
 python -m scripts.validation.check_qdrant_api_experimental --strict
 python -m scripts.validation.check_streamlit_discovery_ui --strict
 ```
@@ -296,7 +312,8 @@ Expected:
 qdrant collection_exists = true
 qdrant points_count = 60954
 qdrant corpus_doc_count = 60954
-test_api_smoke.py = 6 passed
+test_api_smoke.py = 7 passed
+citation graph status endpoint = 3 passed, disabled-by-default/status-only
 experimental qdrant API = status_code 200, mode dense_qdrant
 streamlit UI required_failed_count = 0
 qdrant_runtime_status_ui_snippets_present = true
@@ -328,6 +345,19 @@ Manual checks:
 ```bat
 curl http://127.0.0.1:8000/health
 curl http://127.0.0.1:8000/runtime
+curl http://127.0.0.1:8000/citation-graph/status
+```
+
+Expected citation graph status endpoint interpretation:
+
+```text
+endpoint is reachable
+status-only surface
+disabled by default unless ML_RADAR_CITATION_GRAPH_API_ENABLED is explicitly enabled
+no graph traversal endpoints
+no graph runtime loader
+manual_review_required = true
+publication_ready = false
 ```
 
 Expected `/runtime.qdrant` healthy state:
@@ -1470,7 +1500,94 @@ Generated reports are not committed.
 ```
 
 
-# F. Artifact API filters validation and DoD gate
+
+
+# F. Citation Graph API disabled status endpoint validation
+
+Use this when checking the first narrow Citation / Reference Graph API code
+slice.
+
+Current endpoint:
+
+```text
+GET /citation-graph/status
+```
+
+Current implementation state:
+
+```text
+status_only = true
+disabled_by_default = true
+feature_flag = ML_RADAR_CITATION_GRAPH_API_ENABLED
+graph_runtime_loader = not implemented
+graph_traversal_endpoints = not implemented
+graph_db_materialization = not implemented
+streamlit_graph_ui = not implemented
+graphrag = not implemented
+publication_ready = false
+manual_review_required = true
+```
+
+Recommended validation sequence:
+
+```bat
+python -m py_compile services/api/settings.py services/api/schemas.py services/api/citation_graph_service.py services/api/app.py
+
+set ML_RADAR_SEARCH_BACKEND=file
+python -m pytest tests/integration/test_api_citation_graph_status.py -q
+python -m pytest tests/integration/test_api_smoke.py -q
+python -m pytest tests/integration/test_api_reload.py -q
+python -m pytest tests/integration/test_api_search_filters.py -q
+python -m pytest tests/integration/test_api_errors.py -q
+
+set ML_RADAR_SEARCH_BACKEND=db
+python -m pytest tests/integration/test_api_db_smoke.py -q
+python -m pytest tests/integration/test_api_search_db_backend.py -q
+python -m pytest tests/integration/test_api_citation_graph_status.py -q
+```
+
+Accepted local result for the completed slice:
+
+```text
+test_api_citation_graph_status.py = 3 passed
+test_api_smoke.py = 7 passed
+test_api_reload.py = 4 passed
+test_api_search_filters.py = 7 passed
+test_api_errors.py = 4 passed
+test_api_db_smoke.py = 7 passed
+test_api_search_db_backend.py = 2 passed
+```
+
+Boundary:
+
+```text
+The status endpoint is read-only.
+It must not load graph nodes or edges.
+It must not expose outgoing references or incoming citations.
+It must not mutate canonical truth.
+It must not mutate graph output/package/reports.
+It must not mutate Postgres.
+It must not change /search behavior.
+It must not change Discovery API behavior.
+It must not change Qdrant behavior.
+It must not change ranking behavior.
+It must not create Streamlit graph UI.
+It must not implement GraphRAG.
+It must not publish anything.
+```
+
+Recommended next slice:
+
+```text
+Citation Graph Status Compatibility Probe v0.1
+```
+
+The next slice should still remain status/compatibility-only and must not add
+traversal endpoints.
+
+---
+
+# G. Artifact API filters validation and DoD gate
 
 Use this when changing DB-backed Artifact API filters, artifact/date metadata
 filtering, artifact-document links, or the Artifact API validation contract.
@@ -1702,7 +1819,7 @@ Generated runner reports are not committed.
 ---
 
 
-# G. Dataset release candidate validation
+# H. Dataset release candidate validation
 
 Use this when checking the metadata-only local dataset-release candidate track.
 This validation does not publish a dataset and does not change canonical truth,
@@ -1773,7 +1890,7 @@ artifacts/reports/validation/history/dataset_release_*.json
 Generated report history should not be committed unless a separate
 artifact-retention policy explicitly says otherwise.
 
-# H. Qdrant validation layers
+# I. Qdrant validation layers
 
 ## Qdrant collection check
 
@@ -1849,7 +1966,7 @@ Qdrant is not the production default backend.
 
 ---
 
-# I. Discovery API regression runner
+# J. Discovery API regression runner
 
 Quick discovery regression:
 
@@ -1876,7 +1993,7 @@ python -m scripts.validation.run_discovery_api_regression --include-live-ui-chec
 
 ---
 
-# J. Strict Definition of Done
+# K. Strict Definition of Done
 
 Current full strict DoD command should include the active required gates supported by the current project codebase:
 
@@ -1897,7 +2014,7 @@ If local `--help` does not show these gates, sync the DoD script before treating
 
 ---
 
-# K. Hugging Face / VPN caveat
+# L. Hugging Face / VPN caveat
 
 `SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")` may make HEAD/metadata requests to Hugging Face even when weights are cached. If VPN/network is unstable, startup or tests may fail before project code is actually exercised.
 
@@ -1924,7 +2041,7 @@ Then retry the smoke tests.
 
 ---
 
-# L. Git / artifact hygiene
+# M. Git / artifact hygiene
 
 Do not commit large generated artifacts by default:
 
@@ -1961,7 +2078,7 @@ git diff --cached --stat
 
 ---
 
-# M. Blockers
+# N. Blockers
 
 Stop and investigate if any of these occur:
 
@@ -1989,7 +2106,7 @@ Stop and investigate if any of these occur:
 
 ---
 
-# N. Non-blocker diagnostics under current semantics
+# O. Non-blocker diagnostics under current semantics
 
 These are not automatic blockers unless policy changes:
 

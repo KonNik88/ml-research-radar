@@ -7,12 +7,12 @@ document = primary living roadmap
 accepted checkpoint = Current State Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
 current active direction = review / regression / design-hardening
-current active slice = Graph API response fixture / stale-version design planning
+current active slice = Citation Graph API disabled status endpoint documentation sync
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = roadmap/design hardening only; no canonical/retrieval/Qdrant/Postgres/API/UI/ranking/runtime/publication behavior changes
+scope of current branch = docs sync after disabled-by-default citation graph status endpoint; no canonical/retrieval/Qdrant/Postgres/UI/ranking/graph-output/publication behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -64,18 +64,23 @@ Recently completed safe slices:
 1. **Current State Checkpoint v0.1** — consolidate the accepted project state and layer boundaries.
 2. **Graph Review Evidence Pack v0.1** — local read-only evidence pack for Citation / Reference Graph and Paper–Artifact Graph manual review support.
 3. **Citation / Reference Graph API Design v0.1** — design-only API contract; no endpoint implementation.
+4. **Graph API Response Fixture Design v0.1** — expected JSON response/error/caveat fixtures before endpoint implementation.
+5. **Graph Runtime Stale-Version Compatibility Design v0.1** — compatibility rules for graph package/output freshness and canonical baseline matching.
+6. **Citation / Reference Graph API Implementation Plan v0.1** — implementation plan only, with gates and rollback.
+7. **Citation Graph API Disabled Status Endpoint v0.1** — first narrow code slice: status-only, disabled by default, no graph traversal/runtime loader.
+8. **Citation Graph API Docs Sync v0.1** — align API reference, roadmap, current-state checkpoint, and restart/runbook docs with the disabled status endpoint.
 
 Recommended next safe slices:
 
-1. **Graph API Response Fixture Design v0.1** — design expected JSON fixtures and caveat envelopes before endpoint implementation.
-2. **Graph Runtime Stale-Version Compatibility Design v0.1** — define how graph package/output versions are compared with active canonical/retrieval baselines.
-3. **Regression / DoD hardening** — optional gates, accepted-checkpoint checks, and validation wiring only.
+1. **Citation Graph Status Compatibility Probe v0.1** — read-only status compatibility checks against existing graph/package/reports; no traversal endpoints.
+2. **Regression / DoD hardening** — optional gates, accepted-checkpoint checks, and validation wiring only.
+3. **Citation Graph traversal endpoint design review** — only after status compatibility remains green and manual-review/publication caveats are preserved.
 
 Explicit immediate non-goals:
 
 - no GraphRAG implementation;
 - no Neo4j/NetworkX runtime;
-- no public graph API endpoint implementation;
+- no graph traversal endpoint implementation;
 - no Qdrant promotion;
 - no graph DB materialization layer;
 - no publication/upload;
@@ -1507,17 +1512,192 @@ publication_ready = false
 ```
 
 
+### 4.31 Graph API Response Fixture Design v0.1
+
+Status: **done / green design-only response fixture contract**
+
+Implemented after the accepted API design checkpoint.
+
+Purpose:
+
+```text
+Define expected JSON response, error, pagination, and caveat fixtures for the
+candidate citation/reference graph API before endpoint implementation.
+```
+
+Accepted scope:
+
+```text
+status response fixture
+outgoing references response fixture
+incoming citations response fixture
+external reference linked-papers response fixture
+source-family diagnostics fixture
+top referenced papers fixture
+top external references fixture
+unsafe/missing/stale graph error fixtures
+manual-review incomplete caveat fixture
+response envelope marker checks
+```
+
+Boundary:
+
+```text
+design-only
+no endpoint implementation
+no runtime graph loader
+no DB materialization
+no API behavior change
+no UI behavior change
+no GraphRAG
+no publication
+```
+
+### 4.32 Graph Runtime Stale-Version Compatibility Design v0.1
+
+Status: **done / green design-only runtime compatibility contract**
+
+Implemented before the first code slice.
+
+Purpose:
+
+```text
+Define how any future graph runtime/package loader must compare graph output
+versions against the active canonical corpus, retrieval build, graph manifest,
+package metadata, and latest validation reports before serving graph evidence.
+```
+
+Accepted compatibility principles:
+
+```text
+graph_version = v0.1
+canonical_doc_count = 60954
+retrieval_build_id = 20260504T164021Z
+stale graph outputs must fail closed
+unsafe or missing graph package/report state must fail closed
+/health remains independent
+/search remains independent
+Qdrant remains independent
+manual_review_complete=false and publication_ready=false must remain visible
+```
+
+Boundary:
+
+```text
+design-only
+no endpoint implementation
+no runtime graph loader
+no DB materialization
+no graph rebuild
+no publication
+```
+
+### 4.33 Citation / Reference Graph API Implementation Plan v0.1
+
+Status: **done / green implementation-plan-only checkpoint**
+
+Implemented after API design, response fixtures, and runtime compatibility design.
+
+Purpose:
+
+```text
+Define a safe implementation sequence for the future citation/reference graph API
+without implementing traversal endpoints immediately.
+```
+
+Accepted first code slice:
+
+```text
+Citation Graph API Disabled Status Endpoint v0.1
+```
+
+Plan boundaries:
+
+```text
+no traversal endpoints in the first slice
+no graph runtime loader in the first slice
+no graph DB materialization
+no Streamlit graph UI
+no GraphRAG
+no Qdrant dependency
+no /search behavior change
+no publication
+```
+
+### 4.34 Citation Graph API Disabled Status Endpoint v0.1
+
+Status: **done / green first narrow code slice**
+
+Implemented the first API code slice for Citation / Reference Graph API status.
+
+Current API surface:
+
+```text
+GET /citation-graph/status
+```
+
+Current semantics:
+
+```text
+status_only = true
+disabled_by_default = true
+feature_flag = ML_RADAR_CITATION_GRAPH_API_ENABLED
+graph_runtime_loader = not implemented
+graph_traversal_endpoints = not implemented
+graph_db_materialization = not implemented
+streamlit_graph_ui = not implemented
+graphrag = not implemented
+publication_ready = false
+manual_review_required = true
+```
+
+Accepted local validation:
+
+```text
+python -m py_compile services/api/settings.py services/api/schemas.py services/api/citation_graph_service.py services/api/app.py
+
+ML_RADAR_SEARCH_BACKEND=file:
+test_api_citation_graph_status.py = 3 passed
+test_api_smoke.py = 7 passed
+test_api_reload.py = 4 passed
+test_api_search_filters.py = 7 passed
+test_api_errors.py = 4 passed
+
+ML_RADAR_SEARCH_BACKEND=db:
+test_api_db_smoke.py = 7 passed
+test_api_search_db_backend.py = 2 passed
+test_api_citation_graph_status.py = 3 passed
+```
+
+Boundary:
+
+```text
+status endpoint is read-only
+status endpoint does not load graph nodes/edges
+status endpoint does not expose graph traversal
+status endpoint does not mutate canonical truth
+status endpoint does not mutate graph output/package/reports
+status endpoint does not mutate Postgres
+status endpoint does not change /search
+status endpoint does not change Discovery API
+status endpoint does not require Qdrant
+status endpoint does not publish anything
+```
+
+
+
 ## 5. Current active direction
 
-### 5.1 Post-design graph API hardening
+### 5.1 Citation graph API status hardening
 
-Status: **current planning direction after accepted design-only checkpoint**
+Status: **current direction after first disabled-by-default status endpoint**
 
 Goal:
 
 ```text
-Prepare graph API implementation safely by designing response fixtures,
-stale-version compatibility, and regression gates before any endpoint code.
+Keep the first graph API surface deliberately narrow: status-only, disabled by
+default, with compatibility/status hardening before any traversal endpoint or
+runtime graph loader.
 ```
 
 Accepted design/checkpoint files:
@@ -1531,12 +1711,13 @@ scripts/validation/check_citation_reference_graph_api_design.py
 tests/smoke/test_citation_reference_graph_api_design.py
 ```
 
-Definition of done for the current planning direction:
+Definition of done for the current status-hardening direction:
 
-- roadmap records Current State Checkpoint, Graph Review Evidence Pack, and Citation / Reference Graph API Design as completed safe design/review layers;
-- no roadmap language treats accepted API design as permission to implement endpoints immediately;
-- the next slices remain fixture/stale-version/regression design work, not runtime work;
-- no canonical, retrieval, Qdrant, Postgres, API, UI, ranking, graph-output, package, or publication behavior is changed.
+- roadmap records the disabled status endpoint as the first completed narrow code slice;
+- docs do not imply that graph traversal, graph runtime loading, GraphRAG, DB materialization, or Streamlit graph UI exists;
+- API reference documents `/citation-graph/status` as disabled-by-default status-only behavior;
+- next code work remains a status compatibility probe, not traversal implementation;
+- no canonical, retrieval, Qdrant, Postgres, UI, ranking, graph-output, package, or publication behavior is changed in this docs sync.
 
 Boundary:
 
@@ -1597,7 +1778,7 @@ Non-goals:
 no publication
 no package rebuild unless explicitly requested
 no manual approval automation
-no public graph API
+no public graph traversal API
 no Streamlit graph UI
 no runtime graph database
 no GraphRAG
@@ -1642,7 +1823,7 @@ no publication
 
 ### 6.3 Graph API Response Fixture Design v0.1
 
-Recommended next design-only slice.
+Status: **done / green design-only slice**.
 
 Purpose:
 
@@ -1678,7 +1859,7 @@ no publication
 
 ### 6.4 Graph Runtime Stale-Version Compatibility Design v0.1
 
-Potential next design-only slice.
+Status: **done / green design-only slice**.
 
 Purpose:
 
@@ -1707,7 +1888,41 @@ no graph rebuild
 no publication
 ```
 
-### 6.5 Regression / DoD hardening
+### 6.5 Citation Graph Status Compatibility Probe v0.1
+
+Recommended next code-adjacent slice.
+
+Purpose:
+
+```text
+Add a read-only compatibility/status probe for the existing citation/reference
+graph output, package, and validation reports while keeping traversal endpoints closed.
+```
+
+Possible scope:
+
+- check graph output directory presence;
+- check graph manifest version;
+- check canonical_doc_count and retrieval_build_id compatibility;
+- check latest output/inspection/release/package/manual-review/analytics reports;
+- report stale/missing/unsafe state through status response;
+- fail closed without making /health unhealthy;
+- keep /search, Discovery API, DB, Qdrant, ranking, and Streamlit unchanged.
+
+Non-goals:
+
+```text
+no outgoing-reference endpoint
+no incoming-citation endpoint
+no graph traversal
+no graph runtime query service
+no DB materialization
+no Streamlit graph UI
+no GraphRAG
+no publication
+```
+
+### 6.6 Regression / DoD hardening
 
 Potential later validation slice.
 
@@ -2556,7 +2771,7 @@ Boundary:
 - no manual approval
 - no DB materialization
 - no DB schema change
-- no public graph API
+- no public graph traversal API
 - no Streamlit graph UI
 - no NetworkX/Neo4j/GraphRAG runtime
 - no canonical refresh/reconcile
@@ -2645,7 +2860,7 @@ Boundary:
 - unresolved references remain external_reference nodes
 - no DB materialization
 - no DB schema change
-- no public graph API
+- no public graph traversal API
 - no Streamlit graph UI
 - no NetworkX/Neo4j/GraphRAG runtime
 - no canonical refresh/reconcile
