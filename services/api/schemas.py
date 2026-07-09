@@ -571,3 +571,11 @@ class CitationGraphStatusResponse(BaseModel):
     counts: dict[str, Any] = Field(default_factory=dict)
     error_code: str | None = None
     message: str | None = None
+
+
+class CitationGraphTraversalResponse(BaseModel):
+    graph: dict[str, Any] = Field(default_factory=dict)
+    query: dict[str, Any] = Field(default_factory=dict)
+    items: list[dict[str, Any]] = Field(default_factory=list)
+    page: dict[str, Any] = Field(default_factory=dict)
+    caveats: list[str] = Field(default_factory=list)

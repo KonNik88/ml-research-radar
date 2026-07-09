@@ -156,13 +156,16 @@ def test_citation_graph_status_does_not_affect_health(monkeypatch):
     assert health_payload["ready"] is True
 
 
-def test_citation_graph_traversal_endpoints_not_implemented(monkeypatch):
+def test_citation_graph_references_endpoint_disabled_fails_closed(monkeypatch):
     monkeypatch.setattr(app_module.settings, "citation_graph_api_enabled", False)
 
     with TestClient(app) as client:
         response = client.get("/citation-graph/papers/paper:example/references")
 
-    assert response.status_code == 404
+    assert response.status_code == 503
+    payload = response.json()
+    assert payload["error_code"] == "graph_runtime_not_enabled"
+    assert "results" not in payload
 
 
 def test_citation_graph_status_enabled_missing_artifacts(tmp_path):

@@ -15,7 +15,11 @@ from radar_core.retrieval.dense_backend import (
     DenseBackendResultError,
     DenseBackendUnavailableError,
 )
-from services.api.citation_graph_service import build_citation_graph_status
+from services.api.citation_graph_service import (
+    DEFAULT_CITATION_GRAPH_CAVEATS,
+    build_citation_graph_status,
+)
+from services.api.citation_graph_store import CitationGraphStore
 from services.api.discovery_service import get_discovery_service
 from services.api.logging import get_logger
 from services.api.runtime import get_runtime
@@ -23,6 +27,7 @@ from services.api.schemas import (
     ApiInfoResponse,
     ArtifactListResponse,
     CitationGraphStatusResponse,
+    CitationGraphTraversalResponse,
     DiscoveryPaperDetailResponse,
     DiscoveryPaperTopicClusterResponse,
     DiscoveryProfilesResponse,
@@ -310,6 +315,125 @@ def runtime_snapshot(
 @app.get("/citation-graph/status", response_model=CitationGraphStatusResponse)
 def citation_graph_status() -> CitationGraphStatusResponse:
     return build_citation_graph_status(settings=settings)
+
+
+def _graph_error_response(
+    *,
+    status_code: int,
+    error_code: str,
+    message: str,
+    details: dict | None = None,
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=status_code,
+        content=ErrorResponse(
+            error_code=error_code,
+            message=message,
+            details=details,
+        ).model_dump(),
+    )
+
+
+def _citation_graph_unavailable_response() -> JSONResponse | None:
+    status = build_citation_graph_status(settings=settings)
+
+    if status.availability.get("available") is True and status.error_code is None:
+        return None
+
+    error_code = status.error_code or "graph_artifacts_invalid"
+    message = status.message or "Citation/reference graph is not available."
+
+    return _graph_error_response(
+        status_code=503,
+        error_code=error_code,
+        message=message,
+        details={
+            "compatibility": status.compatibility,
+            "availability": status.availability,
+        },
+    )
+
+
+def _citation_graph_caveats(*extra: str) -> list[str]:
+    caveats = list(DEFAULT_CITATION_GRAPH_CAVEATS)
+    for item in extra:
+        if item not in caveats:
+            caveats.append(item)
+    return caveats
+
+
+@app.get(
+    "/citation-graph/papers/{canonical_id}/references",
+    response_model=CitationGraphTraversalResponse,
+)
+def citation_graph_paper_references(
+    canonical_id: str,
+    limit: int | None = Query(None, ge=1),
+    offset: int = Query(0, ge=0),
+) -> CitationGraphTraversalResponse | JSONResponse:
+    resolved_limit = (
+        limit
+        if limit is not None
+        else settings.citation_graph_default_limit
+    )
+
+    if resolved_limit > settings.citation_graph_max_limit:
+        return _graph_error_response(
+            status_code=400,
+            error_code="graph_result_limit_exceeded",
+            message=(
+                f"limit={resolved_limit} exceeds "
+                f"citation_graph_max_limit={settings.citation_graph_max_limit}"
+            ),
+            details={
+                "limit": resolved_limit,
+                "max_limit": settings.citation_graph_max_limit,
+            },
+        )
+
+    unavailable_response = _citation_graph_unavailable_response()
+    if unavailable_response is not None:
+        return unavailable_response
+
+    try:
+        store = CitationGraphStore.load(settings.citation_graph_root)
+        result = store.outgoing_references(
+            canonical_id,
+            limit=resolved_limit,
+            offset=offset,
+        )
+    except FileNotFoundError as exc:
+        return _graph_error_response(
+            status_code=503,
+            error_code="graph_artifacts_not_found",
+            message=str(exc),
+            details=None,
+        )
+    except ValueError as exc:
+        return _graph_error_response(
+            status_code=503,
+            error_code="graph_artifacts_invalid",
+            message=str(exc),
+            details=None,
+        )
+
+    if not result.found:
+        return _graph_error_response(
+            status_code=404,
+            error_code="canonical_id_not_found",
+            message=f"Citation graph paper not found: {canonical_id}",
+            details={"canonical_id": canonical_id},
+        )
+
+    return CitationGraphTraversalResponse(
+        graph=store.graph_summary(),
+        query=result.query,
+        items=result.items,
+        page=result.page.to_dict(),
+        caveats=_citation_graph_caveats(
+            "unresolved_references_preserved_as_external_reference_nodes",
+        ),
+    )
 
 
 @app.post("/reload", response_model=ReloadResponse)
