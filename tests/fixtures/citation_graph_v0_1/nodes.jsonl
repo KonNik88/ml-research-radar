@@ -1,0 +1,6 @@
+{"node_id":"paper:source-a","node_type":"paper","canonical_id":"paper:a","title":"Source Paper A","year":2025,"doi":"10.0000/source-a"}
+{"node_id":"paper:target-b","node_type":"paper","canonical_id":"paper:b","title":"Target Paper B","year":2024,"doi":"10.0000/target-b"}
+{"node_id":"paper:source-c","node_type":"paper","canonical_id":"paper:c","title":"Source Paper C","year":2023,"doi":"10.0000/source-c"}
+{"node_id":"external_reference:doi:10.9999/external-one","node_type":"external_reference","reference_key":"doi:10.9999/external-one","reference_type":"doi","normalized_value":"10.9999/external-one","resolution_status":"unresolved"}
+{"node_id":"source_family:openalex","node_type":"source_family","source_family":"openalex"}
+{"node_id":"source_family:semantic_scholar","node_type":"source_family","source_family":"semantic_scholar"}
