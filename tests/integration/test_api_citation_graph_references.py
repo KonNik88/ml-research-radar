@@ -260,6 +260,114 @@ def test_citation_graph_references_limit_above_max_returns_graph_error(tmp_path,
     assert payload["details"] == {"limit": 101, "max_limit": 100}
 
 
+def test_citation_graph_citations_disabled_fails_closed(monkeypatch):
+    monkeypatch.setattr(app_module.settings, "citation_graph_api_enabled", False)
+
+    with TestClient(app) as client:
+        response = client.get("/citation-graph/papers/paper:b/citations")
+
+    assert response.status_code == 503
+    payload = response.json()
+    assert payload["error_code"] == "graph_runtime_not_enabled"
+    assert "results" not in payload
+
+
+def test_citation_graph_citations_returns_resolved_internal_items_only(
+    tmp_path,
+    monkeypatch,
+):
+    graph_root, reports_root = _write_reference_endpoint_fixture(tmp_path)
+    _enable_citation_graph(monkeypatch, graph_root, reports_root)
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/citation-graph/papers/paper:b/citations",
+            params={"limit": 10, "offset": 0},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    assert payload["graph"]["name"] == "citation_reference_graph"
+    assert payload["graph"]["version"] == "v0.1"
+    assert payload["graph"]["metadata_reference_fields_only"] is True
+    assert payload["graph"]["full_text_parsed"] is False
+    assert payload["graph"]["manual_review_required"] is True
+    assert payload["graph"]["manual_review_complete"] is False
+    assert payload["graph"]["publication_ready"] is False
+
+    assert payload["query"] == {
+        "endpoint": "/citation-graph/papers/{canonical_id}/citations",
+        "canonical_id": "paper:b",
+        "limit": 10,
+        "offset": 0,
+        "source_family": None,
+    }
+    assert payload["page"] == {
+        "limit": 10,
+        "offset": 0,
+        "returned": 1,
+        "total_estimate": 1,
+    }
+    assert len(payload["items"]) == 1
+
+    item = payload["items"][0]
+    assert item["edge_type"] == "paper_references_paper"
+    assert item["source_canonical_id"] == "paper:a"
+    assert item["source_title"] == "Example Source Paper"
+    assert item["source_year"] == 2025
+    assert item["target_canonical_id"] == "paper:b"
+    assert item["reference_type"] == "doi"
+    assert item["normalized_reference"] == "10.0000/example-target"
+    assert item["source_families"] == ["openalex"]
+    assert item["evidence_count"] == 1
+    assert "resolved" not in item
+    assert "external_reference_id" not in item
+
+    assert "metadata_reference_fields_only" in payload["caveats"]
+    assert "not_a_complete_citation_index" in payload["caveats"]
+    assert "resolved_internal_references_only" in payload["caveats"]
+    assert (
+        "unresolved_references_preserved_as_external_reference_nodes"
+        not in payload["caveats"]
+    )
+
+
+def test_citation_graph_citations_unknown_canonical_id_returns_404(
+    tmp_path,
+    monkeypatch,
+):
+    graph_root, reports_root = _write_reference_endpoint_fixture(tmp_path)
+    _enable_citation_graph(monkeypatch, graph_root, reports_root)
+
+    with TestClient(app) as client:
+        response = client.get("/citation-graph/papers/paper:missing/citations")
+
+    assert response.status_code == 404
+    payload = response.json()
+    assert payload["error_code"] == "canonical_id_not_found"
+    assert payload["details"] == {"canonical_id": "paper:missing"}
+
+
+def test_citation_graph_citations_limit_above_max_returns_graph_error(
+    tmp_path,
+    monkeypatch,
+):
+    graph_root, reports_root = _write_reference_endpoint_fixture(tmp_path)
+    _enable_citation_graph(monkeypatch, graph_root, reports_root)
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/citation-graph/papers/paper:b/citations",
+            params={"limit": 101},
+        )
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["error_code"] == "graph_result_limit_exceeded"
+    assert payload["details"] == {"limit": 101, "max_limit": 100}
+
+
 def test_citation_graph_references_incompatible_graph_fails_closed(tmp_path, monkeypatch):
     missing_graph_root = tmp_path / "missing_graph"
     missing_reports_root = tmp_path / "missing_reports"
