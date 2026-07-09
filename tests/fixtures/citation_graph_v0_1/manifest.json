@@ -1,0 +1,25 @@
+{
+  "graph_name": "citation_reference_graph",
+  "graph_version": "v0.1",
+  "canonical_doc_count": 3,
+  "retrieval_build_id": "fixture-build",
+  "counts": {
+    "nodes_count": 6,
+    "edges_count": 5,
+    "paper_nodes_count": 3,
+    "external_reference_nodes_count": 1,
+    "source_family_nodes_count": 2,
+    "paper_references_paper_edges_count": 2,
+    "paper_references_external_edges_count": 1,
+    "paper_has_reference_source_family_edges_count": 2
+  },
+  "metadata_reference_fields_only": true,
+  "full_text_parsed": false,
+  "pdfs_parsed": false,
+  "bibliography_sections_parsed": false,
+  "manual_review_required": true,
+  "manual_review_complete": false,
+  "publication_ready": false,
+  "may_be_used_as_reconcile_input": false,
+  "not_a_complete_citation_index": true
+}
