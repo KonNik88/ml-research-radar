@@ -61,7 +61,9 @@ Graph API Response Fixture Design v0.1 — 2026-07 completed design-only respons
 Graph Runtime Stale-Version Compatibility Design v0.1 — 2026-07 completed design-only compatibility contract
 Citation / Reference Graph API Implementation Plan v0.1 — 2026-07 completed implementation-plan-only checkpoint
 Citation Graph API Disabled Status Endpoint v0.1 — 2026-07 completed status-only disabled-by-default API slice
-Citation Graph API Docs Sync v0.1 — 2026-07 active docs synchronization slice
+Citation Graph API Docs Sync v0.1 — 2026-07 completed docs synchronization slice after disabled status endpoint
+Citation Graph Status Compatibility Probe v0.1 — 2026-07 completed read-only status compatibility probe slice
+Citation Graph Status Compatibility Docs Sync v0.1 — 2026-07 active docs synchronization slice
 ```
 
 Current healthy baseline:
@@ -117,6 +119,7 @@ citation_reference_graph_api_response_fixtures = accepted_design_only
 citation_reference_graph_runtime_compatibility_design = accepted_design_only
 citation_reference_graph_api_implementation_plan = accepted_plan_only
 citation_graph_api_disabled_status_endpoint = implemented_disabled_by_default_status_only
+citation_graph_status_compatibility_probe = implemented_read_only_status_probe
 citation_graph_api_traversal_endpoints = not_implemented
 citation_graph_runtime_loader = not_implemented
 paper_artifact_graph_dod_gate = not required yet
@@ -313,7 +316,7 @@ qdrant collection_exists = true
 qdrant points_count = 60954
 qdrant corpus_doc_count = 60954
 test_api_smoke.py = 7 passed
-citation graph status endpoint = 3 passed, disabled-by-default/status-only
+citation graph status endpoint = 6 passed, disabled-by-default/status-compatibility-only
 experimental qdrant API = status_code 200, mode dense_qdrant
 streamlit UI required_failed_count = 0
 qdrant_runtime_status_ui_snippets_present = true
@@ -352,8 +355,9 @@ Expected citation graph status endpoint interpretation:
 
 ```text
 endpoint is reachable
-status-only surface
+status/compatibility-only surface
 disabled by default unless ML_RADAR_CITATION_GRAPH_API_ENABLED is explicitly enabled
+when enabled, probes local graph manifests/reports read-only
 no graph traversal endpoints
 no graph runtime loader
 manual_review_required = true
@@ -1502,10 +1506,10 @@ Generated reports are not committed.
 
 
 
-# F. Citation Graph API disabled status endpoint validation
+# F. Citation Graph status / compatibility endpoint validation
 
-Use this when checking the first narrow Citation / Reference Graph API code
-slice.
+Use this when checking the narrow Citation / Reference Graph API status surface
+and its read-only compatibility probe.
 
 Current endpoint:
 
@@ -1517,6 +1521,8 @@ Current implementation state:
 
 ```text
 status_only = true
+compatibility_probe = implemented
+read_only = true
 disabled_by_default = true
 feature_flag = ML_RADAR_CITATION_GRAPH_API_ENABLED
 graph_runtime_loader = not implemented
@@ -1528,6 +1534,38 @@ publication_ready = false
 manual_review_required = true
 ```
 
+Default disabled behavior:
+
+```text
+ML_RADAR_CITATION_GRAPH_API_ENABLED=false
+runtime_enabled=false
+available=false
+error_code=graph_runtime_not_enabled
+```
+
+Enabled local-inspection behavior:
+
+```text
+ML_RADAR_CITATION_GRAPH_API_ENABLED=true
+GET /citation-graph/status
+→ read-only probe of configured graph root and validation reports
+→ available=true/false depending on compatibility
+→ no traversal results returned
+```
+
+Common compatibility error codes:
+
+```text
+graph_runtime_not_enabled
+graph_artifacts_not_found
+graph_artifacts_invalid
+graph_artifacts_unsafe
+graph_version_unsupported
+graph_canonical_baseline_mismatch
+graph_package_stale
+graph_manual_review_incomplete
+```
+
 Recommended validation sequence:
 
 ```bat
@@ -1536,54 +1574,48 @@ python -m py_compile services/api/settings.py services/api/schemas.py services/a
 set ML_RADAR_SEARCH_BACKEND=file
 python -m pytest tests/integration/test_api_citation_graph_status.py -q
 python -m pytest tests/integration/test_api_smoke.py -q
-python -m pytest tests/integration/test_api_reload.py -q
-python -m pytest tests/integration/test_api_search_filters.py -q
-python -m pytest tests/integration/test_api_errors.py -q
 
 set ML_RADAR_SEARCH_BACKEND=db
-python -m pytest tests/integration/test_api_db_smoke.py -q
-python -m pytest tests/integration/test_api_search_db_backend.py -q
 python -m pytest tests/integration/test_api_citation_graph_status.py -q
+python -m pytest tests/integration/test_api_db_smoke.py -q
 ```
 
-Accepted local result for the completed slice:
+Accepted local result for the compatibility-probe slice:
 
 ```text
-test_api_citation_graph_status.py = 3 passed
-test_api_smoke.py = 7 passed
-test_api_reload.py = 4 passed
-test_api_search_filters.py = 7 passed
-test_api_errors.py = 4 passed
-test_api_db_smoke.py = 7 passed
-test_api_search_db_backend.py = 2 passed
+py_compile = passed
+test_api_citation_graph_status.py = 6 passed
+ML_RADAR_SEARCH_BACKEND=file test_api_smoke.py = 7 passed
+git diff --check = passed, CRLF warnings only on Windows
 ```
 
 Boundary:
 
 ```text
-The status endpoint is read-only.
-It must not load graph nodes or edges.
-It must not expose outgoing references or incoming citations.
-It must not mutate canonical truth.
-It must not mutate graph output/package/reports.
-It must not mutate Postgres.
-It must not change /search behavior.
-It must not change Discovery API behavior.
-It must not change Qdrant behavior.
-It must not change ranking behavior.
-It must not create Streamlit graph UI.
-It must not implement GraphRAG.
-It must not publish anything.
+The status endpoint and compatibility probe are read-only.
+They must not load graph nodes or edges as a traversal runtime.
+They must not expose outgoing references or incoming citations.
+They must not mutate canonical truth.
+They must not mutate graph output/package/reports.
+They must not mutate Postgres.
+They must not change /search behavior.
+They must not change Discovery API behavior.
+They must not change Qdrant behavior.
+They must not change ranking behavior.
+They must not create Streamlit graph UI.
+They must not implement GraphRAG.
+They must not publish anything.
 ```
 
 Recommended next slice:
 
 ```text
-Citation Graph Status Compatibility Probe v0.1
+Citation Graph Status Compatibility Docs Sync v0.1
 ```
 
-The next slice should still remain status/compatibility-only and must not add
-traversal endpoints.
+Later code work should remain fixture/store-hardening first and must not jump to
+broad traversal endpoints without preserving the compatibility and caveat
+contract.
 
 ---
 

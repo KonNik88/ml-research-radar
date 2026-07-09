@@ -19,7 +19,7 @@ canonical JSONL truth
 → ranking / paper detail / similar papers
 → topic clusters / projection
 → local graph evidence/review artifacts
-→ disabled-by-default Citation Graph status surface
+→ disabled-by-default Citation Graph status/compatibility surface
 → Discovery API
 → Streamlit Discovery UI
 ```
@@ -35,7 +35,7 @@ artifact DB = derived evidence/materialization layer
 paper_features / ranking / detail / similar / topic clusters = derived discovery layer
 Discovery API = product/discovery API over derived layers
 Streamlit UI = thin API client
-Citation / Reference Graph status API = disabled-by-default status-only safety surface
+Citation / Reference Graph status API = disabled-by-default status/compatibility safety surface
 Citation / Reference Graph traversal/runtime API = not implemented
 ```
 
@@ -48,7 +48,8 @@ Current checkpoint:
 ```text
 Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1
 Citation Graph API Disabled Status Endpoint v0.1
-API documentation sync after disabled status endpoint
+Citation Graph Status Compatibility Probe v0.1
+API documentation sync after status compatibility probe
 ```
 
 Current canonical baseline:
@@ -541,7 +542,7 @@ last_reload_at
 
 ## Current implementation status
 
-The API currently exposes only the first safe citation/reference graph status
+The API currently exposes a deliberately narrow citation/reference graph status
 surface:
 
 ```text
@@ -553,6 +554,8 @@ Current v0.1 semantics:
 ```text
 endpoint_exists = true
 status_only = true
+compatibility_probe = implemented
+read_only = true
 disabled_by_default = true
 feature_flag = ML_RADAR_CITATION_GRAPH_API_ENABLED
 graph_runtime_loader = not implemented
@@ -564,36 +567,157 @@ publication_ready = false
 manual_review_required = true
 ```
 
-This endpoint is intentionally a safety/status surface, not a graph query API.
-It must not be interpreted as publication approval, graph runtime promotion, or
-permission to expose traversal data.
+This endpoint is a safety/status/compatibility surface, not a graph traversal
+API. It must not be interpreted as publication approval, graph runtime
+promotion, or permission to expose reference/citation traversal data.
 
-## `GET /citation-graph/status`
+The first code slice added the disabled-by-default endpoint. The second code
+slice added a read-only compatibility probe for local graph artifacts and
+validation reports. The endpoint still does not load graph nodes/edges as a
+runtime graph store and still does not expose any traversal endpoint.
 
-Returns the current citation/reference graph API status.
+## Configuration
 
-Current expected behavior:
-
-- responds without loading graph nodes or edges;
-- works independently of Qdrant;
-- does not mutate canonical documents;
-- does not mutate graph outputs;
-- does not mutate Postgres;
-- does not change `/search`;
-- does not change Discovery API behavior;
-- reports that the graph API is disabled by default unless explicitly enabled;
-- preserves manual-review and publication caveats.
-
-Current default configuration:
+The endpoint is controlled by:
 
 ```bat
 set ML_RADAR_CITATION_GRAPH_API_ENABLED=false
 ```
 
+Default behavior:
+
+```text
+ML_RADAR_CITATION_GRAPH_API_ENABLED=false
+→ runtime_enabled=false
+→ available=false
+→ error_code=graph_runtime_not_enabled
+```
+
+Explicit local-inspection behavior:
+
+```bat
+set ML_RADAR_CITATION_GRAPH_API_ENABLED=true
+```
+
+When enabled, the endpoint performs a read-only compatibility probe over the
+configured graph root and validation reports. It reports whether local graph
+evidence is structurally safe to inspect, but it does not serve traversal data.
+
+Relevant settings:
+
+```text
+ML_RADAR_CITATION_GRAPH_API_ENABLED
+ML_RADAR_CITATION_GRAPH_EXPOSURE_MODE
+ML_RADAR_CITATION_GRAPH_ROOT
+ML_RADAR_CITATION_GRAPH_REPORTS_ROOT
+ML_RADAR_CITATION_GRAPH_VERSION
+ML_RADAR_CITATION_GRAPH_DEFAULT_LIMIT
+ML_RADAR_CITATION_GRAPH_MAX_LIMIT
+ML_RADAR_CITATION_GRAPH_REQUIRE_REVIEW_FOR_PUBLIC
+```
+
+## `GET /citation-graph/status`
+
+Returns the current citation/reference graph API status and compatibility
+summary.
+
+Current expected behavior:
+
+- responds without serving graph traversal results;
+- when disabled, returns disabled/unavailable status;
+- when enabled, probes local graph artifact/report compatibility read-only;
+- does not mutate canonical documents;
+- does not mutate graph outputs, packages, reports, or latest pointers;
+- does not mutate Postgres;
+- does not change `/search`;
+- does not change Discovery API behavior;
+- works independently of Qdrant;
+- preserves manual-review and publication caveats;
+- keeps traversal endpoints closed.
+
 The status endpoint may be used by tests, operators, and future UI/runtime work
 to verify that the graph API surface is present while traversal remains closed.
 
-Current non-goals:
+## Successful local compatibility interpretation
+
+A compatible local-inspection status means:
+
+```text
+runtime_enabled = true
+available = true
+safe_to_serve_locally = true
+compatibility_probe_implemented = true
+runtime_loader_implemented = false
+traversal_endpoints_implemented = false
+manual_review_required = true
+manual_review_complete = false
+publication_ready = false
+```
+
+This means local graph evidence can be inspected through status metadata only.
+It does not mean public exposure is approved.
+
+Manual-review semantics remain:
+
+```text
+manual_review_required = true
+manual_review_complete = false
+publication_ready = false
+```
+
+`manual_review_complete=false` does not make local status compatibility fail.
+It remains a caveat and publication blocker.
+
+## Compatibility failure states
+
+The status endpoint should fail closed through the response payload when local
+graph evidence is missing, unsafe, stale, or incompatible.
+
+Common graph status error codes:
+
+```text
+graph_runtime_not_enabled
+graph_artifacts_not_found
+graph_artifacts_invalid
+graph_artifacts_unsafe
+graph_version_unsupported
+graph_canonical_baseline_mismatch
+graph_package_stale
+graph_manual_review_incomplete
+```
+
+Representative interpretations:
+
+```text
+feature flag disabled
+→ graph_runtime_not_enabled
+
+required graph root / manifest / report missing
+→ graph_artifacts_not_found
+
+invalid JSON, malformed counters, or report not ok
+→ graph_artifacts_invalid
+
+unsafe manifest/report flag
+→ graph_artifacts_unsafe
+
+unsupported graph version
+→ graph_version_unsupported
+
+canonical corpus count mismatch
+→ graph_canonical_baseline_mismatch
+
+package/report staleness or checksum mismatch
+→ graph_package_stale
+
+public exposure requested while manual review is incomplete
+→ graph_manual_review_incomplete
+```
+
+These graph status errors are endpoint-local. They must not make `/health`
+unhealthy when the normal file or DB runtime is otherwise ready.
+
+## Current non-goals
 
 ```text
 no outgoing-reference endpoint
@@ -602,7 +726,8 @@ no external-reference lookup endpoint
 no source-family graph diagnostics endpoint
 no top referenced papers endpoint
 no top external references endpoint
-no graph file loader in this slice
+no graph traversal query service
+no runtime graph store over nodes.jsonl / edges.jsonl
 no graph DB serving layer
 no Streamlit graph surface
 no GraphRAG
@@ -610,7 +735,7 @@ no Qdrant dependency
 no public graph data exposure
 ```
 
-Implementation files introduced by the disabled status slice:
+Implementation files touched by the status and compatibility-probe slices:
 
 ```text
 services/api/citation_graph_service.py
@@ -634,44 +759,29 @@ python -m pytest tests/integration/test_api_citation_graph_status.py -q
 python -m pytest tests/integration/test_api_db_smoke.py -q
 ```
 
-Extended regression used for the accepted implementation slice:
-
-```bat
-set ML_RADAR_SEARCH_BACKEND=file
-python -m pytest tests/integration/test_api_reload.py -q
-python -m pytest tests/integration/test_api_search_filters.py -q
-python -m pytest tests/integration/test_api_errors.py -q
-
-set ML_RADAR_SEARCH_BACKEND=db
-python -m pytest tests/integration/test_api_search_db_backend.py -q
-```
-
-Accepted local validation result:
+Accepted local validation for the compatibility-probe code slice:
 
 ```text
-test_api_citation_graph_status.py = 3 passed
-test_api_smoke.py = 7 passed
-test_api_reload.py = 4 passed
-test_api_search_filters.py = 7 passed
-test_api_errors.py = 4 passed
-test_api_db_smoke.py = 7 passed
-test_api_search_db_backend.py = 2 passed
+py_compile = passed
+test_api_citation_graph_status.py = 6 passed
+test_api_smoke.py with ML_RADAR_SEARCH_BACKEND=file = 7 passed
+git diff --check = passed, CRLF warnings only on Windows
 ```
 
 ## Boundary
 
-The disabled status endpoint does not make the local Citation / Reference Graph
-a runtime truth source. The graph remains a local derived evidence/review layer:
+The status/compatibility endpoint does not make the local Citation / Reference
+Graph a runtime truth source. The graph remains a local derived evidence/review
+layer:
 
 ```text
 canonical_documents.jsonl = paper truth
 citation/reference graph output = derived local evidence
-status endpoint = API safety/status surface only
+status endpoint = API safety/status/compatibility surface only
 traversal endpoints = not implemented
 manual_review_complete = false
 publication_ready = false
 ```
-
 
 # Search API
 

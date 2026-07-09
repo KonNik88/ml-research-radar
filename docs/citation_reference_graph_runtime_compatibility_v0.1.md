@@ -27,14 +27,33 @@ manual_review_complete = false
 publication_ready = false
 ```
 
+
+## Implementation progress note
+
+This document remains a compatibility design contract. Since it was accepted, the
+project has implemented the compatibility checks only through the
+`GET /citation-graph/status` status surface. The implementation remains
+read-only and status-only:
+
+```text
+Citation Graph Status Compatibility Probe v0.1 = implemented
+traversal endpoints = not implemented
+runtime graph query service = not implemented
+DB materialization = not implemented
+Streamlit graph UI = not implemented
+GraphRAG = not implemented
+```
+
 ## Purpose
 
 This document defines compatibility checks and stale-version failure semantics
 for a possible future Citation / Reference Graph runtime.
 
-It is a design-hardening slice only. It does not implement a runtime graph
-loader, API endpoint, Postgres materialization, Streamlit UI, GraphRAG, graph DB
-runtime, package rebuild, graph rebuild, or publication step.
+It is a design-hardening contract. The later status compatibility probe implements
+only the read-only status-check portion of this contract; it does not implement a
+runtime graph loader, traversal API endpoint, Postgres materialization, Streamlit
+UI, GraphRAG, graph DB runtime, package rebuild, graph rebuild, or publication
+step.
 
 The goal is to decide how future code will verify that local graph artifacts are
 safe to read before serving graph evidence through any API surface.
@@ -437,7 +456,7 @@ compatibility checks do not write graph outputs or reports at request time
 
 ## Implementation gates
 
-Endpoint implementation must not start until these design gates are accepted:
+Traversal/runtime endpoint implementation must not start until these design gates are accepted and the status compatibility probe remains green:
 
 ```text
 Citation / Reference Graph API Design v0.1
@@ -446,5 +465,5 @@ Citation / Reference Graph Runtime Compatibility Design v0.1
 Graph API Implementation Plan v0.1
 ```
 
-The compatibility design does not approve endpoint implementation by itself.
+The compatibility design and status probe do not approve traversal endpoint implementation by themselves.
 

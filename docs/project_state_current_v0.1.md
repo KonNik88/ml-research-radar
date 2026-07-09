@@ -280,6 +280,7 @@ Current status endpoint semantics:
 status_only = true
 disabled_by_default = true
 feature_flag = ML_RADAR_CITATION_GRAPH_API_ENABLED
+compatibility_probe = implemented
 graph_runtime_loader = not implemented
 graph_traversal_endpoints = not implemented
 graph_db_materialization = not implemented
@@ -292,8 +293,8 @@ manual_review_required = true
 Boundary:
 
 ```text
-The status endpoint is an API safety/status surface only.
-It does not load graph nodes or edges.
+The status endpoint is an API safety/status/compatibility surface only.
+When enabled, it may read local graph manifests/reports for compatibility status, but it does not load graph nodes or edges as a traversal runtime.
 It does not expose outgoing references, incoming citations, external-reference lookup, or top-reference queries.
 It does not change /search, Discovery API, DB, Qdrant, ranking, canonical truth, graph output, package output, or publication state.
 ```
@@ -658,13 +659,18 @@ Recently completed safe slices after this checkpoint baseline:
    - no traversal endpoints;
    - no graph runtime loader.
 
-Recommended next slices:
-
-1. **Citation Graph Status Compatibility Probe v0.1**
+7. **Citation Graph Status Compatibility Probe v0.1**
+   - second code slice;
    - read-only status compatibility checks over existing graph/package/report state;
    - no traversal endpoints;
    - no graph DB materialization;
    - no Streamlit graph UI.
+
+Recommended next slices:
+
+1. **Citation Graph Status Compatibility Docs Sync v0.1**
+   - align shared docs with implemented compatibility-probe behavior;
+   - preserve no-traversal/no-runtime-loader boundary.
 
 2. **Regression / DoD / docs hardening**
    - optional gates;
@@ -698,7 +704,7 @@ Do not do these without a separate accepted design:
 ## 9. Suggested immediate plan
 
 Current dialogue should close with a small documentation sync slice after the
-first disabled-by-default citation graph status endpoint.
+implemented read-only citation graph status compatibility probe.
 
 Minimal implementation:
 
@@ -707,6 +713,9 @@ docs/api_reference.md
 docs/roadmap.md
 docs/project_state_current_v0.1.md
 docs/refresh_contract_v1.md
+docs/citation_reference_graph_api_implementation_plan_v0.1.md
+docs/citation_reference_graph_api_response_fixtures_v0.1.md
+docs/citation_reference_graph_runtime_compatibility_v0.1.md
 ```
 
 Suggested validation:
