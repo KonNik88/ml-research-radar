@@ -543,6 +543,8 @@ class CitationGraphStatusGraph(BaseModel):
     runtime_enabled: bool = False
     available: bool = False
     exposure_mode: str = "local_inspection"
+    graph_root: str | None = None
+    reports_root: str | None = None
 
     metadata_reference_fields_only: bool = True
     full_text_parsed: bool = False
@@ -563,5 +565,9 @@ class CitationGraphStatusResponse(BaseModel):
     page: dict[str, Any] = Field(default_factory=dict)
     caveats: list[str] = Field(default_factory=list)
     availability: dict[str, Any] = Field(default_factory=dict)
+    artifacts: dict[str, Any] = Field(default_factory=dict)
+    reports: dict[str, Any] = Field(default_factory=dict)
+    compatibility: dict[str, Any] = Field(default_factory=dict)
+    counts: dict[str, Any] = Field(default_factory=dict)
     error_code: str | None = None
     message: str | None = None
