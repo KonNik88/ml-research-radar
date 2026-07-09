@@ -436,6 +436,80 @@ def citation_graph_paper_references(
     )
 
 
+@app.get(
+    "/citation-graph/papers/{canonical_id}/citations",
+    response_model=CitationGraphTraversalResponse,
+)
+def citation_graph_paper_citations(
+    canonical_id: str,
+    limit: int | None = Query(None, ge=1),
+    offset: int = Query(0, ge=0),
+) -> CitationGraphTraversalResponse | JSONResponse:
+    resolved_limit = (
+        limit
+        if limit is not None
+        else settings.citation_graph_default_limit
+    )
+
+    if resolved_limit > settings.citation_graph_max_limit:
+        return _graph_error_response(
+            status_code=400,
+            error_code="graph_result_limit_exceeded",
+            message=(
+                f"limit={resolved_limit} exceeds "
+                f"citation_graph_max_limit={settings.citation_graph_max_limit}"
+            ),
+            details={
+                "limit": resolved_limit,
+                "max_limit": settings.citation_graph_max_limit,
+            },
+        )
+
+    unavailable_response = _citation_graph_unavailable_response()
+    if unavailable_response is not None:
+        return unavailable_response
+
+    try:
+        store = CitationGraphStore.load(settings.citation_graph_root)
+        result = store.incoming_citations(
+            canonical_id,
+            limit=resolved_limit,
+            offset=offset,
+        )
+    except FileNotFoundError as exc:
+        return _graph_error_response(
+            status_code=503,
+            error_code="graph_artifacts_not_found",
+            message=str(exc),
+            details=None,
+        )
+    except ValueError as exc:
+        return _graph_error_response(
+            status_code=503,
+            error_code="graph_artifacts_invalid",
+            message=str(exc),
+            details=None,
+        )
+
+    if not result.found:
+        return _graph_error_response(
+            status_code=404,
+            error_code="canonical_id_not_found",
+            message=f"Citation graph paper not found: {canonical_id}",
+            details={"canonical_id": canonical_id},
+        )
+
+    return CitationGraphTraversalResponse(
+        graph=store.graph_summary(),
+        query=result.query,
+        items=result.items,
+        page=result.page.to_dict(),
+        caveats=_citation_graph_caveats(
+            "resolved_internal_references_only",
+        ),
+    )
+
+
 @app.post("/reload", response_model=ReloadResponse)
 def reload_runtime() -> ReloadResponse:
     if not settings.enable_reload_endpoint:
