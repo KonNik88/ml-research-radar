@@ -33,13 +33,14 @@ publication_ready = false
 ## Implementation progress after this plan
 
 This plan document remains implementation-plan-only, but later code slices have
-now implemented the first four narrow steps from the rollout path:
+now implemented the first five narrow steps from the rollout path:
 
 ```text
 Citation Graph API Disabled Status Endpoint v0.1 = implemented
 Citation Graph Status Compatibility Probe v0.1 = implemented
 Citation Graph Fixture Store v0.1 = implemented_internal
 Citation Graph Outgoing References Endpoint v0.1 = implemented
+Citation Graph Incoming Citations Endpoint v0.1 = implemented
 ```
 
 Current implemented public API surface is limited to:
@@ -47,15 +48,16 @@ Current implemented public API surface is limited to:
 ```text
 GET /citation-graph/status
 GET /citation-graph/papers/{canonical_id}/references
+GET /citation-graph/papers/{canonical_id}/citations
 ```
 
 An internal fixture-backed `CitationGraphStore` exists for query-semantics
-hardening and now backs the first narrow outgoing-references route.
+hardening and now backs the first narrow outgoing-references route and second narrow incoming-citations route.
 
 The implemented compatibility probe is read-only. It checks local graph
 artifacts/reports for status compatibility when explicitly enabled. The fixture
-store and outgoing references endpoint are also read-only and feature/compatibility
-gated. These slices do not implement incoming citations, external-reference
+store, outgoing references endpoint, and incoming citations endpoint are also read-only and feature/compatibility
+gated. These slices do not implement external-reference
 lookup, source-family/top-reference endpoints, a full runtime graph loader, DB
 materialization, Streamlit UI, GraphRAG, publication, or canonical/retrieval
 mutation.
@@ -454,8 +456,9 @@ Recommended future implementation sequence:
 1. Add config/settings and disabled-by-default status endpoint. **Done.**
 2. Add compatibility checker/status probe with fixture tests. **Done for status only.**
 3. Add read-only file-backed graph store for tiny fixture graph. **Done for internal fixture store.**
-4. Add one narrow references endpoint on the fixture-backed store. **Done for outgoing references only.**
-5. Add incoming citations and external-reference endpoints in later slices, one endpoint at a time.
+4. Add one narrow references endpoint on the fixture-backed store. **Done for outgoing references.**
+5. Add one narrow incoming citations endpoint on the fixture-backed store. **Done for incoming resolved internal citations.**
+6. Add external-reference/source-family/top-reference endpoints in later slices, one endpoint at a time.
 6. Add source-family and top-reference endpoints only after the paper reference/citation endpoints are stable.
 7. Add integration tests against accepted local graph artifacts only after the
    fixture-backed behavior is stable.
@@ -499,11 +502,11 @@ no retrieval rebuild
 no ranking changes
 ```
 
-## Current next step after outgoing references endpoint
+## Current next step after incoming citations endpoint
 
 After the disabled status endpoint, read-only compatibility probe, internal
-fixture store, and outgoing references endpoint have been implemented, the next
-safe slice is documentation synchronization.
+fixture store, outgoing references endpoint, and incoming citations endpoint have
+been implemented, the next safe slice is documentation synchronization.
 
 Current implemented status:
 
@@ -512,9 +515,10 @@ Citation Graph API Disabled Status Endpoint v0.1 = done
 Citation Graph Status Compatibility Probe v0.1 = done
 Citation Graph Fixture Store v0.1 = done_internal
 Citation Graph Outgoing References Endpoint v0.1 = done
+Citation Graph Incoming Citations Endpoint v0.1 = done
 GET /citation-graph/status = implemented
 GET /citation-graph/papers/{canonical_id}/references = implemented
-GET /citation-graph/papers/{canonical_id}/citations = not implemented
+GET /citation-graph/papers/{canonical_id}/citations = implemented
 GET /citation-graph/external-references/{reference_id}/papers = not implemented
 GET /citation-graph/source-families = not implemented
 GET /citation-graph/top-referenced-papers = not implemented
@@ -525,9 +529,12 @@ full graph runtime query service = not implemented
 Recommended next code direction after docs sync:
 
 ```text
-Citation Graph Incoming Citations Endpoint v0.1
+Citation Graph External Reference Papers Endpoint v0.1
 ```
 
 The next code slice should add at most one endpoint and must preserve feature
 flagging, compatibility checks, pagination bounds, graph caveats, and fail-closed
 error mapping.
+
+Manual live API validation for the incoming-citations endpoint confirmed status,
+outgoing references, incoming citations, unknown-id handling, and limit guards.

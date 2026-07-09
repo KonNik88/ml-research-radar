@@ -29,19 +29,20 @@ publication_ready = false
 ## Implementation progress note
 
 This fixture document remains a design/contract document. Since it was accepted,
-the project has implemented the status surface, an internal fixture store, and the first narrow outgoing-references endpoint:
+the project has implemented the status surface, an internal fixture store, and the first narrow outgoing-references endpoint and second narrow incoming-citations endpoint:
 
 ```text
 GET /citation-graph/status = implemented
 read-only compatibility probe = implemented
 internal CitationGraphStore fixture query core = implemented
 GET /citation-graph/papers/{canonical_id}/references = implemented
-other traversal endpoints = not implemented
+external/source-family/top traversal endpoints = not implemented
 ```
 
-The outgoing references fixture below is now implemented as the first public
-read-only traversal endpoint. The remaining traversal fixtures remain future
-endpoint contracts. The internal fixture store exercises their query semantics,
+The outgoing references fixture below is implemented as the first public
+read-only traversal endpoint. The incoming citations fixture is implemented as
+the second public read-only traversal endpoint. The remaining traversal fixtures
+remain future endpoint contracts. The internal fixture store exercises their query semantics,
 but they must not be read as implemented public API behavior.
 
 ## Purpose
@@ -312,7 +313,7 @@ Expected successful response:
 
 ## Incoming citations fixture
 
-Candidate endpoint, not implemented yet:
+Implemented endpoint:
 
 ```text
 GET /citation-graph/papers/{canonical_id}/citations
@@ -374,6 +375,18 @@ Expected successful response:
 Incoming citations must use only resolved `paper_references_paper` edges.
 Unresolved external references must not be counted as incoming canonical-paper
 citations.
+
+## Manual live API validation for implemented fixtures
+
+```text
+ML_RADAR_CITATION_GRAPH_API_ENABLED=true
+GET /citation-graph/status -> available=true, safe_to_serve_locally=true, compatibility.ok=true, error_code=null
+GET /citation-graph/papers/0bad150e917742a07cf30555c15a5ee6/references?limit=5&offset=0 -> returned=5, total_estimate=81
+GET /citation-graph/papers/11c222e89f686cb704be7834c50dd3aa/citations?limit=5&offset=0 -> returned=5, total_estimate=23, only paper_references_paper items
+GET /citation-graph/papers/not-a-real-canonical-id/references?limit=5 -> 404 canonical_id_not_found
+GET /citation-graph/papers/not-a-real-canonical-id/citations?limit=5 -> 404 canonical_id_not_found
+limit=101 for references/citations -> 400 graph_result_limit_exceeded
+```
 
 ## External reference linked-papers fixture
 
