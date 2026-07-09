@@ -281,6 +281,7 @@ status_only = true
 disabled_by_default = true
 feature_flag = ML_RADAR_CITATION_GRAPH_API_ENABLED
 compatibility_probe = implemented
+fixture_store = implemented_internal
 graph_runtime_loader = not implemented
 graph_traversal_endpoints = not implemented
 graph_db_materialization = not implemented
@@ -296,7 +297,37 @@ Boundary:
 The status endpoint is an API safety/status/compatibility surface only.
 When enabled, it may read local graph manifests/reports for compatibility status, but it does not load graph nodes or edges as a traversal runtime.
 It does not expose outgoing references, incoming citations, external-reference lookup, or top-reference queries.
+An internal fixture-backed store exists for query-semantics hardening, but it is not wired to public API routes.
 It does not change /search, Discovery API, DB, Qdrant, ranking, canonical truth, graph output, package output, or publication state.
+```
+
+
+Internal citation/reference graph fixture store:
+
+```text
+services/api/citation_graph_store.py = implemented
+fixture graph = tests/fixtures/citation_graph_v0_1/
+public traversal routes = not implemented
+full graph runtime loader = not implemented
+```
+
+Current store semantics:
+
+```text
+outgoing references include resolved and external references
+incoming citations include only resolved paper_references_paper edges
+external_reference lookup returns referencing papers
+source-family and top-reference summaries are bounded
+unknown ids return found=false
+```
+
+Boundary:
+
+```text
+fixture store is internal and read-only
+fixture store is not a public API
+fixture store does not change status endpoint behavior
+fixture store does not change /search, Discovery API, DB, Qdrant, ranking, canonical truth, graph output, package output, or publication state
 ```
 
 ## 4.4 Artifact evidence plane
@@ -658,6 +689,18 @@ Recently completed safe slices after this checkpoint baseline:
    - disabled by default;
    - no traversal endpoints;
    - no graph runtime loader.
+
+7. **Citation Graph Status Compatibility Probe v0.1**
+   - second narrow code slice;
+   - read-only compatibility/status probe through `/citation-graph/status`;
+   - no traversal endpoints;
+   - no graph runtime loader.
+
+8. **Citation Graph Fixture Store v0.1**
+   - internal read-only fixture-backed query core;
+   - outgoing/incoming/external/source-family/top-reference semantics covered by fixture tests;
+   - not wired to public API routes;
+   - no full graph runtime loader.
 
 7. **Citation Graph Status Compatibility Probe v0.1**
    - second code slice;

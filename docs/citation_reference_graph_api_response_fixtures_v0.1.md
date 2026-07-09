@@ -29,16 +29,18 @@ publication_ready = false
 ## Implementation progress note
 
 This fixture document remains a design/contract document. Since it was accepted,
-the project has implemented only the status surface:
+the project has implemented the status surface and an internal fixture store:
 
 ```text
 GET /citation-graph/status = implemented
 read-only compatibility probe = implemented
+internal CitationGraphStore fixture query core = implemented
 traversal endpoints = not implemented
 ```
 
-The traversal fixtures below remain future endpoint contracts. They must not be
-read as implemented API behavior.
+The traversal fixtures below remain future endpoint contracts. The internal
+fixture store exercises their query semantics, but they must not be read as
+implemented public API behavior.
 
 ## Purpose
 
@@ -121,6 +123,41 @@ All successful response fixtures embed this graph metadata shape.
   "may_be_used_as_reconcile_input": false,
   "not_a_complete_citation_index": true
 }
+```
+
+
+## Internal fixture store coverage
+
+The fixture-backed store is not a public API endpoint, but it intentionally
+covers the core query semantics that future endpoint responses must preserve:
+
+```text
+outgoing references include resolved and external references
+incoming citations include only resolved paper_references_paper edges
+external reference lookup returns referencing papers
+source-family diagnostics are bounded and caveated
+top referenced papers are not global citation metrics
+top external references remain unresolved/manual-review candidates
+unknown ids return found=false at the store layer
+limit/offset validation is enforced
+```
+
+Implemented internal files:
+
+```text
+services/api/citation_graph_store.py
+tests/fixtures/citation_graph_v0_1/
+tests/smoke/test_citation_graph_fixture_store.py
+```
+
+Boundary:
+
+```text
+fixture store is internal
+fixture store is read-only
+fixture store does not implement public routes
+fixture store does not load the full graph as API runtime
+fixture store does not publish or mutate anything
 ```
 
 ## Status fixture

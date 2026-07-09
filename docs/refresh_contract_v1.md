@@ -63,7 +63,9 @@ Citation / Reference Graph API Implementation Plan v0.1 — 2026-07 completed im
 Citation Graph API Disabled Status Endpoint v0.1 — 2026-07 completed status-only disabled-by-default API slice
 Citation Graph API Docs Sync v0.1 — 2026-07 completed docs synchronization slice after disabled status endpoint
 Citation Graph Status Compatibility Probe v0.1 — 2026-07 completed read-only status compatibility probe slice
-Citation Graph Status Compatibility Docs Sync v0.1 — 2026-07 active docs synchronization slice
+Citation Graph Status Compatibility Docs Sync v0.1 — 2026-07 completed docs synchronization slice
+Citation Graph Fixture Store v0.1 — 2026-07 completed internal read-only fixture-backed query-core slice
+Citation Graph Fixture Store Docs Sync v0.1 — 2026-07 active docs synchronization slice
 ```
 
 Current healthy baseline:
@@ -120,6 +122,7 @@ citation_reference_graph_runtime_compatibility_design = accepted_design_only
 citation_reference_graph_api_implementation_plan = accepted_plan_only
 citation_graph_api_disabled_status_endpoint = implemented_disabled_by_default_status_only
 citation_graph_status_compatibility_probe = implemented_read_only_status_probe
+citation_graph_fixture_store = implemented_internal_read_only_fixture_store
 citation_graph_api_traversal_endpoints = not_implemented
 citation_graph_runtime_loader = not_implemented
 paper_artifact_graph_dod_gate = not required yet
@@ -305,6 +308,7 @@ python -m scripts.validation.check_qdrant_collection --strict
 set ML_RADAR_SEARCH_BACKEND=file
 python -m pytest tests/integration/test_api_smoke.py -q
 python -m pytest tests/integration/test_api_citation_graph_status.py -q
+python -m pytest tests/smoke/test_citation_graph_fixture_store.py -q
 python -m scripts.validation.check_qdrant_api_experimental --strict
 python -m scripts.validation.check_streamlit_discovery_ui --strict
 ```
@@ -317,6 +321,7 @@ qdrant points_count = 60954
 qdrant corpus_doc_count = 60954
 test_api_smoke.py = 7 passed
 citation graph status endpoint = 6 passed, disabled-by-default/status-compatibility-only
+citation graph fixture store = 7 passed, internal/read-only only
 experimental qdrant API = status_code 200, mode dense_qdrant
 streamlit UI required_failed_count = 0
 qdrant_runtime_status_ui_snippets_present = true
@@ -359,6 +364,7 @@ status/compatibility-only surface
 disabled by default unless ML_RADAR_CITATION_GRAPH_API_ENABLED is explicitly enabled
 when enabled, probes local graph manifests/reports read-only
 no graph traversal endpoints
+internal fixture store exists but is not wired to public routes
 no graph runtime loader
 manual_review_required = true
 publication_ready = false
@@ -1610,14 +1616,83 @@ They must not publish anything.
 Recommended next slice:
 
 ```text
-Citation Graph Status Compatibility Docs Sync v0.1
+Citation Graph Fixture Store v0.1
 ```
 
-Later code work should remain fixture/store-hardening first and must not jump to
-broad traversal endpoints without preserving the compatibility and caveat
-contract.
+Status: completed. Later code work should remain narrow and fixture-backed first;
+it must not jump to broad traversal endpoints without preserving the
+compatibility and caveat contract.
 
 ---
+
+
+## Citation Graph Fixture Store v0.1 validation
+
+Use this when checking the internal read-only fixture-backed Citation / Reference
+Graph query core.
+
+Current implementation:
+
+```text
+services/api/citation_graph_store.py
+tests/fixtures/citation_graph_v0_1/
+tests/smoke/test_citation_graph_fixture_store.py
+```
+
+Current store methods:
+
+```text
+graph_summary
+outgoing_references
+incoming_citations
+external_reference_papers
+source_family_diagnostics
+top_referenced_papers
+top_external_references
+```
+
+Recommended validation sequence:
+
+```bat
+python -m py_compile services/api/citation_graph_store.py tests/smoke/test_citation_graph_fixture_store.py
+python -m pytest tests/smoke/test_citation_graph_fixture_store.py -q
+python -m pytest tests/integration/test_api_citation_graph_status.py -q
+```
+
+Expected current result:
+
+```text
+test_citation_graph_fixture_store.py = 7 passed
+test_api_citation_graph_status.py = 6 passed
+```
+
+Boundary:
+
+```text
+The fixture store is read-only.
+It is an internal query-semantics core, not a public API surface.
+It must not rebuild graph output.
+It must not write validation reports.
+It must not mutate canonical truth.
+It must not mutate graph output/package/reports.
+It must not mutate Postgres.
+It must not change /citation-graph/status behavior.
+It must not change /search, Discovery API, Qdrant, Streamlit, or ranking behavior.
+It must not implement GraphRAG.
+It must not publish anything.
+```
+
+Recommended next slice:
+
+```text
+Citation Graph Fixture Store Docs Sync v0.1
+```
+
+After docs sync, a future code slice may add one narrow fixture-backed traversal
+endpoint, but it should not jump to broad traversal/runtime promotion.
+
+---
+
 
 # G. Artifact API filters validation and DoD gate
 

@@ -33,24 +33,28 @@ publication_ready = false
 ## Implementation progress after this plan
 
 This plan document remains implementation-plan-only, but later code slices have
-now implemented the first two narrow steps from the rollout path:
+now implemented the first three narrow steps from the rollout path:
 
 ```text
 Citation Graph API Disabled Status Endpoint v0.1 = implemented
 Citation Graph Status Compatibility Probe v0.1 = implemented
+Citation Graph Fixture Store v0.1 = implemented_internal
 ```
 
-Current implemented API surface remains limited to:
+Current implemented public API surface remains limited to:
 
 ```text
 GET /citation-graph/status
 ```
 
+An internal fixture-backed `CitationGraphStore` now exists for query-semantics
+hardening, but it is not exposed through public API routes.
+
 The implemented compatibility probe is read-only. It checks local graph
-artifacts/reports for status compatibility when explicitly enabled, but it does
-not implement traversal endpoints, a runtime graph query service, DB
-materialization, Streamlit UI, GraphRAG, publication, or canonical/retrieval
-mutation.
+artifacts/reports for status compatibility when explicitly enabled. The fixture
+store is also read-only and fixture-backed. These slices do not implement public
+traversal endpoints, a full runtime graph loader, DB materialization, Streamlit
+UI, GraphRAG, publication, or canonical/retrieval mutation.
 
 ## Purpose
 
@@ -445,9 +449,9 @@ Recommended future implementation sequence:
 
 1. Add config/settings and disabled-by-default status endpoint. **Done.**
 2. Add compatibility checker/status probe with fixture tests. **Done for status only.**
-3. Add read-only file-backed graph store for tiny fixture graph. **Not done.**
-4. Add references/citations/external-reference endpoints on fixture graph.
-5. Add source-family and top-reference endpoints.
+3. Add read-only file-backed graph store for tiny fixture graph. **Done for internal fixture store.**
+4. Add one narrow references endpoint on the fixture-backed store, then citations/external-reference endpoints in later slices.
+5. Add source-family and top-reference endpoints only after the paper reference/citation endpoints are stable.
 6. Add integration tests against accepted local graph artifacts only after the
    fixture-backed behavior is stable.
 7. Update API reference after implementation tests are green.
@@ -492,15 +496,18 @@ no ranking changes
 
 ## Current next step after status compatibility probe
 
-After the disabled status endpoint and read-only compatibility probe have been
-implemented, the next safe slice is documentation synchronization and then
-fixture/store hardening before any traversal endpoint.
+After the disabled status endpoint, read-only compatibility probe, and internal
+fixture store have been implemented, the next safe slice is documentation
+synchronization and then one narrow fixture-backed traversal endpoint before any
+broad traversal/runtime promotion.
 
 Current implemented status:
 
 ```text
 Citation Graph API Disabled Status Endpoint v0.1 = done
 Citation Graph Status Compatibility Probe v0.1 = done
+Citation Graph Fixture Store v0.1 = done_internal
+.1 = done
 traversal endpoints = not implemented
 graph runtime query service = not implemented
 ```
