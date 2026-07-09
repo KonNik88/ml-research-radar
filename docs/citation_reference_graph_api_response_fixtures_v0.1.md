@@ -29,18 +29,20 @@ publication_ready = false
 ## Implementation progress note
 
 This fixture document remains a design/contract document. Since it was accepted,
-the project has implemented the status surface and an internal fixture store:
+the project has implemented the status surface, an internal fixture store, and the first narrow outgoing-references endpoint:
 
 ```text
 GET /citation-graph/status = implemented
 read-only compatibility probe = implemented
 internal CitationGraphStore fixture query core = implemented
-traversal endpoints = not implemented
+GET /citation-graph/papers/{canonical_id}/references = implemented
+other traversal endpoints = not implemented
 ```
 
-The traversal fixtures below remain future endpoint contracts. The internal
-fixture store exercises their query semantics, but they must not be read as
-implemented public API behavior.
+The outgoing references fixture below is now implemented as the first public
+read-only traversal endpoint. The remaining traversal fixtures remain future
+endpoint contracts. The internal fixture store exercises their query semantics,
+but they must not be read as implemented public API behavior.
 
 ## Purpose
 
@@ -234,7 +236,7 @@ manual_review_complete = false still blocks public exposure unless separately ap
 
 ## Outgoing references fixture
 
-Candidate endpoint:
+Implemented endpoint:
 
 ```text
 GET /citation-graph/papers/{canonical_id}/references
@@ -310,7 +312,7 @@ Expected successful response:
 
 ## Incoming citations fixture
 
-Candidate endpoint:
+Candidate endpoint, not implemented yet:
 
 ```text
 GET /citation-graph/papers/{canonical_id}/citations
@@ -375,7 +377,7 @@ citations.
 
 ## External reference linked-papers fixture
 
-Candidate endpoint:
+Candidate endpoint, not implemented yet:
 
 ```text
 GET /citation-graph/external-references/{reference_id}/papers
@@ -437,7 +439,7 @@ URL, arXiv, or OpenAlex lookup aliases requires a separate lookup contract.
 
 ## Source-family diagnostics fixture
 
-Candidate endpoint:
+Candidate endpoint, not implemented yet:
 
 ```text
 GET /citation-graph/source-families
@@ -488,7 +490,7 @@ Expected successful response:
 
 ## Top referenced papers fixture
 
-Candidate endpoint:
+Candidate endpoint, not implemented yet:
 
 ```text
 GET /citation-graph/top-referenced-papers
@@ -547,7 +549,7 @@ Expected successful response:
 
 ## Top external references fixture
 
-Candidate endpoint:
+Candidate endpoint, not implemented yet:
 
 ```text
 GET /citation-graph/top-external-references

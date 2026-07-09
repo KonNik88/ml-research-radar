@@ -32,14 +32,17 @@ publication_ready = false
 
 This document remains a compatibility design contract. Since it was accepted, the
 project has implemented compatibility checks through the
-`GET /citation-graph/status` status surface and has added an internal fixture
-store for query-semantics hardening. The implementation remains read-only and
-not publicly traversable:
+`GET /citation-graph/status` status surface, added an internal fixture store for
+query-semantics hardening, and exposed the first narrow outgoing-references
+endpoint. The implementation remains read-only and does not include a full graph
+runtime loader:
 
 ```text
 Citation Graph Status Compatibility Probe v0.1 = implemented
 Citation Graph Fixture Store v0.1 = implemented_internal
-traversal endpoints = not implemented
+Citation Graph Outgoing References Endpoint v0.1 = implemented
+GET /citation-graph/papers/{canonical_id}/references = implemented
+other traversal endpoints = not implemented
 full runtime graph query service = not implemented
 DB materialization = not implemented
 Streamlit graph UI = not implemented
@@ -52,9 +55,11 @@ This document defines compatibility checks and stale-version failure semantics
 for a possible future Citation / Reference Graph runtime.
 
 It is a design-hardening contract. The later status compatibility probe implements
-the read-only status-check portion of this contract, and the fixture store
-implements internal fixture-backed query semantics. These do not implement a
-public traversal API endpoint, full runtime graph loader, Postgres
+the read-only status-check portion of this contract, the fixture store
+implements internal fixture-backed query semantics, and the first outgoing
+references endpoint exposes one narrow compatibility-gated traversal surface.
+These do not implement incoming citations, external-reference lookup, source-family
+or top-reference endpoints, a full runtime graph loader, Postgres
 materialization, Streamlit UI, GraphRAG, graph DB runtime, package rebuild,
 graph rebuild, or publication step.
 

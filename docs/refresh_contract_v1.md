@@ -65,7 +65,9 @@ Citation Graph API Docs Sync v0.1 — 2026-07 completed docs synchronization sli
 Citation Graph Status Compatibility Probe v0.1 — 2026-07 completed read-only status compatibility probe slice
 Citation Graph Status Compatibility Docs Sync v0.1 — 2026-07 completed docs synchronization slice
 Citation Graph Fixture Store v0.1 — 2026-07 completed internal read-only fixture-backed query-core slice
-Citation Graph Fixture Store Docs Sync v0.1 — 2026-07 active docs synchronization slice
+Citation Graph Fixture Store Docs Sync v0.1 — 2026-07 completed docs synchronization slice
+Citation Graph Outgoing References Endpoint v0.1 — 2026-07 completed first narrow traversal endpoint slice
+Citation Graph Outgoing References Endpoint Docs Sync v0.1 — 2026-07 active docs synchronization slice
 ```
 
 Current healthy baseline:
@@ -123,7 +125,8 @@ citation_reference_graph_api_implementation_plan = accepted_plan_only
 citation_graph_api_disabled_status_endpoint = implemented_disabled_by_default_status_only
 citation_graph_status_compatibility_probe = implemented_read_only_status_probe
 citation_graph_fixture_store = implemented_internal_read_only_fixture_store
-citation_graph_api_traversal_endpoints = not_implemented
+citation_graph_outgoing_references_endpoint = implemented
+citation_graph_other_traversal_endpoints = not_implemented
 citation_graph_runtime_loader = not_implemented
 paper_artifact_graph_dod_gate = not required yet
 paper_artifact_graph_manual_review_dod_gate = not required yet
@@ -320,8 +323,9 @@ qdrant collection_exists = true
 qdrant points_count = 60954
 qdrant corpus_doc_count = 60954
 test_api_smoke.py = 7 passed
-citation graph status endpoint = 6 passed, disabled-by-default/status-compatibility-only
-citation graph fixture store = 7 passed, internal/read-only only
+citation graph status endpoint = 6 passed, disabled-by-default/status-compatibility
+citation graph outgoing references endpoint = 5 passed, disabled-by-default/read-only/compatibility-gated
+citation graph fixture store = 7 passed, internal/read-only core
 experimental qdrant API = status_code 200, mode dense_qdrant
 streamlit UI required_failed_count = 0
 qdrant_runtime_status_ui_snippets_present = true
@@ -363,9 +367,10 @@ endpoint is reachable
 status/compatibility-only surface
 disabled by default unless ML_RADAR_CITATION_GRAPH_API_ENABLED is explicitly enabled
 when enabled, probes local graph manifests/reports read-only
-no graph traversal endpoints
-internal fixture store exists but is not wired to public routes
-no graph runtime loader
+outgoing references endpoint is implemented and compatibility-gated
+other graph traversal endpoints are not implemented
+internal fixture store exists and backs outgoing references semantics
+no full graph runtime loader
 manual_review_required = true
 publication_ready = false
 ```
@@ -1512,27 +1517,34 @@ Generated reports are not committed.
 
 
 
-# F. Citation Graph status / compatibility endpoint validation
+# F. Citation Graph API status, fixture store, and outgoing references validation
 
-Use this when checking the narrow Citation / Reference Graph API status surface
-and its read-only compatibility probe.
+Use this when checking the narrow Citation / Reference Graph API surface and its
+read-only compatibility gate.
 
-Current endpoint:
+Current implemented endpoints:
 
 ```text
 GET /citation-graph/status
+GET /citation-graph/papers/{canonical_id}/references
 ```
 
 Current implementation state:
 
 ```text
-status_only = true
+status_endpoint = implemented
 compatibility_probe = implemented
+outgoing_references_endpoint = implemented
 read_only = true
 disabled_by_default = true
 feature_flag = ML_RADAR_CITATION_GRAPH_API_ENABLED
-graph_runtime_loader = not implemented
-graph_traversal_endpoints = not implemented
+fixture_store = implemented_internal
+incoming_citations_endpoint = not implemented
+external_reference_lookup_endpoint = not implemented
+source_family_endpoint = not implemented
+top_referenced_papers_endpoint = not implemented
+top_external_references_endpoint = not implemented
+full_graph_runtime_loader = not implemented
 graph_db_materialization = not implemented
 streamlit_graph_ui = not implemented
 graphrag = not implemented
@@ -1544,9 +1556,8 @@ Default disabled behavior:
 
 ```text
 ML_RADAR_CITATION_GRAPH_API_ENABLED=false
-runtime_enabled=false
-available=false
-error_code=graph_runtime_not_enabled
+/citation-graph/status -> runtime_enabled=false, available=false
+/citation-graph/papers/{canonical_id}/references -> 503 graph_runtime_not_enabled
 ```
 
 Enabled local-inspection behavior:
@@ -1556,10 +1567,13 @@ ML_RADAR_CITATION_GRAPH_API_ENABLED=true
 GET /citation-graph/status
 → read-only probe of configured graph root and validation reports
 → available=true/false depending on compatibility
-→ no traversal results returned
+
+GET /citation-graph/papers/{canonical_id}/references
+→ read-only outgoing reference evidence for one canonical paper
+→ requires compatible local graph status
 ```
 
-Common compatibility error codes:
+Common graph API error codes:
 
 ```text
 graph_runtime_not_enabled
@@ -1570,15 +1584,19 @@ graph_version_unsupported
 graph_canonical_baseline_mismatch
 graph_package_stale
 graph_manual_review_incomplete
+graph_result_limit_exceeded
+canonical_id_not_found
 ```
 
 Recommended validation sequence:
 
 ```bat
-python -m py_compile services/api/settings.py services/api/schemas.py services/api/citation_graph_service.py services/api/app.py
+python -m py_compile services/api/settings.py services/api/schemas.py services/api/citation_graph_service.py services/api/citation_graph_store.py services/api/app.py tests/integration/test_api_citation_graph_references.py tests/integration/test_api_citation_graph_status.py
 
 set ML_RADAR_SEARCH_BACKEND=file
+python -m pytest tests/integration/test_api_citation_graph_references.py -q
 python -m pytest tests/integration/test_api_citation_graph_status.py -q
+python -m pytest tests/smoke/test_citation_graph_fixture_store.py -q
 python -m pytest tests/integration/test_api_smoke.py -q
 
 set ML_RADAR_SEARCH_BACKEND=db
@@ -1586,11 +1604,13 @@ python -m pytest tests/integration/test_api_citation_graph_status.py -q
 python -m pytest tests/integration/test_api_db_smoke.py -q
 ```
 
-Accepted local result for the compatibility-probe slice:
+Accepted local result for the outgoing-references endpoint slice:
 
 ```text
 py_compile = passed
+test_api_citation_graph_references.py = 5 passed
 test_api_citation_graph_status.py = 6 passed
+test_citation_graph_fixture_store.py = 7 passed
 ML_RADAR_SEARCH_BACKEND=file test_api_smoke.py = 7 passed
 git diff --check = passed, CRLF warnings only on Windows
 ```
@@ -1598,9 +1618,9 @@ git diff --check = passed, CRLF warnings only on Windows
 Boundary:
 
 ```text
-The status endpoint and compatibility probe are read-only.
-They must not load graph nodes or edges as a traversal runtime.
-They must not expose outgoing references or incoming citations.
+The graph API routes are read-only.
+They must not rebuild graph output.
+They must not write validation reports.
 They must not mutate canonical truth.
 They must not mutate graph output/package/reports.
 They must not mutate Postgres.
@@ -1613,15 +1633,25 @@ They must not implement GraphRAG.
 They must not publish anything.
 ```
 
+Current route boundary:
+
+```text
+outgoing references endpoint = implemented
+incoming citations endpoint = not implemented
+external-reference lookup endpoint = not implemented
+source-family/top-reference endpoints = not implemented
+full runtime graph loader = not implemented
+```
+
 Recommended next slice:
 
 ```text
-Citation Graph Fixture Store v0.1
+Citation Graph Outgoing References Endpoint Docs Sync v0.1
 ```
 
-Status: completed. Later code work should remain narrow and fixture-backed first;
-it must not jump to broad traversal endpoints without preserving the
-compatibility and caveat contract.
+After docs sync, a future code slice may add exactly one additional endpoint,
+preferably incoming citations. It should not jump to broad traversal/runtime
+promotion.
 
 ---
 
@@ -1670,26 +1700,17 @@ Boundary:
 
 ```text
 The fixture store is read-only.
-It is an internal query-semantics core, not a public API surface.
+It is an internal query-semantics core.
+It backs the first outgoing references endpoint but is not canonical truth.
 It must not rebuild graph output.
 It must not write validation reports.
 It must not mutate canonical truth.
 It must not mutate graph output/package/reports.
 It must not mutate Postgres.
-It must not change /citation-graph/status behavior.
 It must not change /search, Discovery API, Qdrant, Streamlit, or ranking behavior.
 It must not implement GraphRAG.
 It must not publish anything.
 ```
-
-Recommended next slice:
-
-```text
-Citation Graph Fixture Store Docs Sync v0.1
-```
-
-After docs sync, a future code slice may add one narrow fixture-backed traversal
-endpoint, but it should not jump to broad traversal/runtime promotion.
 
 ---
 
