@@ -7,12 +7,12 @@ document = primary living roadmap
 accepted checkpoint = Current State Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
 current active direction = review / regression / design-hardening
-current active slice = Citation Graph outgoing references endpoint documentation sync
+current active slice = Citation Graph incoming citations endpoint documentation sync
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = docs sync after first citation graph outgoing-references endpoint; no canonical/retrieval/Qdrant/Postgres/UI/ranking/graph-output/publication behavior changes
+scope of current branch = docs sync after second citation graph incoming-citations endpoint; no canonical/retrieval/Qdrant/Postgres/UI/ranking/graph-output/publication behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -71,19 +71,20 @@ Recently completed safe slices:
 8. **Citation Graph API Docs Sync v0.1** — align API reference, roadmap, current-state checkpoint, and restart/runbook docs with the disabled status endpoint.
 9. **Citation Graph Status Compatibility Probe v0.1** — second narrow code slice: read-only compatibility/status probe over existing local graph/package/report state; no graph traversal/runtime loader.
 10. **Citation Graph Fixture Store v0.1** — internal read-only fixture-backed query core.
-11. **Citation Graph Outgoing References Endpoint v0.1** — first narrow read-only traversal endpoint; outgoing references only, no incoming/external/source-family/top endpoints and no full graph runtime loader.
+11. **Citation Graph Outgoing References Endpoint v0.1** — first narrow read-only traversal endpoint; outgoing references only, no external/source-family/top endpoints and no full graph runtime loader.
+12. **Citation Graph Incoming Citations Endpoint v0.1** — second narrow read-only traversal endpoint; incoming resolved internal citations only, no external/source-family/top endpoints and no full graph runtime loader.
 
 Recommended next safe slices:
 
-1. **Citation Graph Outgoing References Endpoint Docs Sync v0.1** — align API reference, roadmap, current-state checkpoint, runbook, and graph API design docs with the implemented first traversal endpoint.
-2. **Citation Graph Incoming Citations Endpoint v0.1** — next narrow endpoint only after docs sync; preserve status/compatibility gates and caveats.
+1. **Citation Graph Incoming Citations Endpoint Docs Sync v0.1** — align API reference, roadmap, current-state checkpoint, runbook, and graph API design docs with the implemented second traversal endpoint.
+2. **Citation Graph External Reference Papers Endpoint v0.1** — optional future narrow endpoint only after docs sync; preserve status/compatibility gates and caveats.
 3. **Regression / DoD hardening** — optional gates, accepted-checkpoint checks, and validation wiring only.
 
 Explicit immediate non-goals:
 
 - no GraphRAG implementation;
 - no Neo4j/NetworkX runtime;
-- no additional graph traversal endpoints beyond the implemented outgoing-references route;
+- no additional graph traversal endpoints beyond the implemented outgoing-references and incoming-citations routes;
 - no Qdrant promotion;
 - no graph DB materialization layer;
 - no publication/upload;
@@ -1888,7 +1889,6 @@ Boundary:
 outgoing references endpoint is read-only
 outgoing references endpoint is feature-flagged and compatibility-gated
 outgoing references endpoint may expose resolved paper references and unresolved external_reference evidence
-incoming citations endpoint is not implemented
 external-reference lookup endpoint is not implemented
 source-family/top-reference endpoints are not implemented
 full graph runtime loader is not implemented
@@ -1903,7 +1903,7 @@ GraphRAG is not implemented
 
 ### 5.1 Citation graph API narrow traversal hardening
 
-Status: **current direction after completed outgoing-references endpoint**
+Status: **current direction after completed incoming-citations endpoint**
 
 Goal:
 
@@ -1917,7 +1917,7 @@ Current accepted API state:
 ```text
 GET /citation-graph/status = implemented
 GET /citation-graph/papers/{canonical_id}/references = implemented
-GET /citation-graph/papers/{canonical_id}/citations = not implemented
+GET /citation-graph/papers/{canonical_id}/citations = implemented
 GET /citation-graph/external-references/{reference_id}/papers = not implemented
 GET /citation-graph/source-families = not implemented
 GET /citation-graph/top-referenced-papers = not implemented
@@ -1927,10 +1927,10 @@ full graph runtime loader = not implemented
 
 Definition of done for the current docs-hardening direction:
 
-- roadmap records the outgoing references endpoint as the first completed traversal code slice;
+- roadmap records the outgoing references endpoint as the first completed traversal code slice and the incoming citations endpoint as the second;
 - API reference documents the endpoint, parameters, caveats, and graph error mapping;
-- docs do not imply that incoming citations, external-reference lookup, source-family diagnostics, top-reference endpoints, full graph runtime loading, GraphRAG, DB materialization, or Streamlit graph UI exists;
-- next code work may add only one narrow endpoint, preferably incoming citations;
+- docs do not imply that external-reference lookup, source-family diagnostics, top-reference endpoints, full graph runtime loading, GraphRAG, DB materialization, or Streamlit graph UI exists;
+- next code work may add only one narrow endpoint, preferably external-reference reverse lookup, after docs sync;
 - no canonical, retrieval, Qdrant, Postgres, UI, ranking, graph-output, package, or publication behavior is changed in this docs sync.
 
 Boundary:
@@ -1948,7 +1948,7 @@ no publication
 
 Next safe directions:
 
-1. **Citation Graph Incoming Citations Endpoint v0.1** — one narrow endpoint, only after this docs sync.
+1. **Citation Graph External Reference Papers Endpoint v0.1** — one narrow endpoint, only after this docs sync.
 2. **Regression / DoD hardening** — optional gates and accepted-checkpoint validation wiring.
 3. **Graph API endpoint contract cleanup** — if app.py route helpers become too large, extract a small query service without changing behavior.
 
@@ -2127,7 +2127,6 @@ Non-goals:
 
 ```text
 no outgoing-reference endpoint in the compatibility-probe slice
-no incoming-citation endpoint
 no graph traversal in the compatibility-probe slice
 no graph runtime query service
 no DB materialization
@@ -2204,7 +2203,46 @@ test_api_smoke.py = 7 passed
 Non-goals:
 
 ```text
-no incoming-citation endpoint
+no external-reference lookup endpoint
+no source-family/top-reference endpoints
+no full graph runtime loader
+no DB materialization
+no Streamlit graph UI
+no GraphRAG
+no publication
+```
+
+
+### 6.8 Citation Graph Incoming Citations Endpoint v0.1
+
+Status: **done / green second narrow traversal endpoint slice**.
+
+Purpose:
+
+```text
+Expose one read-only, compatibility-gated route for incoming resolved internal
+citations, using the existing CitationGraphStore semantics.
+```
+
+Implemented endpoint:
+
+```text
+GET /citation-graph/papers/{canonical_id}/citations
+```
+
+Accepted local validation:
+
+```text
+test_api_citation_graph_references.py = 9 passed
+test_api_citation_graph_status.py = 6 passed
+test_citation_graph_fixture_store.py = 7 passed
+test_api_smoke.py = 7 passed
+manual live API check = passed
+```
+
+Non-goals:
+
+```text
 no external-reference lookup endpoint
 no source-family/top-reference endpoints
 no full graph runtime loader

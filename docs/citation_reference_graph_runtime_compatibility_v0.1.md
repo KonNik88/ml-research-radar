@@ -33,7 +33,7 @@ publication_ready = false
 This document remains a compatibility design contract. Since it was accepted, the
 project has implemented compatibility checks through the
 `GET /citation-graph/status` status surface, added an internal fixture store for
-query-semantics hardening, and exposed the first narrow outgoing-references
+query-semantics hardening, and exposed the first narrow outgoing-references endpoint and second narrow incoming-citations endpoint and second narrow incoming-citations
 endpoint. The implementation remains read-only and does not include a full graph
 runtime loader:
 
@@ -41,13 +41,32 @@ runtime loader:
 Citation Graph Status Compatibility Probe v0.1 = implemented
 Citation Graph Fixture Store v0.1 = implemented_internal
 Citation Graph Outgoing References Endpoint v0.1 = implemented
+Citation Graph Incoming Citations Endpoint v0.1 = implemented
 GET /citation-graph/papers/{canonical_id}/references = implemented
-other traversal endpoints = not implemented
+GET /citation-graph/papers/{canonical_id}/citations = implemented
+external/source-family/top traversal endpoints = not implemented
 full runtime graph query service = not implemented
 DB materialization = not implemented
 Streamlit graph UI = not implemented
 GraphRAG = not implemented
 ```
+
+## Implemented narrow traversal compatibility
+
+The implemented `/references` and `/citations` routes reuse the same status
+compatibility gate before loading `CitationGraphStore`. They fail closed on
+disabled runtime, missing/incompatible graph artifacts, unknown canonical ids,
+and over-limit requests.
+
+The incoming citations route is intentionally narrower than outgoing references:
+
+```text
+references -> paper_references_paper + paper_references_external
+citations  -> paper_references_paper only
+```
+
+Unresolved external references are preserved as evidence for outgoing references
+but are not counted as incoming canonical-paper citations.
 
 ## Purpose
 
@@ -56,9 +75,11 @@ for a possible future Citation / Reference Graph runtime.
 
 It is a design-hardening contract. The later status compatibility probe implements
 the read-only status-check portion of this contract, the fixture store
-implements internal fixture-backed query semantics, and the first outgoing
-references endpoint exposes one narrow compatibility-gated traversal surface.
-These do not implement incoming citations, external-reference lookup, source-family
+implements internal fixture-backed query semantics, the first outgoing
+references endpoint exposes one narrow compatibility-gated traversal surface,
+and the second incoming citations endpoint exposes one additional narrow
+compatibility-gated traversal surface.
+These do not implement external-reference lookup, source-family
 or top-reference endpoints, a full runtime graph loader, Postgres
 materialization, Streamlit UI, GraphRAG, graph DB runtime, package rebuild,
 graph rebuild, or publication step.

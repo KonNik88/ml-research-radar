@@ -67,7 +67,9 @@ Citation Graph Status Compatibility Docs Sync v0.1 — 2026-07 completed docs sy
 Citation Graph Fixture Store v0.1 — 2026-07 completed internal read-only fixture-backed query-core slice
 Citation Graph Fixture Store Docs Sync v0.1 — 2026-07 completed docs synchronization slice
 Citation Graph Outgoing References Endpoint v0.1 — 2026-07 completed first narrow traversal endpoint slice
-Citation Graph Outgoing References Endpoint Docs Sync v0.1 — 2026-07 active docs synchronization slice
+Citation Graph Outgoing References Endpoint Docs Sync v0.1 — 2026-07 completed docs synchronization slice
+Citation Graph Incoming Citations Endpoint v0.1 — 2026-07 completed second narrow traversal endpoint slice
+Citation Graph Incoming Citations Endpoint Docs Sync v0.1 — 2026-07 active docs synchronization slice
 ```
 
 Current healthy baseline:
@@ -126,7 +128,8 @@ citation_graph_api_disabled_status_endpoint = implemented_disabled_by_default_st
 citation_graph_status_compatibility_probe = implemented_read_only_status_probe
 citation_graph_fixture_store = implemented_internal_read_only_fixture_store
 citation_graph_outgoing_references_endpoint = implemented
-citation_graph_other_traversal_endpoints = not_implemented
+citation_graph_incoming_citations_endpoint = implemented
+citation_graph_external_source_top_traversal_endpoints = not_implemented
 citation_graph_runtime_loader = not_implemented
 paper_artifact_graph_dod_gate = not required yet
 paper_artifact_graph_manual_review_dod_gate = not required yet
@@ -324,7 +327,7 @@ qdrant points_count = 60954
 qdrant corpus_doc_count = 60954
 test_api_smoke.py = 7 passed
 citation graph status endpoint = 6 passed, disabled-by-default/status-compatibility
-citation graph outgoing references endpoint = 5 passed, disabled-by-default/read-only/compatibility-gated
+citation graph traversal endpoints = 9 passed, disabled-by-default/read-only/compatibility-gated
 citation graph fixture store = 7 passed, internal/read-only core
 experimental qdrant API = status_code 200, mode dense_qdrant
 streamlit UI required_failed_count = 0
@@ -367,9 +370,9 @@ endpoint is reachable
 status/compatibility-only surface
 disabled by default unless ML_RADAR_CITATION_GRAPH_API_ENABLED is explicitly enabled
 when enabled, probes local graph manifests/reports read-only
-outgoing references endpoint is implemented and compatibility-gated
+outgoing references and incoming citations endpoints are implemented and compatibility-gated
 other graph traversal endpoints are not implemented
-internal fixture store exists and backs outgoing references semantics
+internal fixture store exists and backs outgoing references and incoming citations semantics
 no full graph runtime loader
 manual_review_required = true
 publication_ready = false
@@ -1517,7 +1520,7 @@ Generated reports are not committed.
 
 
 
-# F. Citation Graph API status, fixture store, and outgoing references validation
+# F. Citation Graph API status, fixture store, outgoing references, and incoming citations validation
 
 Use this when checking the narrow Citation / Reference Graph API surface and its
 read-only compatibility gate.
@@ -1527,6 +1530,7 @@ Current implemented endpoints:
 ```text
 GET /citation-graph/status
 GET /citation-graph/papers/{canonical_id}/references
+GET /citation-graph/papers/{canonical_id}/citations
 ```
 
 Current implementation state:
@@ -1535,11 +1539,11 @@ Current implementation state:
 status_endpoint = implemented
 compatibility_probe = implemented
 outgoing_references_endpoint = implemented
+incoming_citations_endpoint = implemented
 read_only = true
 disabled_by_default = true
 feature_flag = ML_RADAR_CITATION_GRAPH_API_ENABLED
 fixture_store = implemented_internal
-incoming_citations_endpoint = not implemented
 external_reference_lookup_endpoint = not implemented
 source_family_endpoint = not implemented
 top_referenced_papers_endpoint = not implemented
@@ -1558,6 +1562,7 @@ Default disabled behavior:
 ML_RADAR_CITATION_GRAPH_API_ENABLED=false
 /citation-graph/status -> runtime_enabled=false, available=false
 /citation-graph/papers/{canonical_id}/references -> 503 graph_runtime_not_enabled
+/citation-graph/papers/{canonical_id}/citations -> 503 graph_runtime_not_enabled
 ```
 
 Enabled local-inspection behavior:
@@ -1570,6 +1575,13 @@ GET /citation-graph/status
 
 GET /citation-graph/papers/{canonical_id}/references
 → read-only outgoing reference evidence for one canonical paper
+→ may include resolved paper references and unresolved external_reference evidence
+→ requires compatible local graph status
+
+GET /citation-graph/papers/{canonical_id}/citations
+→ read-only incoming citation evidence for one canonical paper
+→ includes only resolved internal paper_references_paper edges
+→ unresolved external references are not counted as incoming canonical-paper citations
 → requires compatible local graph status
 ```
 
@@ -1604,15 +1616,26 @@ python -m pytest tests/integration/test_api_citation_graph_status.py -q
 python -m pytest tests/integration/test_api_db_smoke.py -q
 ```
 
-Accepted local result for the outgoing-references endpoint slice:
+Accepted local result for the incoming-citations endpoint slice:
 
 ```text
 py_compile = passed
-test_api_citation_graph_references.py = 5 passed
+test_api_citation_graph_references.py = 9 passed
 test_api_citation_graph_status.py = 6 passed
 test_citation_graph_fixture_store.py = 7 passed
 ML_RADAR_SEARCH_BACKEND=file test_api_smoke.py = 7 passed
 git diff --check = passed, CRLF warnings only on Windows
+```
+
+Manual live API check:
+
+```text
+GET /citation-graph/status -> available=true, safe_to_serve_locally=true, compatibility.ok=true, error_code=null
+GET /citation-graph/papers/0bad150e917742a07cf30555c15a5ee6/references?limit=5&offset=0 -> 200, returned=5, total_estimate=81, unresolved external references preserved
+GET /citation-graph/papers/11c222e89f686cb704be7834c50dd3aa/citations?limit=5&offset=0 -> 200, returned=5, total_estimate=23, only paper_references_paper items, resolved_internal_references_only caveat
+GET /citation-graph/papers/not-a-real-canonical-id/references?limit=5 -> 404 canonical_id_not_found
+GET /citation-graph/papers/not-a-real-canonical-id/citations?limit=5 -> 404 canonical_id_not_found
+limit=101 for references/citations -> 400 graph_result_limit_exceeded
 ```
 
 Boundary:
@@ -1637,7 +1660,7 @@ Current route boundary:
 
 ```text
 outgoing references endpoint = implemented
-incoming citations endpoint = not implemented
+incoming citations endpoint = implemented
 external-reference lookup endpoint = not implemented
 source-family/top-reference endpoints = not implemented
 full runtime graph loader = not implemented
@@ -1646,12 +1669,12 @@ full runtime graph loader = not implemented
 Recommended next slice:
 
 ```text
-Citation Graph Outgoing References Endpoint Docs Sync v0.1
+Citation Graph Incoming Citations Endpoint Docs Sync v0.1
 ```
 
 After docs sync, a future code slice may add exactly one additional endpoint,
-preferably incoming citations. It should not jump to broad traversal/runtime
-promotion.
+preferably external-reference reverse lookup. It should not jump to broad
+traversal/runtime promotion.
 
 ---
 

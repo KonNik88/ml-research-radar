@@ -273,6 +273,7 @@ Citation/reference graph API surface:
 ```text
 GET /citation-graph/status
 GET /citation-graph/papers/{canonical_id}/references
+GET /citation-graph/papers/{canonical_id}/citations
 ```
 
 Current graph API semantics:
@@ -284,7 +285,7 @@ disabled_by_default = true
 feature_flag = ML_RADAR_CITATION_GRAPH_API_ENABLED
 compatibility_probe = implemented
 fixture_store = implemented_internal
-incoming_citations_endpoint = not implemented
+incoming_citations_endpoint = implemented
 external_reference_lookup_endpoint = not implemented
 source_family_endpoint = not implemented
 top_referenced_papers_endpoint = not implemented
@@ -302,7 +303,7 @@ Boundary:
 ```text
 The status endpoint is an API safety/status/compatibility surface.
 When enabled, it may read local graph manifests/reports for compatibility status.
-The outgoing references endpoint is the only implemented traversal endpoint.
+The outgoing references and incoming citations endpoints are the only implemented traversal endpoints.
 It is read-only, feature-flagged, compatibility-gated, and backed by CitationGraphStore.
 It may return resolved paper references and unresolved external_reference evidence.
 Incoming citations, external-reference lookup, source-family diagnostics, and top-reference endpoints are not implemented.
@@ -316,6 +317,7 @@ Internal citation/reference graph fixture store:
 services/api/citation_graph_store.py = implemented
 fixture graph = tests/fixtures/citation_graph_v0_1/
 public outgoing references route = implemented
+public incoming citations route = implemented
 other public traversal routes = not implemented
 full graph runtime loader = not implemented
 ```
@@ -336,6 +338,7 @@ Boundary:
 ```text
 fixture store is internal and read-only
 outgoing references API is a narrow local-inspection traversal surface
+incoming citations API is a narrow local-inspection traversal surface over resolved internal references only
 store/API do not mutate graph artifacts, reports, packages, or latest pointers
 store/API do not change /search, Discovery API, DB, Qdrant, ranking, canonical truth, graph output, package output, or publication state
 ```
@@ -710,16 +713,16 @@ Recently completed safe slices after this checkpoint baseline:
    - first narrow traversal endpoint;
    - `GET /citation-graph/papers/{canonical_id}/references`;
    - disabled by default and compatibility-gated;
-   - no incoming citations, external-reference lookup, source-family, or top-reference endpoints.
+   - external-reference lookup, source-family, or top-reference endpoints.
 
 Recommended next slices:
 
-1. **Citation Graph Outgoing References Endpoint Docs Sync v0.1**
-   - align shared docs with the implemented first traversal endpoint;
-   - preserve no-full-runtime-loader/no-additional-endpoints boundary.
+1. **Citation Graph Incoming Citations Endpoint Docs Sync v0.1**
+   - align shared docs with the implemented second traversal endpoint;
+   - preserve no-full-runtime-loader/no-external-source-top-endpoints boundary.
 
-2. **Citation Graph Incoming Citations Endpoint v0.1**
-   - next narrow code slice only after docs sync;
+2. **Citation Graph External Reference Papers Endpoint v0.1**
+   - optional future narrow code slice only after docs sync;
    - must preserve fail-closed compatibility behavior and caveats.
 
 3. **Regression / DoD / docs hardening**
@@ -785,4 +788,17 @@ Suggested commit message:
 
 ```text
 docs: sync citation graph outgoing references endpoint
+```
+
+
+## Citation Graph Incoming Citations Endpoint Docs Sync v0.1 note
+
+```text
+GET /citation-graph/papers/{canonical_id}/citations = implemented
+incoming citations include only resolved paper_references_paper edges
+unresolved external references are not counted as incoming canonical-paper citations
+manual live API check = passed for status, references, citations, unknown ids, and limit guards
+external-reference/source-family/top-reference endpoints = not implemented
+full graph runtime loader = not implemented
+/search, Discovery API, DB, Qdrant, ranking, canonical truth, graph output, package output, and publication state = unchanged
 ```
