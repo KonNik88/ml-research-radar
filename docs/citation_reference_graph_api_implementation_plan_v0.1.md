@@ -29,6 +29,29 @@ manual_review_complete = false
 publication_ready = false
 ```
 
+
+## Implementation progress after this plan
+
+This plan document remains implementation-plan-only, but later code slices have
+now implemented the first two narrow steps from the rollout path:
+
+```text
+Citation Graph API Disabled Status Endpoint v0.1 = implemented
+Citation Graph Status Compatibility Probe v0.1 = implemented
+```
+
+Current implemented API surface remains limited to:
+
+```text
+GET /citation-graph/status
+```
+
+The implemented compatibility probe is read-only. It checks local graph
+artifacts/reports for status compatibility when explicitly enabled, but it does
+not implement traversal endpoints, a runtime graph query service, DB
+materialization, Streamlit UI, GraphRAG, publication, or canonical/retrieval
+mutation.
+
 ## Purpose
 
 This document defines a future implementation plan for a local read-only
@@ -420,9 +443,9 @@ Qdrant is not required for citation graph API
 
 Recommended future implementation sequence:
 
-1. Add config/settings and disabled-by-default status endpoint.
-2. Add compatibility checker/runtime state with fixture tests.
-3. Add read-only file-backed graph store for tiny fixture graph.
+1. Add config/settings and disabled-by-default status endpoint. **Done.**
+2. Add compatibility checker/status probe with fixture tests. **Done for status only.**
+3. Add read-only file-backed graph store for tiny fixture graph. **Not done.**
 4. Add references/citations/external-reference endpoints on fixture graph.
 5. Add source-family and top-reference endpoints.
 6. Add integration tests against accepted local graph artifacts only after the
@@ -467,22 +490,27 @@ no retrieval rebuild
 no ranking changes
 ```
 
-## Next step after this plan
+## Current next step after status compatibility probe
 
-After this implementation plan is accepted, the next slice may be:
+After the disabled status endpoint and read-only compatibility probe have been
+implemented, the next safe slice is documentation synchronization and then
+fixture/store hardening before any traversal endpoint.
 
-```text
-Citation Graph API Disabled Status Endpoint v0.1
-```
-
-That future slice should implement only:
+Current implemented status:
 
 ```text
-configuration parsing
-disabled-by-default route gate
-GET /citation-graph/status disabled/unavailable behavior
-tests proving /health and /search are unchanged
+Citation Graph API Disabled Status Endpoint v0.1 = done
+Citation Graph Status Compatibility Probe v0.1 = done
+traversal endpoints = not implemented
+graph runtime query service = not implemented
 ```
 
-No traversal endpoints should be implemented in the first code slice.
+Recommended next code direction after docs sync:
+
+```text
+fixture-backed graph store / endpoint contract hardening
+```
+
+No traversal endpoints should be implemented until the fixture/store behavior,
+error mapping, pagination, caveats, and compatibility gates remain green.
 

@@ -7,12 +7,12 @@ document = primary living roadmap
 accepted checkpoint = Current State Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
 current active direction = review / regression / design-hardening
-current active slice = Citation Graph API disabled status endpoint documentation sync
+current active slice = Citation Graph status compatibility probe documentation sync
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = docs sync after disabled-by-default citation graph status endpoint; no canonical/retrieval/Qdrant/Postgres/UI/ranking/graph-output/publication behavior changes
+scope of current branch = docs sync after read-only citation graph status compatibility probe; no canonical/retrieval/Qdrant/Postgres/UI/ranking/graph-output/publication behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -69,12 +69,13 @@ Recently completed safe slices:
 6. **Citation / Reference Graph API Implementation Plan v0.1** — implementation plan only, with gates and rollback.
 7. **Citation Graph API Disabled Status Endpoint v0.1** — first narrow code slice: status-only, disabled by default, no graph traversal/runtime loader.
 8. **Citation Graph API Docs Sync v0.1** — align API reference, roadmap, current-state checkpoint, and restart/runbook docs with the disabled status endpoint.
+9. **Citation Graph Status Compatibility Probe v0.1** — second narrow code slice: read-only compatibility/status probe over existing local graph/package/report state; no graph traversal/runtime loader.
 
 Recommended next safe slices:
 
-1. **Citation Graph Status Compatibility Probe v0.1** — read-only status compatibility checks against existing graph/package/reports; no traversal endpoints.
+1. **Citation Graph Status Compatibility Docs Sync v0.1** — align API reference, roadmap, current-state checkpoint, and restart/runbook docs with the implemented compatibility probe.
 2. **Regression / DoD hardening** — optional gates, accepted-checkpoint checks, and validation wiring only.
-3. **Citation Graph traversal endpoint design review** — only after status compatibility remains green and manual-review/publication caveats are preserved.
+3. **Citation Graph traversal endpoint design review / fixture-backed store plan** — only after status compatibility remains green and manual-review/publication caveats are preserved.
 
 Explicit immediate non-goals:
 
@@ -1686,18 +1687,112 @@ status endpoint does not publish anything
 
 
 
+
+### 4.35 Citation Graph Status Compatibility Probe v0.1
+
+Status: **done / green second narrow code slice**
+
+Implemented the read-only compatibility/status probe for the existing
+`GET /citation-graph/status` endpoint.
+
+Current API surface remains:
+
+```text
+GET /citation-graph/status
+```
+
+Current semantics:
+
+```text
+status_only = true
+compatibility_probe = implemented
+read_only = true
+disabled_by_default = true
+feature_flag = ML_RADAR_CITATION_GRAPH_API_ENABLED
+graph_runtime_loader = not implemented
+graph_traversal_endpoints = not implemented
+graph_db_materialization = not implemented
+streamlit_graph_ui = not implemented
+graphrag = not implemented
+publication_ready = false
+manual_review_required = true
+```
+
+When `ML_RADAR_CITATION_GRAPH_API_ENABLED=false`, the endpoint reports disabled
+status:
+
+```text
+runtime_enabled = false
+available = false
+error_code = graph_runtime_not_enabled
+```
+
+When `ML_RADAR_CITATION_GRAPH_API_ENABLED=true`, the endpoint probes local graph
+artifacts and validation reports read-only. It may report:
+
+```text
+graph_artifacts_not_found
+graph_artifacts_invalid
+graph_artifacts_unsafe
+graph_version_unsupported
+graph_canonical_baseline_mismatch
+graph_package_stale
+graph_manual_review_incomplete
+```
+
+Compatible local-inspection state means:
+
+```text
+runtime_enabled = true
+available = true
+safe_to_serve_locally = true
+manual_review_required = true
+manual_review_complete = false
+publication_ready = false
+```
+
+Important interpretation:
+
+```text
+manual_review_complete=false does not fail local status compatibility;
+it remains a caveat and publication/public-exposure blocker.
+```
+
+Accepted local validation:
+
+```text
+python -m py_compile services/api/schemas.py services/api/citation_graph_service.py tests/integration/test_api_citation_graph_status.py
+test_api_citation_graph_status.py = 6 passed
+ML_RADAR_SEARCH_BACKEND=file test_api_smoke.py = 7 passed
+git diff --check = passed, CRLF warnings only on Windows
+```
+
+Boundary:
+
+```text
+status compatibility probe is read-only
+status compatibility probe does not load graph nodes/edges as a query store
+status compatibility probe does not expose graph traversal
+status compatibility probe does not mutate canonical truth
+status compatibility probe does not mutate graph output/package/reports
+status compatibility probe does not mutate Postgres
+status compatibility probe does not change /search
+status compatibility probe does not change Discovery API
+status compatibility probe does not require Qdrant
+status compatibility probe does not publish anything
+```
+
 ## 5. Current active direction
 
-### 5.1 Citation graph API status hardening
+### 5.1 Citation graph API status / compatibility hardening
 
-Status: **current direction after first disabled-by-default status endpoint**
+Status: **current direction after completed disabled status endpoint and compatibility probe**
 
 Goal:
 
 ```text
-Keep the first graph API surface deliberately narrow: status-only, disabled by
-default, with compatibility/status hardening before any traversal endpoint or
-runtime graph loader.
+Keep the first graph API surface deliberately narrow: status-only and compatibility-only, disabled by
+default, with traversal endpoints still closed and no runtime graph loader.
 ```
 
 Accepted design/checkpoint files:
@@ -1715,8 +1810,9 @@ Definition of done for the current status-hardening direction:
 
 - roadmap records the disabled status endpoint as the first completed narrow code slice;
 - docs do not imply that graph traversal, graph runtime loading, GraphRAG, DB materialization, or Streamlit graph UI exists;
-- API reference documents `/citation-graph/status` as disabled-by-default status-only behavior;
-- next code work remains a status compatibility probe, not traversal implementation;
+- API reference documents `/citation-graph/status` as disabled-by-default status/compatibility behavior;
+- compatibility probe is documented as implemented and read-only;
+- next code work must not jump directly to broad traversal implementation without fixture/store hardening;
 - no canonical, retrieval, Qdrant, Postgres, UI, ranking, graph-output, package, or publication behavior is changed in this docs sync.
 
 Boundary:
@@ -1890,12 +1986,12 @@ no publication
 
 ### 6.5 Citation Graph Status Compatibility Probe v0.1
 
-Recommended next code-adjacent slice.
+Status: **done / green code-adjacent slice**.
 
 Purpose:
 
 ```text
-Add a read-only compatibility/status probe for the existing citation/reference
+Adds a read-only compatibility/status probe for the existing citation/reference
 graph output, package, and validation reports while keeping traversal endpoints closed.
 ```
 

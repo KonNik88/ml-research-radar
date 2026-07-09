@@ -25,6 +25,21 @@ manual_review_complete = false
 publication_ready = false
 ```
 
+
+## Implementation progress note
+
+This fixture document remains a design/contract document. Since it was accepted,
+the project has implemented only the status surface:
+
+```text
+GET /citation-graph/status = implemented
+read-only compatibility probe = implemented
+traversal endpoints = not implemented
+```
+
+The traversal fixtures below remain future endpoint contracts. They must not be
+read as implemented API behavior.
+
 ## Purpose
 
 This document defines expected JSON response and error fixtures for the candidate
@@ -110,7 +125,7 @@ All successful response fixtures embed this graph metadata shape.
 
 ## Status fixture
 
-Candidate endpoint:
+Implemented endpoint:
 
 ```text
 GET /citation-graph/status
@@ -164,7 +179,10 @@ Expected successful response:
     "configured": true,
     "available": true,
     "runtime_enabled": true,
-    "safe_to_serve_locally": true
+    "safe_to_serve_locally": true,
+    "compatibility_probe_implemented": true,
+    "runtime_loader_implemented": false,
+    "traversal_endpoints_implemented": false
   }
 }
 ```
@@ -565,7 +583,7 @@ error contract where practical:
 }
 ```
 
-Candidate error codes:
+Candidate / implemented graph error codes:
 
 ```text
 graph_runtime_not_enabled
@@ -573,6 +591,8 @@ graph_artifacts_not_found
 graph_artifacts_invalid
 graph_artifacts_unsafe
 graph_version_unsupported
+graph_canonical_baseline_mismatch
+graph_package_stale
 graph_manual_review_incomplete
 graph_query_invalid
 graph_result_limit_exceeded
@@ -588,6 +608,8 @@ Required error fixtures:
 | graph files missing | 503 | `graph_artifacts_not_found` |
 | graph manifest unsafe | 503 | `graph_artifacts_unsafe` |
 | unsupported graph version | 503 | `graph_version_unsupported` |
+| canonical baseline mismatch | 503 | `graph_canonical_baseline_mismatch` |
+| stale package/report mismatch | 503 | `graph_package_stale` |
 | invalid query parameter | 400 or 422 | `graph_query_invalid` |
 | result limit exceeded | 400 or 422 | `graph_result_limit_exceeded` |
 | unknown canonical paper | 404 | `canonical_id_not_found` |
