@@ -19,7 +19,8 @@ canonical JSONL truth
 → ranking / paper detail / similar papers
 → topic clusters / projection
 → local graph evidence/review artifacts
-→ disabled-by-default Citation Graph status/compatibility surface
+→ Citation Graph status/compatibility surface
+→ Citation Graph outgoing references endpoint
 → internal Citation Graph fixture store/query core
 → Discovery API
 → Streamlit Discovery UI
@@ -37,8 +38,9 @@ paper_features / ranking / detail / similar / topic clusters = derived discovery
 Discovery API = product/discovery API over derived layers
 Streamlit UI = thin API client
 Citation / Reference Graph status API = disabled-by-default status/compatibility safety surface
+Citation / Reference Graph outgoing references API = first narrow read-only traversal endpoint
 Citation / Reference Graph fixture store = internal read-only query core for fixture-backed semantics
-Citation / Reference Graph traversal/runtime API = not implemented
+Citation / Reference Graph traversal/runtime API = partially implemented for outgoing references only; other traversal/runtime surfaces are not implemented
 ```
 
 ---
@@ -52,7 +54,7 @@ Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1
 Citation Graph API Disabled Status Endpoint v0.1
 Citation Graph Status Compatibility Probe v0.1
 Citation Graph Fixture Store v0.1
-API documentation sync after fixture store
+API documentation sync after outgoing references endpoint
 ```
 
 Current canonical baseline:
@@ -541,29 +543,33 @@ last_reload_at
 ---
 
 
-# Citation / Reference Graph Status API
+# Citation / Reference Graph API
 
 ## Current implementation status
 
-The API currently exposes a deliberately narrow citation/reference graph status
-surface:
+The API now exposes a deliberately narrow citation/reference graph surface:
 
 ```text
 GET /citation-graph/status
+GET /citation-graph/papers/{canonical_id}/references
 ```
 
 Current v0.1 semantics:
 
 ```text
-endpoint_exists = true
-status_only = true
+status_endpoint = implemented
 compatibility_probe = implemented
 read_only = true
 disabled_by_default = true
 feature_flag = ML_RADAR_CITATION_GRAPH_API_ENABLED
 fixture_store = implemented_internal
-graph_runtime_loader = not implemented
-graph_traversal_endpoints = not implemented
+outgoing_references_endpoint = implemented
+incoming_citations_endpoint = not implemented
+external_reference_lookup_endpoint = not implemented
+source_family_endpoint = not implemented
+top_referenced_papers_endpoint = not implemented
+top_external_references_endpoint = not implemented
+full_graph_runtime_loader = not implemented
 graph_db_materialization = not implemented
 streamlit_graph_ui = not implemented
 graphrag = not implemented
@@ -571,20 +577,27 @@ publication_ready = false
 manual_review_required = true
 ```
 
-This endpoint is a safety/status/compatibility surface, not a graph traversal
-API. It must not be interpreted as publication approval, graph runtime
-promotion, or permission to expose reference/citation traversal data.
+The status endpoint is still the safety/status/compatibility surface. The
+references endpoint is the first intentionally narrow traversal endpoint and is
+limited to outgoing references for one canonical paper. It is read-only,
+feature-flagged, compatibility-gated, and backed by `CitationGraphStore` over the
+configured local graph root. It must not be interpreted as graph publication,
+GraphRAG, graph DB materialization, or promotion of the graph as canonical truth.
 
-The first code slice added the disabled-by-default endpoint. The second code
-slice added a read-only compatibility probe for local graph artifacts and
+The first code slice added the disabled-by-default status endpoint. The second
+code slice added a read-only compatibility probe for local graph artifacts and
 validation reports. The third code slice added an internal fixture-backed graph
-store for query semantics. The public API still exposes only status; it does not
-serve references/citations traversal routes and it does not load the full local
-graph as an API runtime.
+store for query semantics. The fourth code slice added only:
+
+```text
+GET /citation-graph/papers/{canonical_id}/references
+```
+
+No other traversal endpoint is currently implemented.
 
 ## Configuration
 
-The endpoint is controlled by:
+The citation graph API is controlled by:
 
 ```bat
 set ML_RADAR_CITATION_GRAPH_API_ENABLED=false
@@ -594,8 +607,8 @@ Default behavior:
 
 ```text
 ML_RADAR_CITATION_GRAPH_API_ENABLED=false
-→ runtime_enabled=false
-→ available=false
+→ /citation-graph/status reports runtime_enabled=false
+→ /citation-graph/papers/{canonical_id}/references fails closed
 → error_code=graph_runtime_not_enabled
 ```
 
@@ -605,9 +618,11 @@ Explicit local-inspection behavior:
 set ML_RADAR_CITATION_GRAPH_API_ENABLED=true
 ```
 
-When enabled, the endpoint performs a read-only compatibility probe over the
-configured graph root and validation reports. It reports whether local graph
-evidence is structurally safe to inspect, but it does not serve traversal data.
+When enabled, graph-facing routes perform a read-only compatibility probe over
+the configured graph root and validation reports before serving local graph
+evidence. If the graph is missing, unsafe, stale, incompatible, or configured for
+unsupported public exposure, graph routes fail closed with a graph-specific
+error code.
 
 Relevant settings:
 
@@ -629,22 +644,16 @@ summary.
 
 Current expected behavior:
 
-- responds without serving graph traversal results;
 - when disabled, returns disabled/unavailable status;
 - when enabled, probes local graph artifact/report compatibility read-only;
+- returns no traversal items;
 - does not mutate canonical documents;
 - does not mutate graph outputs, packages, reports, or latest pointers;
 - does not mutate Postgres;
 - does not change `/search`;
 - does not change Discovery API behavior;
 - works independently of Qdrant;
-- preserves manual-review and publication caveats;
-- keeps traversal endpoints closed.
-
-The status endpoint may be used by tests, operators, and future UI/runtime work
-to verify that the graph API surface is present while traversal remains closed.
-
-## Successful local compatibility interpretation
+- preserves manual-review and publication caveats.
 
 A compatible local-inspection status means:
 
@@ -654,32 +663,80 @@ available = true
 safe_to_serve_locally = true
 compatibility_probe_implemented = true
 runtime_loader_implemented = false
-traversal_endpoints_implemented = false
 manual_review_required = true
 manual_review_complete = false
 publication_ready = false
 ```
 
-This means local graph evidence can be inspected through status metadata only.
-It does not mean public exposure is approved.
+`manual_review_complete=false` does not make local status compatibility fail. It
+remains a caveat and publication blocker.
 
-Manual-review semantics remain:
+## `GET /citation-graph/papers/{canonical_id}/references`
+
+Returns outgoing reference evidence for a canonical paper from the local
+citation/reference graph.
+
+Path parameters:
+
+| parameter | type | notes |
+|---|---:|---|
+| `canonical_id` | string | canonical paper id or paper node id accepted by the store |
+
+Query parameters:
+
+| parameter | type | default | notes |
+|---|---:|---:|---|
+| `limit` | int | `ML_RADAR_CITATION_GRAPH_DEFAULT_LIMIT` | must be `>= 1` and `<= ML_RADAR_CITATION_GRAPH_MAX_LIMIT` |
+| `offset` | int | 0 | must be `>= 0` |
+
+Successful response shape:
 
 ```text
-manual_review_required = true
-manual_review_complete = false
-publication_ready = false
+graph
+query
+items
+page
+caveats
 ```
 
-`manual_review_complete=false` does not make local status compatibility fail.
-It remains a caveat and publication blocker.
+Returned items may include both:
+
+```text
+paper_references_paper      -> resolved canonical-paper reference
+paper_references_external   -> unresolved external_reference evidence
+```
+
+The endpoint preserves these caveats:
+
+```text
+metadata_reference_fields_only
+not_a_complete_citation_index
+manual_review_required
+publication_ready_false
+unresolved_references_preserved_as_external_reference_nodes
+```
+
+Current endpoint behavior:
+
+```text
+disabled feature flag -> 503 graph_runtime_not_enabled
+missing/incompatible graph -> 503 graph_artifacts_* / graph_*_mismatch
+unknown canonical_id -> 404 canonical_id_not_found
+limit above max -> 400 graph_result_limit_exceeded
+success -> 200 graph/query/items/page/caveats envelope
+```
+
+This endpoint is intentionally narrow. It does not implement incoming citations,
+external-reference reverse lookup, source-family diagnostics, top-reference
+rankings, full runtime graph loading, graph DB materialization, Streamlit graph
+UI, GraphRAG, publication, or any `/search` behavior change.
 
 ## Compatibility failure states
 
-The status endpoint should fail closed through the response payload when local
-graph evidence is missing, unsafe, stale, or incompatible.
+Graph-facing routes fail closed when local graph evidence is missing, unsafe,
+stale, or incompatible.
 
-Common graph status error codes:
+Common graph error codes:
 
 ```text
 graph_runtime_not_enabled
@@ -690,6 +747,8 @@ graph_version_unsupported
 graph_canonical_baseline_mismatch
 graph_package_stale
 graph_manual_review_incomplete
+graph_result_limit_exceeded
+canonical_id_not_found
 ```
 
 Representative interpretations:
@@ -718,30 +777,36 @@ package/report staleness or checksum mismatch
 
 public exposure requested while manual review is incomplete
 → graph_manual_review_incomplete
+
+requested page limit exceeds configured graph max limit
+→ graph_result_limit_exceeded
+
+paper is not present in the local citation graph
+→ canonical_id_not_found
 ```
 
-These graph status errors are endpoint-local. They must not make `/health`
-unhealthy when the normal file or DB runtime is otherwise ready.
+These graph errors are endpoint-local. They must not make `/health` unhealthy
+when the normal file or DB runtime is otherwise ready.
 
 ## Current non-goals
 
 ```text
-no outgoing-reference endpoint
 no incoming-citation endpoint
 no external-reference lookup endpoint
 no source-family graph diagnostics endpoint
 no top referenced papers endpoint
 no top external references endpoint
-no graph traversal query service
-no runtime graph store over nodes.jsonl / edges.jsonl
+no full graph runtime loader over production nodes/edges
 no graph DB serving layer
 no Streamlit graph surface
 no GraphRAG
 no Qdrant dependency
-no public graph data exposure
+no public graph publication
+no use as reconcile input
 ```
 
-Implementation files touched by the status, compatibility-probe, and fixture-store slices:
+Implementation files touched by the status, compatibility-probe, fixture-store,
+and outgoing-references endpoint slices:
 
 ```text
 services/api/citation_graph_service.py
@@ -750,6 +815,7 @@ services/api/settings.py
 services/api/schemas.py
 services/api/app.py
 tests/integration/test_api_citation_graph_status.py
+tests/integration/test_api_citation_graph_references.py
 tests/smoke/test_citation_graph_fixture_store.py
 tests/fixtures/citation_graph_v0_1/
 ```
@@ -757,9 +823,10 @@ tests/fixtures/citation_graph_v0_1/
 Recommended validation:
 
 ```bat
-python -m py_compile services/api/settings.py services/api/schemas.py services/api/citation_graph_service.py services/api/citation_graph_store.py services/api/app.py
+python -m py_compile services/api/settings.py services/api/schemas.py services/api/citation_graph_service.py services/api/citation_graph_store.py services/api/app.py tests/integration/test_api_citation_graph_references.py tests/integration/test_api_citation_graph_status.py
 
 set ML_RADAR_SEARCH_BACKEND=file
+python -m pytest tests/integration/test_api_citation_graph_references.py -q
 python -m pytest tests/integration/test_api_citation_graph_status.py -q
 python -m pytest tests/smoke/test_citation_graph_fixture_store.py -q
 python -m pytest tests/integration/test_api_smoke.py -q
@@ -769,10 +836,11 @@ python -m pytest tests/integration/test_api_citation_graph_status.py -q
 python -m pytest tests/integration/test_api_db_smoke.py -q
 ```
 
-Accepted local validation for the status/compatibility/store code slices:
+Accepted local validation for the outgoing-references endpoint slice:
 
 ```text
 py_compile = passed
+test_api_citation_graph_references.py = 5 passed
 test_api_citation_graph_status.py = 6 passed
 test_citation_graph_fixture_store.py = 7 passed
 test_api_smoke.py with ML_RADAR_SEARCH_BACKEND=file = 7 passed
@@ -781,15 +849,17 @@ git diff --check = passed, CRLF warnings only on Windows
 
 ## Boundary
 
-The status/compatibility endpoint does not make the local Citation / Reference
+The citation/reference graph API does not make the local Citation / Reference
 Graph a runtime truth source. The graph remains a local derived evidence/review
 layer:
 
 ```text
 canonical_documents.jsonl = paper truth
 citation/reference graph output = derived local evidence
-status endpoint = API safety/status/compatibility surface only
-traversal endpoints = not implemented
+status endpoint = API safety/status/compatibility surface
+outgoing references endpoint = narrow local-inspection traversal surface
+incoming/external/source-family/top traversal endpoints = not implemented
+full graph runtime loader = not implemented
 manual_review_complete = false
 publication_ready = false
 ```
@@ -799,8 +869,7 @@ publication_ready = false
 
 ## Current implementation status
 
-The project now includes an internal fixture-backed citation/reference graph
-store:
+The project includes an internal fixture-backed citation/reference graph store:
 
 ```text
 services/api/citation_graph_store.py
@@ -808,9 +877,10 @@ tests/fixtures/citation_graph_v0_1/
 tests/smoke/test_citation_graph_fixture_store.py
 ```
 
-This store is a read-only query core for hardening graph traversal semantics
-before exposing any public traversal endpoint. It is intentionally not wired to
-FastAPI routes in this slice.
+This store is a read-only query core for hardening graph traversal semantics.
+The outgoing-references endpoint now uses the same store semantics through a
+feature-flagged and compatibility-gated route. The store itself remains
+read-only and must not mutate graph artifacts or become canonical truth.
 
 Implemented internal methods:
 
@@ -833,18 +903,16 @@ incoming citations include only resolved paper_references_paper edges
 external_reference lookup accepts node id, reference key, or normalized value in the store layer
 source-family diagnostics are bounded
 limit/offset are validated
-unknown paper/reference ids return found=false without throwing
+unknown paper/reference ids return found=false at the store layer
 ```
 
 Boundary:
 
 ```text
-fixture store is internal
-fixture store is read-only
-fixture store is not a public API endpoint
-fixture store is not a runtime loader for the full production graph
+fixture store is internal and read-only
+fixture store is not canonical truth
+fixture store is not a graph DB runtime
 fixture store does not mutate graph outputs, reports, packages, or latest pointers
-fixture store does not change /citation-graph/status
 fixture store does not change /search, /health, /runtime, Discovery API, DB, Qdrant, Streamlit, or ranking
 fixture store does not implement GraphRAG
 fixture store does not publish anything
