@@ -7,12 +7,12 @@ document = primary living roadmap
 accepted checkpoint = Current State Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
 current active direction = review / regression / design-hardening
-current active slice = Citation Graph status compatibility probe documentation sync
+current active slice = Citation Graph fixture store documentation sync
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = docs sync after read-only citation graph status compatibility probe; no canonical/retrieval/Qdrant/Postgres/UI/ranking/graph-output/publication behavior changes
+scope of current branch = docs sync after internal citation graph fixture store; no canonical/retrieval/Qdrant/Postgres/UI/ranking/graph-output/publication behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -70,12 +70,13 @@ Recently completed safe slices:
 7. **Citation Graph API Disabled Status Endpoint v0.1** — first narrow code slice: status-only, disabled by default, no graph traversal/runtime loader.
 8. **Citation Graph API Docs Sync v0.1** — align API reference, roadmap, current-state checkpoint, and restart/runbook docs with the disabled status endpoint.
 9. **Citation Graph Status Compatibility Probe v0.1** — second narrow code slice: read-only compatibility/status probe over existing local graph/package/report state; no graph traversal/runtime loader.
+10. **Citation Graph Fixture Store v0.1** — internal read-only fixture-backed query core; no public traversal endpoints and no full graph runtime loader.
 
 Recommended next safe slices:
 
-1. **Citation Graph Status Compatibility Docs Sync v0.1** — align API reference, roadmap, current-state checkpoint, and restart/runbook docs with the implemented compatibility probe.
-2. **Regression / DoD hardening** — optional gates, accepted-checkpoint checks, and validation wiring only.
-3. **Citation Graph traversal endpoint design review / fixture-backed store plan** — only after status compatibility remains green and manual-review/publication caveats are preserved.
+1. **Citation Graph Fixture Store Docs Sync v0.1** — align API reference, roadmap, current-state checkpoint, and restart/runbook docs with the implemented internal fixture store.
+2. **First Citation Graph traversal endpoint slice** — only one fixture-backed endpoint, preferably outgoing references, after docs sync and with status/compatibility caveats preserved.
+3. **Regression / DoD hardening** — optional gates, accepted-checkpoint checks, and validation wiring only.
 
 Explicit immediate non-goals:
 
@@ -1782,17 +1783,72 @@ status compatibility probe does not require Qdrant
 status compatibility probe does not publish anything
 ```
 
+
+### 4.36 Citation Graph Fixture Store v0.1
+
+Status: **done / green internal read-only fixture-backed query core**
+
+Implemented after the disabled status endpoint and status compatibility probe:
+
+```text
+GET /citation-graph/status
+→ status compatibility probe
+→ internal fixture-backed CitationGraphStore
+```
+
+Implemented files:
+
+```text
+services/api/citation_graph_store.py
+tests/fixtures/citation_graph_v0_1/
+tests/smoke/test_citation_graph_fixture_store.py
+```
+
+Current store methods:
+
+```text
+graph_summary
+outgoing_references
+incoming_citations
+external_reference_papers
+source_family_diagnostics
+top_referenced_papers
+top_external_references
+```
+
+Accepted local validation:
+
+```text
+python -m py_compile services/api/citation_graph_store.py tests/smoke/test_citation_graph_fixture_store.py
+test_citation_graph_fixture_store.py = 7 passed
+test_api_citation_graph_status.py = 6 passed
+```
+
+Boundary:
+
+```text
+fixture store is internal
+fixture store is read-only
+fixture store is not wired to FastAPI traversal routes
+fixture store is not a runtime loader over the full local graph
+fixture store does not change /citation-graph/status
+fixture store does not change /search, /health, /runtime, Discovery API, DB, Qdrant, Streamlit, or ranking
+fixture store does not implement GraphRAG
+fixture store does not publish anything
+```
+
+
 ## 5. Current active direction
 
-### 5.1 Citation graph API status / compatibility hardening
+### 5.1 Citation graph API fixture/store hardening
 
 Status: **current direction after completed disabled status endpoint and compatibility probe**
 
 Goal:
 
 ```text
-Keep the first graph API surface deliberately narrow: status-only and compatibility-only, disabled by
-default, with traversal endpoints still closed and no runtime graph loader.
+Keep the graph API path deliberately staged: status-only and compatibility-only at the public route layer,
+with an internal fixture-backed store for query semantics, while traversal endpoints remain closed and no full graph runtime loader exists.
 ```
 
 Accepted design/checkpoint files:
@@ -1812,7 +1868,8 @@ Definition of done for the current status-hardening direction:
 - docs do not imply that graph traversal, graph runtime loading, GraphRAG, DB materialization, or Streamlit graph UI exists;
 - API reference documents `/citation-graph/status` as disabled-by-default status/compatibility behavior;
 - compatibility probe is documented as implemented and read-only;
-- next code work must not jump directly to broad traversal implementation without fixture/store hardening;
+- fixture store is documented as implemented and internal/read-only;
+- next code work may add only a narrow fixture-backed traversal endpoint, not broad traversal/runtime promotion;
 - no canonical, retrieval, Qdrant, Postgres, UI, ranking, graph-output, package, or publication behavior is changed in this docs sync.
 
 Boundary:
@@ -2017,6 +2074,44 @@ no Streamlit graph UI
 no GraphRAG
 no publication
 ```
+
+
+### 6.6 Citation Graph Fixture Store v0.1
+
+Status: **done / green internal store slice**.
+
+Purpose:
+
+```text
+Add a read-only file-backed store over a tiny citation/reference graph fixture to
+harden query semantics before exposing traversal endpoints.
+```
+
+Implemented scope:
+
+```text
+load fixture graph files
+index outgoing references
+index incoming citations
+index external_reference -> papers
+source-family diagnostics
+top referenced papers
+top external references
+limit/offset validation
+unknown ids return found=false
+```
+
+Non-goals:
+
+```text
+no public traversal endpoint
+no full graph runtime loader
+no DB materialization
+no Streamlit graph UI
+no GraphRAG
+no publication
+```
+
 
 ### 6.6 Regression / DoD hardening
 

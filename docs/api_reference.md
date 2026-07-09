@@ -20,6 +20,7 @@ canonical JSONL truth
 → topic clusters / projection
 → local graph evidence/review artifacts
 → disabled-by-default Citation Graph status/compatibility surface
+→ internal Citation Graph fixture store/query core
 → Discovery API
 → Streamlit Discovery UI
 ```
@@ -36,6 +37,7 @@ paper_features / ranking / detail / similar / topic clusters = derived discovery
 Discovery API = product/discovery API over derived layers
 Streamlit UI = thin API client
 Citation / Reference Graph status API = disabled-by-default status/compatibility safety surface
+Citation / Reference Graph fixture store = internal read-only query core for fixture-backed semantics
 Citation / Reference Graph traversal/runtime API = not implemented
 ```
 
@@ -49,7 +51,8 @@ Current checkpoint:
 Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1
 Citation Graph API Disabled Status Endpoint v0.1
 Citation Graph Status Compatibility Probe v0.1
-API documentation sync after status compatibility probe
+Citation Graph Fixture Store v0.1
+API documentation sync after fixture store
 ```
 
 Current canonical baseline:
@@ -558,6 +561,7 @@ compatibility_probe = implemented
 read_only = true
 disabled_by_default = true
 feature_flag = ML_RADAR_CITATION_GRAPH_API_ENABLED
+fixture_store = implemented_internal
 graph_runtime_loader = not implemented
 graph_traversal_endpoints = not implemented
 graph_db_materialization = not implemented
@@ -573,8 +577,10 @@ promotion, or permission to expose reference/citation traversal data.
 
 The first code slice added the disabled-by-default endpoint. The second code
 slice added a read-only compatibility probe for local graph artifacts and
-validation reports. The endpoint still does not load graph nodes/edges as a
-runtime graph store and still does not expose any traversal endpoint.
+validation reports. The third code slice added an internal fixture-backed graph
+store for query semantics. The public API still exposes only status; it does not
+serve references/citations traversal routes and it does not load the full local
+graph as an API runtime.
 
 ## Configuration
 
@@ -735,23 +741,27 @@ no Qdrant dependency
 no public graph data exposure
 ```
 
-Implementation files touched by the status and compatibility-probe slices:
+Implementation files touched by the status, compatibility-probe, and fixture-store slices:
 
 ```text
 services/api/citation_graph_service.py
+services/api/citation_graph_store.py
 services/api/settings.py
 services/api/schemas.py
 services/api/app.py
 tests/integration/test_api_citation_graph_status.py
+tests/smoke/test_citation_graph_fixture_store.py
+tests/fixtures/citation_graph_v0_1/
 ```
 
 Recommended validation:
 
 ```bat
-python -m py_compile services/api/settings.py services/api/schemas.py services/api/citation_graph_service.py services/api/app.py
+python -m py_compile services/api/settings.py services/api/schemas.py services/api/citation_graph_service.py services/api/citation_graph_store.py services/api/app.py
 
 set ML_RADAR_SEARCH_BACKEND=file
 python -m pytest tests/integration/test_api_citation_graph_status.py -q
+python -m pytest tests/smoke/test_citation_graph_fixture_store.py -q
 python -m pytest tests/integration/test_api_smoke.py -q
 
 set ML_RADAR_SEARCH_BACKEND=db
@@ -759,11 +769,12 @@ python -m pytest tests/integration/test_api_citation_graph_status.py -q
 python -m pytest tests/integration/test_api_db_smoke.py -q
 ```
 
-Accepted local validation for the compatibility-probe code slice:
+Accepted local validation for the status/compatibility/store code slices:
 
 ```text
 py_compile = passed
 test_api_citation_graph_status.py = 6 passed
+test_citation_graph_fixture_store.py = 7 passed
 test_api_smoke.py with ML_RADAR_SEARCH_BACKEND=file = 7 passed
 git diff --check = passed, CRLF warnings only on Windows
 ```
@@ -781,6 +792,77 @@ status endpoint = API safety/status/compatibility surface only
 traversal endpoints = not implemented
 manual_review_complete = false
 publication_ready = false
+```
+
+
+# Citation / Reference Graph Fixture Store
+
+## Current implementation status
+
+The project now includes an internal fixture-backed citation/reference graph
+store:
+
+```text
+services/api/citation_graph_store.py
+tests/fixtures/citation_graph_v0_1/
+tests/smoke/test_citation_graph_fixture_store.py
+```
+
+This store is a read-only query core for hardening graph traversal semantics
+before exposing any public traversal endpoint. It is intentionally not wired to
+FastAPI routes in this slice.
+
+Implemented internal methods:
+
+```text
+CitationGraphStore.load(...)
+graph_summary()
+outgoing_references(canonical_id)
+incoming_citations(canonical_id)
+external_reference_papers(reference_id)
+source_family_diagnostics()
+top_referenced_papers()
+top_external_references()
+```
+
+Fixture-backed semantics:
+
+```text
+outgoing references may include resolved paper references and unresolved external references
+incoming citations include only resolved paper_references_paper edges
+external_reference lookup accepts node id, reference key, or normalized value in the store layer
+source-family diagnostics are bounded
+limit/offset are validated
+unknown paper/reference ids return found=false without throwing
+```
+
+Boundary:
+
+```text
+fixture store is internal
+fixture store is read-only
+fixture store is not a public API endpoint
+fixture store is not a runtime loader for the full production graph
+fixture store does not mutate graph outputs, reports, packages, or latest pointers
+fixture store does not change /citation-graph/status
+fixture store does not change /search, /health, /runtime, Discovery API, DB, Qdrant, Streamlit, or ranking
+fixture store does not implement GraphRAG
+fixture store does not publish anything
+```
+
+Validation:
+
+```bat
+python -m py_compile services/api/citation_graph_store.py tests/smoke/test_citation_graph_fixture_store.py
+python -m pytest tests/smoke/test_citation_graph_fixture_store.py -q
+python -m pytest tests/integration/test_api_citation_graph_status.py -q
+```
+
+Accepted local result:
+
+```text
+test_citation_graph_fixture_store.py = 7 passed
+test_api_citation_graph_status.py = 6 passed
 ```
 
 # Search API

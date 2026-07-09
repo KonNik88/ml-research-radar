@@ -31,14 +31,16 @@ publication_ready = false
 ## Implementation progress note
 
 This document remains a compatibility design contract. Since it was accepted, the
-project has implemented the compatibility checks only through the
-`GET /citation-graph/status` status surface. The implementation remains
-read-only and status-only:
+project has implemented compatibility checks through the
+`GET /citation-graph/status` status surface and has added an internal fixture
+store for query-semantics hardening. The implementation remains read-only and
+not publicly traversable:
 
 ```text
 Citation Graph Status Compatibility Probe v0.1 = implemented
+Citation Graph Fixture Store v0.1 = implemented_internal
 traversal endpoints = not implemented
-runtime graph query service = not implemented
+full runtime graph query service = not implemented
 DB materialization = not implemented
 Streamlit graph UI = not implemented
 GraphRAG = not implemented
@@ -50,10 +52,11 @@ This document defines compatibility checks and stale-version failure semantics
 for a possible future Citation / Reference Graph runtime.
 
 It is a design-hardening contract. The later status compatibility probe implements
-only the read-only status-check portion of this contract; it does not implement a
-runtime graph loader, traversal API endpoint, Postgres materialization, Streamlit
-UI, GraphRAG, graph DB runtime, package rebuild, graph rebuild, or publication
-step.
+the read-only status-check portion of this contract, and the fixture store
+implements internal fixture-backed query semantics. These do not implement a
+public traversal API endpoint, full runtime graph loader, Postgres
+materialization, Streamlit UI, GraphRAG, graph DB runtime, package rebuild,
+graph rebuild, or publication step.
 
 The goal is to decide how future code will verify that local graph artifacts are
 safe to read before serving graph evidence through any API surface.
@@ -440,6 +443,7 @@ Future implementation must include tests for:
 
 ```text
 compatible fixture passes
+fixture store query semantics pass on tiny graph
 missing manifest fails with graph_artifacts_not_found
 wrong graph version fails with graph_version_unsupported
 paper_nodes/canonical count mismatch fails with graph_canonical_baseline_mismatch
@@ -456,7 +460,7 @@ compatibility checks do not write graph outputs or reports at request time
 
 ## Implementation gates
 
-Traversal/runtime endpoint implementation must not start until these design gates are accepted and the status compatibility probe remains green:
+Traversal/runtime endpoint implementation must not start until these design gates are accepted, the status compatibility probe remains green, and the fixture store semantics remain green:
 
 ```text
 Citation / Reference Graph API Design v0.1
@@ -465,5 +469,5 @@ Citation / Reference Graph Runtime Compatibility Design v0.1
 Graph API Implementation Plan v0.1
 ```
 
-The compatibility design and status probe do not approve traversal endpoint implementation by themselves.
+The compatibility design, status probe, and fixture store do not approve broad traversal/runtime promotion by themselves. They only allow a narrow fixture-backed endpoint slice when caveats and fail-closed behavior remain intact.
 
