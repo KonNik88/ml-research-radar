@@ -16,7 +16,7 @@ overlapping source-level observations.
 ## Current checkpoint
 
 ```text
-checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1
+checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.2
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
@@ -642,9 +642,9 @@ logic.
 
 ---
 
-## 14.5 Citation/reference graph API checkpoint
+## 14.5 Citation/reference graph API checkpoint v0.2
 
-The current graph API surface is deliberately narrow and local-inspection only:
+The current checkpointed graph API surface is deliberately narrow and local-inspection only:
 
 ```text
 GET /citation-graph/status
@@ -675,6 +675,7 @@ external-reference papers endpoint is implemented as reverse lookup over unresol
 source-families endpoint is implemented as reference-evidence-only diagnostics
 top-reference endpoints = not implemented
 full graph runtime loader = not implemented
+checkpoint v0.2 = docs/regression-hardening only, no new endpoint
 graph DB materialization = not implemented
 Streamlit graph UI = not implemented
 GraphRAG = not implemented
@@ -760,5 +761,5 @@ Qdrant is experimentally validated but not promoted.
 Unranked hybrid remains the search relevance reference.
 The retrieval-serving checkpoint gate is the lightweight regression guard.
 Future promotion decisions must be explicit, evidence-backed, and reversible.
-Citation graph status/references/citations/external-reference-papers/source-families are a narrow local-inspection API block, not a graph-runtime promotion.
+Citation graph status/references/citations/external-reference-papers/source-families are the checkpointed v0.2 narrow local-inspection API block, not a graph-runtime promotion.
 ```

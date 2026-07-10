@@ -356,7 +356,7 @@ test_api_citation_graph_references.py = 19 passed
 test_api_citation_graph_status.py = 6 passed
 test_citation_graph_fixture_store.py = 7 passed
 test_api_smoke.py = 7 passed
-manual live source-families check = 200 success and 400 limit guard
+manual live traversal checkpoint v0.2 check = green for status, references, citations, external-reference papers, source-families, unknown ids, and limit guards
 ```
 
 ## 4.4 Artifact evidence plane
@@ -752,20 +752,36 @@ Recently completed safe slices after this checkpoint baseline:
    - accepts external_reference node id, reference_key, or normalized value;
    - disabled by default and compatibility-gated.
 
+14. **Citation Graph Source Families Endpoint v0.1**
+   - fourth narrow diagnostics endpoint;
+   - `GET /citation-graph/source-families`;
+   - source-family reference-evidence diagnostics only;
+   - not a source coverage metric.
+
+15. **Citation Graph Source Families Endpoint Docs Sync v0.1**
+   - shared docs aligned with the implemented fourth graph endpoint;
+   - no-top-endpoints/no-full-runtime-loader boundary preserved.
+
+16. **Citation Graph Traversal API Checkpoint v0.2**
+   - active docs/regression-hardening checkpoint over `status + references + citations + external-reference papers + source-families`;
+   - no new endpoint;
+   - preserve fail-closed behavior and caveats.
+
 Recommended next slices:
 
-1. **Citation Graph External Reference Papers Endpoint Docs Sync v0.1**
-   - shared docs aligned with the implemented third traversal endpoint;
-   - no-full-runtime-loader/no-source-family/top-endpoints boundary preserved.
-
-2. **Citation Graph Traversal API Checkpoint v0.2**
-   - optional docs/regression-hardening checkpoint over `status + references + citations + external-reference papers`.
-
-3. **Regression / DoD / docs hardening**
+1. **Regression / DoD / docs hardening**
    - optional gates;
    - checkpoint validation;
    - stale-counter protection;
    - accepted counter summaries.
+
+2. **Citation Graph Top Referenced Papers Endpoint v0.1**
+   - possible later narrow endpoint;
+   - must preserve resolved-internal-reference-only and not-global-citation-metric caveats.
+
+3. **Citation Graph Top External References Endpoint v0.1**
+   - possible later narrow endpoint;
+   - must preserve unresolved-reference and not-publication-grade-entity caveats.
 
 ---
 
@@ -773,7 +789,7 @@ Recommended next slices:
 
 Do not do these without a separate accepted design:
 
-- additional graph traversal endpoints beyond the implemented external-reference-papers slice;
+- additional graph traversal endpoints beyond the implemented status/references/citations/external-reference-papers/source-families block in this checkpoint;
 - GraphRAG;
 - Neo4j/NetworkX runtime;
 - full runtime graph loader over production graph artifacts;
@@ -789,8 +805,8 @@ Do not do these without a separate accepted design:
 
 ## 9. Suggested immediate plan
 
-Current dialogue should close with a small documentation sync slice after the
-implemented read-only external-reference-papers endpoint.
+Current dialogue should close with a docs/regression-hardening checkpoint over the
+implemented citation graph traversal API block after the source-families docs sync.
 
 Minimal documentation set:
 
@@ -821,16 +837,17 @@ python -m pytest tests/integration/test_api_smoke.py -q
 Suggested commit message:
 
 ```text
-docs: sync citation graph external reference papers endpoint
+docs: checkpoint citation graph traversal api v02
 ```
 
 
-## Citation Graph Traversal API Checkpoint v0.1
+## Citation Graph Traversal API Checkpoint v0.2
 
 Status: **accepted docs-only local-inspection checkpoint**
 
 This checkpoint freezes the current narrow citation/reference graph API surface as
-a stable local-inspection block before adding any further traversal endpoint.
+a stable local-inspection block after the source-families endpoint and before any
+top-reference endpoint work.
 
 Implemented and checkpointed routes:
 
@@ -875,6 +892,7 @@ Boundary:
 checkpoint is docs/regression-hardening only
 external-reference papers endpoint = implemented
 source-family endpoint = implemented
+top-reference endpoints = not implemented
 top-reference endpoints = not implemented
 full graph runtime loader = not implemented
 graph DB materialization = not implemented

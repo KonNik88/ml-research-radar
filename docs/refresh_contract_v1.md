@@ -74,7 +74,8 @@ Citation Graph Traversal API Checkpoint v0.1 — 2026-07 completed docs-only reg
 Citation Graph External Reference Papers Endpoint v0.1 — 2026-07 completed third narrow traversal endpoint slice
 Citation Graph External Reference Papers Endpoint Docs Sync v0.1 — 2026-07 completed docs synchronization slice
 Citation Graph Source Families Endpoint v0.1 — 2026-07 completed fourth narrow diagnostics endpoint slice
-Citation Graph Source Families Endpoint Docs Sync v0.1 — 2026-07 active docs synchronization slice
+Citation Graph Source Families Endpoint Docs Sync v0.1 — 2026-07 completed docs synchronization slice
+Citation Graph Traversal API Checkpoint v0.2 — 2026-07 active docs-only regression-hardening checkpoint
 ```
 
 Current healthy baseline:
@@ -134,7 +135,7 @@ citation_graph_status_compatibility_probe = implemented_read_only_status_probe
 citation_graph_fixture_store = implemented_internal_read_only_fixture_store
 citation_graph_outgoing_references_endpoint = implemented
 citation_graph_incoming_citations_endpoint = implemented
-citation_graph_traversal_api_checkpoint = active_docs_only
+citation_graph_traversal_api_checkpoint_v02 = active_docs_only
 citation_graph_external_reference_papers_endpoint = implemented
 citation_graph_source_families_endpoint = implemented
 citation_graph_top_traversal_endpoints = not_implemented
@@ -335,7 +336,7 @@ qdrant points_count = 60954
 qdrant corpus_doc_count = 60954
 test_api_smoke.py = 7 passed
 citation graph status endpoint = 6 passed, disabled-by-default/status-compatibility
-citation graph traversal endpoints = 9 passed, disabled-by-default/read-only/compatibility-gated
+citation graph traversal endpoints = 19 passed, disabled-by-default/read-only/compatibility-gated
 citation graph fixture store = 7 passed, internal/read-only core
 experimental qdrant API = status_code 200, mode dense_qdrant
 streamlit UI required_failed_count = 0
@@ -378,9 +379,9 @@ endpoint is reachable
 status/compatibility-only surface
 disabled by default unless ML_RADAR_CITATION_GRAPH_API_ENABLED is explicitly enabled
 when enabled, probes local graph manifests/reports read-only
-outgoing references and incoming citations endpoints are implemented and compatibility-gated
-other graph traversal endpoints are not implemented
-internal fixture store exists and backs outgoing references and incoming citations semantics
+outgoing references, incoming citations, external-reference papers, and source-families endpoints are implemented and compatibility-gated
+top-reference endpoints and full graph runtime loader are not implemented
+internal fixture store exists and backs outgoing references, incoming citations, external-reference papers, and source-family diagnostics semantics
 no full graph runtime loader
 manual_review_required = true
 publication_ready = false
