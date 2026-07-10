@@ -42,7 +42,7 @@ Streamlit UI = thin API client
 Citation / Reference Graph status API = disabled-by-default status/compatibility safety surface
 Citation / Reference Graph outgoing references API = first narrow read-only traversal endpoint
 Citation / Reference Graph fixture store = internal read-only query core for fixture-backed semantics
-Citation / Reference Graph traversal/runtime API = partially implemented for outgoing references and incoming citations only; other traversal/runtime surfaces are not implemented
+Citation / Reference Graph traversal/runtime API = partially implemented for outgoing references, incoming citations, external-reference papers, and source-family diagnostics only; top-reference/full-runtime surfaces are not implemented
 ```
 
 ---
@@ -57,6 +57,7 @@ Citation Graph API Disabled Status Endpoint v0.1
 Citation Graph Status Compatibility Probe v0.1
 Citation Graph Fixture Store v0.1
 Citation Graph Traversal API Checkpoint v0.1
+Citation Graph Source Families Endpoint v0.1
 ```
 
 Current canonical baseline:
@@ -556,6 +557,7 @@ GET /citation-graph/status
 GET /citation-graph/papers/{canonical_id}/references
 GET /citation-graph/papers/{canonical_id}/citations
 GET /citation-graph/external-references/{reference_id}/papers
+GET /citation-graph/source-families
 ```
 
 Current v0.1 semantics:
@@ -570,7 +572,7 @@ fixture_store = implemented_internal
 outgoing_references_endpoint = implemented
 incoming_citations_endpoint = implemented
 external_reference_papers_endpoint = implemented
-source_family_endpoint = not implemented
+source_family_endpoint = implemented
 top_referenced_papers_endpoint = not implemented
 top_external_references_endpoint = not implemented
 full_graph_runtime_loader = not implemented
@@ -585,7 +587,8 @@ The status endpoint remains the safety/status/compatibility surface. The
 references endpoint returns outgoing references for one canonical paper. The
 citations endpoint returns incoming resolved internal paper citations for one
 canonical paper. The external-reference papers endpoint returns canonical papers
-that reference one unresolved `external_reference` node. All traversal routes are
+that reference one unresolved `external_reference` node. The source-families
+endpoint returns source-family reference-evidence diagnostics. All traversal routes are
 read-only, feature-flagged, compatibility-gated, and backed by `CitationGraphStore`
 over the configured local graph root.
 
@@ -602,9 +605,10 @@ The rollout so far is:
 4. GET /citation-graph/papers/{canonical_id}/references
 5. GET /citation-graph/papers/{canonical_id}/citations
 6. GET /citation-graph/external-references/{reference_id}/papers
+7. GET /citation-graph/source-families
 ```
 
-No source-family diagnostics, top-reference endpoint, full runtime graph loader,
+No top-reference endpoint, full runtime graph loader,
 graph DB materialization, Streamlit graph UI, GraphRAG, publication step,
 `/search` change, Qdrant change, ranking change, or canonical truth change is
 implemented by this API surface.
@@ -625,6 +629,7 @@ ML_RADAR_CITATION_GRAPH_API_ENABLED=false
 → /citation-graph/papers/{canonical_id}/references fails closed
 → /citation-graph/papers/{canonical_id}/citations fails closed
 → /citation-graph/external-references/{reference_id}/papers fails closed
+→ /citation-graph/source-families fails closed
 → error_code=graph_runtime_not_enabled
 ```
 
@@ -690,7 +695,7 @@ remains a caveat and publication blocker.
 Compatibility/status payloads may still report
 `traversal_endpoints_implemented=false` as a broad full-runtime-surface marker.
 That field does not mean the narrow `/references`, `/citations`, and
-`/external-references/{reference_id}/papers` routes are absent; it means the full
+`/external-references/{reference_id}/papers`, and `/source-families` routes are absent; it means the full
 traversal/runtime surface remains incomplete.
 
 ## `GET /citation-graph/papers/{canonical_id}/references`
@@ -900,6 +905,68 @@ into a canonical paper, does not expose top external-reference rankings, does no
 publish a reference entity catalog, and does not make external references
 publication-grade bibliographic entities.
 
+## `GET /citation-graph/source-families`
+
+Returns source-family reference-evidence diagnostics from the local
+citation/reference graph.
+
+This endpoint is a compact summary over `source_family` nodes and
+`paper_has_reference_source_family` evidence. It is intended for local
+inspection and QA, not for publication-grade source coverage measurement.
+
+Query parameters:
+
+| parameter | type | default | notes |
+|---|---:|---:|---|
+| `limit` | int | `ML_RADAR_CITATION_GRAPH_DEFAULT_LIMIT` | must be `>= 1` and `<= ML_RADAR_CITATION_GRAPH_MAX_LIMIT` |
+| `offset` | int | 0 | must be `>= 0` |
+
+Successful response shape:
+
+```text
+graph
+query
+items
+page
+caveats
+```
+
+Returned items contain bounded diagnostics per source family:
+
+```text
+source_family
+paper_count_with_reference_evidence
+reference_edge_count
+resolved_edge_count
+external_edge_count
+```
+
+The endpoint preserves these caveats:
+
+```text
+metadata_reference_fields_only
+not_a_complete_citation_index
+manual_review_required
+publication_ready_false
+source_family_reference_evidence_only
+not_source_coverage_metric
+```
+
+Current endpoint behavior:
+
+```text
+disabled feature flag -> 503 graph_runtime_not_enabled
+missing/incompatible graph -> 503 graph_artifacts_* / graph_*_mismatch
+limit above max -> 400 graph_result_limit_exceeded
+success -> 200 graph/query/items/page/caveats envelope
+```
+
+This endpoint is intentionally narrow. It does not expose source-family papers,
+does not implement source coverage analytics, does not expose top-reference
+rankings, does not load a full runtime graph, and does not change canonical
+truth, `/search`, Qdrant, ranking, DB, Discovery API, Streamlit, graph package
+outputs, or publication state.
+
 ## Compatibility failure states
 
 Graph-facing routes fail closed when local graph evidence is missing, unsafe,
@@ -976,6 +1043,8 @@ GET /citation-graph/external-references/10.1080%2F14786440009463897/papers?limit
 GET /citation-graph/external-references/W2083798294/papers?limit=5&offset=0 -> 200, returned=1, OpenAlex normalized value lookup works
 GET /citation-graph/external-references/not-a-real-reference/papers?limit=5 -> 404 external_reference_not_found
 GET /citation-graph/external-references/external_reference:1954a09282cc66f2/papers?limit=101 -> 400 graph_result_limit_exceeded
+GET /citation-graph/source-families?limit=5&offset=0 -> 200, returned=5, total_estimate=5, caveats include source_family_reference_evidence_only and not_source_coverage_metric
+GET /citation-graph/source-families?limit=101 -> 400 graph_result_limit_exceeded
 ```
 
 ## Citation Graph Traversal API Checkpoint v0.1
@@ -1054,7 +1123,52 @@ Boundary:
 external-reference papers endpoint is read-only
 external-reference papers endpoint is feature-flagged and compatibility-gated
 external references remain unresolved evidence nodes
-source-family/top-reference endpoints = not implemented
+source-family endpoint = implemented
+top-reference endpoints = not implemented
+full graph runtime loader = not implemented
+graph DB materialization = not implemented
+Streamlit graph UI = not implemented
+GraphRAG = not implemented
+/search, Discovery API, DB, Qdrant, ranking, canonical truth, graph output, package output, and publication state = unchanged
+```
+
+## Citation Graph Source Families Endpoint v0.1
+
+Status: **implemented narrow local-inspection diagnostics endpoint**
+
+This slice adds the fourth narrow traversal/diagnostic endpoint:
+
+```text
+GET /citation-graph/source-families
+```
+
+Semantics:
+
+```text
+source_family -> reference evidence diagnostics
+uses paper_has_reference_source_family evidence and per-paper outgoing reference edges
+reports paper_count_with_reference_evidence, reference_edge_count, resolved_edge_count, external_edge_count
+does not represent publication-grade source coverage
+```
+
+Validation evidence:
+
+```text
+test_api_citation_graph_references.py = 19 passed
+test_api_citation_graph_status.py = 6 passed
+test_citation_graph_fixture_store.py = 7 passed
+test_api_smoke.py with ML_RADAR_SEARCH_BACKEND=file = 7 passed
+manual live API check = green for source-families success and limit guard
+```
+
+Boundary:
+
+```text
+source-families endpoint is read-only
+source-families endpoint is feature-flagged and compatibility-gated
+source-family diagnostics are reference-evidence-only
+source-family diagnostics are not source coverage metrics
+top-reference endpoints = not implemented
 full graph runtime loader = not implemented
 graph DB materialization = not implemented
 Streamlit graph UI = not implemented
@@ -1065,7 +1179,6 @@ GraphRAG = not implemented
 ## Current non-goals
 
 ```text
-no source-family graph diagnostics endpoint
 no top referenced papers endpoint
 no top external references endpoint
 no full graph runtime loader over production nodes/edges
