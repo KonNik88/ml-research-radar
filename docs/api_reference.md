@@ -555,6 +555,7 @@ The API now exposes a deliberately narrow citation/reference graph surface:
 GET /citation-graph/status
 GET /citation-graph/papers/{canonical_id}/references
 GET /citation-graph/papers/{canonical_id}/citations
+GET /citation-graph/external-references/{reference_id}/papers
 ```
 
 Current v0.1 semantics:
@@ -568,7 +569,7 @@ feature_flag = ML_RADAR_CITATION_GRAPH_API_ENABLED
 fixture_store = implemented_internal
 outgoing_references_endpoint = implemented
 incoming_citations_endpoint = implemented
-external_reference_lookup_endpoint = not implemented
+external_reference_papers_endpoint = implemented
 source_family_endpoint = not implemented
 top_referenced_papers_endpoint = not implemented
 top_external_references_endpoint = not implemented
@@ -581,12 +582,12 @@ manual_review_required = true
 ```
 
 The status endpoint remains the safety/status/compatibility surface. The
-references endpoint is the first narrow traversal endpoint and returns outgoing
-references for one canonical paper. The citations endpoint is the second narrow
-traversal endpoint and returns incoming resolved internal paper citations for one
-canonical paper. Both traversal routes are read-only, feature-flagged,
-compatibility-gated, and backed by `CitationGraphStore` over the configured local
-graph root.
+references endpoint returns outgoing references for one canonical paper. The
+citations endpoint returns incoming resolved internal paper citations for one
+canonical paper. The external-reference papers endpoint returns canonical papers
+that reference one unresolved `external_reference` node. All traversal routes are
+read-only, feature-flagged, compatibility-gated, and backed by `CitationGraphStore`
+over the configured local graph root.
 
 These routes must not be interpreted as graph publication, GraphRAG, graph DB
 materialization, a complete citation index, or promotion of the graph as
@@ -600,12 +601,13 @@ The rollout so far is:
 3. internal fixture-backed CitationGraphStore
 4. GET /citation-graph/papers/{canonical_id}/references
 5. GET /citation-graph/papers/{canonical_id}/citations
+6. GET /citation-graph/external-references/{reference_id}/papers
 ```
 
-No external-reference lookup, source-family diagnostics, top-reference endpoint,
-full runtime graph loader, graph DB materialization, Streamlit graph UI, GraphRAG,
-publication step, `/search` change, Qdrant change, ranking change, or canonical
-truth change is implemented by this API surface.
+No source-family diagnostics, top-reference endpoint, full runtime graph loader,
+graph DB materialization, Streamlit graph UI, GraphRAG, publication step,
+`/search` change, Qdrant change, ranking change, or canonical truth change is
+implemented by this API surface.
 
 ## Configuration
 
@@ -622,6 +624,7 @@ ML_RADAR_CITATION_GRAPH_API_ENABLED=false
 → /citation-graph/status reports runtime_enabled=false
 → /citation-graph/papers/{canonical_id}/references fails closed
 → /citation-graph/papers/{canonical_id}/citations fails closed
+→ /citation-graph/external-references/{reference_id}/papers fails closed
 → error_code=graph_runtime_not_enabled
 ```
 
@@ -686,8 +689,9 @@ remains a caveat and publication blocker.
 
 Compatibility/status payloads may still report
 `traversal_endpoints_implemented=false` as a broad full-runtime-surface marker.
-That field does not mean the narrow `/references` and `/citations` routes are
-absent; it means the full traversal/runtime surface remains incomplete.
+That field does not mean the narrow `/references`, `/citations`, and
+`/external-references/{reference_id}/papers` routes are absent; it means the full
+traversal/runtime surface remains incomplete.
 
 ## `GET /citation-graph/papers/{canonical_id}/references`
 
@@ -746,9 +750,9 @@ success -> 200 graph/query/items/page/caveats envelope
 
 This endpoint is intentionally narrow. It does not implement incoming citation
 semantics; those belong to the paired `/citations` endpoint. It also does not
-implement external-reference reverse lookup, source-family diagnostics,
-top-reference rankings, full runtime graph loading, graph DB materialization,
-Streamlit graph UI, GraphRAG, publication, or any `/search` behavior change.
+implement source-family diagnostics, top-reference rankings, full runtime graph
+loading, graph DB materialization, Streamlit graph UI, GraphRAG, publication, or
+any `/search` behavior change.
 
 ## `GET /citation-graph/papers/{canonical_id}/citations`
 
@@ -807,10 +811,94 @@ limit above max -> 400 graph_result_limit_exceeded
 success -> 200 graph/query/items/page/caveats envelope
 ```
 
-This endpoint is intentionally narrow. It does not implement external-reference
-reverse lookup, source-family diagnostics, top-reference rankings, full runtime
-graph loading, graph DB materialization, Streamlit graph UI, GraphRAG,
-publication, or any `/search` behavior change.
+This endpoint is intentionally narrow. It does not implement source-family
+diagnostics, top-reference rankings, full runtime graph loading, graph DB
+materialization, Streamlit graph UI, GraphRAG, publication, or any `/search`
+behavior change.
+
+## `GET /citation-graph/external-references/{reference_id}/papers`
+
+Returns canonical papers that reference one unresolved external reference from
+the local citation/reference graph.
+
+Path parameters:
+
+| parameter | type | notes |
+|---|---:|---|
+| `reference_id` | string/path | external reference node id, reference key, or normalized value accepted by the store |
+
+The route uses a path-style parameter because DOI-like normalized values may
+contain `/`. Clients should URL-encode slash-containing values, for example:
+
+```text
+10.1080/14786440009463897 -> 10.1080%2F14786440009463897
+```
+
+Query parameters:
+
+| parameter | type | default | notes |
+|---|---:|---:|---|
+| `limit` | int | `ML_RADAR_CITATION_GRAPH_DEFAULT_LIMIT` | must be `>= 1` and `<= ML_RADAR_CITATION_GRAPH_MAX_LIMIT` |
+| `offset` | int | 0 | must be `>= 0` |
+
+Lookup supports:
+
+```text
+external_reference node id
+reference_key
+normalized_value
+```
+
+Successful response shape:
+
+```text
+graph
+query
+items
+page
+caveats
+```
+
+Returned items are papers that have `paper_references_external` edges pointing to
+the selected unresolved external reference. Typical item fields:
+
+```text
+edge_id
+source_canonical_id
+source_title
+source_year
+external_reference_id
+reference_type
+normalized_reference
+source_families
+evidence_count
+```
+
+The endpoint preserves these caveats:
+
+```text
+metadata_reference_fields_only
+not_a_complete_citation_index
+manual_review_required
+publication_ready_false
+external_reference_is_unresolved
+not_publication_grade_reference_entity
+```
+
+Current endpoint behavior:
+
+```text
+disabled feature flag -> 503 graph_runtime_not_enabled
+missing/incompatible graph -> 503 graph_artifacts_* / graph_*_mismatch
+unknown external reference -> 404 external_reference_not_found
+limit above max -> 400 graph_result_limit_exceeded
+success -> 200 graph/query/items/page/caveats envelope
+```
+
+This endpoint is intentionally narrow. It does not resolve the external reference
+into a canonical paper, does not expose top external-reference rankings, does not
+publish a reference entity catalog, and does not make external references
+publication-grade bibliographic entities.
 
 ## Compatibility failure states
 
@@ -830,6 +918,7 @@ graph_package_stale
 graph_manual_review_incomplete
 graph_result_limit_exceeded
 canonical_id_not_found
+external_reference_not_found
 ```
 
 Representative interpretations:
@@ -864,6 +953,9 @@ requested page limit exceeds configured graph max limit
 
 paper is not present in the local citation graph
 → canonical_id_not_found
+
+external reference is not present in the local citation graph
+→ external_reference_not_found
 ```
 
 These graph errors are endpoint-local. They must not make `/health` unhealthy
@@ -871,7 +963,7 @@ when the normal file or DB runtime is otherwise ready.
 
 ## Manual live API validation
 
-Manual live API validation after the incoming-citations endpoint merge:
+Manual live API validation after the external-reference-papers endpoint merge:
 
 ```text
 ML_RADAR_SEARCH_BACKEND=file
@@ -879,21 +971,21 @@ ML_RADAR_CITATION_GRAPH_API_ENABLED=true
 GET /citation-graph/status -> available=true, safe_to_serve_locally=true, compatibility.ok=true, error_code=null
 GET /citation-graph/papers/0bad150e917742a07cf30555c15a5ee6/references?limit=5&offset=0 -> 200, returned=5, total_estimate=81, unresolved external references preserved
 GET /citation-graph/papers/11c222e89f686cb704be7834c50dd3aa/citations?limit=5&offset=0 -> 200, returned=5, total_estimate=23, only paper_references_paper items, resolved_internal_references_only caveat
-GET /citation-graph/papers/not-a-real-canonical-id/references?limit=5 -> 404 canonical_id_not_found
-GET /citation-graph/papers/not-a-real-canonical-id/citations?limit=5 -> 404 canonical_id_not_found
-GET /citation-graph/papers/0bad150e917742a07cf30555c15a5ee6/references?limit=101 -> 400 graph_result_limit_exceeded
-GET /citation-graph/papers/11c222e89f686cb704be7834c50dd3aa/citations?limit=101 -> 400 graph_result_limit_exceeded
+GET /citation-graph/external-references/external_reference:1954a09282cc66f2/papers?limit=5&offset=0 -> 200, returned=4, total_estimate=4, caveats include external_reference_is_unresolved and not_publication_grade_reference_entity
+GET /citation-graph/external-references/10.1080%2F14786440009463897/papers?limit=5&offset=0 -> 200, returned=4, total_estimate=4, normalized DOI lookup with slash works through URL encoding
+GET /citation-graph/external-references/W2083798294/papers?limit=5&offset=0 -> 200, returned=1, OpenAlex normalized value lookup works
+GET /citation-graph/external-references/not-a-real-reference/papers?limit=5 -> 404 external_reference_not_found
+GET /citation-graph/external-references/external_reference:1954a09282cc66f2/papers?limit=101 -> 400 graph_result_limit_exceeded
 ```
-
 
 ## Citation Graph Traversal API Checkpoint v0.1
 
 Status: **accepted docs-only local-inspection checkpoint**
 
-This checkpoint freezes the current narrow citation/reference graph API surface as
-a stable local-inspection block before adding any further traversal endpoint.
+This checkpoint freezes the first narrow citation/reference graph API block as a
+stable local-inspection baseline.
 
-Implemented and checkpointed routes:
+Checkpointed routes:
 
 ```text
 GET /citation-graph/status
@@ -927,12 +1019,41 @@ test_api_smoke.py with ML_RADAR_SEARCH_BACKEND=file = 7 passed
 manual live API check = green for status, references, citations, unknown ids, and limit guards
 ```
 
+## Citation Graph External Reference Papers Endpoint v0.1
+
+Status: **implemented narrow local-inspection traversal endpoint**
+
+This slice adds the third narrow traversal endpoint:
+
+```text
+GET /citation-graph/external-references/{reference_id}/papers
+```
+
+Semantics:
+
+```text
+external_reference -> papers that reference it
+uses paper_references_external incoming edges
+accepts external_reference node id, reference_key, or normalized_value
+slash-containing DOI values require URL encoding
+```
+
+Validation evidence:
+
+```text
+test_api_citation_graph_references.py = 15 passed
+test_api_citation_graph_status.py = 6 passed
+test_citation_graph_fixture_store.py = 7 passed
+test_api_smoke.py with ML_RADAR_SEARCH_BACKEND=file = 7 passed
+manual live API check = green for external_reference id, normalized DOI, normalized OpenAlex value, unknown id, and limit guard
+```
+
 Boundary:
 
 ```text
-checkpoint is docs/regression-hardening only
-no new endpoint is added
-external-reference lookup endpoint = not implemented
+external-reference papers endpoint is read-only
+external-reference papers endpoint is feature-flagged and compatibility-gated
+external references remain unresolved evidence nodes
 source-family/top-reference endpoints = not implemented
 full graph runtime loader = not implemented
 graph DB materialization = not implemented
@@ -941,11 +1062,9 @@ GraphRAG = not implemented
 /search, Discovery API, DB, Qdrant, ranking, canonical truth, graph output, package output, and publication state = unchanged
 ```
 
-
 ## Current non-goals
 
 ```text
-no external-reference lookup endpoint
 no source-family graph diagnostics endpoint
 no top referenced papers endpoint
 no top external references endpoint
@@ -959,7 +1078,8 @@ no use as reconcile input
 ```
 
 Implementation files touched by the status, compatibility-probe, fixture-store,
-outgoing-references, and incoming-citations endpoint slices:
+outgoing-references, incoming-citations, and external-reference-papers endpoint
+slices:
 
 ```text
 services/api/citation_graph_service.py
@@ -983,40 +1103,21 @@ python -m pytest tests/integration/test_api_citation_graph_references.py -q
 python -m pytest tests/integration/test_api_citation_graph_status.py -q
 python -m pytest tests/smoke/test_citation_graph_fixture_store.py -q
 python -m pytest tests/integration/test_api_smoke.py -q
-
-set ML_RADAR_SEARCH_BACKEND=db
-python -m pytest tests/integration/test_api_citation_graph_status.py -q
-python -m pytest tests/integration/test_api_db_smoke.py -q
-```
-
-Accepted local validation for the incoming-citations endpoint slice:
-
-```text
-py_compile = passed
-test_api_citation_graph_references.py = 9 passed
-test_api_citation_graph_status.py = 6 passed
-test_citation_graph_fixture_store.py = 7 passed
-test_api_smoke.py with ML_RADAR_SEARCH_BACKEND=file = 7 passed
-git diff --check = passed, CRLF warnings only on Windows
-manual live API check = passed for status, references, citations, 404, and limit guard
 ```
 
 ## Boundary
 
-The citation/reference graph API does not make the local Citation / Reference
-Graph a runtime truth source. The graph remains a local derived evidence/review
-layer:
-
 ```text
-canonical_documents.jsonl = paper truth
-citation/reference graph output = derived local evidence
-status endpoint = API safety/status/compatibility surface
-outgoing references endpoint = narrow local-inspection traversal surface
-incoming citations endpoint = narrow local-inspection traversal surface over resolved internal references only
-external/source-family/top traversal endpoints = not implemented
-full graph runtime loader = not implemented
-manual_review_complete = false
-publication_ready = false
+read-only local-inspection API only
+no graph rebuild
+no graph package rebuild
+no validation report writes
+no canonical truth mutation
+no Postgres mutation
+no retrieval/Qdrant/ranking behavior change
+no Streamlit graph UI
+no GraphRAG
+no publication
 ```
 
 
