@@ -380,3 +380,156 @@ def test_citation_graph_references_incompatible_graph_fails_closed(tmp_path, mon
     payload = response.json()
     assert payload["error_code"] == "graph_artifacts_not_found"
     assert payload["details"]["compatibility"]["ok"] is False
+
+def test_citation_graph_external_reference_papers_disabled_fails_closed(monkeypatch):
+    monkeypatch.setattr(app_module.settings, "citation_graph_api_enabled", False)
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/citation-graph/external-references/"
+            "external_reference:doi:10.9999/external-one/papers"
+        )
+
+    assert response.status_code == 503
+    payload = response.json()
+    assert payload["error_code"] == "graph_runtime_not_enabled"
+    assert "results" not in payload
+
+
+def test_citation_graph_external_reference_papers_returns_referencing_papers(
+    tmp_path,
+    monkeypatch,
+):
+    graph_root, reports_root = _write_reference_endpoint_fixture(tmp_path)
+    _enable_citation_graph(monkeypatch, graph_root, reports_root)
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/citation-graph/external-references/"
+            "external_reference:doi:10.9999/external-one/papers",
+            params={"limit": 10, "offset": 0},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    assert payload["graph"]["name"] == "citation_reference_graph"
+    assert payload["graph"]["version"] == "v0.1"
+    assert payload["graph"]["metadata_reference_fields_only"] is True
+    assert payload["graph"]["full_text_parsed"] is False
+    assert payload["graph"]["manual_review_required"] is True
+    assert payload["graph"]["manual_review_complete"] is False
+    assert payload["graph"]["publication_ready"] is False
+
+    assert payload["query"] == {
+        "endpoint": "/citation-graph/external-references/{reference_id}/papers",
+        "external_reference_id": "external_reference:doi:10.9999/external-one",
+        "limit": 10,
+        "offset": 0,
+    }
+    assert payload["page"] == {
+        "limit": 10,
+        "offset": 0,
+        "returned": 1,
+        "total_estimate": 1,
+    }
+    assert len(payload["items"]) == 1
+
+    item = payload["items"][0]
+    assert item["source_canonical_id"] == "paper:a"
+    assert item["source_title"] == "Example Source Paper"
+    assert item["source_year"] == 2025
+    assert item["external_reference_id"] == (
+        "external_reference:doi:10.9999/external-one"
+    )
+    assert item["reference_type"] == "doi"
+    assert item["normalized_reference"] == "10.9999/external-one"
+    assert item["source_families"] == ["openalex"]
+    assert item["evidence_count"] == 1
+    assert "target_canonical_id" not in item
+
+    assert "metadata_reference_fields_only" in payload["caveats"]
+    assert "not_a_complete_citation_index" in payload["caveats"]
+    assert "external_reference_is_unresolved" in payload["caveats"]
+    assert "not_publication_grade_reference_entity" in payload["caveats"]
+    assert "resolved_internal_references_only" not in payload["caveats"]
+
+
+def test_citation_graph_external_reference_papers_accepts_normalized_value(
+    tmp_path,
+    monkeypatch,
+):
+    graph_root, reports_root = _write_reference_endpoint_fixture(tmp_path)
+    _enable_citation_graph(monkeypatch, graph_root, reports_root)
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/citation-graph/external-references/10.9999/external-one/papers",
+            params={"limit": 10, "offset": 0},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["query"]["external_reference_id"] == "10.9999/external-one"
+    assert payload["page"]["returned"] == 1
+    assert payload["items"][0]["source_canonical_id"] == "paper:a"
+
+
+def test_citation_graph_external_reference_papers_unknown_reference_returns_404(
+    tmp_path,
+    monkeypatch,
+):
+    graph_root, reports_root = _write_reference_endpoint_fixture(tmp_path)
+    _enable_citation_graph(monkeypatch, graph_root, reports_root)
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/citation-graph/external-references/external_reference:missing/papers"
+        )
+
+    assert response.status_code == 404
+    payload = response.json()
+    assert payload["error_code"] == "external_reference_not_found"
+    assert payload["details"] == {
+        "external_reference_id": "external_reference:missing"
+    }
+
+
+def test_citation_graph_external_reference_papers_limit_above_max_returns_graph_error(
+    tmp_path,
+    monkeypatch,
+):
+    graph_root, reports_root = _write_reference_endpoint_fixture(tmp_path)
+    _enable_citation_graph(monkeypatch, graph_root, reports_root)
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/citation-graph/external-references/"
+            "external_reference:doi:10.9999/external-one/papers",
+            params={"limit": 101},
+        )
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["error_code"] == "graph_result_limit_exceeded"
+    assert payload["details"] == {"limit": 101, "max_limit": 100}
+
+
+def test_citation_graph_external_reference_papers_incompatible_graph_fails_closed(
+    tmp_path,
+    monkeypatch,
+):
+    missing_graph_root = tmp_path / "missing_graph"
+    missing_reports_root = tmp_path / "missing_reports"
+    _enable_citation_graph(monkeypatch, missing_graph_root, missing_reports_root)
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/citation-graph/external-references/"
+            "external_reference:doi:10.9999/external-one/papers"
+        )
+
+    assert response.status_code == 503
+    payload = response.json()
+    assert payload["error_code"] == "graph_artifacts_not_found"
+    assert payload["details"]["compatibility"]["ok"] is False
