@@ -7,12 +7,12 @@ document = primary living roadmap
 accepted checkpoint = Current State Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
 current active direction = review / regression / design-hardening
-current active slice = Citation Graph incoming citations endpoint documentation sync
+current active slice = Citation Graph traversal API checkpoint v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = docs sync after second citation graph incoming-citations endpoint; no canonical/retrieval/Qdrant/Postgres/UI/ranking/graph-output/publication behavior changes
+scope of current branch = docs-only checkpoint over status + references + citations; no new endpoint and no canonical/retrieval/Qdrant/Postgres/UI/ranking/graph-output/publication behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -73,11 +73,12 @@ Recently completed safe slices:
 10. **Citation Graph Fixture Store v0.1** — internal read-only fixture-backed query core.
 11. **Citation Graph Outgoing References Endpoint v0.1** — first narrow read-only traversal endpoint; outgoing references only, no external/source-family/top endpoints and no full graph runtime loader.
 12. **Citation Graph Incoming Citations Endpoint v0.1** — second narrow read-only traversal endpoint; incoming resolved internal citations only, no external/source-family/top endpoints and no full graph runtime loader.
+13. **Citation Graph Incoming Citations Endpoint Docs Sync v0.1** — shared docs synchronized with the second traversal endpoint.
 
 Recommended next safe slices:
 
-1. **Citation Graph Incoming Citations Endpoint Docs Sync v0.1** — align API reference, roadmap, current-state checkpoint, runbook, and graph API design docs with the implemented second traversal endpoint.
-2. **Citation Graph External Reference Papers Endpoint v0.1** — optional future narrow endpoint only after docs sync; preserve status/compatibility gates and caveats.
+1. **Citation Graph Traversal API Checkpoint v0.1** — docs/regression-hardening checkpoint over `status + references + citations`; no new endpoint.
+2. **Citation Graph External Reference Papers Endpoint v0.1** — optional future narrow endpoint only after the checkpoint; preserve status/compatibility gates and caveats.
 3. **Regression / DoD hardening** — optional gates, accepted-checkpoint checks, and validation wiring only.
 
 Explicit immediate non-goals:
@@ -1899,17 +1900,74 @@ GraphRAG is not implemented
 ```
 
 
+### 4.38 Citation Graph Traversal API Checkpoint v0.1
+
+
+Status: **active docs-only local-inspection checkpoint**
+
+This checkpoint freezes the current narrow citation/reference graph API surface as
+a stable local-inspection block before adding any further traversal endpoint.
+
+Implemented and checkpointed routes:
+
+```text
+GET /citation-graph/status
+GET /citation-graph/papers/{canonical_id}/references
+GET /citation-graph/papers/{canonical_id}/citations
+```
+
+Checkpointed behavior:
+
+```text
+status endpoint = compatibility/status surface
+outgoing references endpoint = resolved paper references + unresolved external_reference evidence
+incoming citations endpoint = resolved internal paper_references_paper edges only
+response envelope = graph/query/items/page/caveats
+disabled feature flag = fail closed with graph_runtime_not_enabled
+unknown canonical_id = canonical_id_not_found
+limit above max = graph_result_limit_exceeded
+missing/incompatible graph artifacts = graph_artifacts_* / graph_*_mismatch
+manual_review_required = true
+manual_review_complete = false
+publication_ready = false
+```
+
+Checkpoint validation evidence:
+
+```text
+test_api_citation_graph_references.py = 9 passed
+test_api_citation_graph_status.py = 6 passed
+test_citation_graph_fixture_store.py = 7 passed
+test_api_smoke.py with ML_RADAR_SEARCH_BACKEND=file = 7 passed
+manual live API check = green for status, references, citations, unknown ids, and limit guards
+```
+
+Boundary:
+
+```text
+checkpoint is docs/regression-hardening only
+no new endpoint is added
+external-reference lookup endpoint = not implemented
+source-family/top-reference endpoints = not implemented
+full graph runtime loader = not implemented
+graph DB materialization = not implemented
+Streamlit graph UI = not implemented
+GraphRAG = not implemented
+/search, Discovery API, DB, Qdrant, ranking, canonical truth, graph output, package output, and publication state = unchanged
+```
+
+
 ## 5. Current active direction
 
-### 5.1 Citation graph API narrow traversal hardening
+### 5.1 Citation Graph Traversal API Checkpoint v0.1
 
-Status: **current direction after completed incoming-citations endpoint**
+Status: **current docs/regression-hardening checkpoint**
 
 Goal:
 
 ```text
-Keep the graph API path deliberately staged: status/compatibility first,
-internal store semantics second, and then one traversal endpoint at a time.
+Freeze the already implemented local-inspection graph API block before adding
+another traversal endpoint.
 ```
 
 Current accepted API state:
@@ -1925,13 +1983,13 @@ GET /citation-graph/top-external-references = not implemented
 full graph runtime loader = not implemented
 ```
 
-Definition of done for the current docs-hardening direction:
+Checkpoint scope:
 
-- roadmap records the outgoing references endpoint as the first completed traversal code slice and the incoming citations endpoint as the second;
-- API reference documents the endpoint, parameters, caveats, and graph error mapping;
-- docs do not imply that external-reference lookup, source-family diagnostics, top-reference endpoints, full graph runtime loading, GraphRAG, DB materialization, or Streamlit graph UI exists;
-- next code work may add only one narrow endpoint, preferably external-reference reverse lookup, after docs sync;
-- no canonical, retrieval, Qdrant, Postgres, UI, ranking, graph-output, package, or publication behavior is changed in this docs sync.
+- confirm the shared `graph/query/items/page/caveats` envelope for successful graph-facing responses;
+- confirm fail-closed behavior for disabled graph API, incompatible graph artifacts, unknown canonical IDs, and over-limit requests;
+- confirm semantic split: `/references` may include unresolved external-reference evidence, while `/citations` includes only resolved internal `paper_references_paper` edges;
+- record manual live API validation for status, references, citations, 404s, and limit guards;
+- keep the next code work limited to one future endpoint only after this checkpoint.
 
 Boundary:
 
@@ -1948,7 +2006,7 @@ no publication
 
 Next safe directions:
 
-1. **Citation Graph External Reference Papers Endpoint v0.1** — one narrow endpoint, only after this docs sync.
+1. **Citation Graph External Reference Papers Endpoint v0.1** — one narrow endpoint, only after this checkpoint.
 2. **Regression / DoD hardening** — optional gates and accepted-checkpoint validation wiring.
 3. **Graph API endpoint contract cleanup** — if app.py route helpers become too large, extract a small query service without changing behavior.
 

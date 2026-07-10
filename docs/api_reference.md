@@ -21,6 +21,8 @@ canonical JSONL truth
 → local graph evidence/review artifacts
 → Citation Graph status/compatibility surface
 → Citation Graph outgoing references endpoint
+→ Citation Graph incoming citations endpoint
+→ Citation Graph traversal API checkpoint
 → internal Citation Graph fixture store/query core
 → Discovery API
 → Streamlit Discovery UI
@@ -40,7 +42,7 @@ Streamlit UI = thin API client
 Citation / Reference Graph status API = disabled-by-default status/compatibility safety surface
 Citation / Reference Graph outgoing references API = first narrow read-only traversal endpoint
 Citation / Reference Graph fixture store = internal read-only query core for fixture-backed semantics
-Citation / Reference Graph traversal/runtime API = partially implemented for outgoing references only; other traversal/runtime surfaces are not implemented
+Citation / Reference Graph traversal/runtime API = partially implemented for outgoing references and incoming citations only; other traversal/runtime surfaces are not implemented
 ```
 
 ---
@@ -54,7 +56,7 @@ Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1
 Citation Graph API Disabled Status Endpoint v0.1
 Citation Graph Status Compatibility Probe v0.1
 Citation Graph Fixture Store v0.1
-API documentation sync after incoming citations endpoint
+Citation Graph Traversal API Checkpoint v0.1
 ```
 
 Current canonical baseline:
@@ -881,6 +883,62 @@ GET /citation-graph/papers/not-a-real-canonical-id/references?limit=5 -> 404 can
 GET /citation-graph/papers/not-a-real-canonical-id/citations?limit=5 -> 404 canonical_id_not_found
 GET /citation-graph/papers/0bad150e917742a07cf30555c15a5ee6/references?limit=101 -> 400 graph_result_limit_exceeded
 GET /citation-graph/papers/11c222e89f686cb704be7834c50dd3aa/citations?limit=101 -> 400 graph_result_limit_exceeded
+```
+
+
+## Citation Graph Traversal API Checkpoint v0.1
+
+Status: **accepted docs-only local-inspection checkpoint**
+
+This checkpoint freezes the current narrow citation/reference graph API surface as
+a stable local-inspection block before adding any further traversal endpoint.
+
+Implemented and checkpointed routes:
+
+```text
+GET /citation-graph/status
+GET /citation-graph/papers/{canonical_id}/references
+GET /citation-graph/papers/{canonical_id}/citations
+```
+
+Checkpointed behavior:
+
+```text
+status endpoint = compatibility/status surface
+outgoing references endpoint = resolved paper references + unresolved external_reference evidence
+incoming citations endpoint = resolved internal paper_references_paper edges only
+response envelope = graph/query/items/page/caveats
+disabled feature flag = fail closed with graph_runtime_not_enabled
+unknown canonical_id = canonical_id_not_found
+limit above max = graph_result_limit_exceeded
+missing/incompatible graph artifacts = graph_artifacts_* / graph_*_mismatch
+manual_review_required = true
+manual_review_complete = false
+publication_ready = false
+```
+
+Checkpoint validation evidence:
+
+```text
+test_api_citation_graph_references.py = 9 passed
+test_api_citation_graph_status.py = 6 passed
+test_citation_graph_fixture_store.py = 7 passed
+test_api_smoke.py with ML_RADAR_SEARCH_BACKEND=file = 7 passed
+manual live API check = green for status, references, citations, unknown ids, and limit guards
+```
+
+Boundary:
+
+```text
+checkpoint is docs/regression-hardening only
+no new endpoint is added
+external-reference lookup endpoint = not implemented
+source-family/top-reference endpoints = not implemented
+full graph runtime loader = not implemented
+graph DB materialization = not implemented
+Streamlit graph UI = not implemented
+GraphRAG = not implemented
+/search, Discovery API, DB, Qdrant, ranking, canonical truth, graph output, package output, and publication state = unchanged
 ```
 
 
@@ -1948,9 +2006,13 @@ Expected current green baseline:
 # Current API safety summary
 
 ```text
-No public /search behavior change in this cleanup.
-Citation graph status endpoint exists, but traversal/runtime endpoints do not.
+No public /search behavior change in this checkpoint.
+Citation graph status endpoint is implemented.
+Citation graph outgoing references endpoint is implemented.
+Citation graph incoming citations endpoint is implemented.
+Citation graph external-reference/source-family/top-reference endpoints are not implemented.
 Citation graph API is disabled by default.
+No full graph runtime loader.
 No Qdrant promotion.
 No fallback.
 No retrieval rebuild.
@@ -1961,4 +2023,4 @@ No generated report commit.
 ```
 
 The API documentation should remain synchronized with the accepted retrieval,
-Qdrant, runtime, and ranking evidence checkpoints.
+Qdrant, runtime, ranking, and citation graph traversal checkpoint evidence.

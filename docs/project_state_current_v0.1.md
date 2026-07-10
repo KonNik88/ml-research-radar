@@ -713,16 +713,27 @@ Recently completed safe slices after this checkpoint baseline:
    - first narrow traversal endpoint;
    - `GET /citation-graph/papers/{canonical_id}/references`;
    - disabled by default and compatibility-gated;
-   - external-reference lookup, source-family, or top-reference endpoints.
+   - external-reference lookup, source-family, or top-reference endpoints not implemented.
+
+10. **Citation Graph Incoming Citations Endpoint v0.1**
+   - second narrow traversal endpoint;
+   - `GET /citation-graph/papers/{canonical_id}/citations`;
+   - incoming citations include only resolved internal `paper_references_paper` edges;
+   - disabled by default and compatibility-gated.
+
+11. **Citation Graph Incoming Citations Endpoint Docs Sync v0.1**
+   - shared docs aligned with the implemented second traversal endpoint;
+   - no-full-runtime-loader/no-external-source-top-endpoints boundary preserved.
 
 Recommended next slices:
 
-1. **Citation Graph Incoming Citations Endpoint Docs Sync v0.1**
-   - align shared docs with the implemented second traversal endpoint;
-   - preserve no-full-runtime-loader/no-external-source-top-endpoints boundary.
+1. **Citation Graph Traversal API Checkpoint v0.1**
+   - docs/regression-hardening checkpoint over `status + references + citations`;
+   - no new endpoint;
+   - preserve current fail-closed behavior and caveats.
 
 2. **Citation Graph External Reference Papers Endpoint v0.1**
-   - optional future narrow code slice only after docs sync;
+   - optional future narrow code slice only after checkpoint;
    - must preserve fail-closed compatibility behavior and caveats.
 
 3. **Regression / DoD / docs hardening**
@@ -753,19 +764,17 @@ Do not do these without a separate accepted design:
 
 ## 9. Suggested immediate plan
 
-Current dialogue should close with a small documentation sync slice after the
-implemented read-only outgoing references endpoint.
+Current dialogue should close with a small docs/regression-hardening checkpoint
+over the already implemented narrow graph API surface.
 
-Minimal implementation:
+Minimal documentation set:
 
 ```text
 docs/api_reference.md
 docs/roadmap.md
 docs/project_state_current_v0.1.md
 docs/refresh_contract_v1.md
-docs/citation_reference_graph_api_implementation_plan_v0.1.md
-docs/citation_reference_graph_api_response_fixtures_v0.1.md
-docs/citation_reference_graph_runtime_compatibility_v0.1.md
+docs/architecture.md
 ```
 
 Suggested validation:
@@ -787,18 +796,61 @@ python -m pytest tests/integration/test_api_smoke.py -q
 Suggested commit message:
 
 ```text
-docs: sync citation graph outgoing references endpoint
+docs: checkpoint citation graph traversal api
 ```
 
 
-## Citation Graph Incoming Citations Endpoint Docs Sync v0.1 note
+## Citation Graph Traversal API Checkpoint v0.1
+
+Status: **accepted docs-only local-inspection checkpoint**
+
+This checkpoint freezes the current narrow citation/reference graph API surface as
+a stable local-inspection block before adding any further traversal endpoint.
+
+Implemented and checkpointed routes:
 
 ```text
-GET /citation-graph/papers/{canonical_id}/citations = implemented
-incoming citations include only resolved paper_references_paper edges
-unresolved external references are not counted as incoming canonical-paper citations
-manual live API check = passed for status, references, citations, unknown ids, and limit guards
-external-reference/source-family/top-reference endpoints = not implemented
+GET /citation-graph/status
+GET /citation-graph/papers/{canonical_id}/references
+GET /citation-graph/papers/{canonical_id}/citations
+```
+
+Checkpointed behavior:
+
+```text
+status endpoint = compatibility/status surface
+outgoing references endpoint = resolved paper references + unresolved external_reference evidence
+incoming citations endpoint = resolved internal paper_references_paper edges only
+response envelope = graph/query/items/page/caveats
+disabled feature flag = fail closed with graph_runtime_not_enabled
+unknown canonical_id = canonical_id_not_found
+limit above max = graph_result_limit_exceeded
+missing/incompatible graph artifacts = graph_artifacts_* / graph_*_mismatch
+manual_review_required = true
+manual_review_complete = false
+publication_ready = false
+```
+
+Checkpoint validation evidence:
+
+```text
+test_api_citation_graph_references.py = 9 passed
+test_api_citation_graph_status.py = 6 passed
+test_citation_graph_fixture_store.py = 7 passed
+test_api_smoke.py with ML_RADAR_SEARCH_BACKEND=file = 7 passed
+manual live API check = green for status, references, citations, unknown ids, and limit guards
+```
+
+Boundary:
+
+```text
+checkpoint is docs/regression-hardening only
+no new endpoint is added
+external-reference lookup endpoint = not implemented
+source-family/top-reference endpoints = not implemented
 full graph runtime loader = not implemented
+graph DB materialization = not implemented
+Streamlit graph UI = not implemented
+GraphRAG = not implemented
 /search, Discovery API, DB, Qdrant, ranking, canonical truth, graph output, package output, and publication state = unchanged
 ```
