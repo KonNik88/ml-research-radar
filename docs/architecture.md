@@ -72,7 +72,7 @@ sources
 → ranking / paper detail / similar papers
 → topic clusters / topic projection
 → Discovery API
-→ Citation Graph status/references/citations local-inspection API
+→ Citation Graph status/references/citations/external-reference-papers local-inspection API
 → Streamlit Discovery UI
 → validators / regression / strict DoD
 ```
@@ -650,6 +650,7 @@ The current graph API surface is deliberately narrow and local-inspection only:
 GET /citation-graph/status
 GET /citation-graph/papers/{canonical_id}/references
 GET /citation-graph/papers/{canonical_id}/citations
+GET /citation-graph/external-references/{reference_id}/papers
 ```
 
 Architectural role:
@@ -658,6 +659,7 @@ Architectural role:
 status = compatibility/status surface over local graph artifacts and reports
 references = outgoing reference evidence for one canonical paper
 citations = incoming resolved internal citation evidence for one canonical paper
+external-reference papers = papers referencing one unresolved external_reference
 ```
 
 Important boundaries:
@@ -667,7 +669,8 @@ citation/reference graph output = derived local evidence
 graph API = read-only, feature-flagged, compatibility-gated local-inspection surface
 incoming citations = resolved internal paper_references_paper edges only
 unresolved external_reference evidence is not counted as incoming canonical-paper citation
-external-reference/source-family/top-reference endpoints = not implemented
+external-reference papers endpoint is implemented as reverse lookup over unresolved external evidence
+source-family/top-reference endpoints = not implemented
 full graph runtime loader = not implemented
 graph DB materialization = not implemented
 Streamlit graph UI = not implemented
@@ -754,5 +757,5 @@ Qdrant is experimentally validated but not promoted.
 Unranked hybrid remains the search relevance reference.
 The retrieval-serving checkpoint gate is the lightweight regression guard.
 Future promotion decisions must be explicit, evidence-backed, and reversible.
-Citation graph status/references/citations are a checkpointed local-inspection API block, not a graph-runtime promotion.
+Citation graph status/references/citations/external-reference-papers are a narrow local-inspection API block, not a graph-runtime promotion.
 ```

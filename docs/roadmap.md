@@ -7,12 +7,12 @@ document = primary living roadmap
 accepted checkpoint = Current State Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
 current active direction = review / regression / design-hardening
-current active slice = Citation Graph traversal API checkpoint v0.1
+current active slice = Citation Graph External Reference Papers Endpoint Docs Sync v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = docs-only checkpoint over status + references + citations; no new endpoint and no canonical/retrieval/Qdrant/Postgres/UI/ranking/graph-output/publication behavior changes
+scope of current branch = docs sync after implemented external-reference papers endpoint; no canonical/retrieval/Qdrant/Postgres/UI/ranking/graph-output/publication behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -74,18 +74,20 @@ Recently completed safe slices:
 11. **Citation Graph Outgoing References Endpoint v0.1** — first narrow read-only traversal endpoint; outgoing references only, no external/source-family/top endpoints and no full graph runtime loader.
 12. **Citation Graph Incoming Citations Endpoint v0.1** — second narrow read-only traversal endpoint; incoming resolved internal citations only, no external/source-family/top endpoints and no full graph runtime loader.
 13. **Citation Graph Incoming Citations Endpoint Docs Sync v0.1** — shared docs synchronized with the second traversal endpoint.
+14. **Citation Graph Traversal API Checkpoint v0.1** — docs/regression-hardening checkpoint over `status + references + citations`; no new endpoint.
+15. **Citation Graph External Reference Papers Endpoint v0.1** — third narrow read-only traversal endpoint; external reference to referencing papers only, no source-family/top/full-runtime endpoints.
 
 Recommended next safe slices:
 
-1. **Citation Graph Traversal API Checkpoint v0.1** — docs/regression-hardening checkpoint over `status + references + citations`; no new endpoint.
-2. **Citation Graph External Reference Papers Endpoint v0.1** — optional future narrow endpoint only after the checkpoint; preserve status/compatibility gates and caveats.
+1. **Citation Graph External Reference Papers Endpoint Docs Sync v0.1** — align shared docs with the implemented third traversal endpoint.
+2. **Citation Graph Traversal API Checkpoint v0.2** — optional docs/regression-hardening checkpoint over `status + references + citations + external-reference papers`.
 3. **Regression / DoD hardening** — optional gates, accepted-checkpoint checks, and validation wiring only.
 
 Explicit immediate non-goals:
 
 - no GraphRAG implementation;
 - no Neo4j/NetworkX runtime;
-- no additional graph traversal endpoints beyond the implemented outgoing-references and incoming-citations routes;
+- no additional graph traversal endpoints beyond the implemented outgoing-references, incoming-citations, and external-reference-papers routes;
 - no Qdrant promotion;
 - no graph DB materialization layer;
 - no publication/upload;
@@ -1877,7 +1879,7 @@ Accepted local validation:
 
 ```text
 python -m py_compile services/api/app.py services/api/schemas.py services/api/citation_graph_store.py tests/integration/test_api_citation_graph_references.py tests/integration/test_api_citation_graph_status.py
-test_api_citation_graph_references.py = 5 passed
+test_api_citation_graph_references.py = 15 passed
 test_api_citation_graph_status.py = 6 passed
 test_citation_graph_fixture_store.py = 7 passed
 test_api_smoke.py = 7 passed
@@ -1890,7 +1892,7 @@ Boundary:
 outgoing references endpoint is read-only
 outgoing references endpoint is feature-flagged and compatibility-gated
 outgoing references endpoint may expose resolved paper references and unresolved external_reference evidence
-external-reference lookup endpoint is not implemented
+external-reference papers endpoint is implemented
 source-family/top-reference endpoints are not implemented
 full graph runtime loader is not implemented
 graph DB materialization is not implemented
@@ -1935,7 +1937,7 @@ publication_ready = false
 Checkpoint validation evidence:
 
 ```text
-test_api_citation_graph_references.py = 9 passed
+test_api_citation_graph_references.py = 15 passed
 test_api_citation_graph_status.py = 6 passed
 test_citation_graph_fixture_store.py = 7 passed
 test_api_smoke.py with ML_RADAR_SEARCH_BACKEND=file = 7 passed
@@ -1947,7 +1949,7 @@ Boundary:
 ```text
 checkpoint is docs/regression-hardening only
 no new endpoint is added
-external-reference lookup endpoint = not implemented
+external-reference papers endpoint = implemented
 source-family/top-reference endpoints = not implemented
 full graph runtime loader = not implemented
 graph DB materialization = not implemented
@@ -1961,13 +1963,12 @@ GraphRAG = not implemented
 
 ### 5.1 Citation Graph Traversal API Checkpoint v0.1
 
-Status: **current docs/regression-hardening checkpoint**
+Status: **current docs synchronization after external-reference-papers endpoint**
 
 Goal:
 
 ```text
-Freeze the already implemented local-inspection graph API block before adding
-another traversal endpoint.
+Synchronize shared docs after adding the third narrow local-inspection graph API endpoint.
 ```
 
 Current accepted API state:
@@ -1976,20 +1977,19 @@ Current accepted API state:
 GET /citation-graph/status = implemented
 GET /citation-graph/papers/{canonical_id}/references = implemented
 GET /citation-graph/papers/{canonical_id}/citations = implemented
-GET /citation-graph/external-references/{reference_id}/papers = not implemented
+GET /citation-graph/external-references/{reference_id}/papers = implemented
 GET /citation-graph/source-families = not implemented
 GET /citation-graph/top-referenced-papers = not implemented
 GET /citation-graph/top-external-references = not implemented
 full graph runtime loader = not implemented
 ```
 
-Checkpoint scope:
+Docs-sync scope:
 
-- confirm the shared `graph/query/items/page/caveats` envelope for successful graph-facing responses;
-- confirm fail-closed behavior for disabled graph API, incompatible graph artifacts, unknown canonical IDs, and over-limit requests;
-- confirm semantic split: `/references` may include unresolved external-reference evidence, while `/citations` includes only resolved internal `paper_references_paper` edges;
-- record manual live API validation for status, references, citations, 404s, and limit guards;
-- keep the next code work limited to one future endpoint only after this checkpoint.
+- document the third narrow traversal endpoint;
+- confirm that external-reference lookup returns referencing papers, not resolved canonical bibliography entities;
+- record manual live API validation for external reference node id, normalized DOI, normalized OpenAlex value, unknown id, and limit guard;
+- preserve the boundary against source-family/top-reference endpoints, full graph runtime loading, GraphRAG, graph DB, publication, and `/search` changes.
 
 Boundary:
 
@@ -1997,7 +1997,7 @@ Boundary:
 docs/checkpoint sync only
 no graph rebuild
 no package rebuild
-no additional API endpoint implementation
+no additional API endpoint implementation beyond already merged external-reference-papers route
 no full runtime graph loader
 no GraphRAG
 no Qdrant promotion
@@ -2006,7 +2006,7 @@ no publication
 
 Next safe directions:
 
-1. **Citation Graph External Reference Papers Endpoint v0.1** — one narrow endpoint, only after this checkpoint.
+1. **Citation Graph Traversal API Checkpoint v0.2** — optional checkpoint over the four implemented graph routes.
 2. **Regression / DoD hardening** — optional gates and accepted-checkpoint validation wiring.
 3. **Graph API endpoint contract cleanup** — if app.py route helpers become too large, extract a small query service without changing behavior.
 
@@ -2252,7 +2252,7 @@ GET /citation-graph/papers/{canonical_id}/references
 Accepted local validation:
 
 ```text
-test_api_citation_graph_references.py = 5 passed
+test_api_citation_graph_references.py = 15 passed
 test_api_citation_graph_status.py = 6 passed
 test_citation_graph_fixture_store.py = 7 passed
 test_api_smoke.py = 7 passed
@@ -2261,7 +2261,7 @@ test_api_smoke.py = 7 passed
 Non-goals:
 
 ```text
-no external-reference lookup endpoint
+external-reference papers endpoint = implemented
 no source-family/top-reference endpoints
 no full graph runtime loader
 no DB materialization
@@ -2291,7 +2291,7 @@ GET /citation-graph/papers/{canonical_id}/citations
 Accepted local validation:
 
 ```text
-test_api_citation_graph_references.py = 9 passed
+test_api_citation_graph_references.py = 15 passed
 test_api_citation_graph_status.py = 6 passed
 test_citation_graph_fixture_store.py = 7 passed
 test_api_smoke.py = 7 passed
@@ -2301,13 +2301,61 @@ manual live API check = passed
 Non-goals:
 
 ```text
-no external-reference lookup endpoint
+external-reference papers endpoint = implemented
 no source-family/top-reference endpoints
 no full graph runtime loader
 no DB materialization
 no Streamlit graph UI
 no GraphRAG
 no publication
+```
+
+
+### 6.9 Citation Graph External Reference Papers Endpoint v0.1
+
+Status: **done / green third narrow traversal endpoint slice**.
+
+Purpose:
+
+```text
+Expose one read-only, compatibility-gated route for papers that reference a given unresolved external_reference node.
+```
+
+Implemented endpoint:
+
+```text
+GET /citation-graph/external-references/{reference_id}/papers
+```
+
+Accepted semantics:
+
+```text
+reference_id may be external_reference node id, reference_key, or normalized value
+DOI-like normalized values containing `/` require URL encoding
+items are canonical papers with paper_references_external edges to the selected external_reference
+external references remain unresolved evidence nodes, not publication-grade bibliography entities
+```
+
+Accepted local validation:
+
+```text
+test_api_citation_graph_references.py = 15 passed
+test_api_citation_graph_status.py = 6 passed
+test_citation_graph_fixture_store.py = 7 passed
+test_api_smoke.py = 7 passed
+manual live API check = passed for node id, normalized DOI, normalized OpenAlex value, unknown reference, and limit guard
+```
+
+Non-goals:
+
+```text
+no source-family/top-reference endpoints
+no full graph runtime loader
+no DB materialization
+no Streamlit graph UI
+no GraphRAG
+no publication
+no /search/Qdrant/ranking/canonical changes
 ```
 
 
