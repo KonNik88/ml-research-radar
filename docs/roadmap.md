@@ -7,12 +7,12 @@ document = primary living roadmap
 accepted checkpoint = Current State Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
 current active direction = review / regression / design-hardening
-current active slice = Citation Graph Source Families Endpoint Docs Sync v0.1
+current active slice = Citation Graph Traversal API Checkpoint v0.2
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = docs sync after implemented source-families endpoint; no canonical/retrieval/Qdrant/Postgres/UI/ranking/graph-output/publication behavior changes
+scope of current branch = docs/regression-hardening checkpoint over implemented citation graph traversal API routes; no new endpoint and no canonical/retrieval/Qdrant/Postgres/UI/ranking/graph-output/publication behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -77,19 +77,20 @@ Recently completed safe slices:
 14. **Citation Graph Traversal API Checkpoint v0.1** — docs/regression-hardening checkpoint over `status + references + citations`; no new endpoint.
 15. **Citation Graph External Reference Papers Endpoint v0.1** — third narrow read-only traversal endpoint; external reference to referencing papers only, no source-family/top/full-runtime endpoints.
 16. **Citation Graph Source Families Endpoint v0.1** — fourth narrow read-only diagnostics endpoint; source-family reference-evidence summary only, no top/full-runtime endpoints.
+17. **Citation Graph Source Families Endpoint Docs Sync v0.1** — shared docs synchronized with the fourth graph endpoint.
+18. **Citation Graph Traversal API Checkpoint v0.2** — active docs/regression-hardening checkpoint over `status + references + citations + external-reference papers + source-families`; no new endpoint.
 
 Recommended next safe slices:
 
-1. **Citation Graph Source Families Endpoint Docs Sync v0.1** — align shared docs with the implemented fourth graph endpoint.
-2. **Citation Graph Traversal API Checkpoint v0.2** — optional docs/regression-hardening checkpoint over `status + references + citations + external-reference papers + source-families`.
-3. **Regression / DoD hardening** — optional gates, accepted-checkpoint checks, and validation wiring only.
-4. **Citation Graph Top Referenced Papers Endpoint v0.1** — possible later narrow endpoint only after checkpoint/docs sync; must preserve citation-metric caveats.
+1. **Regression / DoD hardening** — optional gates, accepted-checkpoint checks, stale-status checks, and validation wiring only.
+2. **Citation Graph Top Referenced Papers Endpoint v0.1** — possible later narrow endpoint only after checkpoint v0.2 merge; must preserve citation-metric caveats.
+3. **Citation Graph Top External References Endpoint v0.1** — possible later narrow endpoint after top-referenced-papers or a separate design-hardening checkpoint; must preserve unresolved-reference caveats.
 
 Explicit immediate non-goals:
 
 - no GraphRAG implementation;
 - no Neo4j/NetworkX runtime;
-- no additional graph traversal endpoints beyond the implemented outgoing-references, incoming-citations, external-reference-papers, and source-families routes;
+- no additional graph traversal endpoints beyond the implemented outgoing-references, incoming-citations, external-reference-papers, and source-families routes in this checkpoint;
 - no Qdrant promotion;
 - no graph DB materialization layer;
 - no publication/upload;

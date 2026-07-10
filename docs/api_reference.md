@@ -58,6 +58,7 @@ Citation Graph Status Compatibility Probe v0.1
 Citation Graph Fixture Store v0.1
 Citation Graph Traversal API Checkpoint v0.1
 Citation Graph Source Families Endpoint v0.1
+Citation Graph Traversal API Checkpoint v0.2
 ```
 
 Current canonical baseline:
@@ -1030,7 +1031,7 @@ when the normal file or DB runtime is otherwise ready.
 
 ## Manual live API validation
 
-Manual live API validation after the external-reference-papers endpoint merge:
+Manual live API validation after the traversal API checkpoint v0.2 merge:
 
 ```text
 ML_RADAR_SEARCH_BACKEND=file
@@ -1176,6 +1177,66 @@ GraphRAG = not implemented
 /search, Discovery API, DB, Qdrant, ranking, canonical truth, graph output, package output, and publication state = unchanged
 ```
 
+## Citation Graph Traversal API Checkpoint v0.2
+
+Status: **accepted docs-only local-inspection checkpoint**
+
+This checkpoint freezes the current narrow citation/reference graph API block
+after the implemented source-families endpoint and before any top-reference
+endpoint work.
+
+Checkpointed routes:
+
+```text
+GET /citation-graph/status
+GET /citation-graph/papers/{canonical_id}/references
+GET /citation-graph/papers/{canonical_id}/citations
+GET /citation-graph/external-references/{reference_id}/papers
+GET /citation-graph/source-families
+```
+
+Checkpointed behavior:
+
+```text
+status endpoint = compatibility/status surface
+outgoing references endpoint = resolved paper references + unresolved external_reference evidence
+incoming citations endpoint = resolved internal paper_references_paper edges only
+external-reference papers endpoint = papers referencing unresolved external_reference evidence
+source-families endpoint = reference-evidence-only diagnostics, not source coverage
+response envelope = graph/query/items/page/caveats
+disabled feature flag = fail closed with graph_runtime_not_enabled
+unknown canonical_id = canonical_id_not_found
+unknown external reference = external_reference_not_found
+limit above max = graph_result_limit_exceeded
+missing/incompatible graph artifacts = graph_artifacts_* / graph_*_mismatch
+manual_review_required = true
+manual_review_complete = false
+publication_ready = false
+```
+
+Checkpoint validation evidence:
+
+```text
+test_api_citation_graph_references.py = 19 passed
+test_api_citation_graph_status.py = 6 passed
+test_citation_graph_fixture_store.py = 7 passed
+test_api_smoke.py with ML_RADAR_SEARCH_BACKEND=file = 7 passed
+manual live API check = green for status, references, citations, external-reference papers, source-families, unknown ids, and limit guards
+```
+
+Boundary:
+
+```text
+checkpoint is docs/regression-hardening only
+no new endpoint
+top-reference endpoints = not implemented
+full graph runtime loader = not implemented
+graph DB materialization = not implemented
+Streamlit graph UI = not implemented
+GraphRAG = not implemented
+/search, Discovery API, DB, Qdrant, ranking, canonical truth, graph output, package output, and publication state = unchanged
+```
+
 ## Current non-goals
 
 ```text
@@ -1191,7 +1252,7 @@ no use as reconcile input
 ```
 
 Implementation files touched by the status, compatibility-probe, fixture-store,
-outgoing-references, incoming-citations, and external-reference-papers endpoint
+outgoing-references, incoming-citations, external-reference-papers, and source-families endpoint
 slices:
 
 ```text
