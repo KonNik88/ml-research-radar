@@ -72,6 +72,7 @@ sources
 → ranking / paper detail / similar papers
 → topic clusters / topic projection
 → Discovery API
+→ Citation Graph status/references/citations local-inspection API
 → Streamlit Discovery UI
 → validators / regression / strict DoD
 ```
@@ -641,6 +642,43 @@ logic.
 
 ---
 
+## 14.5 Citation/reference graph API checkpoint
+
+The current graph API surface is deliberately narrow and local-inspection only:
+
+```text
+GET /citation-graph/status
+GET /citation-graph/papers/{canonical_id}/references
+GET /citation-graph/papers/{canonical_id}/citations
+```
+
+Architectural role:
+
+```text
+status = compatibility/status surface over local graph artifacts and reports
+references = outgoing reference evidence for one canonical paper
+citations = incoming resolved internal citation evidence for one canonical paper
+```
+
+Important boundaries:
+
+```text
+citation/reference graph output = derived local evidence
+graph API = read-only, feature-flagged, compatibility-gated local-inspection surface
+incoming citations = resolved internal paper_references_paper edges only
+unresolved external_reference evidence is not counted as incoming canonical-paper citation
+external-reference/source-family/top-reference endpoints = not implemented
+full graph runtime loader = not implemented
+graph DB materialization = not implemented
+Streamlit graph UI = not implemented
+GraphRAG = not implemented
+```
+
+The graph API must not mutate canonical truth, graph artifacts, validation
+reports, Postgres, Qdrant, retrieval artifacts, ranking artifacts, Streamlit
+state, package outputs, or publication state.
+
+
 ## 15. Validation architecture
 
 Validation is a first-class architecture layer.
@@ -716,4 +754,5 @@ Qdrant is experimentally validated but not promoted.
 Unranked hybrid remains the search relevance reference.
 The retrieval-serving checkpoint gate is the lightweight regression guard.
 Future promotion decisions must be explicit, evidence-backed, and reversible.
+Citation graph status/references/citations are a checkpointed local-inspection API block, not a graph-runtime promotion.
 ```

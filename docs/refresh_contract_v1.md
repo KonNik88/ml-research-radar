@@ -69,7 +69,8 @@ Citation Graph Fixture Store Docs Sync v0.1 — 2026-07 completed docs synchroni
 Citation Graph Outgoing References Endpoint v0.1 — 2026-07 completed first narrow traversal endpoint slice
 Citation Graph Outgoing References Endpoint Docs Sync v0.1 — 2026-07 completed docs synchronization slice
 Citation Graph Incoming Citations Endpoint v0.1 — 2026-07 completed second narrow traversal endpoint slice
-Citation Graph Incoming Citations Endpoint Docs Sync v0.1 — 2026-07 active docs synchronization slice
+Citation Graph Incoming Citations Endpoint Docs Sync v0.1 — 2026-07 completed docs synchronization slice
+Citation Graph Traversal API Checkpoint v0.1 — 2026-07 active docs-only regression-hardening checkpoint
 ```
 
 Current healthy baseline:
@@ -129,6 +130,7 @@ citation_graph_status_compatibility_probe = implemented_read_only_status_probe
 citation_graph_fixture_store = implemented_internal_read_only_fixture_store
 citation_graph_outgoing_references_endpoint = implemented
 citation_graph_incoming_citations_endpoint = implemented
+citation_graph_traversal_api_checkpoint = active_docs_only
 citation_graph_external_source_top_traversal_endpoints = not_implemented
 citation_graph_runtime_loader = not_implemented
 paper_artifact_graph_dod_gate = not required yet
@@ -1666,17 +1668,74 @@ source-family/top-reference endpoints = not implemented
 full runtime graph loader = not implemented
 ```
 
-Recommended next slice:
+Recommended next slice after this checkpoint:
 
 ```text
-Citation Graph Incoming Citations Endpoint Docs Sync v0.1
+Citation Graph External Reference Papers Endpoint v0.1
 ```
 
-After docs sync, a future code slice may add exactly one additional endpoint,
-preferably external-reference reverse lookup. It should not jump to broad
-traversal/runtime promotion.
+A future code slice may add exactly one additional endpoint, preferably
+external-reference reverse lookup. It should not jump to broad traversal/runtime
+promotion.
 
 ---
+
+
+## Citation Graph Traversal API Checkpoint v0.1 validation
+
+Use this when confirming that the already implemented narrow graph API surface is
+stable before adding another traversal endpoint.
+
+Checkpointed endpoints:
+
+```text
+GET /citation-graph/status
+GET /citation-graph/papers/{canonical_id}/references
+GET /citation-graph/papers/{canonical_id}/citations
+```
+
+Checkpointed expectations:
+
+```text
+status = compatibility/status surface
+references = resolved + unresolved outgoing reference evidence
+citations = resolved internal paper_references_paper incoming citation evidence only
+disabled feature flag = fail closed
+unknown canonical_id = 404 canonical_id_not_found
+limit above max = 400 graph_result_limit_exceeded
+missing/incompatible graph = 503 graph_artifacts_* / graph_*_mismatch
+```
+
+Recommended validation sequence:
+
+```bat
+python -m py_compile services/api/settings.py services/api/schemas.py services/api/citation_graph_service.py services/api/citation_graph_store.py services/api/app.py tests/integration/test_api_citation_graph_references.py tests/integration/test_api_citation_graph_status.py
+
+set ML_RADAR_SEARCH_BACKEND=file
+python -m pytest tests/integration/test_api_citation_graph_references.py -q
+python -m pytest tests/integration/test_api_citation_graph_status.py -q
+python -m pytest tests/smoke/test_citation_graph_fixture_store.py -q
+python -m pytest tests/integration/test_api_smoke.py -q
+```
+
+Expected current result:
+
+```text
+test_api_citation_graph_references.py = 9 passed
+test_api_citation_graph_status.py = 6 passed
+test_citation_graph_fixture_store.py = 7 passed
+test_api_smoke.py = 7 passed
+manual live API check = green
+```
+
+Boundary:
+
+```text
+checkpoint is docs/regression-hardening only
+no new endpoint is added
+no graph output/package/reports are rebuilt
+no canonical truth, retrieval, DB, Qdrant, ranking, UI, or publication behavior changes
+```
 
 
 ## Citation Graph Fixture Store v0.1 validation
