@@ -72,7 +72,9 @@ Citation Graph Incoming Citations Endpoint v0.1 — 2026-07 completed second nar
 Citation Graph Incoming Citations Endpoint Docs Sync v0.1 — 2026-07 completed docs synchronization slice
 Citation Graph Traversal API Checkpoint v0.1 — 2026-07 completed docs-only regression-hardening checkpoint
 Citation Graph External Reference Papers Endpoint v0.1 — 2026-07 completed third narrow traversal endpoint slice
-Citation Graph External Reference Papers Endpoint Docs Sync v0.1 — 2026-07 active docs synchronization slice
+Citation Graph External Reference Papers Endpoint Docs Sync v0.1 — 2026-07 completed docs synchronization slice
+Citation Graph Source Families Endpoint v0.1 — 2026-07 completed fourth narrow diagnostics endpoint slice
+Citation Graph Source Families Endpoint Docs Sync v0.1 — 2026-07 active docs synchronization slice
 ```
 
 Current healthy baseline:
@@ -133,7 +135,9 @@ citation_graph_fixture_store = implemented_internal_read_only_fixture_store
 citation_graph_outgoing_references_endpoint = implemented
 citation_graph_incoming_citations_endpoint = implemented
 citation_graph_traversal_api_checkpoint = active_docs_only
-citation_graph_external_source_top_traversal_endpoints = not_implemented
+citation_graph_external_reference_papers_endpoint = implemented
+citation_graph_source_families_endpoint = implemented
+citation_graph_top_traversal_endpoints = not_implemented
 citation_graph_runtime_loader = not_implemented
 paper_artifact_graph_dod_gate = not required yet
 paper_artifact_graph_manual_review_dod_gate = not required yet
@@ -1536,6 +1540,7 @@ GET /citation-graph/status
 GET /citation-graph/papers/{canonical_id}/references
 GET /citation-graph/papers/{canonical_id}/citations
 GET /citation-graph/external-references/{reference_id}/papers
+GET /citation-graph/source-families
 ```
 
 Current implementation state:
@@ -1550,7 +1555,7 @@ read_only = true
 disabled_by_default = true
 feature_flag = ML_RADAR_CITATION_GRAPH_API_ENABLED
 fixture_store = implemented_internal
-source_family_endpoint = not implemented
+source_family_endpoint = implemented
 top_referenced_papers_endpoint = not implemented
 top_external_references_endpoint = not implemented
 full_graph_runtime_loader = not implemented
@@ -1678,7 +1683,8 @@ Current route boundary:
 outgoing references endpoint = implemented
 incoming citations endpoint = implemented
 external-reference papers endpoint = implemented
-source-family/top-reference endpoints = not implemented
+source-family endpoint = implemented
+top-reference endpoints = not implemented
 full runtime graph loader = not implemented
 ```
 
@@ -1743,7 +1749,8 @@ Boundary:
 ```text
 external references remain unresolved evidence nodes
 not a publication-grade reference entity resolver
-no source-family/top-reference endpoints
+source-family endpoint = implemented
+no top-reference endpoints
 no full runtime graph loader
 no GraphRAG/public graph API promotion
 ```
