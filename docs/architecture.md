@@ -16,7 +16,7 @@ overlapping source-level observations.
 ## Current checkpoint
 
 ```text
-checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.2
+checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Top Referenced Papers Endpoint v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
@@ -72,7 +72,7 @@ sources
 → ranking / paper detail / similar papers
 → topic clusters / topic projection
 → Discovery API
-→ Citation Graph status/references/citations/external-reference-papers/source-families local-inspection API
+→ Citation Graph status/references/citations/external-reference-papers/source-families/top-referenced-papers local-inspection API
 → Streamlit Discovery UI
 → validators / regression / strict DoD
 ```
@@ -642,9 +642,9 @@ logic.
 
 ---
 
-## 14.5 Citation/reference graph API checkpoint v0.2
+## 14.5 Citation/reference graph API local-inspection surface
 
-The current checkpointed graph API surface is deliberately narrow and local-inspection only:
+The current graph API surface is deliberately narrow and local-inspection only:
 
 ```text
 GET /citation-graph/status
@@ -652,6 +652,7 @@ GET /citation-graph/papers/{canonical_id}/references
 GET /citation-graph/papers/{canonical_id}/citations
 GET /citation-graph/external-references/{reference_id}/papers
 GET /citation-graph/source-families
+GET /citation-graph/top-referenced-papers
 ```
 
 Architectural role:
@@ -662,6 +663,7 @@ references = outgoing reference evidence for one canonical paper
 citations = incoming resolved internal citation evidence for one canonical paper
 external-reference papers = papers referencing one unresolved external_reference
 source-families = source-family reference-evidence diagnostics
+top-referenced-papers = resolved internal incoming reference-count diagnostics
 ```
 
 Important boundaries:
@@ -673,9 +675,9 @@ incoming citations = resolved internal paper_references_paper edges only
 unresolved external_reference evidence is not counted as incoming canonical-paper citation
 external-reference papers endpoint is implemented as reverse lookup over unresolved external evidence
 source-families endpoint is implemented as reference-evidence-only diagnostics
-top-reference endpoints = not implemented
+top-referenced-papers endpoint is implemented as resolved-internal-count diagnostics
+top-external-reference endpoint = not implemented
 full graph runtime loader = not implemented
-checkpoint v0.2 = docs/regression-hardening only, no new endpoint
 graph DB materialization = not implemented
 Streamlit graph UI = not implemented
 GraphRAG = not implemented

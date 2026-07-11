@@ -75,7 +75,9 @@ Citation Graph External Reference Papers Endpoint v0.1 — 2026-07 completed thi
 Citation Graph External Reference Papers Endpoint Docs Sync v0.1 — 2026-07 completed docs synchronization slice
 Citation Graph Source Families Endpoint v0.1 — 2026-07 completed fourth narrow diagnostics endpoint slice
 Citation Graph Source Families Endpoint Docs Sync v0.1 — 2026-07 completed docs synchronization slice
-Citation Graph Traversal API Checkpoint v0.2 — 2026-07 active docs-only regression-hardening checkpoint
+Citation Graph Traversal API Checkpoint v0.2 — 2026-07 completed docs-only regression-hardening checkpoint
+Citation Graph Top Referenced Papers Endpoint v0.1 — 2026-07 completed fifth narrow diagnostics endpoint slice
+Citation Graph Top Referenced Papers Endpoint Docs Sync v0.1 — 2026-07 active docs synchronization slice
 ```
 
 Current healthy baseline:
@@ -135,10 +137,11 @@ citation_graph_status_compatibility_probe = implemented_read_only_status_probe
 citation_graph_fixture_store = implemented_internal_read_only_fixture_store
 citation_graph_outgoing_references_endpoint = implemented
 citation_graph_incoming_citations_endpoint = implemented
-citation_graph_traversal_api_checkpoint_v02 = active_docs_only
+citation_graph_traversal_api_checkpoint_v02 = completed_docs_only
 citation_graph_external_reference_papers_endpoint = implemented
 citation_graph_source_families_endpoint = implemented
-citation_graph_top_traversal_endpoints = not_implemented
+citation_graph_top_referenced_papers_endpoint = implemented
+citation_graph_top_external_references_endpoint = not_implemented
 citation_graph_runtime_loader = not_implemented
 paper_artifact_graph_dod_gate = not required yet
 paper_artifact_graph_manual_review_dod_gate = not required yet
@@ -336,7 +339,7 @@ qdrant points_count = 60954
 qdrant corpus_doc_count = 60954
 test_api_smoke.py = 7 passed
 citation graph status endpoint = 6 passed, disabled-by-default/status-compatibility
-citation graph traversal endpoints = 19 passed, disabled-by-default/read-only/compatibility-gated
+citation graph traversal endpoints = 23 passed, disabled-by-default/read-only/compatibility-gated
 citation graph fixture store = 7 passed, internal/read-only core
 experimental qdrant API = status_code 200, mode dense_qdrant
 streamlit UI required_failed_count = 0
@@ -379,8 +382,8 @@ endpoint is reachable
 status/compatibility-only surface
 disabled by default unless ML_RADAR_CITATION_GRAPH_API_ENABLED is explicitly enabled
 when enabled, probes local graph manifests/reports read-only
-outgoing references, incoming citations, external-reference papers, and source-families endpoints are implemented and compatibility-gated
-top-reference endpoints and full graph runtime loader are not implemented
+outgoing references, incoming citations, external-reference papers, source-families, and top-referenced-papers endpoints are implemented and compatibility-gated
+top-external-reference endpoint and full graph runtime loader are not implemented
 internal fixture store exists and backs outgoing references, incoming citations, external-reference papers, and source-family diagnostics semantics
 no full graph runtime loader
 manual_review_required = true
@@ -1529,7 +1532,7 @@ Generated reports are not committed.
 
 
 
-# F. Citation Graph API status, fixture store, references, citations, and external-reference papers validation
+# F. Citation Graph API status, fixture store, references, citations, external-reference papers, source families, and top referenced papers validation
 
 Use this when checking the narrow Citation / Reference Graph API surface and its
 read-only compatibility gate.
@@ -1542,6 +1545,7 @@ GET /citation-graph/papers/{canonical_id}/references
 GET /citation-graph/papers/{canonical_id}/citations
 GET /citation-graph/external-references/{reference_id}/papers
 GET /citation-graph/source-families
+GET /citation-graph/top-referenced-papers
 ```
 
 Current implementation state:
@@ -1557,7 +1561,7 @@ disabled_by_default = true
 feature_flag = ML_RADAR_CITATION_GRAPH_API_ENABLED
 fixture_store = implemented_internal
 source_family_endpoint = implemented
-top_referenced_papers_endpoint = not implemented
+top_referenced_papers_endpoint = implemented
 top_external_references_endpoint = not implemented
 full_graph_runtime_loader = not implemented
 graph_db_materialization = not implemented
@@ -1575,6 +1579,8 @@ ML_RADAR_CITATION_GRAPH_API_ENABLED=false
 /citation-graph/papers/{canonical_id}/references -> 503 graph_runtime_not_enabled
 /citation-graph/papers/{canonical_id}/citations -> 503 graph_runtime_not_enabled
 /citation-graph/external-references/{reference_id}/papers -> 503 graph_runtime_not_enabled
+/citation-graph/source-families -> 503 graph_runtime_not_enabled
+/citation-graph/top-referenced-papers -> 503 graph_runtime_not_enabled
 ```
 
 Enabled local-inspection behavior:
@@ -1601,6 +1607,17 @@ GET /citation-graph/external-references/{reference_id}/papers
 → returns papers with paper_references_external edges to that external_reference
 → accepts external_reference node id, reference_key, or normalized_value
 → DOI-like values with `/` require URL encoding
+→ requires compatible local graph status
+
+GET /citation-graph/source-families
+→ read-only source-family reference-evidence diagnostics
+→ not a source coverage metric
+→ requires compatible local graph status
+
+GET /citation-graph/top-referenced-papers
+→ read-only top resolved internal reference-count diagnostics
+→ counts only paper_references_paper incoming edges
+→ not a global citation metric or publication-grade ranking
 → requires compatible local graph status
 ```
 
@@ -1636,15 +1653,15 @@ python -m pytest tests/integration/test_api_citation_graph_status.py -q
 python -m pytest tests/integration/test_api_db_smoke.py -q
 ```
 
-Accepted local result for the external-reference-papers endpoint slice:
+Accepted local result for the top-referenced-papers endpoint slice:
 
 ```text
 py_compile = passed
-test_api_citation_graph_references.py = 15 passed
+test_api_citation_graph_references.py = 23 passed
 test_api_citation_graph_status.py = 6 passed
 test_citation_graph_fixture_store.py = 7 passed
 ML_RADAR_SEARCH_BACKEND=file test_api_smoke.py = 7 passed
-git diff --check = passed, CRLF warnings only on Windows after EOF whitespace cleanup
+git diff --check = passed, CRLF warnings only on Windows
 ```
 
 Manual live API check:
@@ -1685,7 +1702,8 @@ outgoing references endpoint = implemented
 incoming citations endpoint = implemented
 external-reference papers endpoint = implemented
 source-family endpoint = implemented
-top-reference endpoints = not implemented
+top-referenced-papers endpoint = implemented
+top-external-reference endpoint = not implemented
 full runtime graph loader = not implemented
 ```
 
