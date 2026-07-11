@@ -276,6 +276,7 @@ GET /citation-graph/papers/{canonical_id}/references
 GET /citation-graph/papers/{canonical_id}/citations
 GET /citation-graph/external-references/{reference_id}/papers
 GET /citation-graph/source-families
+GET /citation-graph/top-referenced-papers
 ```
 
 Current graph API semantics:
@@ -290,7 +291,7 @@ fixture_store = implemented_internal
 incoming_citations_endpoint = implemented
 external_reference_papers_endpoint = implemented
 source_family_endpoint = implemented
-top_referenced_papers_endpoint = not implemented
+top_referenced_papers_endpoint = implemented
 top_external_references_endpoint = not implemented
 full_graph_runtime_loader = not implemented
 graph_db_materialization = not implemented
@@ -305,10 +306,10 @@ Boundary:
 ```text
 The status endpoint is an API safety/status/compatibility surface.
 When enabled, it may read local graph manifests/reports for compatibility status.
-The outgoing references, incoming citations, external-reference-papers, and source-families endpoints are the implemented narrow local-inspection endpoints.
+The outgoing references, incoming citations, external-reference-papers, source-families, and top-referenced-papers endpoints are the implemented narrow local-inspection endpoints.
 It is read-only, feature-flagged, compatibility-gated, and backed by CitationGraphStore.
 It may return resolved paper references and unresolved external_reference evidence.
-Incoming citations are resolved internal links only; external-reference-papers is implemented as reverse lookup over unresolved external references; source-family diagnostics are implemented as reference-evidence-only summaries; top-reference endpoints are not implemented.
+Incoming citations are resolved internal links only; external-reference-papers is implemented as reverse lookup over unresolved external references; source-family diagnostics are implemented as reference-evidence-only summaries; top-referenced-papers is implemented as resolved-internal-reference-count diagnostics; top-external-references is not implemented.
 A full graph runtime loader is not implemented.
 The graph API does not change /search, Discovery API, DB, Qdrant, ranking, canonical truth, graph output, package output, or publication state.
 ```
@@ -322,7 +323,8 @@ public outgoing references route = implemented
 public incoming citations route = implemented
 public external-reference papers route = implemented
 public source-families route = implemented
-top-reference public routes = not implemented
+public top-referenced-papers route = implemented
+top-external-reference public route = not implemented
 full graph runtime loader = not implemented
 ```
 
@@ -352,11 +354,11 @@ store/API do not change /search, Discovery API, DB, Qdrant, ranking, canonical t
 Latest graph API validation:
 
 ```text
-test_api_citation_graph_references.py = 19 passed
+test_api_citation_graph_references.py = 23 passed
 test_api_citation_graph_status.py = 6 passed
 test_citation_graph_fixture_store.py = 7 passed
 test_api_smoke.py = 7 passed
-manual live traversal checkpoint v0.2 check = green for status, references, citations, external-reference papers, source-families, unknown ids, and limit guards
+manual live top-referenced-papers check = green for top-referenced-papers success path and limit guard, with resolved_internal_reference_count_only / not_global_citation_metric / not_publication_grade_ranking caveats
 ```
 
 ## 4.4 Artifact evidence plane
@@ -775,8 +777,8 @@ Recommended next slices:
    - stale-counter protection;
    - accepted counter summaries.
 
-2. **Citation Graph Top Referenced Papers Endpoint v0.1**
-   - possible later narrow endpoint;
+2. **Citation Graph Top Referenced Papers Endpoint Docs Sync v0.1**
+   - active docs synchronization after the fifth narrow endpoint;
    - must preserve resolved-internal-reference-only and not-global-citation-metric caveats.
 
 3. **Citation Graph Top External References Endpoint v0.1**
