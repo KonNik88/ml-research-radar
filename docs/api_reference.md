@@ -42,7 +42,7 @@ Streamlit UI = thin API client
 Citation / Reference Graph status API = disabled-by-default status/compatibility safety surface
 Citation / Reference Graph outgoing references API = first narrow read-only traversal endpoint
 Citation / Reference Graph fixture store = internal read-only query core for fixture-backed semantics
-Citation / Reference Graph traversal/runtime API = partially implemented for outgoing references, incoming citations, external-reference papers, source-family diagnostics, and top-referenced-papers diagnostics only; top-external-reference/full-runtime surfaces are not implemented
+Citation / Reference Graph traversal/runtime API = partially implemented for outgoing references, incoming citations, external-reference papers, source-family diagnostics, top-referenced-papers diagnostics, and top-external-references diagnostics only; full-runtime surfaces are not implemented
 ```
 
 ---
@@ -60,6 +60,7 @@ Citation Graph Traversal API Checkpoint v0.1
 Citation Graph Source Families Endpoint v0.1
 Citation Graph Traversal API Checkpoint v0.2
 Citation Graph Top Referenced Papers Endpoint v0.1
+Citation Graph Top External References Endpoint v0.1
 ```
 
 Current canonical baseline:
@@ -561,6 +562,7 @@ GET /citation-graph/papers/{canonical_id}/citations
 GET /citation-graph/external-references/{reference_id}/papers
 GET /citation-graph/source-families
 GET /citation-graph/top-referenced-papers
+GET /citation-graph/top-external-references
 ```
 
 Current v0.1 semantics:
@@ -577,7 +579,7 @@ incoming_citations_endpoint = implemented
 external_reference_papers_endpoint = implemented
 source_family_endpoint = implemented
 top_referenced_papers_endpoint = implemented
-top_external_references_endpoint = not implemented
+top_external_references_endpoint = implemented
 full_graph_runtime_loader = not implemented
 graph_db_materialization = not implemented
 streamlit_graph_ui = not implemented
@@ -592,7 +594,9 @@ citations endpoint returns incoming resolved internal paper citations for one
 canonical paper. The external-reference papers endpoint returns canonical papers
 that reference one unresolved `external_reference` node. The source-families
 endpoint returns source-family reference-evidence diagnostics. The top-referenced-papers
-endpoint returns bounded diagnostics over resolved internal reference counts. All traversal routes are
+endpoint returns bounded diagnostics over resolved internal reference counts. The
+top-external-references endpoint returns bounded diagnostics over unresolved
+external reference counts. All traversal routes are
 read-only, feature-flagged, compatibility-gated, and backed by `CitationGraphStore`
 over the configured local graph root.
 
@@ -611,9 +615,10 @@ The rollout so far is:
 6. GET /citation-graph/external-references/{reference_id}/papers
 7. GET /citation-graph/source-families
 8. GET /citation-graph/top-referenced-papers
+9. GET /citation-graph/top-external-references
 ```
 
-No top-external-reference endpoint, full runtime graph loader,
+No full runtime graph loader,
 graph DB materialization, Streamlit graph UI, GraphRAG, publication step,
 `/search` change, Qdrant change, ranking change, or canonical truth change is
 implemented by this API surface.
@@ -636,6 +641,7 @@ ML_RADAR_CITATION_GRAPH_API_ENABLED=false
 → /citation-graph/external-references/{reference_id}/papers fails closed
 → /citation-graph/source-families fails closed
 → /citation-graph/top-referenced-papers fails closed
+→ /citation-graph/top-external-references fails closed
 → error_code=graph_runtime_not_enabled
 ```
 
@@ -701,8 +707,9 @@ remains a caveat and publication blocker.
 Compatibility/status payloads may still report
 `traversal_endpoints_implemented=false` as a broad full-runtime-surface marker.
 That field does not mean the narrow `/references`, `/citations`,
-`/external-references/{reference_id}/papers`, `/source-families`, and
-`/top-referenced-papers` routes are absent; it means the full traversal/runtime
+`/external-references/{reference_id}/papers`, `/source-families`,
+`/top-referenced-papers`, and `/top-external-references` routes are absent; it
+means the full traversal/runtime
 surface remains incomplete.
 
 ## `GET /citation-graph/papers/{canonical_id}/references`
@@ -1033,10 +1040,79 @@ success -> 200 graph/query/items/page/caveats envelope
 
 This endpoint is intentionally narrow. It counts only resolved internal
 `paper_references_paper` edges in the local v0.1 graph. It does not count
-unresolved `external_reference` evidence, does not expose top external-reference
-rankings, does not implement global bibliometrics, does not load a full runtime
-graph, and does not change canonical truth, `/search`, Qdrant, ranking, DB,
-Discovery API, Streamlit, graph package outputs, or publication state.
+unresolved `external_reference` evidence; that evidence is exposed only through
+the separate `/citation-graph/top-external-references` diagnostics endpoint. It
+does not implement global bibliometrics, does not load a full runtime graph, and
+does not change canonical truth, `/search`, Qdrant, ranking, DB, Discovery API,
+Streamlit, graph package outputs, or publication state.
+
+
+## `GET /citation-graph/top-external-references`
+
+Returns bounded diagnostics for unresolved external references with the highest
+referencing paper counts in the local citation/reference graph.
+
+This endpoint is intended for local inspection and QA. It is not a global
+citation metric, not a publication-grade reference-entity catalog, not a
+bibliographic authority file, and not a replacement for provider-level citation
+or reference indexes.
+
+Query parameters:
+
+| parameter | type | default | notes |
+|---|---:|---:|---|
+| `limit` | int | `ML_RADAR_CITATION_GRAPH_DEFAULT_LIMIT` | must be `>= 1` and `<= ML_RADAR_CITATION_GRAPH_MAX_LIMIT` |
+| `offset` | int | 0 | must be `>= 0` |
+
+Successful response shape:
+
+```text
+graph
+query
+items
+page
+caveats
+```
+
+Returned items contain unresolved external-reference diagnostics:
+
+```text
+external_reference_id
+reference_type
+normalized_reference
+referencing_paper_count
+source_families
+```
+
+The endpoint preserves these caveats:
+
+```text
+metadata_reference_fields_only
+not_a_complete_citation_index
+manual_review_required
+publication_ready_false
+external_reference_is_unresolved
+not_publication_grade_reference_entity
+not_global_citation_metric
+not_publication_grade_ranking
+```
+
+Current endpoint behavior:
+
+```text
+disabled feature flag -> 503 graph_runtime_not_enabled
+missing/incompatible graph -> 503 graph_artifacts_* / graph_*_mismatch
+limit above max -> 400 graph_result_limit_exceeded
+success -> 200 graph/query/items/page/caveats envelope
+```
+
+This endpoint is intentionally narrow. It counts only unresolved
+`paper_references_external` edges in the local v0.1 graph. It does not resolve
+external references into canonical papers, does not make external references
+publication-grade bibliographic entities, does not implement global
+bibliometrics, does not load a full runtime graph, and does not change canonical
+truth, `/search`, Qdrant, ranking, DB, Discovery API, Streamlit, graph package
+outputs, or publication state.
 
 ## Compatibility failure states
 
@@ -1101,7 +1177,7 @@ when the normal file or DB runtime is otherwise ready.
 
 ## Manual live API validation
 
-Manual live API validation after the top-referenced-papers endpoint merge:
+Manual live API validation after the top-external-references endpoint merge:
 
 ```text
 ML_RADAR_SEARCH_BACKEND=file
@@ -1118,6 +1194,8 @@ GET /citation-graph/source-families?limit=5&offset=0 -> 200, returned=5, total_e
 GET /citation-graph/source-families?limit=101 -> 400 graph_result_limit_exceeded
 GET /citation-graph/top-referenced-papers?limit=5&offset=0 -> 200, returned=5, total_estimate=1770, caveats include resolved_internal_reference_count_only, not_global_citation_metric, and not_publication_grade_ranking
 GET /citation-graph/top-referenced-papers?limit=101 -> 400 graph_result_limit_exceeded
+GET /citation-graph/top-external-references?limit=5&offset=0 -> 200, returned=5, total_estimate=468336, caveats include external_reference_is_unresolved, not_publication_grade_reference_entity, not_global_citation_metric, and not_publication_grade_ranking
+GET /citation-graph/top-external-references?limit=101 -> 400 graph_result_limit_exceeded
 ```
 
 ## Citation Graph Traversal API Checkpoint v0.1
@@ -1312,8 +1390,8 @@ GraphRAG = not implemented
 ## Current non-goals
 
 ```text
-no top referenced papers endpoint
-no top external references endpoint
+no source-family papers endpoint
+no additional graph traversal/filtering endpoints without a separate accepted design
 no full graph runtime loader over production nodes/edges
 no graph DB serving layer
 no Streamlit graph surface

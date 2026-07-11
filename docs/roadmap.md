@@ -7,12 +7,12 @@ document = primary living roadmap
 accepted checkpoint = Current State Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
 current active direction = review / regression / design-hardening
-current active slice = Citation Graph Top Referenced Papers Endpoint Docs Sync v0.1
+current active slice = Citation Graph Top External References Endpoint Docs Sync v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = docs synchronization after the implemented top-referenced-papers endpoint; no code, no new endpoint, and no canonical/retrieval/Qdrant/Postgres/UI/ranking/graph-output/publication behavior changes
+scope of current branch = docs synchronization after the implemented top-external-references endpoint; no code, no new endpoint, and no canonical/retrieval/Qdrant/Postgres/UI/ranking/graph-output/publication behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -79,19 +79,21 @@ Recently completed safe slices:
 16. **Citation Graph Source Families Endpoint v0.1** — fourth narrow read-only diagnostics endpoint; source-family reference-evidence summary only, no top/full-runtime endpoints.
 17. **Citation Graph Source Families Endpoint Docs Sync v0.1** — shared docs synchronized with the fourth graph endpoint.
 18. **Citation Graph Traversal API Checkpoint v0.2** — docs/regression-hardening checkpoint over `status + references + citations + external-reference papers + source-families`; no new endpoint.
-19. **Citation Graph Top Referenced Papers Endpoint v0.1** — fifth narrow read-only diagnostics endpoint; top resolved internal reference counts only, no top-external/full-runtime endpoints.
+19. **Citation Graph Top Referenced Papers Endpoint v0.1** — fifth narrow read-only diagnostics endpoint; top resolved internal reference counts only.
+20. **Citation Graph Top Referenced Papers Endpoint Docs Sync v0.1** — shared docs synchronized with the fifth graph diagnostics endpoint.
+21. **Citation Graph Top External References Endpoint v0.1** — sixth narrow read-only diagnostics endpoint; top unresolved external-reference counts only, no full-runtime endpoints.
 
 Recommended next safe slices:
 
-1. **Citation Graph Top Referenced Papers Endpoint Docs Sync v0.1** — synchronize shared docs after the fifth narrow graph endpoint.
-2. **Regression / DoD hardening** — optional gates, accepted-checkpoint checks, stale-status checks, and validation wiring only.
-3. **Citation Graph Top External References Endpoint v0.1** — possible later narrow endpoint after the top-referenced-papers docs sync or a separate design-hardening checkpoint; must preserve unresolved-reference caveats.
+1. **Citation Graph Top External References Endpoint Docs Sync v0.1** — synchronize shared docs after the sixth narrow graph endpoint.
+2. **Citation Graph Traversal API Checkpoint v0.3** — docs/regression-hardening checkpoint over the seven implemented graph routes.
+3. **Regression / DoD hardening** — optional gates, accepted-checkpoint checks, stale-status checks, and validation wiring only.
 
 Explicit immediate non-goals:
 
 - no GraphRAG implementation;
 - no Neo4j/NetworkX runtime;
-- no additional graph traversal endpoints beyond the implemented outgoing-references, incoming-citations, external-reference-papers, source-families, and top-referenced-papers routes in this checkpoint;
+- no additional graph traversal endpoints beyond the implemented outgoing-references, incoming-citations, external-reference-papers, source-families, top-referenced-papers, and top-external-references routes in this checkpoint;
 - no Qdrant promotion;
 - no graph DB materialization layer;
 - no publication/upload;
@@ -1897,7 +1899,7 @@ outgoing references endpoint is read-only
 outgoing references endpoint is feature-flagged and compatibility-gated
 outgoing references endpoint may expose resolved paper references and unresolved external_reference evidence
 external-reference papers endpoint is implemented
-source-family endpoint and top-referenced-papers endpoint are implemented; top-external-reference endpoint is not implemented
+source-family endpoint, top-referenced-papers endpoint, and top-external-references endpoint are implemented
 full graph runtime loader is not implemented
 graph DB materialization is not implemented
 Streamlit graph UI is not implemented
@@ -1956,7 +1958,7 @@ no new endpoint is added
 external-reference papers endpoint = implemented
 source-family endpoint = implemented
 top-referenced-papers endpoint = implemented
-top-external-reference endpoint = not implemented
+top-external-references endpoint = implemented
 full graph runtime loader = not implemented
 graph DB materialization = not implemented
 Streamlit graph UI = not implemented
@@ -1967,14 +1969,14 @@ GraphRAG = not implemented
 
 ## 5. Current active direction
 
-### 5.1 Citation Graph Source Families Endpoint Docs Sync v0.1
+### 5.1 Citation Graph Top External References Endpoint Docs Sync v0.1
 
-Status: **current docs synchronization after source-families endpoint**
+Status: **current docs synchronization after top-external-references endpoint**
 
 Goal:
 
 ```text
-Synchronize shared docs after adding the fourth narrow local-inspection graph endpoint.
+Synchronize shared docs after adding the sixth narrow local-inspection graph diagnostics endpoint.
 ```
 
 Current accepted API state:
@@ -1986,16 +1988,16 @@ GET /citation-graph/papers/{canonical_id}/citations = implemented
 GET /citation-graph/external-references/{reference_id}/papers = implemented
 GET /citation-graph/source-families = implemented
 GET /citation-graph/top-referenced-papers = implemented
-GET /citation-graph/top-external-references = not implemented
+GET /citation-graph/top-external-references = implemented
 full graph runtime loader = not implemented
 ```
 
 Docs-sync scope:
 
-- document the fourth narrow diagnostics endpoint;
-- confirm that source-family output is reference-evidence-only, not a source coverage metric;
-- record manual live API validation for source-family success and limit guard;
-- preserve the boundary against top-external-reference endpoints, full graph runtime loading, GraphRAG, graph DB, publication, and `/search` changes.
+- document the sixth narrow diagnostics endpoint;
+- confirm that top external references are unresolved external-reference diagnostics only;
+- record manual live API validation for top-external-references success and limit guard;
+- preserve the boundary against full graph runtime loading, GraphRAG, graph DB, publication, and `/search` changes.
 
 Boundary:
 
@@ -2003,7 +2005,7 @@ Boundary:
 docs/checkpoint sync only
 no graph rebuild
 no package rebuild
-no additional API endpoint implementation beyond already merged source-families route
+no additional API endpoint implementation beyond already merged top-external-references route
 no full runtime graph loader
 no GraphRAG
 no Qdrant promotion
@@ -2012,10 +2014,9 @@ no publication
 
 Next safe directions:
 
-1. **Citation Graph Traversal API Checkpoint v0.2** — optional checkpoint over the five implemented graph routes.
+1. **Citation Graph Traversal API Checkpoint v0.3** — checkpoint over the seven implemented graph routes.
 2. **Regression / DoD hardening** — optional gates and accepted-checkpoint validation wiring.
 3. **Graph API endpoint contract cleanup** — if app.py route helpers become too large, extract a small query service without changing behavior.
-4. **Citation Graph Top External References Endpoint v0.1** — possible later narrow endpoint only after top-referenced-papers docs sync and explicit unresolved-reference caveats.
 
 
 ## 6. Near-term roadmap
