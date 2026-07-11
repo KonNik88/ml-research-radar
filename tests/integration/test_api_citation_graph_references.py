@@ -633,3 +633,109 @@ def test_citation_graph_source_families_incompatible_graph_fails_closed(
     payload = response.json()
     assert payload["error_code"] == "graph_artifacts_not_found"
     assert payload["details"]["compatibility"]["ok"] is False
+
+
+def test_citation_graph_top_referenced_papers_disabled_fails_closed(monkeypatch):
+    monkeypatch.setattr(app_module.settings, "citation_graph_api_enabled", False)
+
+    with TestClient(app) as client:
+        response = client.get("/citation-graph/top-referenced-papers")
+
+    assert response.status_code == 503
+    payload = response.json()
+    assert payload["error_code"] == "graph_runtime_not_enabled"
+    assert "results" not in payload
+
+
+def test_citation_graph_top_referenced_papers_returns_resolved_internal_counts(
+    tmp_path,
+    monkeypatch,
+):
+    graph_root, reports_root = _write_reference_endpoint_fixture(tmp_path)
+    _enable_citation_graph(monkeypatch, graph_root, reports_root)
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/citation-graph/top-referenced-papers",
+            params={"limit": 10, "offset": 0},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    assert payload["graph"]["name"] == "citation_reference_graph"
+    assert payload["graph"]["version"] == "v0.1"
+    assert payload["graph"]["metadata_reference_fields_only"] is True
+    assert payload["graph"]["full_text_parsed"] is False
+    assert payload["graph"]["manual_review_required"] is True
+    assert payload["graph"]["manual_review_complete"] is False
+    assert payload["graph"]["publication_ready"] is False
+
+    assert payload["query"] == {
+        "endpoint": "/citation-graph/top-referenced-papers",
+        "limit": 10,
+        "offset": 0,
+        "year_from": None,
+        "year_to": None,
+        "source_family": None,
+    }
+    assert payload["page"] == {
+        "limit": 10,
+        "offset": 0,
+        "returned": 1,
+        "total_estimate": 1,
+    }
+    assert payload["items"] == [
+        {
+            "canonical_id": "paper:b",
+            "title": "Example Target Paper",
+            "year": 2024,
+            "incoming_resolved_reference_count": 1,
+            "source_families": ["openalex"],
+        }
+    ]
+
+    assert "metadata_reference_fields_only" in payload["caveats"]
+    assert "not_a_complete_citation_index" in payload["caveats"]
+    assert "resolved_internal_reference_count_only" in payload["caveats"]
+    assert "not_global_citation_metric" in payload["caveats"]
+    assert "not_publication_grade_ranking" in payload["caveats"]
+    assert "source_family_reference_evidence_only" not in payload["caveats"]
+    assert "not_source_coverage_metric" not in payload["caveats"]
+    assert "external_reference_is_unresolved" not in payload["caveats"]
+
+
+def test_citation_graph_top_referenced_papers_limit_above_max_returns_graph_error(
+    tmp_path,
+    monkeypatch,
+):
+    graph_root, reports_root = _write_reference_endpoint_fixture(tmp_path)
+    _enable_citation_graph(monkeypatch, graph_root, reports_root)
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/citation-graph/top-referenced-papers",
+            params={"limit": 101},
+        )
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["error_code"] == "graph_result_limit_exceeded"
+    assert payload["details"] == {"limit": 101, "max_limit": 100}
+
+
+def test_citation_graph_top_referenced_papers_incompatible_graph_fails_closed(
+    tmp_path,
+    monkeypatch,
+):
+    missing_graph_root = tmp_path / "missing_graph"
+    missing_reports_root = tmp_path / "missing_reports"
+    _enable_citation_graph(monkeypatch, missing_graph_root, missing_reports_root)
+
+    with TestClient(app) as client:
+        response = client.get("/citation-graph/top-referenced-papers")
+
+    assert response.status_code == 503
+    payload = response.json()
+    assert payload["error_code"] == "graph_artifacts_not_found"
+    assert payload["details"]["compatibility"]["ok"] is False
