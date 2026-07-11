@@ -61,6 +61,7 @@ Citation Graph Source Families Endpoint v0.1
 Citation Graph Traversal API Checkpoint v0.2
 Citation Graph Top Referenced Papers Endpoint v0.1
 Citation Graph Top External References Endpoint v0.1
+Citation Graph Traversal API Checkpoint v0.3
 ```
 
 Current canonical baseline:
@@ -1177,7 +1178,7 @@ when the normal file or DB runtime is otherwise ready.
 
 ## Manual live API validation
 
-Manual live API validation after the top-external-references endpoint merge:
+Manual live API validation after the traversal API checkpoint v0.3 merge:
 
 ```text
 ML_RADAR_SEARCH_BACKEND=file
@@ -1275,7 +1276,8 @@ external-reference papers endpoint is read-only
 external-reference papers endpoint is feature-flagged and compatibility-gated
 external references remain unresolved evidence nodes
 source-family endpoint = implemented
-top-reference endpoints = not implemented
+top-referenced-papers endpoint = implemented
+top-external-references endpoint = implemented
 full graph runtime loader = not implemented
 graph DB materialization = not implemented
 Streamlit graph UI = not implemented
@@ -1319,7 +1321,8 @@ source-families endpoint is read-only
 source-families endpoint is feature-flagged and compatibility-gated
 source-family diagnostics are reference-evidence-only
 source-family diagnostics are not source coverage metrics
-top-reference endpoints = not implemented
+top-referenced-papers endpoint = implemented
+top-external-references endpoint = implemented
 full graph runtime loader = not implemented
 graph DB materialization = not implemented
 Streamlit graph UI = not implemented
@@ -1384,6 +1387,73 @@ full graph runtime loader = not implemented
 graph DB materialization = not implemented
 Streamlit graph UI = not implemented
 GraphRAG = not implemented
+/search, Discovery API, DB, Qdrant, ranking, canonical truth, graph output, package output, and publication state = unchanged
+```
+
+
+## Citation Graph Traversal API Checkpoint v0.3
+
+Status: **accepted docs-only local-inspection checkpoint**
+
+This checkpoint freezes the current narrow citation/reference graph API block
+after the implemented top-referenced-papers and top-external-references
+diagnostic endpoints. It is a docs/regression-hardening checkpoint, not a new
+endpoint slice and not a graph-runtime promotion.
+
+Checkpointed routes:
+
+```text
+GET /citation-graph/status
+GET /citation-graph/papers/{canonical_id}/references
+GET /citation-graph/papers/{canonical_id}/citations
+GET /citation-graph/external-references/{reference_id}/papers
+GET /citation-graph/source-families
+GET /citation-graph/top-referenced-papers
+GET /citation-graph/top-external-references
+```
+
+Checkpointed behavior:
+
+```text
+status endpoint = compatibility/status surface
+outgoing references endpoint = resolved paper references + unresolved external_reference evidence
+incoming citations endpoint = resolved internal paper_references_paper edges only
+external-reference papers endpoint = papers referencing unresolved external_reference evidence
+source-families endpoint = reference-evidence-only diagnostics, not source coverage
+top-referenced-papers endpoint = resolved internal incoming reference-count diagnostics only
+top-external-references endpoint = unresolved external-reference referencing-paper-count diagnostics only
+response envelope = graph/query/items/page/caveats
+disabled feature flag = fail closed with graph_runtime_not_enabled
+unknown canonical_id = canonical_id_not_found
+unknown external reference = external_reference_not_found
+limit above max = graph_result_limit_exceeded
+missing/incompatible graph artifacts = graph_artifacts_* / graph_*_mismatch
+manual_review_required = true
+manual_review_complete = false
+publication_ready = false
+```
+
+Checkpoint validation evidence:
+
+```text
+test_api_citation_graph_references.py = 27 passed
+test_api_citation_graph_status.py = 6 passed
+test_citation_graph_fixture_store.py = 7 passed
+test_api_smoke.py with ML_RADAR_SEARCH_BACKEND=file = 7 passed
+manual live API check = green for status, references, citations, external-reference papers, source-families, top-referenced-papers, top-external-references, unknown ids, and limit guards
+```
+
+Boundary:
+
+```text
+checkpoint is docs/regression-hardening only
+no new endpoint
+all seven current graph API routes are implemented and checkpointed
+full graph runtime loader = not implemented
+graph DB materialization = not implemented
+Streamlit graph UI = not implemented
+GraphRAG = not implemented
+no additional traversal/filtering endpoints without a separate accepted design
 /search, Discovery API, DB, Qdrant, ranking, canonical truth, graph output, package output, and publication state = unchanged
 ```
 

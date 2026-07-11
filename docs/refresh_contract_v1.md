@@ -79,7 +79,8 @@ Citation Graph Traversal API Checkpoint v0.2 — 2026-07 completed docs-only reg
 Citation Graph Top Referenced Papers Endpoint v0.1 — 2026-07 completed fifth narrow diagnostics endpoint slice
 Citation Graph Top Referenced Papers Endpoint Docs Sync v0.1 — 2026-07 completed docs synchronization slice
 Citation Graph Top External References Endpoint v0.1 — 2026-07 completed sixth narrow diagnostics endpoint slice
-Citation Graph Top External References Endpoint Docs Sync v0.1 — 2026-07 active docs synchronization slice
+Citation Graph Top External References Endpoint Docs Sync v0.1 — 2026-07 completed docs synchronization slice
+Citation Graph Traversal API Checkpoint v0.3 — 2026-07 active docs-only regression-hardening checkpoint
 ```
 
 Current healthy baseline:
@@ -140,6 +141,7 @@ citation_graph_fixture_store = implemented_internal_read_only_fixture_store
 citation_graph_outgoing_references_endpoint = implemented
 citation_graph_incoming_citations_endpoint = implemented
 citation_graph_traversal_api_checkpoint_v02 = completed_docs_only
+citation_graph_traversal_api_checkpoint_v03 = active_docs_only
 citation_graph_external_reference_papers_endpoint = implemented
 citation_graph_source_families_endpoint = implemented
 citation_graph_top_referenced_papers_endpoint = implemented
@@ -341,7 +343,7 @@ qdrant points_count = 60954
 qdrant corpus_doc_count = 60954
 test_api_smoke.py = 7 passed
 citation graph status endpoint = 6 passed, disabled-by-default/status-compatibility
-citation graph traversal endpoints = 23 passed, disabled-by-default/read-only/compatibility-gated
+citation graph traversal endpoints = 27 passed, disabled-by-default/read-only/compatibility-gated
 citation graph fixture store = 7 passed, internal/read-only core
 experimental qdrant API = status_code 200, mode dense_qdrant
 streamlit UI required_failed_count = 0
@@ -1720,13 +1722,78 @@ full runtime graph loader = not implemented
 Recommended next slice after this docs sync:
 
 ```text
-Citation Graph Traversal API Checkpoint v0.3 or Regression / DoD hardening
+Citation Graph Traversal API Checkpoint v0.3, then Regression / DoD hardening
 ```
 
 Do not jump to further traversal/filtering endpoints, full-runtime/GraphRAG/public graph API, or graph DB materialization without a separate accepted design.
 
 ---
 
+
+
+## Citation Graph Traversal API Checkpoint v0.3 validation
+
+Use this when confirming that the current implemented narrow graph API block is
+stable after the top-referenced-papers and top-external-references diagnostics
+endpoints.
+
+Checkpointed endpoints:
+
+```text
+GET /citation-graph/status
+GET /citation-graph/papers/{canonical_id}/references
+GET /citation-graph/papers/{canonical_id}/citations
+GET /citation-graph/external-references/{reference_id}/papers
+GET /citation-graph/source-families
+GET /citation-graph/top-referenced-papers
+GET /citation-graph/top-external-references
+```
+
+Recommended validation sequence:
+
+```bat
+python -m py_compile services/api/app.py services/api/citation_graph_store.py services/api/citation_graph_service.py services/api/schemas.py tests/integration/test_api_citation_graph_references.py tests/integration/test_api_citation_graph_status.py
+
+set ML_RADAR_SEARCH_BACKEND=file
+python -m pytest tests/integration/test_api_citation_graph_references.py -q
+python -m pytest tests/integration/test_api_citation_graph_status.py -q
+python -m pytest tests/smoke/test_citation_graph_fixture_store.py -q
+python -m pytest tests/integration/test_api_smoke.py -q
+
+git diff --check
+```
+
+Expected current checkpoint result:
+
+```text
+test_api_citation_graph_references.py = 27 passed
+test_api_citation_graph_status.py = 6 passed
+test_citation_graph_fixture_store.py = 7 passed
+test_api_smoke.py = 7 passed
+```
+
+Manual live API expectation:
+
+```text
+GET /citation-graph/top-referenced-papers?limit=5&offset=0 -> 200, returned=5, total_estimate=1770
+GET /citation-graph/top-referenced-papers?limit=101 -> 400 graph_result_limit_exceeded
+GET /citation-graph/top-external-references?limit=5&offset=0 -> 200, returned=5, total_estimate=468336
+GET /citation-graph/top-external-references?limit=101 -> 400 graph_result_limit_exceeded
+```
+
+Boundary:
+
+```text
+checkpoint is docs/regression-hardening only
+no new endpoint
+no full graph runtime loader
+no graph DB materialization
+no Streamlit graph UI
+no GraphRAG
+no /search, Qdrant, ranking, canonical, DB, retrieval, graph-output, package, or publication behavior change
+```
+
+---
 
 ## Citation Graph Traversal API Checkpoint v0.1 validation
 
