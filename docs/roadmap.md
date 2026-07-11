@@ -7,12 +7,12 @@ document = primary living roadmap
 accepted checkpoint = Current State Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
 current active direction = review / regression / design-hardening
-current active slice = Citation Graph Traversal API Checkpoint v0.3
+current active slice = Citation Graph API Regression DoD Wiring v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = docs/regression-hardening checkpoint over the seven implemented citation graph API routes; no code, no new endpoint, and no canonical/retrieval/Qdrant/Postgres/UI/ranking/graph-output/publication behavior changes
+scope of current branch = optional DoD wiring for the accepted Citation Graph API regression validator; no endpoint, runtime, graph output, canonical, retrieval, Qdrant, Postgres, UI, ranking, or publication behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -83,12 +83,14 @@ Recently completed safe slices:
 20. **Citation Graph Top Referenced Papers Endpoint Docs Sync v0.1** — shared docs synchronized with the fifth graph diagnostics endpoint.
 21. **Citation Graph Top External References Endpoint v0.1** — sixth narrow read-only diagnostics endpoint; top unresolved external-reference counts only, no full-runtime endpoints.
 22. **Citation Graph Top External References Endpoint Docs Sync v0.1** — shared docs synchronized with the sixth graph diagnostics endpoint.
-23. **Citation Graph Traversal API Checkpoint v0.3** — active docs/regression-hardening checkpoint over the seven implemented graph routes; no new endpoint.
+23. **Citation Graph Traversal API Checkpoint v0.3** — completed docs/regression-hardening checkpoint over the seven implemented graph routes; no new endpoint.
+24. **Citation Graph API Regression Check v0.1** — completed static regression validator over the accepted seven-route graph API block.
+25. **Citation Graph API Regression DoD Wiring v0.1** — active opt-in DoD gate wiring for the regression report; no endpoint or runtime behavior change.
 
 Recommended next safe slices:
 
-1. **Regression / DoD hardening** — optional gates, accepted-checkpoint checks, stale-status checks, and validation wiring only.
-2. **Citation Graph API regression checkpoint / validator design** — design-only or docs-only gate wiring for the implemented graph API block.
+1. **Citation Graph API Regression DoD Wiring v0.1** — optional `--require-citation-graph-api-regression` gate in the refresh DoD aggregator.
+2. **Regression / DoD hardening** — accepted-counter summaries, stale-status checks, and validation wiring only.
 3. **No additional graph endpoint work** unless a separate design slice explicitly accepts the scope.
 
 Explicit immediate non-goals:
@@ -2057,6 +2059,58 @@ no /search, Qdrant, ranking, canonical, DB, retrieval, graph-output, package, or
 
 After this checkpoint, the preferred direction is regression/DoD hardening, not
 continued graph API expansion.
+
+
+### 5.3 Citation Graph API Regression DoD Wiring v0.1
+
+Status: **current opt-in DoD wiring slice**
+
+Purpose:
+
+```text
+Wire the accepted Citation Graph API regression report into the refresh Definition of Done aggregator as an optional required gate.
+```
+
+Implemented gate:
+
+```text
+python -m scripts.update.check_refresh_definition_of_done --require-citation-graph-api-regression
+```
+
+Required report:
+
+```text
+artifacts/reports/validation/citation_graph_api_regression_latest.json
+```
+
+Required-gate checks:
+
+```text
+citation_graph_api_regression_check_exists = true
+citation_graph_api_regression_check_ok = true
+citation_graph_api_regression_required_failed_count_zero = true
+citation_graph_api_regression_routes_count_is_7 = true
+citation_graph_api_regression_traversal_routes_count_is_6 = true
+citation_graph_api_regression_current_routes_checkpointed = true
+citation_graph_api_regression_runtime_loader_not_implemented = true
+citation_graph_api_regression_publication_not_ready = true
+citation_graph_api_regression_manual_review_required = true
+```
+
+Boundary:
+
+```text
+DoD wiring only
+does not run graph endpoints
+does not rebuild graph output
+does not write graph reports directly
+does not enable the citation graph API
+does not implement full graph runtime loader
+does not add graph DB materialization
+does not add Streamlit graph UI
+does not implement GraphRAG
+does not change /search, Qdrant, ranking, canonical truth, DB, retrieval, graph-output, package, or publication behavior
+```
 
 ## 6. Near-term roadmap
 

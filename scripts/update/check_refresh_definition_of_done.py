@@ -40,6 +40,9 @@ DEFAULT_ARTIFACT_DB_READ_PATH = Path(
 DEFAULT_ARTIFACT_API_FILTERS_CHECK_PATH = Path(
     "artifacts/reports/validation/artifact_api_filters_check_latest.json"
 )
+DEFAULT_CITATION_GRAPH_API_REGRESSION_PATH = Path(
+    "artifacts/reports/validation/citation_graph_api_regression_latest.json"
+)
 
 DEFAULT_GITHUB_ENRICHMENT_CHECK_PATH = Path(
     "artifacts/reports/validation/github_artifact_enrichment_check_latest.json"
@@ -966,6 +969,59 @@ def extract_artifact_api_filters_values(
         ),
     }
 
+
+def extract_citation_graph_api_regression_values(
+    citation_graph_api_regression_check: dict[str, Any] | None,
+) -> dict[str, Any]:
+    report = citation_graph_api_regression_check or {}
+    summary = report.get("summary") if isinstance(report.get("summary"), dict) else {}
+    verdict = report.get("verdict") if isinstance(report.get("verdict"), dict) else {}
+
+    return {
+        "citation_graph_api_regression_check_ok": report_ok(
+            citation_graph_api_regression_check
+        ),
+        "citation_graph_api_regression_schema_version": report.get("schema_version"),
+        "citation_graph_api_regression_required_failed_count": first_present(
+            report,
+            [
+                ("required_failed_count",),
+                ("summary", "required_failed_count"),
+                ("verdict", "required_failed_count"),
+            ],
+        ),
+        "citation_graph_api_regression_required_failed_checks": first_present(
+            report,
+            [
+                ("required_failed_checks",),
+                ("summary", "failed_checks"),
+                ("verdict", "required_failed_checks"),
+            ],
+            default=[],
+        ),
+        "citation_graph_api_regression_routes_count": summary.get("routes_count"),
+        "citation_graph_api_regression_traversal_routes_count": summary.get(
+            "traversal_routes_count"
+        ),
+        "citation_graph_api_regression_checks_count": summary.get("checks_count"),
+        "citation_graph_api_regression_ready": verdict.get(
+            "citation_graph_api_regression_ready"
+        ),
+        "citation_graph_api_regression_current_graph_routes_checkpointed": verdict.get(
+            "current_graph_routes_checkpointed"
+        ),
+        "citation_graph_api_regression_runtime_loader_implemented": verdict.get(
+            "runtime_loader_implemented"
+        ),
+        "citation_graph_api_regression_publication_ready": verdict.get(
+            "publication_ready"
+        ),
+        "citation_graph_api_regression_manual_review_required": verdict.get(
+            "manual_review_required"
+        ),
+    }
+
+
 def extract_github_enrichment_values(
     github_enrichment_check: dict[str, Any] | None,
 ) -> dict[str, Any]:
@@ -1278,6 +1334,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_ARTIFACT_API_FILTERS_CHECK_PATH,
         help="Artifact API filters validation report path.",
     )
+    parser.add_argument(
+        "--citation-graph-api-regression-path",
+        type=Path,
+        default=DEFAULT_CITATION_GRAPH_API_REGRESSION_PATH,
+        help="Citation Graph API regression validation report path.",
+    )
 
     parser.add_argument(
         "--github-enrichment-check-path",
@@ -1327,6 +1389,16 @@ def build_parser() -> argparse.ArgumentParser:
             "Treat the DB-backed Artifact API filters validation report as a "
             "required DoD condition. This is separate from --require-artifacts "
             "because it validates API behavior over already materialized artifacts."
+        ),
+    )
+    parser.add_argument(
+        "--require-citation-graph-api-regression",
+        action="store_true",
+        help=(
+            "Treat the Citation Graph API regression report as a required DoD "
+            "condition. This is an opt-in local-inspection API regression gate; "
+            "it does not run graph endpoints, rebuild graph outputs, or enable "
+            "GraphRAG/full graph runtime loading."
         ),
     )
     parser.add_argument(
@@ -1459,6 +1531,18 @@ def main() -> None:
     artifact_api_filters_check_exists = artifact_api_filters_check is not None
     artifact_api_filters_values = extract_artifact_api_filters_values(
         artifact_api_filters_check
+    )
+
+    citation_graph_api_regression_check = load_json_if_exists(
+        args.citation_graph_api_regression_path
+    )
+    citation_graph_api_regression_check_exists = (
+        citation_graph_api_regression_check is not None
+    )
+    citation_graph_api_regression_values = (
+        extract_citation_graph_api_regression_values(
+            citation_graph_api_regression_check
+        )
     )
 
     github_enrichment_check = load_json_if_exists(args.github_enrichment_check_path)
@@ -1921,6 +2005,66 @@ def main() -> None:
                     "artifact_api_filters_document_artifacts_rows_match"
                 ]
             )
+        ),
+
+        # optional Citation Graph API regression block
+        "citation_graph_api_regression_check_exists": (
+            citation_graph_api_regression_check_exists
+        ),
+        "citation_graph_api_regression_check_ok": (
+            citation_graph_api_regression_values[
+                "citation_graph_api_regression_check_ok"
+            ]
+        ),
+        "citation_graph_api_regression_required_failed_count_zero": (
+            safe_int(
+                citation_graph_api_regression_values[
+                    "citation_graph_api_regression_required_failed_count"
+                ],
+                default=999999,
+            )
+            == 0
+        ),
+        "citation_graph_api_regression_routes_count_is_7": (
+            safe_int(
+                citation_graph_api_regression_values[
+                    "citation_graph_api_regression_routes_count"
+                ],
+                default=-1,
+            )
+            == 7
+        ),
+        "citation_graph_api_regression_traversal_routes_count_is_6": (
+            safe_int(
+                citation_graph_api_regression_values[
+                    "citation_graph_api_regression_traversal_routes_count"
+                ],
+                default=-1,
+            )
+            == 6
+        ),
+        "citation_graph_api_regression_current_routes_checkpointed": bool(
+            citation_graph_api_regression_values[
+                "citation_graph_api_regression_current_graph_routes_checkpointed"
+            ]
+        ),
+        "citation_graph_api_regression_runtime_loader_not_implemented": (
+            citation_graph_api_regression_values[
+                "citation_graph_api_regression_runtime_loader_implemented"
+            ]
+            is False
+        ),
+        "citation_graph_api_regression_publication_not_ready": (
+            citation_graph_api_regression_values[
+                "citation_graph_api_regression_publication_ready"
+            ]
+            is False
+        ),
+        "citation_graph_api_regression_manual_review_required": (
+            citation_graph_api_regression_values[
+                "citation_graph_api_regression_manual_review_required"
+            ]
+            is True
         ),
 
         # optional GitHub enrichment block
@@ -2411,6 +2555,21 @@ def main() -> None:
             ]
         )
 
+    if args.require_citation_graph_api_regression:
+        required_check_names.extend(
+            [
+                "citation_graph_api_regression_check_exists",
+                "citation_graph_api_regression_check_ok",
+                "citation_graph_api_regression_required_failed_count_zero",
+                "citation_graph_api_regression_routes_count_is_7",
+                "citation_graph_api_regression_traversal_routes_count_is_6",
+                "citation_graph_api_regression_current_routes_checkpointed",
+                "citation_graph_api_regression_runtime_loader_not_implemented",
+                "citation_graph_api_regression_publication_not_ready",
+                "citation_graph_api_regression_manual_review_required",
+            ]
+        )
+
     if args.require_github_enrichment:
         required_check_names.extend(
             [
@@ -2574,6 +2733,9 @@ def main() -> None:
         "known_issues_required": bool(args.require_known_issues),
         "artifacts_required": bool(args.require_artifacts),
         "artifact_api_filters_required": bool(args.require_artifact_api_filters),
+        "citation_graph_api_regression_required": bool(
+            args.require_citation_graph_api_regression
+        ),
         "github_enrichment_required": bool(args.require_github_enrichment),
         "huggingface_enrichment_required": bool(args.require_huggingface_enrichment),
         "paper_features_required": bool(args.require_paper_features),
@@ -2601,6 +2763,9 @@ def main() -> None:
             "artifact_db_read_path": normalize_path(args.artifact_db_read_path),
             "artifact_api_filters_check_path": normalize_path(
                 args.artifact_api_filters_check_path
+            ),
+            "citation_graph_api_regression_path": normalize_path(
+                args.citation_graph_api_regression_path
             ),
             "github_enrichment_check_path": normalize_path(
                 args.github_enrichment_check_path
@@ -2637,6 +2802,7 @@ def main() -> None:
             **canonical_contract_values,
             **artifact_values,
             **artifact_api_filters_values,
+            **citation_graph_api_regression_values,
             **github_enrichment_values,
             **huggingface_enrichment_values,
             **paper_features_values,
@@ -2704,6 +2870,10 @@ def main() -> None:
     print(
         f"[OK] artifact_api_filters_required="
         f"{verdict['artifact_api_filters_required']}"
+    )
+    print(
+        f"[OK] citation_graph_api_regression_required="
+        f"{verdict['citation_graph_api_regression_required']}"
     )
     print(f"[OK] github_enrichment_required={verdict['github_enrichment_required']}")
     print(
