@@ -77,7 +77,9 @@ Citation Graph Source Families Endpoint v0.1 — 2026-07 completed fourth narrow
 Citation Graph Source Families Endpoint Docs Sync v0.1 — 2026-07 completed docs synchronization slice
 Citation Graph Traversal API Checkpoint v0.2 — 2026-07 completed docs-only regression-hardening checkpoint
 Citation Graph Top Referenced Papers Endpoint v0.1 — 2026-07 completed fifth narrow diagnostics endpoint slice
-Citation Graph Top Referenced Papers Endpoint Docs Sync v0.1 — 2026-07 active docs synchronization slice
+Citation Graph Top Referenced Papers Endpoint Docs Sync v0.1 — 2026-07 completed docs synchronization slice
+Citation Graph Top External References Endpoint v0.1 — 2026-07 completed sixth narrow diagnostics endpoint slice
+Citation Graph Top External References Endpoint Docs Sync v0.1 — 2026-07 active docs synchronization slice
 ```
 
 Current healthy baseline:
@@ -141,7 +143,7 @@ citation_graph_traversal_api_checkpoint_v02 = completed_docs_only
 citation_graph_external_reference_papers_endpoint = implemented
 citation_graph_source_families_endpoint = implemented
 citation_graph_top_referenced_papers_endpoint = implemented
-citation_graph_top_external_references_endpoint = not_implemented
+citation_graph_top_external_references_endpoint = implemented
 citation_graph_runtime_loader = not_implemented
 paper_artifact_graph_dod_gate = not required yet
 paper_artifact_graph_manual_review_dod_gate = not required yet
@@ -382,8 +384,8 @@ endpoint is reachable
 status/compatibility-only surface
 disabled by default unless ML_RADAR_CITATION_GRAPH_API_ENABLED is explicitly enabled
 when enabled, probes local graph manifests/reports read-only
-outgoing references, incoming citations, external-reference papers, source-families, and top-referenced-papers endpoints are implemented and compatibility-gated
-top-external-reference endpoint and full graph runtime loader are not implemented
+outgoing references, incoming citations, external-reference papers, source-families, top-referenced-papers, and top-external-references endpoints are implemented and compatibility-gated
+full graph runtime loader is not implemented
 internal fixture store exists and backs outgoing references, incoming citations, external-reference papers, and source-family diagnostics semantics
 no full graph runtime loader
 manual_review_required = true
@@ -1532,7 +1534,7 @@ Generated reports are not committed.
 
 
 
-# F. Citation Graph API status, fixture store, references, citations, external-reference papers, source families, and top referenced papers validation
+# F. Citation Graph API status, fixture store, references, citations, external-reference papers, source families, top referenced papers, and top external references validation
 
 Use this when checking the narrow Citation / Reference Graph API surface and its
 read-only compatibility gate.
@@ -1546,6 +1548,7 @@ GET /citation-graph/papers/{canonical_id}/citations
 GET /citation-graph/external-references/{reference_id}/papers
 GET /citation-graph/source-families
 GET /citation-graph/top-referenced-papers
+GET /citation-graph/top-external-references
 ```
 
 Current implementation state:
@@ -1562,7 +1565,7 @@ feature_flag = ML_RADAR_CITATION_GRAPH_API_ENABLED
 fixture_store = implemented_internal
 source_family_endpoint = implemented
 top_referenced_papers_endpoint = implemented
-top_external_references_endpoint = not implemented
+top_external_references_endpoint = implemented
 full_graph_runtime_loader = not implemented
 graph_db_materialization = not implemented
 streamlit_graph_ui = not implemented
@@ -1581,6 +1584,7 @@ ML_RADAR_CITATION_GRAPH_API_ENABLED=false
 /citation-graph/external-references/{reference_id}/papers -> 503 graph_runtime_not_enabled
 /citation-graph/source-families -> 503 graph_runtime_not_enabled
 /citation-graph/top-referenced-papers -> 503 graph_runtime_not_enabled
+/citation-graph/top-external-references -> 503 graph_runtime_not_enabled
 ```
 
 Enabled local-inspection behavior:
@@ -1619,6 +1623,12 @@ GET /citation-graph/top-referenced-papers
 → counts only paper_references_paper incoming edges
 → not a global citation metric or publication-grade ranking
 → requires compatible local graph status
+
+GET /citation-graph/top-external-references
+→ read-only top unresolved external-reference diagnostics
+→ counts only paper_references_external incoming edges to external_reference nodes
+→ not a global citation metric, publication-grade ranking, or bibliographic entity catalog
+→ requires compatible local graph status
 ```
 
 Common graph API error codes:
@@ -1653,11 +1663,11 @@ python -m pytest tests/integration/test_api_citation_graph_status.py -q
 python -m pytest tests/integration/test_api_db_smoke.py -q
 ```
 
-Accepted local result for the top-referenced-papers endpoint slice:
+Accepted local result for the top-external-references endpoint docs-sync slice:
 
 ```text
 py_compile = passed
-test_api_citation_graph_references.py = 23 passed
+test_api_citation_graph_references.py = 27 passed
 test_api_citation_graph_status.py = 6 passed
 test_citation_graph_fixture_store.py = 7 passed
 ML_RADAR_SEARCH_BACKEND=file test_api_smoke.py = 7 passed
@@ -1703,17 +1713,17 @@ incoming citations endpoint = implemented
 external-reference papers endpoint = implemented
 source-family endpoint = implemented
 top-referenced-papers endpoint = implemented
-top-external-reference endpoint = not implemented
+top-external-references endpoint = implemented
 full runtime graph loader = not implemented
 ```
 
 Recommended next slice after this docs sync:
 
 ```text
-Citation Graph Traversal API Checkpoint v0.2 or Regression / DoD hardening
+Citation Graph Traversal API Checkpoint v0.3 or Regression / DoD hardening
 ```
 
-Do not jump to source-family/top-reference/full-runtime/GraphRAG/public graph API without a separate accepted design.
+Do not jump to further traversal/filtering endpoints, full-runtime/GraphRAG/public graph API, or graph DB materialization without a separate accepted design.
 
 ---
 

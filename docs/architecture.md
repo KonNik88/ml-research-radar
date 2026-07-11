@@ -16,7 +16,7 @@ overlapping source-level observations.
 ## Current checkpoint
 
 ```text
-checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Top Referenced Papers Endpoint v0.1
+checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Top External References Endpoint v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
@@ -72,7 +72,7 @@ sources
 → ranking / paper detail / similar papers
 → topic clusters / topic projection
 → Discovery API
-→ Citation Graph status/references/citations/external-reference-papers/source-families/top-referenced-papers local-inspection API
+→ Citation Graph status/references/citations/external-reference-papers/source-families/top-referenced-papers/top-external-references local-inspection API
 → Streamlit Discovery UI
 → validators / regression / strict DoD
 ```
@@ -653,6 +653,7 @@ GET /citation-graph/papers/{canonical_id}/citations
 GET /citation-graph/external-references/{reference_id}/papers
 GET /citation-graph/source-families
 GET /citation-graph/top-referenced-papers
+GET /citation-graph/top-external-references
 ```
 
 Architectural role:
@@ -664,6 +665,7 @@ citations = incoming resolved internal citation evidence for one canonical paper
 external-reference papers = papers referencing one unresolved external_reference
 source-families = source-family reference-evidence diagnostics
 top-referenced-papers = resolved internal incoming reference-count diagnostics
+top-external-references = unresolved external-reference count diagnostics
 ```
 
 Important boundaries:
@@ -676,7 +678,7 @@ unresolved external_reference evidence is not counted as incoming canonical-pape
 external-reference papers endpoint is implemented as reverse lookup over unresolved external evidence
 source-families endpoint is implemented as reference-evidence-only diagnostics
 top-referenced-papers endpoint is implemented as resolved-internal-count diagnostics
-top-external-reference endpoint = not implemented
+top-external-references endpoint is implemented as unresolved-external-reference-count diagnostics
 full graph runtime loader = not implemented
 graph DB materialization = not implemented
 Streamlit graph UI = not implemented
