@@ -677,9 +677,10 @@ Refresh DoD can aggregate:
 - Discovery API;
 - topic clusters/projection;
 - Streamlit UI;
-- golden queries.
+- golden queries;
+- Citation Graph API regression report.
 
-Optional gates remain opt-in unless the active slice requires them.
+Optional gates remain opt-in unless the active slice requires them. The Citation Graph API regression gate is optional by default and becomes required only with `--require-citation-graph-api-regression`.
 
 Artifact API filters are correctly modeled as an opt-in DB-backed regression gate, not as a mandatory requirement for every refresh.
 
@@ -782,9 +783,19 @@ Recently completed safe slices after this checkpoint baseline:
    - not a publication-grade reference-entity catalog.
 
 19. **Citation Graph Traversal API Checkpoint v0.3**
-   - active docs/regression-hardening checkpoint over all seven implemented graph routes;
+   - completed docs/regression-hardening checkpoint over all seven implemented graph routes;
    - no new endpoint;
    - preferred next step after this is regression/DoD hardening.
+
+20. **Citation Graph API Regression Check v0.1**
+   - completed static regression validator over the accepted seven-route graph API block;
+   - writes `citation_graph_api_regression_latest.json` / `.md` reports;
+   - no endpoint, runtime loader, graph output, or publication behavior change.
+
+21. **Citation Graph API Regression DoD Wiring v0.1**
+   - active opt-in DoD gate for the Citation Graph API regression report;
+   - `--require-citation-graph-api-regression` makes the gate required;
+   - default DoD remains unchanged unless the flag is passed.
 
 Recommended next slices:
 
@@ -794,8 +805,10 @@ Recommended next slices:
    - stale-counter protection;
    - accepted counter summaries.
 
-2. **Citation Graph API regression checkpoint / validator design**
-   - design-only or docs-only gate wiring for the implemented graph API block;
+2. **No graph endpoint expansion without separate accepted design**
+   - no GraphRAG;
+   - no full graph runtime loader;
+   - no graph DB materialization;
    - no endpoint expansion.
 
 ---

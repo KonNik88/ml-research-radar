@@ -80,7 +80,9 @@ Citation Graph Top Referenced Papers Endpoint v0.1 — 2026-07 completed fifth n
 Citation Graph Top Referenced Papers Endpoint Docs Sync v0.1 — 2026-07 completed docs synchronization slice
 Citation Graph Top External References Endpoint v0.1 — 2026-07 completed sixth narrow diagnostics endpoint slice
 Citation Graph Top External References Endpoint Docs Sync v0.1 — 2026-07 completed docs synchronization slice
-Citation Graph Traversal API Checkpoint v0.3 — 2026-07 active docs-only regression-hardening checkpoint
+Citation Graph Traversal API Checkpoint v0.3 — 2026-07 completed docs-only regression-hardening checkpoint
+Citation Graph API Regression Check v0.1 — 2026-07 completed static graph API regression validator
+Citation Graph API Regression DoD Wiring v0.1 — 2026-07 active optional DoD gate wiring
 ```
 
 Current healthy baseline:
@@ -146,6 +148,7 @@ citation_graph_external_reference_papers_endpoint = implemented
 citation_graph_source_families_endpoint = implemented
 citation_graph_top_referenced_papers_endpoint = implemented
 citation_graph_top_external_references_endpoint = implemented
+citation_graph_api_regression_check = optional_by_default_required_with_require_citation_graph_api_regression
 citation_graph_runtime_loader = not_implemented
 paper_artifact_graph_dod_gate = not required yet
 paper_artifact_graph_manual_review_dod_gate = not required yet
@@ -331,6 +334,7 @@ set ML_RADAR_SEARCH_BACKEND=file
 python -m pytest tests/integration/test_api_smoke.py -q
 python -m pytest tests/integration/test_api_citation_graph_status.py -q
 python -m pytest tests/smoke/test_citation_graph_fixture_store.py -q
+python -m scripts.validation.check_citation_graph_api_regression --strict
 python -m scripts.validation.check_qdrant_api_experimental --strict
 python -m scripts.validation.check_streamlit_discovery_ui --strict
 ```
@@ -345,6 +349,7 @@ test_api_smoke.py = 7 passed
 citation graph status endpoint = 6 passed, disabled-by-default/status-compatibility
 citation graph traversal endpoints = 27 passed, disabled-by-default/read-only/compatibility-gated
 citation graph fixture store = 7 passed, internal/read-only core
+citation graph API regression = ok, required_failed_count = 0
 experimental qdrant API = status_code 200, mode dense_qdrant
 streamlit UI required_failed_count = 0
 qdrant_runtime_status_ui_snippets_present = true
@@ -1908,6 +1913,78 @@ It must not publish anything.
 ```
 
 ---
+
+
+
+## Citation Graph API regression validator and optional DoD gate
+
+Use this when checking that the accepted seven-route Citation Graph API block has
+not drifted after the v0.3 checkpoint.
+
+Standalone validator:
+
+```bat
+python -m scripts.validation.check_citation_graph_api_regression --strict
+```
+
+Generated reports:
+
+```text
+artifacts/reports/validation/citation_graph_api_regression_latest.json
+artifacts/reports/validation/citation_graph_api_regression_latest.md
+artifacts/reports/validation/history/citation_graph_api_regression_<run_ts>.json
+artifacts/reports/validation/history/citation_graph_api_regression_<run_ts>.md
+```
+
+Expected standalone result:
+
+```text
+ok = true
+required_failed_count = 0
+routes_count = 7
+traversal_routes_count = 6
+runtime_loader_implemented = false
+publication_ready = false
+manual_review_required = true
+```
+
+Optional refresh DoD gate:
+
+```bat
+python -m scripts.update.check_refresh_definition_of_done --require-citation-graph-api-regression
+```
+
+Expected required-gate verdict:
+
+```text
+citation_graph_api_regression_check_exists = true
+citation_graph_api_regression_check_ok = true
+citation_graph_api_regression_required_failed_count_zero = true
+citation_graph_api_regression_routes_count_is_7 = true
+citation_graph_api_regression_traversal_routes_count_is_6 = true
+citation_graph_api_regression_current_routes_checkpointed = true
+citation_graph_api_regression_runtime_loader_not_implemented = true
+citation_graph_api_regression_publication_not_ready = true
+citation_graph_api_regression_manual_review_required = true
+citation_graph_api_regression_required = true
+dod_passed = true
+required_failed_count = 0
+```
+
+Boundary:
+
+```text
+The DoD aggregator reads the latest Citation Graph API regression report.
+It does not run graph endpoints itself.
+It does not rebuild graph output.
+It does not write graph reports directly.
+It does not enable the Citation Graph API.
+It does not implement full graph runtime loader.
+It does not add graph DB materialization.
+It does not add Streamlit graph UI.
+It does not implement GraphRAG.
+It does not change /search, Qdrant, ranking, canonical truth, DB, retrieval, graph-output, package, or publication behavior.
+```
 
 
 # G. Artifact API filters validation and DoD gate
