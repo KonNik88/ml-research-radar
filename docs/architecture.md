@@ -16,7 +16,7 @@ overlapping source-level observations.
 ## Current checkpoint
 
 ```text
-checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Top External References Endpoint v0.1
+checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
@@ -642,7 +642,7 @@ logic.
 
 ---
 
-## 14.5 Citation/reference graph API local-inspection surface
+## 14.5 Citation/reference graph API checkpoint v0.3
 
 The current graph API surface is deliberately narrow and local-inspection only:
 
@@ -654,6 +654,14 @@ GET /citation-graph/external-references/{reference_id}/papers
 GET /citation-graph/source-families
 GET /citation-graph/top-referenced-papers
 GET /citation-graph/top-external-references
+```
+
+Checkpoint v0.3 interpretation:
+
+```text
+checkpoint v0.3 = docs/regression-hardening over the implemented seven-route graph API block
+checkpoint v0.3 = not a new endpoint and not graph-runtime promotion
+next preferred direction = regression / DoD hardening rather than more graph API expansion
 ```
 
 Architectural role:

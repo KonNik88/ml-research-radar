@@ -7,12 +7,12 @@ document = primary living roadmap
 accepted checkpoint = Current State Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
 current active direction = review / regression / design-hardening
-current active slice = Citation Graph Top External References Endpoint Docs Sync v0.1
+current active slice = Citation Graph Traversal API Checkpoint v0.3
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = docs synchronization after the implemented top-external-references endpoint; no code, no new endpoint, and no canonical/retrieval/Qdrant/Postgres/UI/ranking/graph-output/publication behavior changes
+scope of current branch = docs/regression-hardening checkpoint over the seven implemented citation graph API routes; no code, no new endpoint, and no canonical/retrieval/Qdrant/Postgres/UI/ranking/graph-output/publication behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -82,12 +82,14 @@ Recently completed safe slices:
 19. **Citation Graph Top Referenced Papers Endpoint v0.1** — fifth narrow read-only diagnostics endpoint; top resolved internal reference counts only.
 20. **Citation Graph Top Referenced Papers Endpoint Docs Sync v0.1** — shared docs synchronized with the fifth graph diagnostics endpoint.
 21. **Citation Graph Top External References Endpoint v0.1** — sixth narrow read-only diagnostics endpoint; top unresolved external-reference counts only, no full-runtime endpoints.
+22. **Citation Graph Top External References Endpoint Docs Sync v0.1** — shared docs synchronized with the sixth graph diagnostics endpoint.
+23. **Citation Graph Traversal API Checkpoint v0.3** — active docs/regression-hardening checkpoint over the seven implemented graph routes; no new endpoint.
 
 Recommended next safe slices:
 
-1. **Citation Graph Top External References Endpoint Docs Sync v0.1** — synchronize shared docs after the sixth narrow graph endpoint.
-2. **Citation Graph Traversal API Checkpoint v0.3** — docs/regression-hardening checkpoint over the seven implemented graph routes.
-3. **Regression / DoD hardening** — optional gates, accepted-checkpoint checks, stale-status checks, and validation wiring only.
+1. **Regression / DoD hardening** — optional gates, accepted-checkpoint checks, stale-status checks, and validation wiring only.
+2. **Citation Graph API regression checkpoint / validator design** — design-only or docs-only gate wiring for the implemented graph API block.
+3. **No additional graph endpoint work** unless a separate design slice explicitly accepts the scope.
 
 Explicit immediate non-goals:
 
@@ -1971,7 +1973,7 @@ GraphRAG = not implemented
 
 ### 5.1 Citation Graph Top External References Endpoint Docs Sync v0.1
 
-Status: **current docs synchronization after top-external-references endpoint**
+Status: **completed docs synchronization after top-external-references endpoint**
 
 Goal:
 
@@ -2018,6 +2020,43 @@ Next safe directions:
 2. **Regression / DoD hardening** — optional gates and accepted-checkpoint validation wiring.
 3. **Graph API endpoint contract cleanup** — if app.py route helpers become too large, extract a small query service without changing behavior.
 
+
+
+### 5.2 Citation Graph Traversal API Checkpoint v0.3
+
+Status: **current docs/regression-hardening checkpoint**
+
+Purpose:
+
+```text
+Freeze the implemented seven-route citation graph API block after the paired top-reference diagnostics endpoints.
+```
+
+Checkpointed routes:
+
+```text
+GET /citation-graph/status
+GET /citation-graph/papers/{canonical_id}/references
+GET /citation-graph/papers/{canonical_id}/citations
+GET /citation-graph/external-references/{reference_id}/papers
+GET /citation-graph/source-families
+GET /citation-graph/top-referenced-papers
+GET /citation-graph/top-external-references
+```
+
+This slice is deliberately documentation/regression-hardening only:
+
+```text
+no new endpoint
+no graph runtime loader
+no graph DB materialization
+no Streamlit graph UI
+no GraphRAG
+no /search, Qdrant, ranking, canonical, DB, retrieval, graph-output, package, or publication behavior change
+```
+
+After this checkpoint, the preferred direction is regression/DoD hardening, not
+continued graph API expansion.
 
 ## 6. Near-term roadmap
 
