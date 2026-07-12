@@ -110,6 +110,19 @@ QDRANT_RUNTIME_STATUS_UI_SNIPPETS = [
     "collection_name",
 ]
 
+CITATION_GRAPH_STATUS_UI_SNIPPETS = [
+    "Citation graph status",
+    "fetch_citation_graph_status",
+    "render_citation_graph_status_panel",
+    "/citation-graph/status",
+    "citation_graph_status_payload",
+    "Load citation graph status",
+    "Runtime enabled",
+    "Safe locally",
+    "Runtime loader",
+    "publication-ready",
+]
+
 TOPIC_CLUSTER_UI_SNIPPETS = [
     "Topic clusters",
     "fetch_topic_clusters",
@@ -993,6 +1006,10 @@ def build_report(
         app_text,
         QDRANT_RUNTIME_STATUS_UI_SNIPPETS,
     )
+    missing_citation_graph_status = missing_snippets(
+        app_text,
+        CITATION_GRAPH_STATUS_UI_SNIPPETS,
+    )
     missing_topic = missing_snippets(app_text, TOPIC_CLUSTER_UI_SNIPPETS)
     missing_cluster_detail_filters = missing_snippets(
         app_text,
@@ -1033,6 +1050,9 @@ def build_report(
     checks["qdrant_runtime_status_ui_snippets_present"] = (
         not missing_qdrant_runtime_status
     )
+    checks["citation_graph_status_ui_snippets_present"] = (
+        not missing_citation_graph_status
+    )
     checks["topic_cluster_ui_snippets_present"] = not missing_topic
     checks["cluster_detail_filter_ui_snippets_present"] = (
         not missing_cluster_detail_filters
@@ -1064,6 +1084,9 @@ def build_report(
     )
     extracted_values["missing_qdrant_runtime_status_ui_snippets"] = (
         missing_qdrant_runtime_status
+    )
+    extracted_values["missing_citation_graph_status_ui_snippets"] = (
+        missing_citation_graph_status
     )
     extracted_values["missing_topic_cluster_ui_snippets"] = missing_topic
     extracted_values["missing_cluster_detail_filter_ui_snippets"] = (
@@ -1103,6 +1126,7 @@ def build_report(
         "search_tab_ui_snippets_present",
         "qdrant_experimental_ui_snippets_present",
         "qdrant_runtime_status_ui_snippets_present",
+        "citation_graph_status_ui_snippets_present",
         "topic_cluster_ui_snippets_present",
         "cluster_detail_filter_ui_snippets_present",
         "reset_button_present",

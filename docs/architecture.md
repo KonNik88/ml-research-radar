@@ -16,7 +16,7 @@ overlapping source-level observations.
 ## Current checkpoint
 
 ```text
-checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1
+checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
@@ -74,6 +74,7 @@ sources
 → Discovery API
 → Citation Graph status/references/citations/external-reference-papers/source-families/top-referenced-papers/top-external-references local-inspection API
 → Graph API / Streamlit productization design boundary
+→ Citation Graph Streamlit status panel
 → Streamlit Discovery UI
 → validators / regression / strict DoD
 ```
@@ -638,6 +639,7 @@ Topic map
 Artifact explorer
 Sidebar API status
 Sidebar Qdrant runtime status
+Sidebar Citation graph status
 ```
 
 The UI must not compute ranking, clustering, embeddings, or canonical merge
@@ -692,7 +694,8 @@ top-referenced-papers endpoint is implemented as resolved-internal-count diagnos
 top-external-references endpoint is implemented as unresolved-external-reference-count diagnostics
 full graph runtime loader = not implemented
 graph DB materialization = not implemented
-Streamlit graph UI = not implemented
+Streamlit graph status panel = implemented
+Streamlit graph traversal UI = not implemented
 GraphRAG = not implemented
 ```
 
@@ -713,6 +716,7 @@ Accepted productization order:
 1. Citation Graph Streamlit Status Panel v0.1
    - call /citation-graph/status
    - show disabled/unavailable/safe-to-serve states and caveats
+   - implemented as the first status-only UI code slice
 
 2. Citation Graph Paper Workspace Panel v0.1
    - call /citation-graph/papers/{canonical_id}/references

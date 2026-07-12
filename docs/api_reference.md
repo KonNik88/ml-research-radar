@@ -26,6 +26,7 @@ canonical JSONL truth
 → internal Citation Graph fixture store/query core
 → Discovery API
 → Graph API / Streamlit productization design
+→ Citation Graph Streamlit status panel
 → Streamlit Discovery UI
 ```
 
@@ -66,6 +67,7 @@ Citation Graph Traversal API Checkpoint v0.3
 Citation Graph API Regression Check v0.1
 Citation Graph API Regression DoD Wiring v0.1
 Graph API / Streamlit Productization Design v0.1
+Citation Graph Streamlit Status Panel v0.1
 ```
 
 Current canonical baseline:
@@ -686,6 +688,37 @@ GET /documents/{canonical_id}/artifacts
 
 Do not add a dedicated Paper–Artifact Graph API unless a later design slice
 identifies a concrete gap that these Artifact API endpoints cannot cover.
+```
+
+## Streamlit Citation Graph status panel
+
+Current Streamlit implementation:
+
+```text
+Citation Graph Streamlit Status Panel v0.1 = implemented status-only UI slice
+```
+
+UI behavior:
+
+```text
+Streamlit calls GET /citation-graph/status through FastAPI.
+The panel renders runtime_enabled, available, safe_to_serve_locally, and runtime_loader_implemented.
+The panel exposes graph/status details and caveats.
+The response is stored in citation_graph_status_payload session state.
+```
+
+Boundary:
+
+```text
+no direct reads from data/graphs/*
+no CitationGraphStore import from Streamlit
+no references/citations table UI in this slice
+no source-family/top-reference diagnostics UI in this slice
+no external-reference lookup UI in this slice
+no graph visualization
+no NetworkX/Neo4j/GraphRAG
+no full graph runtime loader
+no graph DB materialization
 ```
 
 ## Configuration

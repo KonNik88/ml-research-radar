@@ -181,6 +181,12 @@ def fetch_info(base_url: str) -> dict[str, Any]:
 def fetch_runtime(base_url: str) -> dict[str, Any]:
     return api_get(base_url, "/runtime")
 
+
+@st.cache_data(ttl=API_STATUS_CACHE_TTL_SECONDS, show_spinner=False)
+def fetch_citation_graph_status(base_url: str) -> dict[str, Any]:
+    return api_get(base_url, "/citation-graph/status")
+
+
 def fetch_search(base_url: str, params: dict[str, Any]) -> dict[str, Any]:
     return api_get(base_url, "/search", params=params)
 
@@ -256,6 +262,7 @@ def clear_api_caches() -> None:
     fetch_health.clear()
     fetch_info.clear()
     fetch_runtime.clear()
+    fetch_citation_graph_status.clear()
     fetch_profiles.clear()
 
 
@@ -482,6 +489,7 @@ def init_ui_state() -> None:
         "selected_artifact_id": None,
         "artifact_detail_payload": None,
         "artifact_linked_papers_payload": None,
+        "citation_graph_status_payload": None,
         "artifact_linked_papers_limit": 20,
         "artifact_linked_papers_offset": 0,
         "artifact_linked_papers_relation_type": "",
@@ -1368,6 +1376,87 @@ def render_qdrant_runtime_status(runtime: dict[str, Any]) -> None:
         render_kv("Status", qdrant.get("status"))
         render_kv("Optimizer status", qdrant.get("optimizer_status"))
 
+
+def render_citation_graph_status_panel(base_url: str) -> None:
+    st.sidebar.markdown("### Citation graph status")
+    st.sidebar.caption(
+        "Local citation/reference graph status from `GET /citation-graph/status`. "
+        "Read-only, compatibility-gated, and not publication-ready."
+    )
+
+    if st.sidebar.button(
+        "Load citation graph status",
+        key="load_citation_graph_status",
+        width="stretch",
+    ):
+        try:
+            with st.spinner("Loading citation graph status..."):
+                st.session_state["citation_graph_status_payload"] = (
+                    fetch_citation_graph_status(base_url)
+                )
+        except Exception as exc:
+            st.session_state["citation_graph_status_payload"] = {"error": str(exc)}
+
+    payload = st.session_state.get("citation_graph_status_payload")
+    if not payload:
+        st.sidebar.info("Citation graph status has not been loaded yet.")
+        return
+
+    if payload.get("error"):
+        st.sidebar.warning("Citation graph status request failed.")
+        with st.sidebar.expander("Citation graph status error", expanded=False):
+            st.code(str(payload["error"]))
+        return
+
+    graph = payload.get("graph") if isinstance(payload.get("graph"), dict) else {}
+    availability = (
+        payload.get("availability")
+        if isinstance(payload.get("availability"), dict)
+        else {}
+    )
+    compatibility = (
+        payload.get("compatibility")
+        if isinstance(payload.get("compatibility"), dict)
+        else {}
+    )
+    caveats = payload.get("caveats") if isinstance(payload.get("caveats"), list) else []
+
+    runtime_enabled = availability.get("runtime_enabled", graph.get("runtime_enabled"))
+    available = availability.get("available", graph.get("available"))
+    safe_to_serve_locally = availability.get("safe_to_serve_locally")
+    runtime_loader = availability.get("runtime_loader_implemented")
+
+    status_cols = st.sidebar.columns(2)
+    status_cols[0].metric("Runtime enabled", dash(runtime_enabled))
+    status_cols[1].metric("Available", dash(available))
+    status_cols[0].metric("Safe locally", dash(safe_to_serve_locally))
+    status_cols[1].metric("Runtime loader", dash(runtime_loader))
+
+    review_required = first_non_empty(
+        graph.get("manual_review_required"),
+        compatibility.get("manual_review_required"),
+        availability.get("manual_review_required"),
+    )
+    publication_ready = first_non_empty(
+        graph.get("publication_ready"),
+        compatibility.get("publication_ready"),
+        availability.get("publication_ready"),
+    )
+
+    with st.sidebar.expander("Citation graph status details", expanded=False):
+        render_kv("Graph", graph.get("name"))
+        render_kv("Version", graph.get("version"))
+        render_kv("Exposure mode", graph.get("exposure_mode"))
+        render_kv("Manual review required", review_required)
+        render_kv("Publication ready", publication_ready)
+
+        if caveats:
+            st.caption("Caveats: " + " · ".join(f"`{item}`" for item in caveats))
+
+        st.markdown("**Raw status payload**")
+        st.json(payload)
+
+
 def render_status_sidebar(base_url: str) -> None:
     st.sidebar.markdown("### API status")
     try:
@@ -1384,6 +1473,7 @@ def render_status_sidebar(base_url: str) -> None:
         render_kv("API version", info.get("api_version"))
 
         render_qdrant_runtime_status(runtime)
+        render_citation_graph_status_panel(base_url)
 
         selected_paper_id = st.session_state.get("selected_paper_canonical_id")
         if selected_paper_id:
