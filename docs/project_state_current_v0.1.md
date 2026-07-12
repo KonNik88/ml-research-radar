@@ -297,7 +297,9 @@ top_external_references_endpoint = implemented
 full_graph_runtime_loader = not implemented
 graph_db_materialization = not implemented
 streamlit_graph_status_panel = implemented
-streamlit_graph_traversal_ui = not implemented
+streamlit_graph_paper_workspace_panel = implemented
+streamlit_graph_diagnostics_ui = not implemented
+streamlit_graph_external_reference_lookup_ui = not implemented
 graphrag = not implemented
 publication_ready = false
 manual_review_required = true
@@ -865,6 +867,41 @@ no mutation of canonical truth, graph outputs, reports, packages, retrieval, Qdr
 ```
 
 ---
+
+
+## 7.1 Citation Graph Paper Workspace Panel v0.1 boundary
+
+Current UI productization state:
+
+```text
+Citation Graph status panel = implemented
+Citation Graph Paper workspace evidence panel = implemented
+Citation Graph diagnostics UI = not implemented
+Citation Graph external-reference lookup UI = not implemented
+```
+
+Paper workspace evidence panel semantics:
+
+```text
+selected paper -> outgoing references via /citation-graph/papers/{canonical_id}/references
+selected paper -> incoming resolved citations via /citation-graph/papers/{canonical_id}/citations
+metadata_reference_fields_only = true
+not_a_complete_citation_index = true
+manual_review_required = true
+publication_ready = false
+```
+
+Boundary:
+
+```text
+no direct Streamlit reads from graph files
+no CitationGraphStore import from Streamlit
+no graph visualization
+no NetworkX / Neo4j / GraphRAG
+no graph DB materialization
+no full graph runtime loader
+no mutation of canonical truth, retrieval artifacts, Qdrant, Postgres, ranking, graph outputs, reports, packages, or publication state
+```
 
 ## 8. Explicit non-goals for the immediate next slice
 

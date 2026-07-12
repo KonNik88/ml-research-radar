@@ -187,6 +187,30 @@ def fetch_citation_graph_status(base_url: str) -> dict[str, Any]:
     return api_get(base_url, "/citation-graph/status")
 
 
+def fetch_citation_graph_paper_references(
+    base_url: str,
+    canonical_id: str,
+    params: dict[str, Any],
+) -> dict[str, Any]:
+    return api_get(
+        base_url,
+        f"/citation-graph/papers/{canonical_id}/references",
+        params=params,
+    )
+
+
+def fetch_citation_graph_paper_citations(
+    base_url: str,
+    canonical_id: str,
+    params: dict[str, Any],
+) -> dict[str, Any]:
+    return api_get(
+        base_url,
+        f"/citation-graph/papers/{canonical_id}/citations",
+        params=params,
+    )
+
+
 def fetch_search(base_url: str, params: dict[str, Any]) -> dict[str, Any]:
     return api_get(base_url, "/search", params=params)
 
@@ -440,6 +464,10 @@ def init_ui_state() -> None:
         "selected_paper_artifact_linked_papers_relation_type": "",
         "selected_paper_artifact_linked_papers_min_confidence": "",
         "selected_paper_artifact_linked_papers_sort_by": "confidence_desc",
+        "selected_paper_citation_references_payload": None,
+        "selected_paper_citation_citations_payload": None,
+        "selected_paper_citation_graph_limit": 20,
+        "selected_paper_citation_graph_offset": 0,
         "cluster_limit": 10,
         "cluster_min_size": 1,
         "cluster_sort_by": "size_desc",
@@ -543,11 +571,18 @@ def reset_selected_paper_artifact_navigation() -> None:
     st.session_state["selected_paper_artifact_detail_payload"] = None
     st.session_state["selected_paper_artifact_linked_papers_payload"] = None
 
+
+def reset_selected_paper_citation_graph_payloads() -> None:
+    st.session_state["selected_paper_citation_references_payload"] = None
+    st.session_state["selected_paper_citation_citations_payload"] = None
+
+
 def reset_selected_paper_payloads() -> None:
     st.session_state["selected_paper_detail_payload"] = None
     st.session_state["selected_paper_similar_payload"] = None
     st.session_state["selected_paper_cluster_payload"] = None
     reset_selected_paper_artifact_navigation()
+    reset_selected_paper_citation_graph_payloads()
 
 def select_paper(canonical_id: str | None) -> None:
     canonical_id = str(canonical_id or "").strip()
@@ -3060,6 +3095,208 @@ def render_paper_topic_cluster_payload(payload: dict[str, Any]) -> None:
     with st.expander("Linked paper topic cluster JSON", expanded=False):
         st.json(payload)
 
+def build_selected_paper_citation_graph_params() -> dict[str, Any]:
+    return {
+        "limit": int(st.session_state["selected_paper_citation_graph_limit"]),
+        "offset": int(st.session_state["selected_paper_citation_graph_offset"]),
+    }
+
+
+def _citation_graph_source_families(value: Any) -> str:
+    if isinstance(value, list):
+        return ", ".join(str(item) for item in value[:8]) or "—"
+    return str(value) if value else "—"
+
+
+def citation_graph_reference_row_to_table(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "edge_type": row.get("edge_type"),
+        "resolved": row.get("resolved"),
+        "target_canonical_id": row.get("target_canonical_id"),
+        "target_title": row.get("target_title"),
+        "target_year": row.get("target_year"),
+        "external_reference_id": row.get("external_reference_id"),
+        "reference_type": row.get("reference_type"),
+        "normalized_reference": row.get("normalized_reference"),
+        "source_families": _citation_graph_source_families(row.get("source_families")),
+        "evidence_count": row.get("evidence_count"),
+        "edge_id": row.get("edge_id"),
+    }
+
+
+def citation_graph_citation_row_to_table(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "source_canonical_id": row.get("source_canonical_id"),
+        "source_title": row.get("source_title"),
+        "source_year": row.get("source_year"),
+        "reference_type": row.get("reference_type"),
+        "normalized_reference": row.get("normalized_reference"),
+        "source_families": _citation_graph_source_families(row.get("source_families")),
+        "evidence_count": row.get("evidence_count"),
+        "edge_id": row.get("edge_id"),
+    }
+
+
+def render_citation_graph_traversal_payload(
+    payload: dict[str, Any],
+    *,
+    title: str,
+    row_mapper: Any,
+    raw_expander_label: str,
+    open_button_label: str,
+    open_button_key_prefix: str,
+    canonical_id_field: str,
+) -> None:
+    rows = payload.get("items") or []
+    page = payload.get("page") or {}
+    caveats = payload.get("caveats") or []
+
+    st.markdown(f"#### {title}")
+
+    cols = st.columns(4)
+    cols[0].metric("Returned", page.get("returned", len(rows)))
+    cols[1].metric("Total estimate", dash(page.get("total_estimate")))
+    cols[2].metric("Limit", dash(page.get("limit")))
+    cols[3].metric("Offset", dash(page.get("offset")))
+
+    if caveats:
+        st.caption("Caveats: " + " · ".join(f"`{item}`" for item in caveats))
+
+    if not rows:
+        st.info("No citation graph evidence rows returned for this request.")
+        with st.expander(raw_expander_label, expanded=False):
+            st.json(payload)
+        return
+
+    st.dataframe(
+        pd.DataFrame([row_mapper(row) for row in rows if isinstance(row, dict)]),
+        hide_index=True,
+        width="stretch",
+    )
+
+    for idx, row in enumerate(rows, start=1):
+        if not isinstance(row, dict):
+            continue
+
+        row_canonical_id = str(row.get(canonical_id_field) or "").strip()
+        if row_canonical_id:
+            render_open_paper_workspace_button(
+                row_canonical_id,
+                label=open_button_label,
+                key=f"{open_button_key_prefix}_{idx}_{row_canonical_id}",
+                rerun=True,
+            )
+
+    with st.expander(raw_expander_label, expanded=False):
+        st.json(payload)
+
+
+def render_selected_paper_citation_graph_panel(base_url: str, canonical_id: str) -> None:
+    st.subheader("Selected paper citation graph evidence")
+    st.caption(
+        "Local citation/reference evidence from the Citation Graph API. "
+        "This is metadata-derived, read-only, not a complete citation index, "
+        "and not publication-ready."
+    )
+
+    control_cols = st.columns([1, 1])
+    with control_cols[0]:
+        st.number_input(
+            "Citation graph evidence limit",
+            min_value=1,
+            max_value=100,
+            step=1,
+            key="selected_paper_citation_graph_limit",
+        )
+    with control_cols[1]:
+        st.number_input(
+            "Citation graph evidence offset",
+            min_value=0,
+            max_value=1_000_000,
+            step=20,
+            key="selected_paper_citation_graph_offset",
+        )
+
+    action_cols = st.columns([1, 1])
+    with action_cols[0]:
+        if st.button(
+            "Load selected paper outgoing references",
+            key="load_selected_paper_citation_references",
+            width="stretch",
+        ):
+            try:
+                with st.spinner("Loading outgoing citation graph references..."):
+                    params = build_selected_paper_citation_graph_params()
+                    st.session_state["selected_paper_citation_references_payload"] = (
+                        fetch_citation_graph_paper_references(
+                            base_url,
+                            canonical_id,
+                            params,
+                        )
+                    )
+            except Exception as exc:
+                st.error(str(exc))
+
+    with action_cols[1]:
+        if st.button(
+            "Load selected paper incoming citations",
+            key="load_selected_paper_citation_citations",
+            width="stretch",
+        ):
+            try:
+                with st.spinner("Loading incoming citation graph citations..."):
+                    params = build_selected_paper_citation_graph_params()
+                    st.session_state["selected_paper_citation_citations_payload"] = (
+                        fetch_citation_graph_paper_citations(
+                            base_url,
+                            canonical_id,
+                            params,
+                        )
+                    )
+            except Exception as exc:
+                st.error(str(exc))
+
+    st.caption(
+        "Requires `ML_RADAR_CITATION_GRAPH_API_ENABLED=true`. "
+        "If disabled or incompatible, the API fails closed and the UI shows the error."
+    )
+
+    references_payload = st.session_state.get(
+        "selected_paper_citation_references_payload"
+    )
+    citations_payload = st.session_state.get(
+        "selected_paper_citation_citations_payload"
+    )
+
+    if not references_payload and not citations_payload:
+        st.info(
+            "Load outgoing references or incoming resolved citations for the selected paper."
+        )
+        return
+
+    if references_payload:
+        render_citation_graph_traversal_payload(
+            references_payload,
+            title="Outgoing references",
+            row_mapper=citation_graph_reference_row_to_table,
+            raw_expander_label="Raw outgoing references payload",
+            open_button_label="Open referenced paper in Paper workspace",
+            open_button_key_prefix="open_citation_graph_reference_target",
+            canonical_id_field="target_canonical_id",
+        )
+
+    if citations_payload:
+        render_citation_graph_traversal_payload(
+            citations_payload,
+            title="Incoming resolved citations",
+            row_mapper=citation_graph_citation_row_to_table,
+            raw_expander_label="Raw incoming citations payload",
+            open_button_label="Open citing paper in Paper workspace",
+            open_button_key_prefix="open_citation_graph_citation_source",
+            canonical_id_field="source_canonical_id",
+        )
+
+
 def render_selected_paper_artifacts(base_url: str, detail_payload: dict[str, Any] | None) -> None:
     st.subheader("Selected paper artifacts")
 
@@ -3334,6 +3571,7 @@ def render_paper_workspace(base_url: str) -> None:
             "Selected paper similar papers",
             "Selected paper topic cluster",
             "Selected paper artifacts",
+            "Citation graph evidence",
         ]
     )
 
@@ -3357,6 +3595,9 @@ def render_paper_workspace(base_url: str) -> None:
 
     with workspace_tabs[3]:
         render_selected_paper_artifacts(base_url, detail_payload)
+
+    with workspace_tabs[4]:
+        render_selected_paper_citation_graph_panel(base_url, selected_paper_id)
 
 # --------------------------------------------------------------------------------------
 # Main app

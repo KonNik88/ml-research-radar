@@ -84,7 +84,8 @@ Citation Graph Traversal API Checkpoint v0.3 — 2026-07 completed docs-only reg
 Citation Graph API Regression Check v0.1 — 2026-07 completed static graph API regression validator
 Citation Graph API Regression DoD Wiring v0.1 — 2026-07 completed optional DoD gate wiring
 Graph API / Streamlit Productization Design v0.1 — 2026-07 completed design-only productization checkpoint
-Citation Graph Streamlit Status Panel v0.1 — 2026-07 active first UI status-panel slice
+Citation Graph Streamlit Status Panel v0.1 — 2026-07 completed first UI status-panel slice
+Citation Graph Paper Workspace Panel v0.1 — 2026-07 active selected-paper citation/reference evidence UI slice
 ```
 
 Current healthy baseline:
@@ -152,7 +153,8 @@ citation_graph_top_referenced_papers_endpoint = implemented
 citation_graph_top_external_references_endpoint = implemented
 citation_graph_api_regression_check = optional_by_default_required_with_require_citation_graph_api_regression
 graph_api_streamlit_productization_design = completed_design_only
-citation_graph_streamlit_status_panel = active_ui_status_only
+citation_graph_streamlit_status_panel = completed_ui_status_only
+citation_graph_paper_workspace_panel = active_selected_paper_evidence_ui
 citation_graph_runtime_loader = not_implemented
 paper_artifact_graph_dod_gate = not required yet
 paper_artifact_graph_manual_review_dod_gate = not required yet
@@ -358,6 +360,7 @@ experimental qdrant API = status_code 200, mode dense_qdrant
 streamlit UI required_failed_count = 0
 qdrant_runtime_status_ui_snippets_present = true
 citation_graph_status_ui_snippets_present = true
+paper_workspace_citation_graph_ui_snippets_present = true
 ```
 
 ---
@@ -441,6 +444,7 @@ Expected Streamlit validator result:
 
 ```text
 citation_graph_status_ui_snippets_present = true
+paper_workspace_citation_graph_ui_snippets_present = true
 required_failed_count = 0
 ```
 
@@ -468,6 +472,63 @@ no canonical/retrieval/Qdrant/Postgres/ranking/publication change
 ```
 
 ---
+
+
+## A.7 Citation Graph Paper workspace panel smoke
+
+Use this when changing the selected-paper citation/reference evidence UI.
+
+Scope:
+
+```text
+Streamlit calls only the selected-paper Citation Graph traversal endpoints:
+GET /citation-graph/papers/{canonical_id}/references
+GET /citation-graph/papers/{canonical_id}/citations
+Streamlit renders evidence tables inside Paper workspace.
+```
+
+Static validation:
+
+```bat
+python -m py_compile services/ui/app.py
+python -m py_compile scripts/validation/check_streamlit_discovery_ui.py
+python -m scripts.validation.check_streamlit_discovery_ui --strict
+python -m scripts.validation.check_citation_graph_api_regression --strict
+git diff --check
+```
+
+Expected Streamlit validator result:
+
+```text
+paper_workspace_citation_graph_ui_snippets_present = true
+required_failed_count = 0
+```
+
+Manual live UI smoke:
+
+```text
+Start FastAPI with ML_RADAR_SEARCH_BACKEND=file and ML_RADAR_CITATION_GRAPH_API_ENABLED=true.
+Start Streamlit.
+Open a paper in Paper workspace.
+Open Citation graph evidence tab.
+Click Load selected paper outgoing references.
+Click Load selected paper incoming citations.
+Confirm evidence tables or empty-state messages render without crashing.
+Confirm caveats remain visible and raw payload expanders are available.
+```
+
+Boundary:
+
+```text
+selected-paper references/citations tables only
+no source-family/top-reference diagnostics UI
+no external-reference lookup UI
+no graph visualization
+no direct graph file reads
+no GraphRAG / NetworkX / Neo4j
+no graph DB materialization
+no canonical/retrieval/Qdrant/Postgres/ranking/publication change
+```
 
 # B. Run API and Streamlit locally
 

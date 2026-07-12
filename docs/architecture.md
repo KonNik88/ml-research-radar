@@ -16,7 +16,7 @@ overlapping source-level observations.
 ## Current checkpoint
 
 ```text
-checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1
+checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
@@ -75,6 +75,7 @@ sources
 → Citation Graph status/references/citations/external-reference-papers/source-families/top-referenced-papers/top-external-references local-inspection API
 → Graph API / Streamlit productization design boundary
 → Citation Graph Streamlit status panel
+→ Citation Graph Paper workspace evidence panel
 → Streamlit Discovery UI
 → validators / regression / strict DoD
 ```
@@ -757,6 +758,33 @@ No NetworkX/Neo4j/GraphRAG runtime.
 No full graph runtime loader.
 No graph DB materialization.
 No canonical/reconcile/search/ranking/Qdrant behavior change.
+```
+
+
+### 14.7 Citation Graph Paper workspace panel
+
+The selected-paper Citation Graph UI remains a thin FastAPI client.
+
+Implemented UI scope:
+
+```text
+GET /citation-graph/papers/{canonical_id}/references
+GET /citation-graph/papers/{canonical_id}/citations
+render outgoing references and incoming resolved citations as Paper workspace evidence tables
+```
+
+Boundary:
+
+```text
+no direct reads from data/graphs/*
+no CitationGraphStore import from Streamlit
+no source-family/top-reference diagnostics UI
+no external-reference lookup UI
+no graph visualization
+no NetworkX / Neo4j / GraphRAG
+no full graph runtime loader
+no graph DB materialization
+no canonical/retrieval/Qdrant/Postgres/ranking/publication changes
 ```
 
 ## 15. Validation architecture

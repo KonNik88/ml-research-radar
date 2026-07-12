@@ -27,6 +27,7 @@ canonical JSONL truth
 → Discovery API
 → Graph API / Streamlit productization design
 → Citation Graph Streamlit status panel
+→ Citation Graph Paper workspace panel
 → Streamlit Discovery UI
 ```
 
@@ -68,6 +69,7 @@ Citation Graph API Regression Check v0.1
 Citation Graph API Regression DoD Wiring v0.1
 Graph API / Streamlit Productization Design v0.1
 Citation Graph Streamlit Status Panel v0.1
+Citation Graph Paper Workspace Panel v0.1
 ```
 
 Current canonical baseline:
@@ -590,6 +592,9 @@ top_external_references_endpoint = implemented
 full_graph_runtime_loader = not implemented
 graph_db_materialization = not implemented
 streamlit_graph_ui = not implemented
+streamlit_graph_status_panel = implemented
+streamlit_graph_paper_workspace_panel = implemented
+streamlit_graph_diagnostics_ui = not implemented
 graphrag = not implemented
 publication_ready = false
 manual_review_required = true
@@ -713,6 +718,37 @@ Boundary:
 no direct reads from data/graphs/*
 no CitationGraphStore import from Streamlit
 no references/citations table UI in this slice
+no source-family/top-reference diagnostics UI in this slice
+no external-reference lookup UI in this slice
+no graph visualization
+no NetworkX/Neo4j/GraphRAG
+no full graph runtime loader
+no graph DB materialization
+```
+
+
+## Streamlit Citation Graph Paper workspace panel
+
+Current Streamlit implementation:
+
+```text
+Citation Graph Paper Workspace Panel v0.1 = implemented selected-paper evidence UI slice
+```
+
+UI behavior:
+
+```text
+Streamlit calls GET /citation-graph/papers/{canonical_id}/references through FastAPI.
+Streamlit calls GET /citation-graph/papers/{canonical_id}/citations through FastAPI.
+The Paper workspace renders outgoing references and incoming resolved citations as evidence tables.
+The response payloads are stored in selected_paper_citation_references_payload and selected_paper_citation_citations_payload session state.
+```
+
+Boundary:
+
+```text
+no direct reads from data/graphs/*
+no CitationGraphStore import from Streamlit
 no source-family/top-reference diagnostics UI in this slice
 no external-reference lookup UI in this slice
 no graph visualization

@@ -263,6 +263,30 @@ PAPER_WORKSPACE_ARTIFACT_UI_SNIPPETS = [
     "Other papers linked to this artifact",
 ]
 
+PAPER_WORKSPACE_CITATION_GRAPH_UI_SNIPPETS = [
+    "Citation graph evidence",
+    "Selected paper citation graph evidence",
+    "fetch_citation_graph_paper_references",
+    "fetch_citation_graph_paper_citations",
+    "render_selected_paper_citation_graph_panel",
+    "build_selected_paper_citation_graph_params",
+    "citation_graph_reference_row_to_table",
+    "citation_graph_citation_row_to_table",
+    "selected_paper_citation_references_payload",
+    "selected_paper_citation_citations_payload",
+    "selected_paper_citation_graph_limit",
+    "selected_paper_citation_graph_offset",
+    "Load selected paper outgoing references",
+    "Load selected paper incoming citations",
+    "Outgoing references",
+    "Incoming resolved citations",
+    "Open referenced paper in Paper workspace",
+    "Open citing paper in Paper workspace",
+    "/citation-graph/papers/{canonical_id}/references",
+    "/citation-graph/papers/{canonical_id}/citations",
+    "not a complete citation index",
+]
+
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -1040,6 +1064,11 @@ def build_report(
         PAPER_WORKSPACE_ARTIFACT_UI_SNIPPETS,
     )
 
+    missing_paper_workspace_citation_graph = missing_snippets(
+        app_text,
+        PAPER_WORKSPACE_CITATION_GRAPH_UI_SNIPPETS,
+    )
+
     checks["required_ui_snippets_present"] = not missing_required
     checks["discovery_endpoint_strings_present"] = not missing_discovery
     checks["similar_modes_present"] = not missing_similar
@@ -1074,6 +1103,9 @@ def build_report(
     checks["paper_workspace_artifact_ui_snippets_present"] = (
         not missing_paper_workspace_artifact
     )
+    checks["paper_workspace_citation_graph_ui_snippets_present"] = (
+        not missing_paper_workspace_citation_graph
+    )
 
     extracted_values["missing_required_ui_snippets"] = missing_required
     extracted_values["missing_discovery_endpoint_strings"] = missing_discovery
@@ -1102,6 +1134,9 @@ def build_report(
     )
     extracted_values["missing_paper_workspace_artifact_ui_snippets"] = (
         missing_paper_workspace_artifact
+    )
+    extracted_values["missing_paper_workspace_citation_graph_ui_snippets"] = (
+        missing_paper_workspace_citation_graph
     )
 
     if check_api:
@@ -1137,6 +1172,7 @@ def build_report(
         "paper_workspace_ui_snippets_present",
         "paper_navigation_polish_ui_snippets_present",
         "paper_workspace_artifact_ui_snippets_present",
+        "paper_workspace_citation_graph_ui_snippets_present",
     ]
 
     if check_api:

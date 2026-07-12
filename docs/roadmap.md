@@ -7,12 +7,12 @@ document = primary living roadmap
 accepted checkpoint = Current State Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
 current active direction = review / regression / design-hardening
-current active slice = Citation Graph Streamlit Status Panel v0.1
+current active slice = Citation Graph Paper Workspace Panel v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = first Streamlit graph productization code slice; consume /citation-graph/status only and render availability/caveats; no traversal UI, graph visualization, graph runtime loader, graph DB, GraphRAG, endpoint, canonical, retrieval, Qdrant, Postgres, ranking, or publication behavior changes
+scope of current branch = second Streamlit graph productization code slice; consume selected-paper /citation-graph/papers/{canonical_id}/references and /citations only as evidence tables; no diagnostics UI, external-reference lookup UI, graph visualization, graph runtime loader, graph DB, GraphRAG, endpoint, canonical, retrieval, Qdrant, Postgres, ranking, or publication behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -87,15 +87,15 @@ Recently completed safe slices:
 24. **Citation Graph API Regression Check v0.1** — completed static regression validator over the accepted seven-route graph API block.
 25. **Citation Graph API Regression DoD Wiring v0.1** — completed opt-in DoD gate wiring for the regression report; no endpoint or runtime behavior change.
 26. **Graph API / Streamlit Productization Design v0.1** — completed design-only bridge from accepted graph APIs to future Streamlit UI slices; no UI code or API behavior change.
-27. **Citation Graph Streamlit Status Panel v0.1** — active first UI code slice; Streamlit reads `/citation-graph/status` and renders availability/caveats only.
+27. **Citation Graph Streamlit Status Panel v0.1** — completed first UI code slice; Streamlit reads `/citation-graph/status` and renders availability/caveats only.
+28. **Citation Graph Paper Workspace Panel v0.1** — active second UI code slice; Streamlit reads selected-paper `/references` and `/citations` endpoints and renders evidence tables only.
 
 Recommended next safe slices:
 
-1. **Citation Graph Streamlit Status Panel v0.1** — first code slice; Streamlit reads `/citation-graph/status` and renders availability/caveats only.
-2. **Citation Graph Paper Workspace Panel v0.1** — add outgoing references and incoming resolved citations for the selected paper as evidence tables.
-3. **Citation Graph Diagnostics UI v0.1** — add source-family and top-reference diagnostics as explicitly non-publication-grade diagnostics.
-4. **Citation Graph External Reference Lookup UI v0.1** — add explicit external-reference lookup only after URL/path encoding behavior is handled.
-5. **Paper–Artifact Graph API Design v0.1** — only if existing Artifact API surfaces prove insufficient for paper-artifact graph evidence.
+1. **Citation Graph Paper Workspace Panel v0.1** — add outgoing references and incoming resolved citations for the selected paper as evidence tables.
+2. **Citation Graph Diagnostics UI v0.1** — add source-family and top-reference diagnostics as explicitly non-publication-grade diagnostics.
+3. **Citation Graph External Reference Lookup UI v0.1** — add explicit external-reference lookup only after URL/path encoding behavior is handled.
+4. **Paper–Artifact Graph API Design v0.1** — only if existing Artifact API surfaces prove insufficient for paper-artifact graph evidence.
 
 Explicit immediate non-goals:
 
@@ -2236,6 +2236,41 @@ no graph DB materialization
 no API endpoint change
 no graph output/package/report rebuild
 no canonical/reconcile/retrieval/Qdrant/Postgres/ranking/publication change
+```
+
+
+### 5.5 Citation Graph Paper Workspace Panel v0.1
+
+Status: **active UI code slice**
+
+Purpose:
+
+```text
+Expose selected-paper citation/reference evidence in Streamlit Paper workspace by calling the already implemented Citation Graph API traversal endpoints.
+```
+
+Implemented/allowed UI behavior in this slice:
+
+```text
+GET /citation-graph/papers/{canonical_id}/references
+GET /citation-graph/papers/{canonical_id}/citations
+render outgoing references and incoming resolved citations as evidence tables
+preserve metadata-only / not-complete-citation-index / manual-review / publication caveats
+```
+
+Explicit non-goals:
+
+```text
+no source-family diagnostics UI
+no top-referenced/top-external-reference diagnostics UI
+no external-reference lookup UI
+no graph visualization
+no direct Streamlit reads from data/graphs/*
+no CitationGraphStore import from Streamlit
+no NetworkX / Neo4j / GraphRAG
+no full graph runtime loader
+no graph DB materialization
+no canonical/retrieval/Qdrant/Postgres/ranking/publication changes
 ```
 
 ## 6. Near-term roadmap
