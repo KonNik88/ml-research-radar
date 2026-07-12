@@ -296,7 +296,8 @@ top_referenced_papers_endpoint = implemented
 top_external_references_endpoint = implemented
 full_graph_runtime_loader = not implemented
 graph_db_materialization = not implemented
-streamlit_graph_ui = not implemented
+streamlit_graph_status_panel = implemented
+streamlit_graph_traversal_ui = not implemented
 graphrag = not implemented
 publication_ready = false
 manual_review_required = true
@@ -798,16 +799,23 @@ Recently completed safe slices after this checkpoint baseline:
    - default DoD remains unchanged unless the flag is passed.
 
 22. **Graph API / Streamlit Productization Design v0.1**
-   - current design-only bridge from accepted graph API surfaces to future Streamlit UI slices;
+   - completed design-only bridge from accepted graph API surfaces to future Streamlit UI slices;
    - confirms that Streamlit remains a thin API client;
    - confirms that Paper–Artifact evidence should use existing Artifact API surfaces before designing a dedicated graph API.
+
+23. **Citation Graph Streamlit Status Panel v0.1**
+   - active first Streamlit graph productization code slice;
+   - consumes `/citation-graph/status` only;
+   - renders availability, disabled/unavailable states, and caveats;
+   - does not add graph traversal UI, graph visualization, graph runtime loader, GraphRAG, or graph DB materialization.
 
 Recommended next slices:
 
 1. **Citation Graph Streamlit Status Panel v0.1**
-   - first UI code slice after this design;
+   - first UI code slice after productization design;
    - consume `/citation-graph/status` only;
-   - render availability, disabled/unavailable states, and caveats.
+   - render availability, disabled/unavailable states, and caveats;
+   - validate static wiring through `citation_graph_status_ui_snippets_present`.
 
 2. **Citation Graph Paper Workspace Panel v0.1**
    - consume `/citation-graph/papers/{canonical_id}/references`;
@@ -820,6 +828,41 @@ Recommended next slices:
 
 4. **Paper–Artifact Graph API Design v0.1, if needed**
    - do this only after checking whether existing Artifact API surfaces are insufficient.
+
+---
+
+
+## 7.5 Citation Graph Streamlit Status Panel v0.1
+
+Current active UI code slice:
+
+```text
+Citation Graph Streamlit Status Panel v0.1
+```
+
+Scope:
+
+```text
+Streamlit consumes GET /citation-graph/status only.
+The status panel is a thin API client surface.
+It renders graph availability, disabled/unavailable states, local safety status, runtime loader state, and manual-review/publication caveats.
+```
+
+Boundary:
+
+```text
+no references/citations tables yet
+no source-family/top-reference diagnostics UI yet
+no external-reference lookup UI yet
+no graph visualization
+no direct graph file reads from Streamlit
+no CitationGraphStore import from Streamlit
+no NetworkX/Neo4j/GraphRAG
+no full graph runtime loader
+no graph DB materialization
+no API endpoint change
+no mutation of canonical truth, graph outputs, reports, packages, retrieval, Qdrant, DB, ranking, or publication state
+```
 
 ---
 

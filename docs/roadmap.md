@@ -7,12 +7,12 @@ document = primary living roadmap
 accepted checkpoint = Current State Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
 current active direction = review / regression / design-hardening
-current active slice = Graph API / Streamlit Productization Design v0.1
+current active slice = Citation Graph Streamlit Status Panel v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = design-only productization plan for consuming the accepted Citation Graph API from Streamlit as a thin API client; no endpoint, runtime, graph output, canonical, retrieval, Qdrant, Postgres, UI code, ranking, or publication behavior changes
+scope of current branch = first Streamlit graph productization code slice; consume /citation-graph/status only and render availability/caveats; no traversal UI, graph visualization, graph runtime loader, graph DB, GraphRAG, endpoint, canonical, retrieval, Qdrant, Postgres, ranking, or publication behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -86,14 +86,15 @@ Recently completed safe slices:
 23. **Citation Graph Traversal API Checkpoint v0.3** — completed docs/regression-hardening checkpoint over the seven implemented graph routes; no new endpoint.
 24. **Citation Graph API Regression Check v0.1** — completed static regression validator over the accepted seven-route graph API block.
 25. **Citation Graph API Regression DoD Wiring v0.1** — completed opt-in DoD gate wiring for the regression report; no endpoint or runtime behavior change.
-26. **Graph API / Streamlit Productization Design v0.1** — active design-only bridge from accepted graph APIs to future Streamlit UI slices; no UI code or API behavior change.
+26. **Graph API / Streamlit Productization Design v0.1** — completed design-only bridge from accepted graph APIs to future Streamlit UI slices; no UI code or API behavior change.
+27. **Citation Graph Streamlit Status Panel v0.1** — active first UI code slice; Streamlit reads `/citation-graph/status` and renders availability/caveats only.
 
 Recommended next safe slices:
 
-1. **Graph API / Streamlit Productization Design v0.1** — design-only plan for safely exposing the already implemented Citation Graph API in Streamlit.
-2. **Citation Graph Streamlit Status Panel v0.1** — first code slice; Streamlit reads `/citation-graph/status` and renders availability/caveats only.
-3. **Citation Graph Paper Workspace Panel v0.1** — add outgoing references and incoming resolved citations for the selected paper as evidence tables.
-4. **Citation Graph Diagnostics UI v0.1** — add source-family and top-reference diagnostics as explicitly non-publication-grade diagnostics.
+1. **Citation Graph Streamlit Status Panel v0.1** — first code slice; Streamlit reads `/citation-graph/status` and renders availability/caveats only.
+2. **Citation Graph Paper Workspace Panel v0.1** — add outgoing references and incoming resolved citations for the selected paper as evidence tables.
+3. **Citation Graph Diagnostics UI v0.1** — add source-family and top-reference diagnostics as explicitly non-publication-grade diagnostics.
+4. **Citation Graph External Reference Lookup UI v0.1** — add explicit external-reference lookup only after URL/path encoding behavior is handled.
 5. **Paper–Artifact Graph API Design v0.1** — only if existing Artifact API surfaces prove insufficient for paper-artifact graph evidence.
 
 Explicit immediate non-goals:
@@ -2188,6 +2189,53 @@ no Qdrant promotion
 no /search or ranking behavior change
 no canonical/reconcile change
 no publication
+```
+
+
+### 5.5 Citation Graph Streamlit Status Panel v0.1
+
+Status: **active first UI code slice**
+
+Purpose:
+
+```text
+Add the first safe Streamlit productization surface for the accepted Citation Graph API:
+a status-only panel that consumes GET /citation-graph/status.
+```
+
+Implemented UI behavior:
+
+```text
+Streamlit calls /citation-graph/status through FastAPI.
+The panel renders runtime_enabled, available, safe_to_serve_locally, and runtime_loader_implemented.
+The panel exposes manual_review_required / publication_ready caveats when present.
+The panel stores its response in citation_graph_status_payload session state.
+The panel does not fetch references, citations, source families, top referenced papers, or top external references.
+```
+
+Validation hook:
+
+```text
+scripts/validation/check_streamlit_discovery_ui.py checks citation_graph_status_ui_snippets_present.
+```
+
+Boundary:
+
+```text
+status panel only
+no graph traversal UI
+no citation/reference evidence tables yet
+no external-reference lookup UI
+no source-family/top-reference diagnostics UI yet
+no graph visualization
+no direct Streamlit reads from data/graphs/*
+no CitationGraphStore import from Streamlit
+no NetworkX/Neo4j/GraphRAG runtime
+no full graph runtime loader
+no graph DB materialization
+no API endpoint change
+no graph output/package/report rebuild
+no canonical/reconcile/retrieval/Qdrant/Postgres/ranking/publication change
 ```
 
 ## 6. Near-term roadmap
