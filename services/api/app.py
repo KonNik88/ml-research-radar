@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from datetime import datetime
+from functools import lru_cache
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -362,6 +363,15 @@ def _citation_graph_caveats(*extra: str) -> list[str]:
     return caveats
 
 
+@lru_cache(maxsize=2)
+def _load_citation_graph_store_cached(graph_root: str) -> CitationGraphStore:
+    return CitationGraphStore.load(graph_root)
+
+
+def _load_citation_graph_store() -> CitationGraphStore:
+    return _load_citation_graph_store_cached(str(settings.citation_graph_root))
+
+
 @app.get(
     "/citation-graph/papers/{canonical_id}/references",
     response_model=CitationGraphTraversalResponse,
@@ -396,7 +406,7 @@ def citation_graph_paper_references(
         return unavailable_response
 
     try:
-        store = CitationGraphStore.load(settings.citation_graph_root)
+        store = _load_citation_graph_store()
         result = store.outgoing_references(
             canonical_id,
             limit=resolved_limit,
@@ -470,7 +480,7 @@ def citation_graph_paper_citations(
         return unavailable_response
 
     try:
-        store = CitationGraphStore.load(settings.citation_graph_root)
+        store = _load_citation_graph_store()
         result = store.incoming_citations(
             canonical_id,
             limit=resolved_limit,
@@ -544,7 +554,7 @@ def citation_graph_external_reference_papers(
         return unavailable_response
 
     try:
-        store = CitationGraphStore.load(settings.citation_graph_root)
+        store = _load_citation_graph_store()
         result = store.external_reference_papers(
             reference_id,
             limit=resolved_limit,
@@ -618,7 +628,7 @@ def citation_graph_source_families(
         return unavailable_response
 
     try:
-        store = CitationGraphStore.load(settings.citation_graph_root)
+        store = _load_citation_graph_store()
         result = store.source_family_diagnostics(
             limit=resolved_limit,
             offset=offset,
@@ -687,7 +697,7 @@ def citation_graph_top_referenced_papers(
         return unavailable_response
 
     try:
-        store = CitationGraphStore.load(settings.citation_graph_root)
+        store = _load_citation_graph_store()
         result = store.top_referenced_papers(
             limit=resolved_limit,
             offset=offset,
@@ -757,7 +767,7 @@ def citation_graph_top_external_references(
         return unavailable_response
 
     try:
-        store = CitationGraphStore.load(settings.citation_graph_root)
+        store = _load_citation_graph_store()
         result = store.top_external_references(
             limit=resolved_limit,
             offset=offset,
@@ -802,6 +812,7 @@ def reload_runtime() -> ReloadResponse:
         raise HTTPException(status_code=404, detail="Reload endpoint is disabled")
 
     runtime = get_runtime()
+    _load_citation_graph_store_cached.cache_clear()
     runtime.reload()
 
     discovery_service = get_discovery_service()
