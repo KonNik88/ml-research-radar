@@ -793,23 +793,33 @@ Recently completed safe slices after this checkpoint baseline:
    - no endpoint, runtime loader, graph output, or publication behavior change.
 
 21. **Citation Graph API Regression DoD Wiring v0.1**
-   - active opt-in DoD gate for the Citation Graph API regression report;
+   - completed opt-in DoD gate for the Citation Graph API regression report;
    - `--require-citation-graph-api-regression` makes the gate required;
    - default DoD remains unchanged unless the flag is passed.
 
+22. **Graph API / Streamlit Productization Design v0.1**
+   - current design-only bridge from accepted graph API surfaces to future Streamlit UI slices;
+   - confirms that Streamlit remains a thin API client;
+   - confirms that Paper–Artifact evidence should use existing Artifact API surfaces before designing a dedicated graph API.
+
 Recommended next slices:
 
-1. **Regression / DoD / docs hardening**
-   - optional gates;
-   - checkpoint validation;
-   - stale-counter protection;
-   - accepted counter summaries.
+1. **Citation Graph Streamlit Status Panel v0.1**
+   - first UI code slice after this design;
+   - consume `/citation-graph/status` only;
+   - render availability, disabled/unavailable states, and caveats.
 
-2. **No graph endpoint expansion without separate accepted design**
-   - no GraphRAG;
-   - no full graph runtime loader;
-   - no graph DB materialization;
-   - no endpoint expansion.
+2. **Citation Graph Paper Workspace Panel v0.1**
+   - consume `/citation-graph/papers/{canonical_id}/references`;
+   - consume `/citation-graph/papers/{canonical_id}/citations`;
+   - render evidence tables for the selected paper.
+
+3. **Citation Graph Diagnostics UI v0.1**
+   - consume source-family and top-reference diagnostics;
+   - preserve non-publication-grade metric caveats.
+
+4. **Paper–Artifact Graph API Design v0.1, if needed**
+   - do this only after checking whether existing Artifact API surfaces are insufficient.
 
 ---
 
@@ -833,8 +843,8 @@ Do not do these without a separate accepted design:
 
 ## 9. Suggested immediate plan
 
-Current dialogue should close with a docs/regression-hardening checkpoint over the
-implemented citation graph traversal API block after the top-external-references docs sync.
+Current dialogue should close with a design-only productization checkpoint over
+how the accepted graph API surfaces will be consumed by Streamlit.
 
 Minimal documentation set:
 
@@ -850,22 +860,19 @@ Suggested validation:
 
 ```text
 git diff --check
+python -m scripts.validation.check_citation_graph_api_regression --strict
 ```
 
-Optional API confirmation before/after docs sync:
+Optional UI static confirmation before the first UI code slice:
 
 ```bat
-set ML_RADAR_SEARCH_BACKEND=file
-python -m pytest tests/integration/test_api_citation_graph_references.py -q
-python -m pytest tests/integration/test_api_citation_graph_status.py -q
-python -m pytest tests/smoke/test_citation_graph_fixture_store.py -q
-python -m pytest tests/integration/test_api_smoke.py -q
+python -m scripts.validation.check_streamlit_discovery_ui --strict
 ```
 
 Suggested commit message:
 
 ```text
-docs: checkpoint citation graph traversal api v03
+docs: design graph api streamlit productization
 ```
 
 
@@ -1081,4 +1088,66 @@ Streamlit graph UI = not implemented
 GraphRAG = not implemented
 no additional traversal/filtering endpoints without a separate accepted design
 /search, Discovery API, DB, Qdrant, ranking, canonical truth, graph output, package output, and publication state = unchanged
+```
+
+
+## Graph API / Streamlit Productization Design v0.1
+
+Status: **current design-only productization checkpoint**
+
+Purpose:
+
+```text
+Close the design gap between the accepted Citation Graph API block and future
+Streamlit UI consumption, without adding UI code or changing API/runtime behavior.
+```
+
+Productization rules:
+
+```text
+Streamlit remains a thin API client.
+Streamlit consumes graph evidence through FastAPI only.
+Streamlit must not read graph JSONL/package files directly.
+Streamlit must not instantiate CitationGraphStore directly.
+Streamlit must not introduce NetworkX, Neo4j, GraphRAG, or a full graph runtime loader.
+Graph evidence must remain labeled as metadata-only, local-inspection evidence.
+manual_review_required=true and publication_ready=false must remain visible.
+```
+
+Citation Graph UI rollout:
+
+```text
+1. Status panel: /citation-graph/status
+2. Paper workspace evidence: /citation-graph/papers/{canonical_id}/references and /citations
+3. Diagnostics: /citation-graph/source-families, /top-referenced-papers, /top-external-references
+4. External reference lookup: /citation-graph/external-references/{reference_id}/papers
+```
+
+Paper–Artifact Graph productization rule:
+
+```text
+Use existing Artifact API surfaces first:
+/artifacts
+/artifacts/{artifact_id}
+/artifacts/{artifact_id}/papers
+/documents/{canonical_id}/artifacts
+
+Do not create a dedicated Paper–Artifact Graph API unless a later design slice
+identifies a concrete gap that existing Artifact API endpoints cannot cover.
+```
+
+Boundary:
+
+```text
+design-only
+no Streamlit code change
+no API endpoint change
+no graph runtime loader
+no graph DB materialization
+no GraphRAG
+no Qdrant promotion
+no /search or ranking behavior change
+no canonical truth mutation
+no graph output/package/report rebuild
+no publication
 ```

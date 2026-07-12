@@ -16,7 +16,7 @@ overlapping source-level observations.
 ## Current checkpoint
 
 ```text
-checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3
+checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
@@ -73,6 +73,7 @@ sources
 → topic clusters / topic projection
 → Discovery API
 → Citation Graph status/references/citations/external-reference-papers/source-families/top-referenced-papers/top-external-references local-inspection API
+→ Graph API / Streamlit productization design boundary
 → Streamlit Discovery UI
 → validators / regression / strict DoD
 ```
@@ -91,6 +92,8 @@ ranking / detail / similar = derived discovery/product layer
 topic clusters / projection = derived analytics/discovery layer
 Discovery API = product/discovery API over derived layers
 Streamlit UI = thin API client
+Citation Graph API = read-only local-inspection evidence surface
+Paper–Artifact evidence = Artifact API first, dedicated graph API only after separate design
 Qdrant = optional derived vector-serving implementation
 ```
 
@@ -698,6 +701,60 @@ reports, Postgres, Qdrant, retrieval artifacts, ranking artifacts, Streamlit
 state, package outputs, or publication state.
 
 
+
+
+## 14.6 Graph API / Streamlit productization boundary
+
+The next graph productization step is design-first and UI-thin-client only.
+
+Accepted productization order:
+
+```text
+1. Citation Graph Streamlit Status Panel v0.1
+   - call /citation-graph/status
+   - show disabled/unavailable/safe-to-serve states and caveats
+
+2. Citation Graph Paper Workspace Panel v0.1
+   - call /citation-graph/papers/{canonical_id}/references
+   - call /citation-graph/papers/{canonical_id}/citations
+   - render evidence tables for the selected paper
+
+3. Citation Graph Diagnostics UI v0.1
+   - call /citation-graph/source-families
+   - call /citation-graph/top-referenced-papers
+   - call /citation-graph/top-external-references
+   - label counts as diagnostics, not global citation metrics
+
+4. Citation Graph External Reference Lookup UI v0.1
+   - call /citation-graph/external-references/{reference_id}/papers
+   - handle URL/path encoding explicitly
+```
+
+Paper–Artifact Graph productization rule:
+
+```text
+Existing Artifact API surfaces are the first productization path:
+/artifacts
+/artifacts/{artifact_id}
+/artifacts/{artifact_id}/papers
+/documents/{canonical_id}/artifacts
+
+A dedicated Paper–Artifact Graph API is deferred until a separate design slice
+shows a concrete gap that these endpoints cannot cover.
+```
+
+Hard boundaries:
+
+```text
+Streamlit must not read data/graphs/* directly.
+Streamlit must not import CitationGraphStore.
+Streamlit must not compute graph metrics locally.
+No NetworkX/Neo4j/GraphRAG runtime.
+No full graph runtime loader.
+No graph DB materialization.
+No canonical/reconcile/search/ranking/Qdrant behavior change.
+```
+
 ## 15. Validation architecture
 
 Validation is a first-class architecture layer.
@@ -773,5 +830,6 @@ Qdrant is experimentally validated but not promoted.
 Unranked hybrid remains the search relevance reference.
 The retrieval-serving checkpoint gate is the lightweight regression guard.
 Future promotion decisions must be explicit, evidence-backed, and reversible.
-Citation graph status/references/citations/external-reference-papers/source-families are the checkpointed v0.2 narrow local-inspection API block, not a graph-runtime promotion.
+Citation graph status/references/citations/external-reference-papers/source-families/top-referenced-papers/top-external-references are the checkpointed v0.3 narrow local-inspection API block, not a graph-runtime promotion.
+Graph API / Streamlit productization starts as a design-only thin-client plan, not UI implementation.
 ```
