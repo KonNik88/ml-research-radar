@@ -7,12 +7,12 @@ document = primary living roadmap
 accepted checkpoint = Current State Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
 current active direction = review / regression / design-hardening
-current active slice = Citation Graph API Regression DoD Wiring v0.1
+current active slice = Graph API / Streamlit Productization Design v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = optional DoD wiring for the accepted Citation Graph API regression validator; no endpoint, runtime, graph output, canonical, retrieval, Qdrant, Postgres, UI, ranking, or publication behavior changes
+scope of current branch = design-only productization plan for consuming the accepted Citation Graph API from Streamlit as a thin API client; no endpoint, runtime, graph output, canonical, retrieval, Qdrant, Postgres, UI code, ranking, or publication behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -85,13 +85,16 @@ Recently completed safe slices:
 22. **Citation Graph Top External References Endpoint Docs Sync v0.1** — shared docs synchronized with the sixth graph diagnostics endpoint.
 23. **Citation Graph Traversal API Checkpoint v0.3** — completed docs/regression-hardening checkpoint over the seven implemented graph routes; no new endpoint.
 24. **Citation Graph API Regression Check v0.1** — completed static regression validator over the accepted seven-route graph API block.
-25. **Citation Graph API Regression DoD Wiring v0.1** — active opt-in DoD gate wiring for the regression report; no endpoint or runtime behavior change.
+25. **Citation Graph API Regression DoD Wiring v0.1** — completed opt-in DoD gate wiring for the regression report; no endpoint or runtime behavior change.
+26. **Graph API / Streamlit Productization Design v0.1** — active design-only bridge from accepted graph APIs to future Streamlit UI slices; no UI code or API behavior change.
 
 Recommended next safe slices:
 
-1. **Citation Graph API Regression DoD Wiring v0.1** — optional `--require-citation-graph-api-regression` gate in the refresh DoD aggregator.
-2. **Regression / DoD hardening** — accepted-counter summaries, stale-status checks, and validation wiring only.
-3. **No additional graph endpoint work** unless a separate design slice explicitly accepts the scope.
+1. **Graph API / Streamlit Productization Design v0.1** — design-only plan for safely exposing the already implemented Citation Graph API in Streamlit.
+2. **Citation Graph Streamlit Status Panel v0.1** — first code slice; Streamlit reads `/citation-graph/status` and renders availability/caveats only.
+3. **Citation Graph Paper Workspace Panel v0.1** — add outgoing references and incoming resolved citations for the selected paper as evidence tables.
+4. **Citation Graph Diagnostics UI v0.1** — add source-family and top-reference diagnostics as explicitly non-publication-grade diagnostics.
+5. **Paper–Artifact Graph API Design v0.1** — only if existing Artifact API surfaces prove insufficient for paper-artifact graph evidence.
 
 Explicit immediate non-goals:
 
@@ -2063,7 +2066,7 @@ continued graph API expansion.
 
 ### 5.3 Citation Graph API Regression DoD Wiring v0.1
 
-Status: **current opt-in DoD wiring slice**
+Status: **completed opt-in DoD wiring slice**
 
 Purpose:
 
@@ -2110,6 +2113,81 @@ does not add graph DB materialization
 does not add Streamlit graph UI
 does not implement GraphRAG
 does not change /search, Qdrant, ranking, canonical truth, DB, retrieval, graph-output, package, or publication behavior
+```
+
+
+
+### 5.4 Graph API / Streamlit Productization Design v0.1
+
+Status: **current design-only productization slice**
+
+Purpose:
+
+```text
+Define how the accepted graph evidence surfaces should be consumed by Streamlit
+without adding new API endpoints, graph runtime loaders, graph DB materialization,
+GraphRAG, or UI code in this slice.
+```
+
+Accepted starting point:
+
+```text
+Citation Graph API = implemented seven-route local-inspection API block
+Citation Graph API regression = implemented and wired into optional DoD
+Streamlit UI = thin API client
+Paper–Artifact evidence = already available through Artifact API and paper workspace artifact surfaces
+```
+
+Planned Streamlit rollout order:
+
+```text
+1. Citation Graph Streamlit Status Panel v0.1
+   - consume GET /citation-graph/status only
+   - show runtime_enabled / available / safe_to_serve_locally
+   - show manual_review_required and publication_ready=false caveats
+
+2. Citation Graph Paper Workspace Panel v0.1
+   - consume GET /citation-graph/papers/{canonical_id}/references
+   - consume GET /citation-graph/papers/{canonical_id}/citations
+   - render evidence tables, not graph-as-truth visualization
+
+3. Citation Graph Diagnostics UI v0.1
+   - consume GET /citation-graph/source-families
+   - consume GET /citation-graph/top-referenced-papers
+   - consume GET /citation-graph/top-external-references
+   - label top counts as diagnostics, not global citation metrics
+
+4. Citation Graph External Reference Lookup UI v0.1
+   - consume GET /citation-graph/external-references/{reference_id}/papers
+   - handle URL encoding and unknown external references explicitly
+
+5. Paper–Artifact Graph API Design v0.1, if needed
+   - only if existing Artifact API surfaces do not cover needed graph evidence
+```
+
+Paper–Artifact Graph productization rule:
+
+```text
+Do not add a parallel paper-artifact graph API while the existing Artifact API
+already serves paper -> artifact and artifact -> paper evidence.
+First extend Streamlit over existing /artifacts and /documents/{canonical_id}/artifacts surfaces.
+Only design a dedicated Paper–Artifact Graph API if a concrete UI/use-case gap remains.
+```
+
+Boundary:
+
+```text
+design-only
+no Streamlit code change
+no API endpoint change
+no graph output/package/report rebuild
+no full graph runtime loader
+no graph DB materialization
+no NetworkX/Neo4j/GraphRAG runtime
+no Qdrant promotion
+no /search or ranking behavior change
+no canonical/reconcile change
+no publication
 ```
 
 ## 6. Near-term roadmap

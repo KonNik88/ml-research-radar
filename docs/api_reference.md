@@ -25,6 +25,7 @@ canonical JSONL truth
 → Citation Graph traversal API checkpoint
 → internal Citation Graph fixture store/query core
 → Discovery API
+→ Graph API / Streamlit productization design
 → Streamlit Discovery UI
 ```
 
@@ -62,6 +63,9 @@ Citation Graph Traversal API Checkpoint v0.2
 Citation Graph Top Referenced Papers Endpoint v0.1
 Citation Graph Top External References Endpoint v0.1
 Citation Graph Traversal API Checkpoint v0.3
+Citation Graph API Regression Check v0.1
+Citation Graph API Regression DoD Wiring v0.1
+Graph API / Streamlit Productization Design v0.1
 ```
 
 Current canonical baseline:
@@ -623,6 +627,66 @@ No full runtime graph loader,
 graph DB materialization, Streamlit graph UI, GraphRAG, publication step,
 `/search` change, Qdrant change, ranking change, or canonical truth change is
 implemented by this API surface.
+
+
+## Graph API / Streamlit productization contract
+
+The accepted Citation Graph API block is ready to be consumed by future
+Streamlit UI slices, but this contract does not add new endpoints or UI code.
+
+Streamlit consumption rules:
+
+```text
+Streamlit is a thin API client.
+Streamlit must call FastAPI endpoints for graph evidence.
+Streamlit must not read graph JSONL/package/report files directly.
+Streamlit must not import CitationGraphStore.
+Streamlit must not introduce NetworkX, Neo4j, GraphRAG, or a full graph runtime loader.
+```
+
+Planned Citation Graph UI surfaces:
+
+```text
+Status panel:
+  GET /citation-graph/status
+
+Selected paper evidence panel:
+  GET /citation-graph/papers/{canonical_id}/references
+  GET /citation-graph/papers/{canonical_id}/citations
+
+Diagnostics panel:
+  GET /citation-graph/source-families
+  GET /citation-graph/top-referenced-papers
+  GET /citation-graph/top-external-references
+
+External reference lookup:
+  GET /citation-graph/external-references/{reference_id}/papers
+```
+
+Required UI caveats:
+
+```text
+metadata_reference_fields_only
+not_a_complete_citation_index
+manual_review_required
+publication_ready_false
+not_global_citation_metric for top-reference diagnostics
+not_publication_grade_ranking for top-reference diagnostics
+not_publication_grade_reference_entity for top external references
+```
+
+Paper–Artifact evidence rule:
+
+```text
+Use existing Artifact API endpoints first:
+GET /artifacts
+GET /artifacts/{artifact_id}
+GET /artifacts/{artifact_id}/papers
+GET /documents/{canonical_id}/artifacts
+
+Do not add a dedicated Paper–Artifact Graph API unless a later design slice
+identifies a concrete gap that these Artifact API endpoints cannot cover.
+```
 
 ## Configuration
 
@@ -2505,8 +2569,9 @@ No public /search behavior change in this checkpoint.
 Citation graph status endpoint is implemented.
 Citation graph outgoing references endpoint is implemented.
 Citation graph incoming citations endpoint is implemented.
-Citation graph external-reference/source-family/top-reference endpoints are not implemented.
+Citation graph external-reference, source-family, top-referenced-papers, and top-external-references endpoints are implemented as narrow diagnostics/traversal surfaces.
 Citation graph API is disabled by default.
+Graph API / Streamlit productization is design-only in this checkpoint.
 No full graph runtime loader.
 No Qdrant promotion.
 No fallback.
