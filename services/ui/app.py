@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from typing import Any
+from urllib.parse import quote
 
 import pandas as pd
 import requests
@@ -230,6 +231,19 @@ def fetch_citation_graph_top_external_references(
     params: dict[str, Any],
 ) -> dict[str, Any]:
     return api_get(base_url, "/citation-graph/top-external-references", params=params)
+
+
+def fetch_citation_graph_external_reference_papers(
+    base_url: str,
+    reference_id: str,
+    params: dict[str, Any],
+) -> dict[str, Any]:
+    encoded_reference_id = quote(reference_id.strip(), safe="")
+    return api_get(
+        base_url,
+        f"/citation-graph/external-references/{encoded_reference_id}/papers",
+        params=params,
+    )
 
 
 def fetch_search(base_url: str, params: dict[str, Any]) -> dict[str, Any]:
@@ -544,6 +558,10 @@ def init_ui_state() -> None:
         "citation_graph_top_external_references_payload": None,
         "citation_graph_diagnostics_limit": 20,
         "citation_graph_diagnostics_offset": 0,
+        "citation_graph_external_reference_lookup_payload": None,
+        "citation_graph_external_reference_lookup_id": "",
+        "citation_graph_external_reference_lookup_limit": 20,
+        "citation_graph_external_reference_lookup_offset": 0,
         "artifact_linked_papers_limit": 20,
         "artifact_linked_papers_offset": 0,
         "artifact_linked_papers_relation_type": "",
@@ -3135,6 +3153,13 @@ def build_citation_graph_diagnostics_params() -> dict[str, Any]:
     }
 
 
+def build_citation_graph_external_reference_lookup_params() -> dict[str, Any]:
+    return {
+        "limit": int(st.session_state["citation_graph_external_reference_lookup_limit"]),
+        "offset": int(st.session_state["citation_graph_external_reference_lookup_offset"]),
+    }
+
+
 def _citation_graph_source_families(value: Any) -> str:
     if isinstance(value, list):
         return ", ".join(str(item) for item in value[:8]) or "—"
@@ -3205,6 +3230,21 @@ def citation_graph_top_external_reference_row_to_table(
         "normalized_reference": row.get("normalized_reference"),
         "referencing_paper_count": row.get("referencing_paper_count"),
         "source_families": _citation_graph_source_families(row.get("source_families")),
+    }
+
+
+def citation_graph_external_reference_paper_row_to_table(
+    row: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "source_canonical_id": row.get("source_canonical_id"),
+        "source_year": row.get("source_year"),
+        "source_title": row.get("source_title"),
+        "external_reference_id": row.get("external_reference_id"),
+        "reference_type": row.get("reference_type"),
+        "normalized_reference": row.get("normalized_reference"),
+        "source_families": _citation_graph_source_families(row.get("source_families")),
+        "evidence_count": row.get("evidence_count"),
     }
 
 
@@ -3437,6 +3477,93 @@ def render_citation_graph_diagnostics_panel(base_url: str) -> None:
             row_mapper=citation_graph_top_external_reference_row_to_table,
             raw_expander_label="Raw top external references payload",
         )
+
+
+
+def render_citation_graph_external_reference_lookup_panel(base_url: str) -> None:
+    st.subheader("Citation graph external reference lookup")
+    st.caption(
+        "Look up papers that reference one unresolved external_reference node. "
+        "This is metadata-derived local-inspection evidence, not a complete citation index, "
+        "not a publication-grade reference entity, and not publication-ready."
+    )
+
+    reference_id = st.text_input(
+        "External reference ID",
+        key="citation_graph_external_reference_lookup_id",
+        placeholder=(
+            "external_reference:doi:10.9999/example, "
+            "doi:10.9999/example, or 10.9999/example"
+        ),
+        help=(
+            "The UI URL-encodes this value before calling "
+            "/citation-graph/external-references/{reference_id}/papers."
+        ),
+    ).strip()
+
+    control_cols = st.columns([1, 1])
+    with control_cols[0]:
+        st.number_input(
+            "External reference lookup limit",
+            min_value=1,
+            max_value=100,
+            step=1,
+            key="citation_graph_external_reference_lookup_limit",
+        )
+    with control_cols[1]:
+        st.number_input(
+            "External reference lookup offset",
+            min_value=0,
+            max_value=1_000_000,
+            step=20,
+            key="citation_graph_external_reference_lookup_offset",
+        )
+
+    if st.button(
+        "Load citation graph external reference papers",
+        key="load_citation_graph_external_reference_papers",
+        width="stretch",
+    ):
+        if not reference_id:
+            st.warning("External reference ID is empty.")
+        else:
+            try:
+                params = build_citation_graph_external_reference_lookup_params()
+                with st.spinner("Loading external reference papers..."):
+                    st.session_state[
+                        "citation_graph_external_reference_lookup_payload"
+                    ] = fetch_citation_graph_external_reference_papers(
+                        base_url,
+                        reference_id,
+                        params,
+                    )
+            except Exception as exc:
+                st.error(str(exc))
+
+    st.caption(
+        "Requires `ML_RADAR_CITATION_GRAPH_API_ENABLED=true`. "
+        "The external reference identifier may contain `/` or `:`; the UI uses URL quoting "
+        "before calling the API path. Expected caveats include "
+        "`external_reference_is_unresolved` and `not_publication_grade_reference_entity`."
+    )
+
+    payload = st.session_state.get("citation_graph_external_reference_lookup_payload")
+    if not payload:
+        st.info(
+            "Paste an external reference id and load referencing papers. "
+            "Useful inputs include full node ids, reference keys, or normalized values."
+        )
+        return
+
+    render_citation_graph_diagnostics_payload(
+        payload,
+        title="External reference papers",
+        row_mapper=citation_graph_external_reference_paper_row_to_table,
+        raw_expander_label="Raw external reference lookup payload",
+        open_button_label="Open referencing paper in Paper workspace",
+        open_button_key_prefix="open_citation_graph_external_reference_paper",
+        canonical_id_field="source_canonical_id",
+    )
 
 
 def render_selected_paper_citation_graph_panel(base_url: str, canonical_id: str) -> None:
@@ -3866,6 +3993,7 @@ def main() -> None:
         search_tab,
         paper_workspace_tab,
         citation_graph_diagnostics_tab,
+        citation_graph_external_lookup_tab,
         clusters_tab,
         topic_map_tab,
         artifacts_tab,
@@ -3875,6 +4003,7 @@ def main() -> None:
             "Search",
             "Paper workspace",
             "Citation graph diagnostics",
+            "External reference lookup",
             "Topic clusters",
             "Topic map",
             "Artifact explorer",
@@ -3969,6 +4098,9 @@ def main() -> None:
 
     with citation_graph_diagnostics_tab:
         render_citation_graph_diagnostics_panel(api_base_url)
+
+    with citation_graph_external_lookup_tab:
+        render_citation_graph_external_reference_lookup_panel(api_base_url)
 
     with clusters_tab:
         render_topic_clusters(api_base_url)

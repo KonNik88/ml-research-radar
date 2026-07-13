@@ -16,7 +16,7 @@ overlapping source-level observations.
 ## Current checkpoint
 
 ```text
-checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1 / Citation Graph Diagnostics UI v0.1
+checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1 / Citation Graph Diagnostics UI v0.1 / Citation Graph External Reference Lookup UI v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
@@ -77,6 +77,7 @@ sources
 → Citation Graph Streamlit status panel
 → Citation Graph Paper workspace evidence panel
 → Citation Graph diagnostics panel
+→ Citation Graph external reference lookup panel
 → Streamlit Discovery UI
 → validators / regression / strict DoD
 ```
@@ -865,4 +866,27 @@ The retrieval-serving checkpoint gate is the lightweight regression guard.
 Future promotion decisions must be explicit, evidence-backed, and reversible.
 Citation graph status/references/citations/external-reference-papers/source-families/top-referenced-papers/top-external-references are the checkpointed v0.3 narrow local-inspection API block, not a graph-runtime promotion.
 Graph API / Streamlit productization starts as a design-only thin-client plan, not UI implementation.
+```
+
+
+## Citation Graph external reference lookup UI
+
+```text
+Citation Graph External Reference Lookup UI v0.1 = implemented UI-only local-inspection surface
+```
+
+The panel calls the existing `GET /citation-graph/external-references/{reference_id}/papers` endpoint through FastAPI and URL-quotes `reference_id` before placing it in the path. It renders referencing-paper evidence for unresolved external references.
+
+Boundary:
+
+```text
+Streamlit remains a thin API client
+no direct reads from data/graphs/*
+no CitationGraphStore import from Streamlit
+no API/store/schema changes
+no graph visualization
+no NetworkX/Neo4j/GraphRAG
+no full graph runtime loader
+no graph DB materialization
+no canonical/retrieval/Qdrant/Postgres/ranking/publication change
 ```

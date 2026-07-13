@@ -317,6 +317,26 @@ CITATION_GRAPH_DIAGNOSTICS_UI_SNIPPETS = [
     "not publication-grade rankings",
 ]
 
+
+CITATION_GRAPH_EXTERNAL_REFERENCE_LOOKUP_UI_SNIPPETS = [
+    "External reference lookup",
+    "fetch_citation_graph_external_reference_papers",
+    "render_citation_graph_external_reference_lookup_panel",
+    "build_citation_graph_external_reference_lookup_params",
+    "citation_graph_external_reference_paper_row_to_table",
+    "citation_graph_external_reference_lookup_payload",
+    "citation_graph_external_reference_lookup_id",
+    "citation_graph_external_reference_lookup_limit",
+    "citation_graph_external_reference_lookup_offset",
+    "Load citation graph external reference papers",
+    "External reference papers",
+    "Open referencing paper in Paper workspace",
+    "/citation-graph/external-references/{reference_id}/papers",
+    "quote(reference_id.strip(), safe=\"\")",
+    "external_reference_is_unresolved",
+    "not_publication_grade_reference_entity",
+]
+
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -1103,6 +1123,10 @@ def build_report(
         app_text,
         CITATION_GRAPH_DIAGNOSTICS_UI_SNIPPETS,
     )
+    missing_citation_graph_external_reference_lookup = missing_snippets(
+        app_text,
+        CITATION_GRAPH_EXTERNAL_REFERENCE_LOOKUP_UI_SNIPPETS,
+    )
 
     checks["required_ui_snippets_present"] = not missing_required
     checks["discovery_endpoint_strings_present"] = not missing_discovery
@@ -1144,6 +1168,9 @@ def build_report(
     checks["citation_graph_diagnostics_ui_snippets_present"] = (
         not missing_citation_graph_diagnostics
     )
+    checks["citation_graph_external_reference_lookup_ui_snippets_present"] = (
+        not missing_citation_graph_external_reference_lookup
+    )
 
     extracted_values["missing_required_ui_snippets"] = missing_required
     extracted_values["missing_discovery_endpoint_strings"] = missing_discovery
@@ -1178,6 +1205,9 @@ def build_report(
     )
     extracted_values["missing_citation_graph_diagnostics_ui_snippets"] = (
         missing_citation_graph_diagnostics
+    )
+    extracted_values["missing_citation_graph_external_reference_lookup_ui_snippets"] = (
+        missing_citation_graph_external_reference_lookup
     )
 
     if check_api:
@@ -1215,6 +1245,7 @@ def build_report(
         "paper_workspace_artifact_ui_snippets_present",
         "paper_workspace_citation_graph_ui_snippets_present",
         "citation_graph_diagnostics_ui_snippets_present",
+        "citation_graph_external_reference_lookup_ui_snippets_present",
     ]
 
     if check_api:

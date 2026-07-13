@@ -86,7 +86,8 @@ Citation Graph API Regression DoD Wiring v0.1 — 2026-07 completed optional DoD
 Graph API / Streamlit Productization Design v0.1 — 2026-07 completed design-only productization checkpoint
 Citation Graph Streamlit Status Panel v0.1 — 2026-07 completed first UI status-panel slice
 Citation Graph Paper Workspace Panel v0.1 — 2026-07 completed selected-paper citation/reference evidence UI slice
-Citation Graph Diagnostics UI v0.1 — 2026-07 active graph diagnostics table UI slice
+Citation Graph Diagnostics UI v0.1 — 2026-07 completed graph diagnostics table UI slice
+Citation Graph External Reference Lookup UI v0.1 — 2026-07 active external-reference lookup UI slice
 ```
 
 Current healthy baseline:
@@ -156,7 +157,8 @@ citation_graph_api_regression_check = optional_by_default_required_with_require_
 graph_api_streamlit_productization_design = completed_design_only
 citation_graph_streamlit_status_panel = completed_ui_status_only
 citation_graph_paper_workspace_panel = completed_selected_paper_evidence_ui
-citation_graph_diagnostics_ui = active_diagnostics_table_ui
+citation_graph_diagnostics_ui = completed_diagnostics_table_ui
+citation_graph_external_reference_lookup_ui = active_external_reference_lookup_ui
 citation_graph_runtime_loader = not_implemented
 paper_artifact_graph_dod_gate = not required yet
 paper_artifact_graph_manual_review_dod_gate = not required yet
@@ -449,6 +451,7 @@ Expected Streamlit validator result:
 citation_graph_status_ui_snippets_present = true
 paper_workspace_citation_graph_ui_snippets_present = true
 citation_graph_diagnostics_ui_snippets_present = true
+citation_graph_external_reference_lookup_ui_snippets_present = true
 required_failed_count = 0
 ```
 
@@ -506,6 +509,7 @@ Expected Streamlit validator result:
 ```text
 paper_workspace_citation_graph_ui_snippets_present = true
 citation_graph_diagnostics_ui_snippets_present = true
+citation_graph_external_reference_lookup_ui_snippets_present = true
 required_failed_count = 0
 ```
 
@@ -563,6 +567,7 @@ Expected Streamlit validator result:
 
 ```text
 citation_graph_diagnostics_ui_snippets_present = true
+citation_graph_external_reference_lookup_ui_snippets_present = true
 required_failed_count = 0
 ```
 
@@ -586,6 +591,64 @@ Boundary:
 diagnostics tables only
 no selected-paper references/citations changes
 no external-reference lookup UI
+no graph visualization
+no direct graph file reads
+no GraphRAG / NetworkX / Neo4j
+no graph DB materialization
+no endpoint/API schema changes
+no canonical/retrieval/Qdrant/Postgres/ranking/publication change
+```
+
+
+## A.9 Citation Graph external reference lookup UI smoke
+
+Use this when changing the external-reference lookup UI.
+
+Scope:
+
+```text
+Streamlit calls only the external-reference Citation Graph traversal endpoint:
+GET /citation-graph/external-references/{reference_id}/papers
+Streamlit URL-quotes reference_id before inserting it into the path.
+Streamlit renders referencing-paper evidence rows as local-inspection evidence.
+```
+
+Static validation:
+
+```bat
+python -m py_compile services/ui/app.py
+python -m py_compile scripts/validation/check_streamlit_discovery_ui.py
+python -m scripts.validation.check_streamlit_discovery_ui --strict
+python -m scripts.validation.check_citation_graph_api_regression --strict
+git diff --check
+```
+
+Expected Streamlit validator result:
+
+```text
+citation_graph_external_reference_lookup_ui_snippets_present = true
+required_failed_count = 0
+```
+
+Manual live UI smoke:
+
+```text
+Start FastAPI with ML_RADAR_SEARCH_BACKEND=file and ML_RADAR_CITATION_GRAPH_API_ENABLED=true.
+Start Streamlit.
+Open External reference lookup.
+Paste an external reference id, reference key, or normalized reference value.
+Click Load citation graph external reference papers.
+Confirm referencing-paper table or empty-state message renders without crashing.
+Confirm caveats remain visible and raw payload expander is available.
+Confirm Open referencing paper in Paper workspace updates the selected paper.
+```
+
+Boundary:
+
+```text
+external-reference lookup only
+no diagnostics table changes
+no selected-paper references/citations changes
 no graph visualization
 no direct graph file reads
 no GraphRAG / NetworkX / Neo4j

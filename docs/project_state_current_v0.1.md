@@ -299,7 +299,7 @@ graph_db_materialization = not implemented
 streamlit_graph_status_panel = implemented
 streamlit_graph_paper_workspace_panel = implemented
 streamlit_graph_diagnostics_ui = implemented
-streamlit_graph_external_reference_lookup_ui = not implemented
+streamlit_graph_external_reference_lookup_ui = implemented
 graphrag = not implemented
 publication_ready = false
 manual_review_required = true
@@ -1230,4 +1230,29 @@ no /search or ranking behavior change
 no canonical truth mutation
 no graph output/package/report rebuild
 no publication
+```
+
+
+## Citation Graph External Reference Lookup UI v0.1
+
+Status: **implemented UI-only local-inspection slice**
+
+```text
+Streamlit calls GET /citation-graph/external-references/{reference_id}/papers through FastAPI.
+The UI URL-quotes reference_id before inserting it into the endpoint path.
+The panel renders referencing-paper evidence rows and raw payloads for manual inspection.
+```
+
+Boundary:
+
+```text
+no API endpoint changes
+no CitationGraphStore changes
+no schema changes
+no direct Streamlit reads from data/graphs/*
+no graph visualization
+no NetworkX/Neo4j/GraphRAG
+no full graph runtime loader
+no graph DB materialization
+no canonical/retrieval/Qdrant/Postgres/ranking/publication change
 ```

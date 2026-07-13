@@ -29,6 +29,7 @@ canonical JSONL truth
 → Citation Graph Streamlit status panel
 → Citation Graph Paper workspace panel
 → Citation Graph Diagnostics UI panel
+→ Citation Graph External Reference Lookup UI panel
 → Streamlit Discovery UI
 ```
 
@@ -72,6 +73,7 @@ Graph API / Streamlit Productization Design v0.1
 Citation Graph Streamlit Status Panel v0.1
 Citation Graph Paper Workspace Panel v0.1
 Citation Graph Diagnostics UI v0.1
+Citation Graph External Reference Lookup UI v0.1
 ```
 
 Current canonical baseline:
@@ -597,6 +599,7 @@ streamlit_graph_ui = not implemented
 streamlit_graph_status_panel = implemented
 streamlit_graph_paper_workspace_panel = implemented
 streamlit_graph_diagnostics_ui = implemented
+streamlit_graph_external_reference_lookup_ui = implemented
 graphrag = not implemented
 publication_ready = false
 manual_review_required = true
@@ -783,6 +786,37 @@ Boundary:
 no direct reads from data/graphs/*
 no CitationGraphStore import from Streamlit
 no external-reference lookup UI in this slice
+no graph visualization
+no NetworkX/Neo4j/GraphRAG
+no full graph runtime loader
+no graph DB materialization
+no endpoint/API schema changes
+no canonical/retrieval/Qdrant/Postgres/ranking/publication change
+```
+
+
+## Streamlit Citation Graph external reference lookup panel
+
+Current Streamlit implementation:
+
+```text
+Citation Graph External Reference Lookup UI v0.1 = implemented external-reference lookup UI slice
+```
+
+UI behavior:
+
+```text
+Streamlit calls GET /citation-graph/external-references/{reference_id}/papers through FastAPI.
+The reference_id input is URL-quoted before being inserted into the path.
+The panel renders papers that reference one unresolved external_reference node.
+The response payload is stored in citation_graph_external_reference_lookup_payload session state.
+```
+
+Boundary:
+
+```text
+no direct reads from data/graphs/*
+no CitationGraphStore import from Streamlit
 no graph visualization
 no NetworkX/Neo4j/GraphRAG
 no full graph runtime loader

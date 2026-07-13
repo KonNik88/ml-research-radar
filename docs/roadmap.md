@@ -7,12 +7,12 @@ document = primary living roadmap
 accepted checkpoint = Current State Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
 current active direction = review / regression / design-hardening
-current active slice = Citation Graph Diagnostics UI v0.1
+current active slice = Citation Graph External Reference Lookup UI v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = third Streamlit graph productization code slice; consume /citation-graph/source-families, /citation-graph/top-referenced-papers, and /citation-graph/top-external-references only as diagnostic tables; no external-reference lookup UI, graph visualization, graph runtime loader, graph DB, GraphRAG, endpoint, canonical, retrieval, Qdrant, Postgres, ranking, or publication behavior changes
+scope of current branch = fourth Streamlit graph productization code slice; consume /citation-graph/external-references/{reference_id}/papers as an explicit external-reference lookup UI with URL/path quoting; no graph visualization, graph runtime loader, graph DB, GraphRAG, endpoint, canonical, retrieval, Qdrant, Postgres, ranking, or publication behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -89,13 +89,13 @@ Recently completed safe slices:
 26. **Graph API / Streamlit Productization Design v0.1** — completed design-only bridge from accepted graph APIs to future Streamlit UI slices; no UI code or API behavior change.
 27. **Citation Graph Streamlit Status Panel v0.1** — completed first UI code slice; Streamlit reads `/citation-graph/status` and renders availability/caveats only.
 28. **Citation Graph Paper Workspace Panel v0.1** — completed second UI code slice; Streamlit reads selected-paper `/references` and `/citations` endpoints and renders evidence tables only.
-29. **Citation Graph Diagnostics UI v0.1** — active third UI code slice; Streamlit reads `/source-families`, `/top-referenced-papers`, and `/top-external-references` endpoints and renders diagnostic tables only.
+29. **Citation Graph Diagnostics UI v0.1** — completed third UI code slice; Streamlit reads `/source-families`, `/top-referenced-papers`, and `/top-external-references` endpoints and renders diagnostic tables only.
+30. **Citation Graph External Reference Lookup UI v0.1** — active fourth UI code slice; Streamlit reads `/external-references/{reference_id}/papers` with explicit URL/path quoting and renders referencing-paper evidence only.
 
 Recommended next safe slices:
 
-1. **Citation Graph Diagnostics UI v0.1** — add source-family and top-reference diagnostics as explicitly non-publication-grade diagnostics.
-2. **Citation Graph External Reference Lookup UI v0.1** — add explicit external-reference lookup only after URL/path encoding behavior is handled.
-3. **Paper–Artifact Graph API Design v0.1** — only if existing Artifact API surfaces prove insufficient for paper-artifact graph evidence.
+1. **Citation Graph External Reference Lookup UI v0.1** — add explicit external-reference lookup with URL/path encoding handled in the Streamlit client.
+2. **Paper–Artifact Graph API Design v0.1** — only if existing Artifact API surfaces prove insufficient for paper-artifact graph evidence.
 
 Explicit immediate non-goals:
 
@@ -3793,3 +3793,29 @@ Boundary:
 
 See: `docs/citation_reference_graph_package_v0.md`.
 <!-- CITATION_REFERENCE_GRAPH_PACKAGE_V01_END -->
+
+
+### Citation Graph External Reference Lookup UI v0.1
+
+Status: **active UI-only slice**
+
+Scope:
+
+```text
+Streamlit calls GET /citation-graph/external-references/{reference_id}/papers through FastAPI.
+The UI URL-quotes reference_id before inserting it into the path.
+The panel renders referencing-paper evidence rows for one unresolved external_reference.
+```
+
+Boundary:
+
+```text
+no API endpoint changes
+no CitationGraphStore changes
+no direct Streamlit reads from data/graphs/*
+no graph visualization
+no NetworkX/Neo4j/GraphRAG
+no full graph runtime loader
+no graph DB materialization
+no canonical/retrieval/Qdrant/Postgres/ranking/publication change
+```
