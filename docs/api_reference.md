@@ -28,6 +28,7 @@ canonical JSONL truth
 → Graph API / Streamlit productization design
 → Citation Graph Streamlit status panel
 → Citation Graph Paper workspace panel
+→ Citation Graph Diagnostics UI panel
 → Streamlit Discovery UI
 ```
 
@@ -70,6 +71,7 @@ Citation Graph API Regression DoD Wiring v0.1
 Graph API / Streamlit Productization Design v0.1
 Citation Graph Streamlit Status Panel v0.1
 Citation Graph Paper Workspace Panel v0.1
+Citation Graph Diagnostics UI v0.1
 ```
 
 Current canonical baseline:
@@ -594,7 +596,7 @@ graph_db_materialization = not implemented
 streamlit_graph_ui = not implemented
 streamlit_graph_status_panel = implemented
 streamlit_graph_paper_workspace_panel = implemented
-streamlit_graph_diagnostics_ui = not implemented
+streamlit_graph_diagnostics_ui = implemented
 graphrag = not implemented
 publication_ready = false
 manual_review_required = true
@@ -755,6 +757,38 @@ no graph visualization
 no NetworkX/Neo4j/GraphRAG
 no full graph runtime loader
 no graph DB materialization
+```
+
+## Streamlit Citation Graph diagnostics panel
+
+Current Streamlit implementation:
+
+```text
+Citation Graph Diagnostics UI v0.1 = implemented diagnostics-table UI slice
+```
+
+UI behavior:
+
+```text
+Streamlit calls GET /citation-graph/source-families through FastAPI.
+Streamlit calls GET /citation-graph/top-referenced-papers through FastAPI.
+Streamlit calls GET /citation-graph/top-external-references through FastAPI.
+The diagnostics panel renders source-family reference diagnostics, top resolved-internal referenced papers, and top unresolved external references as explicitly non-publication-grade diagnostic tables.
+The response payloads are stored in citation_graph_source_families_payload, citation_graph_top_referenced_papers_payload, and citation_graph_top_external_references_payload session state.
+```
+
+Boundary:
+
+```text
+no direct reads from data/graphs/*
+no CitationGraphStore import from Streamlit
+no external-reference lookup UI in this slice
+no graph visualization
+no NetworkX/Neo4j/GraphRAG
+no full graph runtime loader
+no graph DB materialization
+no endpoint/API schema changes
+no canonical/retrieval/Qdrant/Postgres/ranking/publication change
 ```
 
 ## Configuration
