@@ -211,6 +211,27 @@ def fetch_citation_graph_paper_citations(
     )
 
 
+def fetch_citation_graph_source_families(
+    base_url: str,
+    params: dict[str, Any],
+) -> dict[str, Any]:
+    return api_get(base_url, "/citation-graph/source-families", params=params)
+
+
+def fetch_citation_graph_top_referenced_papers(
+    base_url: str,
+    params: dict[str, Any],
+) -> dict[str, Any]:
+    return api_get(base_url, "/citation-graph/top-referenced-papers", params=params)
+
+
+def fetch_citation_graph_top_external_references(
+    base_url: str,
+    params: dict[str, Any],
+) -> dict[str, Any]:
+    return api_get(base_url, "/citation-graph/top-external-references", params=params)
+
+
 def fetch_search(base_url: str, params: dict[str, Any]) -> dict[str, Any]:
     return api_get(base_url, "/search", params=params)
 
@@ -518,6 +539,11 @@ def init_ui_state() -> None:
         "artifact_detail_payload": None,
         "artifact_linked_papers_payload": None,
         "citation_graph_status_payload": None,
+        "citation_graph_source_families_payload": None,
+        "citation_graph_top_referenced_papers_payload": None,
+        "citation_graph_top_external_references_payload": None,
+        "citation_graph_diagnostics_limit": 20,
+        "citation_graph_diagnostics_offset": 0,
         "artifact_linked_papers_limit": 20,
         "artifact_linked_papers_offset": 0,
         "artifact_linked_papers_relation_type": "",
@@ -3102,6 +3128,13 @@ def build_selected_paper_citation_graph_params() -> dict[str, Any]:
     }
 
 
+def build_citation_graph_diagnostics_params() -> dict[str, Any]:
+    return {
+        "limit": int(st.session_state["citation_graph_diagnostics_limit"]),
+        "offset": int(st.session_state["citation_graph_diagnostics_offset"]),
+    }
+
+
 def _citation_graph_source_families(value: Any) -> str:
     if isinstance(value, list):
         return ", ".join(str(item) for item in value[:8]) or "—"
@@ -3134,6 +3167,44 @@ def citation_graph_citation_row_to_table(row: dict[str, Any]) -> dict[str, Any]:
         "source_families": _citation_graph_source_families(row.get("source_families")),
         "evidence_count": row.get("evidence_count"),
         "edge_id": row.get("edge_id"),
+    }
+
+
+def citation_graph_source_family_row_to_table(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "source_family": row.get("source_family"),
+        "paper_count_with_reference_evidence": row.get(
+            "paper_count_with_reference_evidence"
+        ),
+        "reference_edge_count": row.get("reference_edge_count"),
+        "resolved_edge_count": row.get("resolved_edge_count"),
+        "external_edge_count": row.get("external_edge_count"),
+    }
+
+
+def citation_graph_top_referenced_paper_row_to_table(
+    row: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "canonical_id": row.get("canonical_id"),
+        "year": row.get("year"),
+        "title": row.get("title"),
+        "incoming_resolved_reference_count": row.get(
+            "incoming_resolved_reference_count"
+        ),
+        "source_families": _citation_graph_source_families(row.get("source_families")),
+    }
+
+
+def citation_graph_top_external_reference_row_to_table(
+    row: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "external_reference_id": row.get("external_reference_id"),
+        "reference_type": row.get("reference_type"),
+        "normalized_reference": row.get("normalized_reference"),
+        "referencing_paper_count": row.get("referencing_paper_count"),
+        "source_families": _citation_graph_source_families(row.get("source_families")),
     }
 
 
@@ -3189,6 +3260,183 @@ def render_citation_graph_traversal_payload(
 
     with st.expander(raw_expander_label, expanded=False):
         st.json(payload)
+
+
+def render_citation_graph_diagnostics_payload(
+    payload: dict[str, Any],
+    *,
+    title: str,
+    row_mapper: Any,
+    raw_expander_label: str,
+    open_button_label: str | None = None,
+    open_button_key_prefix: str | None = None,
+    canonical_id_field: str | None = None,
+) -> None:
+    rows = payload.get("items") or []
+    page = payload.get("page") or {}
+    caveats = payload.get("caveats") or []
+
+    st.markdown(f"#### {title}")
+
+    cols = st.columns(4)
+    cols[0].metric("Returned", page.get("returned", len(rows)))
+    cols[1].metric("Total estimate", dash(page.get("total_estimate")))
+    cols[2].metric("Limit", dash(page.get("limit")))
+    cols[3].metric("Offset", dash(page.get("offset")))
+
+    if caveats:
+        st.caption("Caveats: " + " · ".join(f"`{item}`" for item in caveats))
+
+    if not rows:
+        st.info("No citation graph diagnostic rows returned for this request.")
+        with st.expander(raw_expander_label, expanded=False):
+            st.json(payload)
+        return
+
+    st.dataframe(
+        pd.DataFrame([row_mapper(row) for row in rows if isinstance(row, dict)]),
+        hide_index=True,
+        width="stretch",
+    )
+
+    if canonical_id_field and open_button_label and open_button_key_prefix:
+        for idx, row in enumerate(rows, start=1):
+            if not isinstance(row, dict):
+                continue
+
+            row_canonical_id = str(row.get(canonical_id_field) or "").strip()
+            if row_canonical_id:
+                render_open_paper_workspace_button(
+                    row_canonical_id,
+                    label=open_button_label,
+                    key=f"{open_button_key_prefix}_{idx}_{row_canonical_id}",
+                    rerun=True,
+                )
+
+    with st.expander(raw_expander_label, expanded=False):
+        st.json(payload)
+
+
+def render_citation_graph_diagnostics_panel(base_url: str) -> None:
+    st.subheader("Citation graph diagnostics")
+    st.caption(
+        "Local citation/reference graph diagnostics from the Citation Graph API. "
+        "These tables are metadata-derived, read-only, not a complete citation index, "
+        "not global citation metrics, and not publication-grade rankings."
+    )
+
+    control_cols = st.columns([1, 1])
+    with control_cols[0]:
+        st.number_input(
+            "Citation graph diagnostics limit",
+            min_value=1,
+            max_value=100,
+            step=1,
+            key="citation_graph_diagnostics_limit",
+        )
+    with control_cols[1]:
+        st.number_input(
+            "Citation graph diagnostics offset",
+            min_value=0,
+            max_value=1_000_000,
+            step=20,
+            key="citation_graph_diagnostics_offset",
+        )
+
+    params = build_citation_graph_diagnostics_params()
+    action_cols = st.columns([1, 1, 1])
+
+    with action_cols[0]:
+        if st.button(
+            "Load citation graph source families",
+            key="load_citation_graph_source_families",
+            width="stretch",
+        ):
+            try:
+                with st.spinner("Loading citation graph source-family diagnostics..."):
+                    st.session_state["citation_graph_source_families_payload"] = (
+                        fetch_citation_graph_source_families(base_url, params)
+                    )
+            except Exception as exc:
+                st.error(str(exc))
+
+    with action_cols[1]:
+        if st.button(
+            "Load citation graph top referenced papers",
+            key="load_citation_graph_top_referenced_papers",
+            width="stretch",
+        ):
+            try:
+                with st.spinner("Loading top referenced paper diagnostics..."):
+                    st.session_state["citation_graph_top_referenced_papers_payload"] = (
+                        fetch_citation_graph_top_referenced_papers(base_url, params)
+                    )
+            except Exception as exc:
+                st.error(str(exc))
+
+    with action_cols[2]:
+        if st.button(
+            "Load citation graph top external references",
+            key="load_citation_graph_top_external_references",
+            width="stretch",
+        ):
+            try:
+                with st.spinner("Loading top external reference diagnostics..."):
+                    st.session_state["citation_graph_top_external_references_payload"] = (
+                        fetch_citation_graph_top_external_references(base_url, params)
+                    )
+            except Exception as exc:
+                st.error(str(exc))
+
+    st.caption(
+        "Requires `ML_RADAR_CITATION_GRAPH_API_ENABLED=true`. "
+        "Diagnostics are local-inspection evidence only: not global citation metrics, "
+        "not publication-grade rankings, and not publication-ready."
+    )
+
+    source_families_payload = st.session_state.get(
+        "citation_graph_source_families_payload"
+    )
+    top_referenced_payload = st.session_state.get(
+        "citation_graph_top_referenced_papers_payload"
+    )
+    top_external_payload = st.session_state.get(
+        "citation_graph_top_external_references_payload"
+    )
+
+    if not any([source_families_payload, top_referenced_payload, top_external_payload]):
+        st.info(
+            "Load source-family diagnostics, top referenced papers, or top external "
+            "references to inspect citation graph diagnostic evidence."
+        )
+        return
+
+    if source_families_payload:
+        render_citation_graph_diagnostics_payload(
+            source_families_payload,
+            title="Source-family reference diagnostics",
+            row_mapper=citation_graph_source_family_row_to_table,
+            raw_expander_label="Raw source-family diagnostics payload",
+        )
+
+    if top_referenced_payload:
+        render_citation_graph_diagnostics_payload(
+            top_referenced_payload,
+            title="Top referenced papers",
+            row_mapper=citation_graph_top_referenced_paper_row_to_table,
+            raw_expander_label="Raw top referenced papers payload",
+            open_button_label="Open top referenced paper in Paper workspace",
+            open_button_key_prefix="open_citation_graph_top_referenced_paper",
+            canonical_id_field="canonical_id",
+        )
+
+    if top_external_payload:
+        render_citation_graph_diagnostics_payload(
+            top_external_payload,
+            title="Top external references",
+            row_mapper=citation_graph_top_external_reference_row_to_table,
+            raw_expander_label="Raw top external references payload",
+        )
 
 
 def render_selected_paper_citation_graph_panel(base_url: str, canonical_id: str) -> None:
@@ -3617,6 +3865,7 @@ def main() -> None:
         ranking_tab,
         search_tab,
         paper_workspace_tab,
+        citation_graph_diagnostics_tab,
         clusters_tab,
         topic_map_tab,
         artifacts_tab,
@@ -3625,6 +3874,7 @@ def main() -> None:
             "Discovery ranking",
             "Search",
             "Paper workspace",
+            "Citation graph diagnostics",
             "Topic clusters",
             "Topic map",
             "Artifact explorer",
@@ -3716,6 +3966,9 @@ def main() -> None:
 
     with paper_workspace_tab:
         render_paper_workspace(api_base_url)
+
+    with citation_graph_diagnostics_tab:
+        render_citation_graph_diagnostics_panel(api_base_url)
 
     with clusters_tab:
         render_topic_clusters(api_base_url)

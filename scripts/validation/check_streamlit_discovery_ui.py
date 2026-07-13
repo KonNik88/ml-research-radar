@@ -287,6 +287,36 @@ PAPER_WORKSPACE_CITATION_GRAPH_UI_SNIPPETS = [
     "not a complete citation index",
 ]
 
+CITATION_GRAPH_DIAGNOSTICS_UI_SNIPPETS = [
+    "Citation graph diagnostics",
+    "fetch_citation_graph_source_families",
+    "fetch_citation_graph_top_referenced_papers",
+    "fetch_citation_graph_top_external_references",
+    "render_citation_graph_diagnostics_panel",
+    "render_citation_graph_diagnostics_payload",
+    "build_citation_graph_diagnostics_params",
+    "citation_graph_source_family_row_to_table",
+    "citation_graph_top_referenced_paper_row_to_table",
+    "citation_graph_top_external_reference_row_to_table",
+    "citation_graph_source_families_payload",
+    "citation_graph_top_referenced_papers_payload",
+    "citation_graph_top_external_references_payload",
+    "citation_graph_diagnostics_limit",
+    "citation_graph_diagnostics_offset",
+    "Load citation graph source families",
+    "Load citation graph top referenced papers",
+    "Load citation graph top external references",
+    "Source-family reference diagnostics",
+    "Top referenced papers",
+    "Top external references",
+    "Open top referenced paper in Paper workspace",
+    "/citation-graph/source-families",
+    "/citation-graph/top-referenced-papers",
+    "/citation-graph/top-external-references",
+    "not global citation metrics",
+    "not publication-grade rankings",
+]
+
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -1069,6 +1099,11 @@ def build_report(
         PAPER_WORKSPACE_CITATION_GRAPH_UI_SNIPPETS,
     )
 
+    missing_citation_graph_diagnostics = missing_snippets(
+        app_text,
+        CITATION_GRAPH_DIAGNOSTICS_UI_SNIPPETS,
+    )
+
     checks["required_ui_snippets_present"] = not missing_required
     checks["discovery_endpoint_strings_present"] = not missing_discovery
     checks["similar_modes_present"] = not missing_similar
@@ -1106,6 +1141,9 @@ def build_report(
     checks["paper_workspace_citation_graph_ui_snippets_present"] = (
         not missing_paper_workspace_citation_graph
     )
+    checks["citation_graph_diagnostics_ui_snippets_present"] = (
+        not missing_citation_graph_diagnostics
+    )
 
     extracted_values["missing_required_ui_snippets"] = missing_required
     extracted_values["missing_discovery_endpoint_strings"] = missing_discovery
@@ -1137,6 +1175,9 @@ def build_report(
     )
     extracted_values["missing_paper_workspace_citation_graph_ui_snippets"] = (
         missing_paper_workspace_citation_graph
+    )
+    extracted_values["missing_citation_graph_diagnostics_ui_snippets"] = (
+        missing_citation_graph_diagnostics
     )
 
     if check_api:
@@ -1173,6 +1214,7 @@ def build_report(
         "paper_navigation_polish_ui_snippets_present",
         "paper_workspace_artifact_ui_snippets_present",
         "paper_workspace_citation_graph_ui_snippets_present",
+        "citation_graph_diagnostics_ui_snippets_present",
     ]
 
     if check_api:
