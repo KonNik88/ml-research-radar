@@ -822,21 +822,29 @@ Recently completed safe slices after this checkpoint baseline:
    - URL-quotes `reference_id` before calling the external-reference papers endpoint.
 
 27. **Citation Graph UI Productization Checkpoint v0.1**
-   - current validator-light checkpoint;
+   - completed validator-light checkpoint;
    - freezes seven API routes and four Streamlit evidence consumers;
-   - synchronizes living docs, existing validators, terminology, and stale comments only.
+   - synchronized living docs, existing validators, terminology, and stale comments only.
+
+28. **Citation Graph Store Cache & Reload Regression v0.1**
+   - current regression-hardening slice;
+   - freezes bounded cache reuse, `/reload` invalidation, disabled-reload behavior, and graph-artifact no-mutation semantics;
+   - adds integration evidence and extends the existing Citation Graph API regression validator.
 
 Recommended next slices:
 
-1. **Citation Graph UI Productization Checkpoint v0.1**
-   - complete docs and validator synchronization;
-   - preserve current API/runtime behavior and all safety markers.
+1. **Citation Graph Store Cache & Reload Regression v0.1**
+   - freeze bounded cache reuse, `/reload` invalidation, disabled-reload behavior, and graph-artifact no-mutation semantics;
+   - do not add endpoints or runtime behavior.
 
-2. **Citation Graph Review and Regression Hardening v0.1**
-   - add a live smoke/checklist, cache/reload semantics evidence, known-issues refresh, and manual-review evidence preparation;
+2. **Citation Graph Live Smoke & Known-Issues Hardening v0.1**
+   - prepare operator-facing live smoke evidence and refresh known limitations;
    - do not approve or publish the graph.
 
-3. **Paper–Artifact Graph API Design v0.1, only if needed**
+3. **Citation Graph Manual-Review Evidence Preparation v0.1**
+   - prepare evidence for selected pending categories without changing approval state.
+
+4. **Paper–Artifact Graph API Design v0.1, only if needed**
    - start only after proving that existing Artifact API surfaces cannot cover a concrete product requirement.
 
 ---
@@ -1313,3 +1321,27 @@ no publication
 
 The next preferred direction after this checkpoint is review/regression
 hardening, not additional graph endpoints or a graph database.
+
+
+## Citation Graph Store Cache & Reload Regression v0.1
+
+Current active hardening slice:
+
+```text
+citation_graph_store_cache = bounded_by_graph_root
+citation_graph_store_cache_maxsize = 2
+citation_graph_store_cache_clear_on_reload = implemented
+graph_reload_rebuilds_artifacts = false
+graph_reload_mutates_artifacts = false
+reload_disabled_clears_graph_cache = false
+```
+
+The implementation already existed at the accepted `82717c8` baseline. This
+slice adds explicit regression evidence rather than a new runtime capability.
+The graph store remains a process-local, read-only local-inspection cache. A
+successful `/reload` invalidates it before the existing API runtime and
+Discovery reload sequence. The next graph access may re-read updated files from
+the same root.
+
+No canonical, retrieval, Qdrant, Postgres, ranking, UI, graph schema, endpoint,
+manual-review, or publication behavior changes are included.

@@ -16,7 +16,7 @@ overlapping source-level observations.
 ## Current checkpoint
 
 ```text
-checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1 / Citation Graph Diagnostics UI v0.1 / Citation Graph External Reference Lookup UI v0.1 / Citation Graph UI Productization Checkpoint v0.1
+checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1 / Citation Graph Diagnostics UI v0.1 / Citation Graph External Reference Lookup UI v0.1 / Citation Graph UI Productization Checkpoint v0.1 / Citation Graph Store Cache & Reload Regression v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
@@ -78,6 +78,7 @@ sources
 → Citation Graph Paper workspace evidence panel
 → Citation Graph diagnostics panel
 → Citation Graph external reference lookup panel
+→ Citation Graph bounded store-cache / reload invalidation contract
 → Streamlit Discovery UI
 → validators / regression / strict DoD
 ```
@@ -929,3 +930,36 @@ This checkpoint changes documentation, validation markers, and stale comments
 only. It does not change API responses, graph loading, canonical truth, retrieval,
 Postgres, Qdrant, ranking, graph outputs, packages, manual-review state, or
 publication state.
+
+
+## Citation Graph store cache and reload lifecycle
+
+The implemented local-inspection routes use a small process-local cache:
+
+```text
+citation_graph_store_cache = bounded_by_graph_root
+citation_graph_store_cache_maxsize = 2
+citation_graph_store_cache_clear_on_reload = implemented
+```
+
+The cache key is the configured graph-root string. Repeated reads of the same
+root reuse one immutable, read-only `CitationGraphStore` instance. This avoids
+re-reading the complete local nodes/edges files on every narrow inspection
+request.
+
+`POST /reload` invalidates the graph-store cache before reloading the main API
+runtime and Discovery caches. The next graph traversal request loads the current
+files from the configured root. This is cache invalidation, not a promoted graph
+runtime subsystem:
+
+```text
+graph_reload_rebuilds_artifacts = false
+graph_reload_mutates_artifacts = false
+full_graph_runtime_loader = not implemented
+graph_db_materialization = not implemented
+graphrag = not implemented
+```
+
+When the reload endpoint is disabled, the request returns `404` before graph
+cache invalidation. General API health remains governed by the normal API
+runtime and does not depend on Citation Graph availability.

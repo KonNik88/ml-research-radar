@@ -88,7 +88,8 @@ Citation Graph Streamlit Status Panel v0.1 — 2026-07 completed first UI status
 Citation Graph Paper Workspace Panel v0.1 — 2026-07 completed selected-paper citation/reference evidence UI slice
 Citation Graph Diagnostics UI v0.1 — 2026-07 completed graph diagnostics table UI slice
 Citation Graph External Reference Lookup UI v0.1 — 2026-07 completed external-reference lookup UI slice
-Citation Graph UI Productization Checkpoint v0.1 — 2026-07 active validator-light docs/validation checkpoint
+Citation Graph UI Productization Checkpoint v0.1 — 2026-07 completed validator-light docs/validation checkpoint
+Citation Graph Store Cache & Reload Regression v0.1 — 2026-07 active regression-hardening slice over bounded store-cache invalidation and graph-artifact no-mutation semantics
 ```
 
 Current healthy baseline:
@@ -4056,3 +4057,49 @@ python -m scripts.update.check_refresh_definition_of_done --require-citation-gra
 The optional full DoD command also depends on the repository database and the
 other current validation reports. A failure outside the Citation Graph block must
 be classified separately rather than treated as a productization regression.
+
+
+# Citation Graph Store Cache & Reload Regression v0.1 validation
+
+The slice validates an existing lifecycle contract; it does not add a route or
+change runtime behavior.
+
+Accepted markers:
+
+```text
+citation_graph_store_cache = bounded_by_graph_root
+citation_graph_store_cache_maxsize = 2
+citation_graph_store_cache_clear_on_reload = implemented
+graph_reload_rebuilds_artifacts = false
+graph_reload_mutates_artifacts = false
+reload_disabled_clears_graph_cache = false
+```
+
+Run focused validation:
+
+```bash
+python -m pytest tests/integration/test_api_reload.py -q
+python -m pytest tests/integration/test_api_citation_graph_reload.py -q
+python -m scripts.validation.check_citation_graph_api_regression --strict
+python -m pytest tests/smoke/test_citation_graph_api_regression.py -q
+python -m pytest tests/smoke/test_citation_graph_api_regression_dod.py -q
+```
+
+Then run the existing connected Citation Graph regression block:
+
+```bash
+python -m pytest tests/integration/test_api_citation_graph_status.py -q
+python -m pytest tests/integration/test_api_citation_graph_references.py -q
+python -m pytest tests/smoke/test_citation_graph_fixture_store.py -q
+python -m scripts.update.check_refresh_definition_of_done --require-citation-graph-api-regression
+```
+
+Expected contract:
+
+- repeated graph-store loads for one root reuse the cached instance;
+- successful `/reload` clears the graph-store cache before `runtime.reload()`;
+- the next graph read can observe replaced local graph files;
+- `/reload` does not mutate graph artifacts;
+- disabled `/reload` returns `404` before cache invalidation;
+- general reload, health, Qdrant reset, seven graph routes, manual-review flags,
+  and publication boundaries remain unchanged.

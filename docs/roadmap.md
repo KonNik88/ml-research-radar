@@ -7,12 +7,12 @@ document = primary living roadmap
 accepted checkpoint = Current State Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
 current active direction = review / regression / design-hardening
-current active slice = Citation Graph UI Productization Checkpoint v0.1
+current active slice = Citation Graph Store Cache & Reload Regression v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = validator-light checkpoint over the completed seven-route Citation Graph API and four thin Streamlit evidence consumers; synchronize living docs, validators, terminology, and comments only; no graph visualization, full graph runtime loader, graph DB, GraphRAG, endpoint, canonical, retrieval, Qdrant, Postgres, ranking, or publication behavior changes
+scope of current branch = regression-hardening over the existing bounded CitationGraphStore cache and POST /reload invalidation contract; add graph-specific integration evidence, extend the existing regression validator, and synchronize living docs only; no new endpoint, store method, graph rebuild, graph artifact mutation, full graph runtime loader, graph DB, GraphRAG, canonical, retrieval, Qdrant, Postgres, ranking, UI, or publication behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -91,13 +91,15 @@ Recently completed safe slices:
 28. **Citation Graph Paper Workspace Panel v0.1** — completed second UI code slice; Streamlit reads selected-paper `/references` and `/citations` endpoints and renders evidence tables only.
 29. **Citation Graph Diagnostics UI v0.1** — completed third UI code slice; Streamlit reads `/source-families`, `/top-referenced-papers`, and `/top-external-references` endpoints and renders diagnostic tables only.
 30. **Citation Graph External Reference Lookup UI v0.1** — completed fourth UI code slice; Streamlit reads `/external-references/{reference_id}/papers` with explicit URL/path quoting and renders referencing-paper evidence only.
-31. **Citation Graph UI Productization Checkpoint v0.1** — active validator-light checkpoint over seven accepted API routes and four implemented thin Streamlit evidence consumers; no new runtime behavior.
+31. **Citation Graph UI Productization Checkpoint v0.1** — completed validator-light checkpoint over seven accepted API routes and four implemented thin Streamlit evidence consumers; no new runtime behavior.
+32. **Citation Graph Store Cache & Reload Regression v0.1** — active regression-hardening slice over the existing bounded file-backed store cache and `/reload` invalidation semantics; no new endpoint or graph mutation.
 
 Recommended next safe slices:
 
-1. **Citation Graph UI Productization Checkpoint v0.1** — synchronize living docs, existing validators, terminology, and status-only comments after completion of all four Streamlit graph evidence consumers.
-2. **Citation Graph Review and Regression Hardening v0.1** — prepare live smoke/checklist, cache/reload semantics evidence, known-issues refresh, and manual-review evidence without publication approval.
-3. **Paper–Artifact Graph API Design v0.1** — only if existing Artifact API surfaces prove insufficient for paper-artifact graph evidence.
+1. **Citation Graph Store Cache & Reload Regression v0.1** — freeze bounded cache reuse, `/reload` invalidation, disabled-reload behavior, and graph-artifact no-mutation semantics.
+2. **Citation Graph Live Smoke & Known-Issues Hardening v0.1** — add operator-facing live smoke evidence and refresh known limitations without a new runtime surface.
+3. **Citation Graph Manual-Review Evidence Preparation v0.1** — prepare evidence for selected pending categories without approval or publication.
+4. **Paper–Artifact Graph API Design v0.1** — only if existing Artifact API surfaces prove insufficient for paper-artifact graph evidence.
 
 Explicit immediate non-goals:
 
@@ -3860,3 +3862,28 @@ no response-schema change
 no graph output/package rebuild
 no canonical/retrieval/Qdrant/Postgres/ranking/publication change
 ```
+
+
+### Citation Graph Store Cache & Reload Regression v0.1
+
+Status: **active regression-hardening slice**
+
+```text
+citation_graph_store_cache = bounded_by_graph_root
+citation_graph_store_cache_maxsize = 2
+citation_graph_store_cache_clear_on_reload = implemented
+graph_reload_rebuilds_artifacts = false
+graph_reload_mutates_artifacts = false
+reload_disabled_clears_graph_cache = false
+```
+
+The slice adds regression evidence around behavior that already exists in
+`services/api/app.py`. Repeated access to the same graph root must reuse the
+same in-memory `CitationGraphStore`. A successful `POST /reload` must clear the
+bounded graph-store cache before the main runtime and Discovery caches are
+reloaded. The next graph read may then reload the current files from the same
+root.
+
+The reload endpoint remains an invalidation/re-read operation only. It must not
+rebuild graph output, write graph files, change graph counters, approve manual
+review, publish the graph, or introduce a promoted full graph runtime loader.

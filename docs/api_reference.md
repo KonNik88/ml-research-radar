@@ -75,6 +75,7 @@ Citation Graph Paper Workspace Panel v0.1
 Citation Graph Diagnostics UI v0.1
 Citation Graph External Reference Lookup UI v0.1
 Citation Graph UI Productization Checkpoint v0.1
+Citation Graph Store Cache & Reload Regression v0.1
 ```
 
 Current canonical baseline:
@@ -2763,3 +2764,35 @@ full graph runtime subsystem = not implemented
 No endpoint, response schema, store-query, canonical, retrieval, Postgres,
 Qdrant, ranking, graph-output, package, manual-review, or publication behavior is
 changed by this checkpoint.
+
+
+## Citation Graph Store Cache & Reload Regression v0.1
+
+This checkpoint does not add an endpoint. It freezes the existing relationship
+between the Citation Graph local-inspection store and `POST /reload`.
+
+```text
+citation_graph_store_cache = bounded_by_graph_root
+citation_graph_store_cache_maxsize = 2
+citation_graph_store_cache_clear_on_reload = implemented
+graph_reload_rebuilds_artifacts = false
+graph_reload_mutates_artifacts = false
+```
+
+Operational semantics:
+
+1. The first traversal request for a configured graph root loads the read-only
+   `CitationGraphStore` from local files.
+2. Repeated requests for the same root reuse the cached store instance.
+3. Replacing files under that root does not affect the already cached instance
+   until cache invalidation.
+4. A successful `POST /reload` clears the graph-store cache, reloads the main
+   API runtime, and reloads Discovery caches.
+5. The next graph request reads the current files from the configured root.
+6. Reload never rebuilds or writes Citation Graph artifacts.
+7. When `enable_reload_endpoint=false`, `POST /reload` returns `404` and does
+   not clear the graph-store cache.
+
+This lifecycle does not change the seven-route Citation Graph API contract,
+feature-flag defaults, compatibility gates, manual-review state, publication
+state, or the meaning of `runtime_loader_implemented=false`.

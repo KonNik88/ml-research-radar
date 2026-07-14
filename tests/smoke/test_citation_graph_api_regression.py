@@ -9,6 +9,8 @@ from scripts.validation.check_citation_graph_api_regression import (
     DEFAULT_ARCHITECTURE_PATH,
     DEFAULT_PROJECT_STATE_PATH,
     DEFAULT_REFRESH_CONTRACT_PATH,
+    DEFAULT_RELOAD_TEST_PATH,
+    DEFAULT_GRAPH_RELOAD_TEST_PATH,
     DEFAULT_ROADMAP_PATH,
     DEFAULT_SCHEMAS_PATH,
     DEFAULT_SERVICE_PATH,
@@ -36,6 +38,8 @@ def _args(tmp_path: Path, *, skip_docs: bool = False) -> argparse.Namespace:
         status_test_path=DEFAULT_STATUS_TEST_PATH,
         traversal_test_path=DEFAULT_TRAVERSAL_TEST_PATH,
         store_test_path=DEFAULT_STORE_TEST_PATH,
+        reload_test_path=DEFAULT_RELOAD_TEST_PATH,
+        graph_reload_test_path=DEFAULT_GRAPH_RELOAD_TEST_PATH,
         output_dir=tmp_path,
         skip_docs=skip_docs,
         strict=True,
@@ -53,10 +57,13 @@ def test_citation_graph_api_regression_current_repo_is_green(tmp_path):
     assert report["verdict"]["runtime_loader_implemented"] is False
     assert report["verdict"]["publication_ready"] is False
     assert report["verdict"]["manual_review_required"] is True
-    assert report["checks"]["docs_ui_productization_checkpoint_synced"] is True
-    assert report["checks"]["docs_all_4_streamlit_consumers_implemented"] is True
-    assert report["checks"]["docs_no_ambiguous_streamlit_graph_ui_marker"] is True
-    assert report["checks"]["docs_non_goals_preserved"] is True
+    assert report["verdict"]["cache_reload_regression_ready"] is True
+    assert report["checks"]["graph_store_cache_bounded_by_graph_root"] is True
+    assert report["checks"]["graph_store_cache_clear_on_reload"] is True
+    assert report["checks"]["graph_store_cache_clear_precedes_runtime_reload"] is True
+    assert report["checks"][
+        "graph_reload_tests_cover_cache_and_no_mutation_contract"
+    ] is True
 
 
 def test_citation_graph_api_regression_can_skip_docs(tmp_path):

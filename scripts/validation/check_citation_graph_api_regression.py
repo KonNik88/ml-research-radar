@@ -25,6 +25,10 @@ DEFAULT_REFRESH_CONTRACT_PATH = Path("docs/refresh_contract_v1.md")
 DEFAULT_STATUS_TEST_PATH = Path("tests/integration/test_api_citation_graph_status.py")
 DEFAULT_TRAVERSAL_TEST_PATH = Path("tests/integration/test_api_citation_graph_references.py")
 DEFAULT_STORE_TEST_PATH = Path("tests/smoke/test_citation_graph_fixture_store.py")
+DEFAULT_RELOAD_TEST_PATH = Path("tests/integration/test_api_reload.py")
+DEFAULT_GRAPH_RELOAD_TEST_PATH = Path(
+    "tests/integration/test_api_citation_graph_reload.py"
+)
 
 ROUTES = {
     "status": "/citation-graph/status",
@@ -93,6 +97,11 @@ REQUIRED_DOC_SNIPPETS = [
     "streamlit_graph_external_reference_lookup_ui = implemented",
     "full_graph_visualization_ui = not implemented",
     "graphrag = not implemented",
+    "Citation Graph Store Cache & Reload Regression v0.1",
+    "citation_graph_store_cache = bounded_by_graph_root",
+    "citation_graph_store_cache_clear_on_reload = implemented",
+    "graph_reload_rebuilds_artifacts = false",
+    "graph_reload_mutates_artifacts = false",
 ]
 
 FORBIDDEN_STALE_DOC_SNIPPETS = [
@@ -104,6 +113,8 @@ FORBIDDEN_STALE_DOC_SNIPPETS = [
     "Citation Graph Top External References Endpoint Docs Sync v0.1 — 2026-07 active",
     "current active slice = Citation Graph External Reference Lookup UI v0.1",
     "Citation Graph External Reference Lookup UI v0.1 — 2026-07 active",
+    "current active slice = Citation Graph UI Productization Checkpoint v0.1",
+    "Citation Graph UI Productization Checkpoint v0.1 — 2026-07 active",
     "streamlit_graph_ui = not implemented",
 ]
 
@@ -242,6 +253,8 @@ def _paths_from_args(args: argparse.Namespace) -> dict[str, Path]:
         "status_test_path": Path(args.status_test_path),
         "traversal_test_path": Path(args.traversal_test_path),
         "store_test_path": Path(args.store_test_path),
+        "reload_test_path": Path(args.reload_test_path),
+        "graph_reload_test_path": Path(args.graph_reload_test_path),
     }
 
 
@@ -279,6 +292,8 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
     traversal_test_text = file_texts.get("traversal_test_path", "")
     status_test_text = file_texts.get("status_test_path", "")
     store_test_text = file_texts.get("store_test_path", "")
+    reload_test_text = file_texts.get("reload_test_path", "")
+    graph_reload_test_text = file_texts.get("graph_reload_test_path", "")
 
     route_counts = route_count_summary(app_text)
     diagnostics["route_counts"] = route_counts
@@ -366,6 +381,60 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
     checks["status_traversal_full_runtime_marker_remains_false"] = (
         '"traversal_endpoints_implemented": False' in service_text
         or "traversal_endpoints_implemented" in service_text
+    )
+
+    checks["graph_store_cache_bounded_by_graph_root"] = all(
+        snippet in app_text
+        for snippet in [
+            "@lru_cache(maxsize=2)",
+            "def _load_citation_graph_store_cached(graph_root: str)",
+            "return CitationGraphStore.load(graph_root)",
+        ]
+    )
+    checks["graph_store_cache_clear_on_reload"] = all(
+        snippet in app_text
+        for snippet in [
+            '@app.post("/reload", response_model=ReloadResponse)',
+            "_load_citation_graph_store_cached.cache_clear()",
+            "runtime.reload()",
+            "discovery_service.reload()",
+        ]
+    )
+    cache_clear_position = app_text.find(
+        "_load_citation_graph_store_cached.cache_clear()"
+    )
+    runtime_reload_position = app_text.find("runtime.reload()")
+    checks["graph_store_cache_clear_precedes_runtime_reload"] = (
+        cache_clear_position >= 0
+        and runtime_reload_position >= 0
+        and cache_clear_position < runtime_reload_position
+    )
+    checks["general_reload_tests_preserve_runtime_invariants"] = all(
+        snippet in reload_test_text
+        for snippet in [
+            "test_reload_smoke",
+            "test_health_after_reload_smoke",
+            "test_runtime_contains_reload_state",
+            "test_reload_recreates_cached_qdrant_backend_and_resets_observability",
+        ]
+    )
+    required_graph_reload_test_snippets = [
+        "test_repeated_graph_store_load_reuses_cache",
+        "test_reload_clears_graph_store_cache_and_reloads_replaced_files",
+        "test_reload_does_not_mutate_graph_artifacts",
+        "test_disabled_reload_does_not_clear_graph_store_cache",
+        "_load_citation_graph_store_cached.cache_info()",
+        "_artifact_hashes(graph_root)",
+    ]
+    missing_graph_reload_test_snippets = missing_snippets(
+        graph_reload_test_text,
+        required_graph_reload_test_snippets,
+    )
+    diagnostics["missing_graph_reload_test_snippets"] = (
+        missing_graph_reload_test_snippets
+    )
+    checks["graph_reload_tests_cover_cache_and_no_mutation_contract"] = (
+        not missing_graph_reload_test_snippets
     )
 
     required_test_snippets = [
@@ -469,6 +538,19 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         checks["docs_no_ambiguous_streamlit_graph_ui_marker"] = (
             "streamlit_graph_ui = not implemented" not in combined_docs
         )
+        checks["docs_cache_reload_checkpoint_synced"] = (
+            "Citation Graph Store Cache & Reload Regression v0.1"
+            in combined_docs
+        )
+        checks["docs_cache_reload_contract_markers_present"] = all(
+            snippet in combined_docs
+            for snippet in [
+                "citation_graph_store_cache = bounded_by_graph_root",
+                "citation_graph_store_cache_clear_on_reload = implemented",
+                "graph_reload_rebuilds_artifacts = false",
+                "graph_reload_mutates_artifacts = false",
+            ]
+        )
         checks["docs_non_goals_preserved"] = all(
             snippet in combined_docs
             for snippet in [
@@ -514,6 +596,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
             "required_failed_checks": failed_checks,
             "citation_graph_api_regression_ready": not failed_checks,
             "current_graph_routes_checkpointed": not failed_checks,
+            "cache_reload_regression_ready": not failed_checks,
             "runtime_loader_implemented": False,
             "publication_ready": False,
             "manual_review_required": True,
@@ -552,6 +635,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_TRAVERSAL_TEST_PATH,
     )
     parser.add_argument("--store-test-path", type=Path, default=DEFAULT_STORE_TEST_PATH)
+    parser.add_argument("--reload-test-path", type=Path, default=DEFAULT_RELOAD_TEST_PATH)
+    parser.add_argument(
+        "--graph-reload-test-path",
+        type=Path,
+        default=DEFAULT_GRAPH_RELOAD_TEST_PATH,
+    )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--skip-docs", action="store_true")
     parser.add_argument("--strict", action="store_true")
