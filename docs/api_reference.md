@@ -74,6 +74,7 @@ Citation Graph Streamlit Status Panel v0.1
 Citation Graph Paper Workspace Panel v0.1
 Citation Graph Diagnostics UI v0.1
 Citation Graph External Reference Lookup UI v0.1
+Citation Graph UI Productization Checkpoint v0.1
 ```
 
 Current canonical baseline:
@@ -595,7 +596,8 @@ top_referenced_papers_endpoint = implemented
 top_external_references_endpoint = implemented
 full_graph_runtime_loader = not implemented
 graph_db_materialization = not implemented
-streamlit_graph_ui = not implemented
+streamlit_graph_evidence_panels = implemented
+full_graph_visualization_ui = not implemented
 streamlit_graph_status_panel = implemented
 streamlit_graph_paper_workspace_panel = implemented
 streamlit_graph_diagnostics_ui = implemented
@@ -604,6 +606,26 @@ graphrag = not implemented
 publication_ready = false
 manual_review_required = true
 ```
+
+Productization checkpoint markers:
+
+```text
+Citation Graph UI Productization Checkpoint v0.1
+streamlit_graph_evidence_panels = implemented
+streamlit_graph_status_panel = implemented
+streamlit_graph_paper_workspace_panel = implemented
+streamlit_graph_diagnostics_ui = implemented
+streamlit_graph_external_reference_lookup_ui = implemented
+full_graph_visualization_ui = not implemented
+```
+
+`CitationGraphStore` remains a narrow file-backed local-inspection store. The
+status payload intentionally keeps `runtime_loader_implemented=false` because a
+promoted full graph runtime subsystem does not exist. It also keeps
+`traversal_endpoints_implemented=false` as the broad full-runtime-surface marker;
+the six bounded traversal/diagnostics routes are nevertheless implemented and
+checkpointed. Any change to those status fields requires a separate response-
+compatibility/schema slice.
 
 The status endpoint remains the safety/status/compatibility surface. The
 references endpoint returns outgoing references for one canonical paper. The
@@ -2721,3 +2743,23 @@ No generated report commit.
 
 The API documentation should remain synchronized with the accepted retrieval,
 Qdrant, runtime, ranking, and citation graph traversal checkpoint evidence.
+
+
+## Citation Graph UI Productization Checkpoint v0.1
+
+This validator-light checkpoint freezes the current product surface:
+
+```text
+API routes = 7
+traversal/diagnostics routes = 6
+Streamlit evidence consumers = 4
+API access only = required
+direct graph-file access from Streamlit = forbidden
+CitationGraphStore import from Streamlit = forbidden
+full graph visualization UI = not implemented
+full graph runtime subsystem = not implemented
+```
+
+No endpoint, response schema, store-query, canonical, retrieval, Postgres,
+Qdrant, ranking, graph-output, package, manual-review, or publication behavior is
+changed by this checkpoint.

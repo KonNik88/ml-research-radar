@@ -70,9 +70,9 @@ class ApiSettings(BaseSettings):
     postgres_password: str = Field(default="ml_radar_dev")
 
     # Citation / Reference Graph API settings.
-    # This feature is intentionally disabled by default. The first API slice
-    # exposes only a read-only diagnostic status endpoint and does not load
-    # graph artifacts or implement traversal endpoints.
+    # This feature is intentionally disabled by default. The accepted surface
+    # contains a status/compatibility probe plus narrow read-only local-inspection
+    # routes. It does not create a promoted full graph runtime subsystem.
     citation_graph_api_enabled: bool = Field(default=False)
     citation_graph_exposure_mode: str = Field(default="local_inspection")
     citation_graph_root: Path = Field(

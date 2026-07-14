@@ -16,7 +16,7 @@ overlapping source-level observations.
 ## Current checkpoint
 
 ```text
-checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1 / Citation Graph Diagnostics UI v0.1 / Citation Graph External Reference Lookup UI v0.1
+checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1 / Citation Graph Diagnostics UI v0.1 / Citation Graph External Reference Lookup UI v0.1 / Citation Graph UI Productization Checkpoint v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
@@ -698,9 +698,30 @@ top-external-references endpoint is implemented as unresolved-external-reference
 full graph runtime loader = not implemented
 graph DB materialization = not implemented
 Streamlit graph status panel = implemented
-Streamlit graph traversal UI = not implemented
+Streamlit graph evidence panels = implemented
+full graph visualization UI = not implemented
 GraphRAG = not implemented
 ```
+
+Productization terminology:
+
+```text
+streamlit_graph_evidence_panels = implemented
+streamlit_graph_status_panel = implemented
+streamlit_graph_paper_workspace_panel = implemented
+streamlit_graph_diagnostics_ui = implemented
+streamlit_graph_external_reference_lookup_ui = implemented
+full_graph_runtime_loader = not implemented
+full_graph_visualization_ui = not implemented
+graph_db_materialization = not implemented
+graphrag = not implemented
+```
+
+`CitationGraphStore` is the narrow file-backed local-inspection store used by
+bounded read-only routes. It is not a promoted full graph runtime subsystem.
+The status field `traversal_endpoints_implemented=false` remains a broad
+full-runtime-surface compatibility marker; changing that field requires a
+separate schema/compatibility slice.
 
 The graph API must not mutate canonical truth, graph artifacts, validation
 reports, Postgres, Qdrant, retrieval artifacts, ranking artifacts, Streamlit
@@ -711,7 +732,7 @@ state, package outputs, or publication state.
 
 ## 14.6 Graph API / Streamlit productization boundary
 
-The next graph productization step is design-first and UI-thin-client only.
+The four planned graph evidence consumers are implemented as thin API clients. The current step is a validator-light productization checkpoint over that accepted surface.
 
 Accepted productization order:
 
@@ -890,3 +911,21 @@ no full graph runtime loader
 no graph DB materialization
 no canonical/retrieval/Qdrant/Postgres/ranking/publication change
 ```
+
+
+## Citation Graph UI Productization Checkpoint v0.1
+
+The accepted productization surface is now:
+
+```text
+7 read-only feature-flagged API routes
+4 thin Streamlit evidence consumers
+CitationGraphStore = narrow file-backed local-inspection store
+full graph runtime subsystem = not implemented
+full graph visualization UI = not implemented
+```
+
+This checkpoint changes documentation, validation markers, and stale comments
+only. It does not change API responses, graph loading, canonical truth, retrieval,
+Postgres, Qdrant, ranking, graph outputs, packages, manual-review state, or
+publication state.

@@ -318,6 +318,14 @@ CITATION_GRAPH_DIAGNOSTICS_UI_SNIPPETS = [
 ]
 
 
+CITATION_GRAPH_FORBIDDEN_DIRECT_ACCESS_SNIPPETS = [
+    "from services.api.citation_graph_store import",
+    "import services.api.citation_graph_store",
+    "CitationGraphStore(",
+    "data/graphs/citation_reference_graph",
+]
+
+
 CITATION_GRAPH_EXTERNAL_REFERENCE_LOOKUP_UI_SNIPPETS = [
     "External reference lookup",
     "fetch_citation_graph_external_reference_papers",
@@ -1127,6 +1135,11 @@ def build_report(
         app_text,
         CITATION_GRAPH_EXTERNAL_REFERENCE_LOOKUP_UI_SNIPPETS,
     )
+    forbidden_citation_graph_direct_access = [
+        snippet
+        for snippet in CITATION_GRAPH_FORBIDDEN_DIRECT_ACCESS_SNIPPETS
+        if snippet in app_text
+    ]
 
     checks["required_ui_snippets_present"] = not missing_required
     checks["discovery_endpoint_strings_present"] = not missing_discovery
@@ -1171,6 +1184,9 @@ def build_report(
     checks["citation_graph_external_reference_lookup_ui_snippets_present"] = (
         not missing_citation_graph_external_reference_lookup
     )
+    checks["citation_graph_ui_uses_api_only"] = (
+        not forbidden_citation_graph_direct_access
+    )
 
     extracted_values["missing_required_ui_snippets"] = missing_required
     extracted_values["missing_discovery_endpoint_strings"] = missing_discovery
@@ -1209,6 +1225,9 @@ def build_report(
     extracted_values["missing_citation_graph_external_reference_lookup_ui_snippets"] = (
         missing_citation_graph_external_reference_lookup
     )
+    extracted_values["forbidden_citation_graph_direct_access_snippets"] = (
+        forbidden_citation_graph_direct_access
+    )
 
     if check_api:
         run_api_checks(
@@ -1246,6 +1265,7 @@ def build_report(
         "paper_workspace_citation_graph_ui_snippets_present",
         "citation_graph_diagnostics_ui_snippets_present",
         "citation_graph_external_reference_lookup_ui_snippets_present",
+        "citation_graph_ui_uses_api_only",
     ]
 
     if check_api:

@@ -7,12 +7,12 @@ document = primary living roadmap
 accepted checkpoint = Current State Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
 current active direction = review / regression / design-hardening
-current active slice = Citation Graph External Reference Lookup UI v0.1
+current active slice = Citation Graph UI Productization Checkpoint v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = fourth Streamlit graph productization code slice; consume /citation-graph/external-references/{reference_id}/papers as an explicit external-reference lookup UI with URL/path quoting; no graph visualization, graph runtime loader, graph DB, GraphRAG, endpoint, canonical, retrieval, Qdrant, Postgres, ranking, or publication behavior changes
+scope of current branch = validator-light checkpoint over the completed seven-route Citation Graph API and four thin Streamlit evidence consumers; synchronize living docs, validators, terminology, and comments only; no graph visualization, full graph runtime loader, graph DB, GraphRAG, endpoint, canonical, retrieval, Qdrant, Postgres, ranking, or publication behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -90,12 +90,14 @@ Recently completed safe slices:
 27. **Citation Graph Streamlit Status Panel v0.1** — completed first UI code slice; Streamlit reads `/citation-graph/status` and renders availability/caveats only.
 28. **Citation Graph Paper Workspace Panel v0.1** — completed second UI code slice; Streamlit reads selected-paper `/references` and `/citations` endpoints and renders evidence tables only.
 29. **Citation Graph Diagnostics UI v0.1** — completed third UI code slice; Streamlit reads `/source-families`, `/top-referenced-papers`, and `/top-external-references` endpoints and renders diagnostic tables only.
-30. **Citation Graph External Reference Lookup UI v0.1** — active fourth UI code slice; Streamlit reads `/external-references/{reference_id}/papers` with explicit URL/path quoting and renders referencing-paper evidence only.
+30. **Citation Graph External Reference Lookup UI v0.1** — completed fourth UI code slice; Streamlit reads `/external-references/{reference_id}/papers` with explicit URL/path quoting and renders referencing-paper evidence only.
+31. **Citation Graph UI Productization Checkpoint v0.1** — active validator-light checkpoint over seven accepted API routes and four implemented thin Streamlit evidence consumers; no new runtime behavior.
 
 Recommended next safe slices:
 
-1. **Citation Graph External Reference Lookup UI v0.1** — add explicit external-reference lookup with URL/path encoding handled in the Streamlit client.
-2. **Paper–Artifact Graph API Design v0.1** — only if existing Artifact API surfaces prove insufficient for paper-artifact graph evidence.
+1. **Citation Graph UI Productization Checkpoint v0.1** — synchronize living docs, existing validators, terminology, and status-only comments after completion of all four Streamlit graph evidence consumers.
+2. **Citation Graph Review and Regression Hardening v0.1** — prepare live smoke/checklist, cache/reload semantics evidence, known-issues refresh, and manual-review evidence without publication approval.
+3. **Paper–Artifact Graph API Design v0.1** — only if existing Artifact API surfaces prove insufficient for paper-artifact graph evidence.
 
 Explicit immediate non-goals:
 
@@ -1666,7 +1668,8 @@ feature_flag = ML_RADAR_CITATION_GRAPH_API_ENABLED
 graph_runtime_loader = not implemented
 graph_traversal_endpoints = not implemented
 graph_db_materialization = not implemented
-streamlit_graph_ui = not implemented
+streamlit_graph_evidence_panels = implemented
+full_graph_visualization_ui = not implemented
 graphrag = not implemented
 publication_ready = false
 manual_review_required = true
@@ -1732,7 +1735,8 @@ feature_flag = ML_RADAR_CITATION_GRAPH_API_ENABLED
 graph_runtime_loader = not implemented
 graph_traversal_endpoints = not implemented
 graph_db_materialization = not implemented
-streamlit_graph_ui = not implemented
+streamlit_graph_evidence_panels = implemented
+full_graph_visualization_ui = not implemented
 graphrag = not implemented
 publication_ready = false
 manual_review_required = true
@@ -3797,7 +3801,7 @@ See: `docs/citation_reference_graph_package_v0.md`.
 
 ### Citation Graph External Reference Lookup UI v0.1
 
-Status: **active UI-only slice**
+Status: **completed UI-only local-inspection slice**
 
 Scope:
 
@@ -3817,5 +3821,42 @@ no graph visualization
 no NetworkX/Neo4j/GraphRAG
 no full graph runtime loader
 no graph DB materialization
+no canonical/retrieval/Qdrant/Postgres/ranking/publication change
+```
+
+
+### Citation Graph UI Productization Checkpoint v0.1
+
+Status: **active validator-light checkpoint**
+
+Accepted implementation baseline:
+
+```text
+Citation Graph API routes = 7
+Citation Graph traversal/diagnostics routes = 6
+streamlit_graph_evidence_panels = implemented
+streamlit_graph_status_panel = implemented
+streamlit_graph_paper_workspace_panel = implemented
+streamlit_graph_diagnostics_ui = implemented
+streamlit_graph_external_reference_lookup_ui = implemented
+full_graph_runtime_loader = not implemented
+full_graph_visualization_ui = not implemented
+graph_db_materialization = not implemented
+graphrag = not implemented
+manual_review_required = true
+manual_review_complete = false
+publication_ready = false
+```
+
+Checkpoint scope:
+
+```text
+living docs synchronization
+existing validator synchronization
+terminology cleanup
+status-only comments/docstrings cleanup
+no new endpoint or store method
+no response-schema change
+no graph output/package rebuild
 no canonical/retrieval/Qdrant/Postgres/ranking/publication change
 ```

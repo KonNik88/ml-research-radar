@@ -85,7 +85,13 @@ REQUIRED_DOC_SNIPPETS = [
     "top_external_references_endpoint = implemented",
     "full_graph_runtime_loader = not implemented",
     "graph_db_materialization = not implemented",
-    "streamlit_graph_ui = not implemented",
+    "Citation Graph UI Productization Checkpoint v0.1",
+    "streamlit_graph_evidence_panels = implemented",
+    "streamlit_graph_status_panel = implemented",
+    "streamlit_graph_paper_workspace_panel = implemented",
+    "streamlit_graph_diagnostics_ui = implemented",
+    "streamlit_graph_external_reference_lookup_ui = implemented",
+    "full_graph_visualization_ui = not implemented",
     "graphrag = not implemented",
 ]
 
@@ -95,7 +101,10 @@ FORBIDDEN_STALE_DOC_SNIPPETS = [
     "top_external_references_endpoint = not_implemented",
     "GET /citation-graph/top-external-references = not implemented",
     "current active slice = Citation Graph Top External References Endpoint Docs Sync v0.1",
-        "Citation Graph Top External References Endpoint Docs Sync v0.1 — 2026-07 active",
+    "Citation Graph Top External References Endpoint Docs Sync v0.1 — 2026-07 active",
+    "current active slice = Citation Graph External Reference Lookup UI v0.1",
+    "Citation Graph External Reference Lookup UI v0.1 — 2026-07 active",
+    "streamlit_graph_ui = not implemented",
 ]
 
 FORBIDDEN_RUNTIME_IMPORT_SNIPPETS = [
@@ -444,12 +453,28 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         checks["docs_no_stale_top_external_not_implemented_text"] = (
             not stale_doc_snippets
         )
+        checks["docs_ui_productization_checkpoint_synced"] = (
+            "Citation Graph UI Productization Checkpoint v0.1" in combined_docs
+        )
+        checks["docs_all_4_streamlit_consumers_implemented"] = all(
+            snippet in combined_docs
+            for snippet in [
+                "streamlit_graph_evidence_panels = implemented",
+                "streamlit_graph_status_panel = implemented",
+                "streamlit_graph_paper_workspace_panel = implemented",
+                "streamlit_graph_diagnostics_ui = implemented",
+                "streamlit_graph_external_reference_lookup_ui = implemented",
+            ]
+        )
+        checks["docs_no_ambiguous_streamlit_graph_ui_marker"] = (
+            "streamlit_graph_ui = not implemented" not in combined_docs
+        )
         checks["docs_non_goals_preserved"] = all(
             snippet in combined_docs
             for snippet in [
                 "full_graph_runtime_loader = not implemented",
                 "graph_db_materialization = not implemented",
-                "streamlit_graph_ui = not implemented",
+                "full_graph_visualization_ui = not implemented",
                 "graphrag = not implemented",
             ]
         )

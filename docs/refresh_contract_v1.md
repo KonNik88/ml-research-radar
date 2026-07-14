@@ -87,7 +87,8 @@ Graph API / Streamlit Productization Design v0.1 — 2026-07 completed design-on
 Citation Graph Streamlit Status Panel v0.1 — 2026-07 completed first UI status-panel slice
 Citation Graph Paper Workspace Panel v0.1 — 2026-07 completed selected-paper citation/reference evidence UI slice
 Citation Graph Diagnostics UI v0.1 — 2026-07 completed graph diagnostics table UI slice
-Citation Graph External Reference Lookup UI v0.1 — 2026-07 active external-reference lookup UI slice
+Citation Graph External Reference Lookup UI v0.1 — 2026-07 completed external-reference lookup UI slice
+Citation Graph UI Productization Checkpoint v0.1 — 2026-07 active validator-light docs/validation checkpoint
 ```
 
 Current healthy baseline:
@@ -385,7 +386,7 @@ Streamlit UI = thin API client
 Paper–Artifact evidence = served first through existing Artifact API endpoints
 ```
 
-Allowed first UI productization steps:
+Completed UI productization steps:
 
 ```text
 1. Add a Streamlit status panel that reads only /citation-graph/status.
@@ -1887,7 +1888,8 @@ top_referenced_papers_endpoint = implemented
 top_external_references_endpoint = implemented
 full_graph_runtime_loader = not implemented
 graph_db_materialization = not implemented
-streamlit_graph_ui = not implemented
+streamlit_graph_evidence_panels = implemented
+full_graph_visualization_ui = not implemented
 graphrag = not implemented
 publication_ready = false
 manual_review_required = true
@@ -2293,7 +2295,7 @@ It does not write graph reports directly.
 It does not enable the Citation Graph API.
 It does not implement full graph runtime loader.
 It does not add graph DB materialization.
-It does not add Streamlit graph UI.
+It does not add or change Streamlit graph runtime behavior; the four thin evidence consumers are already implemented.
 It does not implement GraphRAG.
 It does not change /search, Qdrant, ranking, canonical truth, DB, retrieval, graph-output, package, or publication behavior.
 ```
@@ -4004,3 +4006,53 @@ Boundary:
 
 See: `docs/citation_reference_graph_package_v0.md`.
 <!-- CITATION_REFERENCE_GRAPH_PACKAGE_V01_END -->
+
+
+# Citation Graph UI Productization Checkpoint v0.1 validation
+
+Use this after the four Streamlit evidence consumers are implemented and before
+starting review/regression hardening.
+
+Accepted state:
+
+```text
+Citation Graph API routes = 7
+Citation Graph traversal/diagnostics routes = 6
+streamlit_graph_evidence_panels = implemented
+streamlit_graph_status_panel = implemented
+streamlit_graph_paper_workspace_panel = implemented
+streamlit_graph_diagnostics_ui = implemented
+streamlit_graph_external_reference_lookup_ui = implemented
+full_graph_runtime_loader = not implemented
+full_graph_visualization_ui = not implemented
+graph_db_materialization = not implemented
+graphrag = not implemented
+manual_review_required = true
+manual_review_complete = false
+publication_ready = false
+```
+
+Static validation:
+
+```bat
+python -m py_compile services/api/citation_graph_service.py services/api/settings.py services/ui/app.py scripts/validation/check_citation_graph_api_regression.py scripts/validation/check_streamlit_discovery_ui.py tests/smoke/test_citation_graph_api_regression.py
+python -m scripts.validation.check_citation_graph_api_regression --strict
+python -m scripts.validation.check_streamlit_discovery_ui --strict
+python -m pytest tests/smoke/test_citation_graph_api_regression.py -q
+python -m pytest tests/smoke/test_citation_graph_api_regression_dod.py -q
+git diff --check
+```
+
+Optional repository-level validation:
+
+```bat
+set ML_RADAR_SEARCH_BACKEND=file
+python -m pytest tests/integration/test_api_citation_graph_status.py -q
+python -m pytest tests/integration/test_api_citation_graph_references.py -q
+python -m pytest tests/smoke/test_citation_graph_fixture_store.py -q
+python -m scripts.update.check_refresh_definition_of_done --require-citation-graph-api-regression
+```
+
+The optional full DoD command also depends on the repository database and the
+other current validation reports. A failure outside the Citation Graph block must
+be classified separately rather than treated as a productization regression.

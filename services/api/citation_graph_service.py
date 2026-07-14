@@ -369,10 +369,10 @@ def build_citation_graph_status(
 ) -> CitationGraphStatusResponse:
     """Return read-only diagnostic status for the citation/reference graph API.
 
-    The status endpoint is the only graph API endpoint implemented at this
-    stage. When enabled, this function checks local graph artifacts and reports
-    for structural compatibility, but it does not load graph nodes/edges into a
-    traversal runtime and does not implement graph query endpoints.
+    The status endpoint remains the graph compatibility and safety probe.
+    Narrow read-only traversal routes are implemented separately through
+    ``CitationGraphStore``. This function does not load graph nodes/edges into a
+    promoted full graph runtime subsystem and does not change traversal state.
     """
 
     runtime_enabled = bool(settings.citation_graph_api_enabled)

@@ -806,37 +806,45 @@ Recently completed safe slices after this checkpoint baseline:
    - confirms that Paper–Artifact evidence should use existing Artifact API surfaces before designing a dedicated graph API.
 
 23. **Citation Graph Streamlit Status Panel v0.1**
-   - active first Streamlit graph productization code slice;
-   - consumes `/citation-graph/status` only;
-   - renders availability, disabled/unavailable states, and caveats;
-   - does not add graph traversal UI, graph visualization, graph runtime loader, GraphRAG, or graph DB materialization.
+   - completed first thin Streamlit graph evidence consumer;
+   - consumes `/citation-graph/status` only.
+
+24. **Citation Graph Paper Workspace Panel v0.1**
+   - completed second thin Streamlit graph evidence consumer;
+   - consumes selected-paper `/references` and `/citations` endpoints.
+
+25. **Citation Graph Diagnostics UI v0.1**
+   - completed third thin Streamlit graph evidence consumer;
+   - consumes source-family and top-reference diagnostics.
+
+26. **Citation Graph External Reference Lookup UI v0.1**
+   - completed fourth thin Streamlit graph evidence consumer;
+   - URL-quotes `reference_id` before calling the external-reference papers endpoint.
+
+27. **Citation Graph UI Productization Checkpoint v0.1**
+   - current validator-light checkpoint;
+   - freezes seven API routes and four Streamlit evidence consumers;
+   - synchronizes living docs, existing validators, terminology, and stale comments only.
 
 Recommended next slices:
 
-1. **Citation Graph Streamlit Status Panel v0.1**
-   - first UI code slice after productization design;
-   - consume `/citation-graph/status` only;
-   - render availability, disabled/unavailable states, and caveats;
-   - validate static wiring through `citation_graph_status_ui_snippets_present`.
+1. **Citation Graph UI Productization Checkpoint v0.1**
+   - complete docs and validator synchronization;
+   - preserve current API/runtime behavior and all safety markers.
 
-2. **Citation Graph Paper Workspace Panel v0.1**
-   - consume `/citation-graph/papers/{canonical_id}/references`;
-   - consume `/citation-graph/papers/{canonical_id}/citations`;
-   - render evidence tables for the selected paper.
+2. **Citation Graph Review and Regression Hardening v0.1**
+   - add a live smoke/checklist, cache/reload semantics evidence, known-issues refresh, and manual-review evidence preparation;
+   - do not approve or publish the graph.
 
-3. **Citation Graph Diagnostics UI v0.1**
-   - consume source-family and top-reference diagnostics;
-   - preserve non-publication-grade metric caveats.
-
-4. **Paper–Artifact Graph API Design v0.1, if needed**
-   - do this only after checking whether existing Artifact API surfaces are insufficient.
+3. **Paper–Artifact Graph API Design v0.1, only if needed**
+   - start only after proving that existing Artifact API surfaces cannot cover a concrete product requirement.
 
 ---
 
 
 ## 7.5 Citation Graph Streamlit Status Panel v0.1
 
-Current active UI code slice:
+Completed first UI code slice:
 
 ```text
 Citation Graph Streamlit Status Panel v0.1
@@ -876,8 +884,8 @@ Current UI productization state:
 ```text
 Citation Graph status panel = implemented
 Citation Graph Paper workspace evidence panel = implemented
-Citation Graph diagnostics UI = not implemented
-Citation Graph external-reference lookup UI = not implemented
+Citation Graph diagnostics UI = implemented
+Citation Graph external-reference lookup UI = implemented
 ```
 
 Paper workspace evidence panel semantics:
@@ -1173,7 +1181,7 @@ no additional traversal/filtering endpoints without a separate accepted design
 
 ## Graph API / Streamlit Productization Design v0.1
 
-Status: **current design-only productization checkpoint**
+Status: **completed design-only productization checkpoint**
 
 Purpose:
 
@@ -1256,3 +1264,52 @@ no full graph runtime loader
 no graph DB materialization
 no canonical/retrieval/Qdrant/Postgres/ranking/publication change
 ```
+
+
+## Citation Graph UI Productization Checkpoint v0.1
+
+Status: **current validator-light checkpoint**
+
+Accepted surface:
+
+```text
+Citation Graph API routes = 7
+Citation Graph traversal/diagnostics routes = 6
+streamlit_graph_evidence_panels = implemented
+streamlit_graph_status_panel = implemented
+streamlit_graph_paper_workspace_panel = implemented
+streamlit_graph_diagnostics_ui = implemented
+streamlit_graph_external_reference_lookup_ui = implemented
+full_graph_runtime_loader = not implemented
+full_graph_visualization_ui = not implemented
+graph_db_materialization = not implemented
+graphrag = not implemented
+manual_review_required = true
+manual_review_complete = false
+publication_ready = false
+```
+
+Runtime terminology:
+
+```text
+CitationGraphStore = narrow file-backed local-inspection store
+full graph runtime subsystem = not implemented
+runtime_loader_implemented = false
+traversal_endpoints_implemented = false remains the broad full-runtime-surface marker
+```
+
+Scope:
+
+```text
+living docs synchronization
+existing API/UI validator synchronization
+status-only comments/docstrings cleanup
+no endpoint or response-schema change
+no graph rebuild or package rebuild
+no canonical/retrieval/Qdrant/Postgres/ranking change
+no manual-review approval
+no publication
+```
+
+The next preferred direction after this checkpoint is review/regression
+hardening, not additional graph endpoints or a graph database.
