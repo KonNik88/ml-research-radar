@@ -91,7 +91,8 @@ Citation Graph External Reference Lookup UI v0.1 — 2026-07 completed external-
 Citation Graph UI Productization Checkpoint v0.1 — 2026-07 completed validator-light docs/validation checkpoint
 Citation Graph Store Cache & Reload Regression v0.1 — 2026-07 completed regression-hardening slice over bounded store-cache invalidation and graph-artifact no-mutation semantics
 Citation Graph Failure Isolation & Error Recovery v0.1 — 2026-07 completed regression-hardening slice over graph-scoped file errors, health independence, cache non-poisoning, and repair/retry recovery
-Citation Graph Live Smoke & Known-Issues Hardening v0.1 — 2026-07 active operator-facing live-validation and limitations-documentation slice
+Citation Graph Live Smoke & Known-Issues Hardening v0.1 — 2026-07 completed operator-facing live-validation and limitations-documentation slice
+Citation Graph Manual-Review Evidence Preparation v0.1 — 2026-07 active read-only evidence-preparation slice over the existing 18-category checklist
 ```
 
 Current healthy baseline:
@@ -4252,3 +4253,80 @@ The live smoke remains opt-in and is not wired into the default or current
 Citation Graph regression DoD gate because it requires a separately running HTTP
 server. A green live report is technical operational evidence only; it does not
 complete manual review and does not authorize publication.
+
+
+# Citation Graph Manual-Review Evidence Preparation v0.1 validation
+
+Accepted markers:
+
+```text
+citation_reference_graph_manual_review_evidence = implemented_read_only
+manual_review_evidence_categories = 18
+automated_support_categories = 13
+human_decision_categories = 5
+category_status_changed = false
+approval_state_changed = false
+manual_review_complete = false
+publication_ready = false
+```
+
+## 1. Static validation
+
+```bat
+python -m py_compile scripts/validation/check_citation_reference_graph_manual_review_evidence.py
+python -m pytest tests/smoke/test_citation_reference_graph_manual_review_evidence.py -q
+```
+
+## 2. Generate and validate the evidence report
+
+```bat
+python -m scripts.validation.check_citation_reference_graph_manual_review_evidence --strict
+```
+
+Optional report-free form:
+
+```bat
+python -m scripts.validation.check_citation_reference_graph_manual_review_evidence --strict --no-write-reports
+```
+
+Expected reports:
+
+```text
+artifacts/reports/validation/citation_reference_graph_manual_review_evidence_latest.json
+artifacts/reports/validation/citation_reference_graph_manual_review_evidence_latest.md
+artifacts/reports/validation/history/citation_reference_graph_manual_review_evidence_<timestamp>.json
+artifacts/reports/validation/history/citation_reference_graph_manual_review_evidence_<timestamp>.md
+```
+
+Expected verdict:
+
+```text
+ok = true
+required_failed_count = 0
+categories_count = 18
+automated_support_categories_count = 13
+human_decision_categories_count = 5
+evidence_ready_categories_count = 18
+approval_state = not_reviewed
+manual_review_complete = false
+automated_approval_performed = false
+publication_ready = false
+publication_block_reason = manual_review_not_completed
+```
+
+The validator reads existing accepted reports, manifests, README files, and
+governance docs. It does not reread or rebuild the full graph JSONL. It does not
+change the manual-review config, category statuses, approval state, graph/package
+artifacts, API/UI, canonical truth, retrieval, Postgres, Qdrant, ranking, or
+publication state. Generated evidence reports should not be committed by default.
+
+## 3. Connected validation
+
+```bat
+python -m scripts.validation.check_citation_reference_graph_manual_review --strict
+python -m scripts.validation.check_citation_reference_graph_analytics --strict
+python -m scripts.validation.check_citation_graph_api_regression --strict
+```
+
+A green evidence report only means that review material is prepared. Human review
+and any subsequent checklist/approval updates remain a separate explicit action.

@@ -1,0 +1,130 @@
+schema_version: citation_reference_graph_manual_review_evidence_config_v1
+
+evidence:
+  name: citation_reference_graph_manual_review_evidence
+  version: v0.1
+  status: local_read_only_manual_review_evidence
+  graph_version: v0.1
+  manual_review_support: true
+  automated_approval: false
+  mutates_manual_review_state: false
+  manual_review_required: true
+  publication_ready: false
+  may_be_used_as_reconcile_input: false
+
+inputs:
+  manual_review_config: configs/citation_reference_graph_manual_review.yaml
+  manual_review_report: artifacts/reports/validation/citation_reference_graph_manual_review_latest.json
+  analytics_report: artifacts/reports/validation/citation_reference_graph_analytics_latest.json
+  inspection_report: artifacts/reports/validation/citation_reference_graph_inspection_latest.json
+  release_candidate_report: artifacts/reports/validation/citation_reference_graph_release_candidate_latest.json
+  package_report: artifacts/reports/validation/citation_reference_graph_package_latest.json
+  line_checkpoint_report: artifacts/reports/validation/citation_reference_graph_line_checkpoint_latest.json
+  package_manifest: data/graphs/citation_reference_graph/packages/v0.1/package_manifest.json
+  graph_manifest: data/graphs/citation_reference_graph/v0.1/manifest.json
+  data_quality_summary: data/graphs/citation_reference_graph/v0.1/data_quality_summary.json
+  graph_readme: data/graphs/citation_reference_graph/v0.1/README.md
+  package_readme: data/graphs/citation_reference_graph/packages/v0.1/README.md
+  known_issues_doc: docs/citation_graph_known_issues_v0.1.md
+  source_matrix_doc: docs/source_matrix.md
+  merge_policy_doc: docs/merge_policy.md
+  live_smoke_report: artifacts/reports/validation/citation_graph_live_smoke_latest.json
+  api_regression_report: artifacts/reports/validation/citation_graph_api_regression_latest.json
+  graph_review_evidence_pack_report: artifacts/reports/validation/graph_review_evidence_pack_latest.json
+
+validation:
+  report_dir: artifacts/reports/validation
+  strict_default: true
+
+category_policy:
+  required_category_count: 18
+  automated_support_category_ids:
+    - reference_metadata_caveats
+    - explicit_reference_fields_only
+    - unresolved_external_reference_caveats
+    - low_resolution_ratio_caveat
+    - openalex_normalization_review
+    - doi_reference_policy_review
+    - source_family_reference_distribution_review
+    - top_internal_referenced_papers_review
+    - top_external_references_review
+    - full_text_not_parsed_caveat
+    - bibliography_not_parsed_caveat
+    - package_manifest_checksum_review
+    - known_limitations
+  human_decision_category_ids:
+    - license_redistribution
+    - source_provider_terms
+    - readme_clarity
+    - publication_target_decision
+    - manual_approval_state
+
+expected:
+  approval_state: not_reviewed
+  required_category_status: pending
+  manual_review_complete: false
+  manual_review_required: true
+  publication_ready: false
+  publication_block_reason: manual_review_not_completed
+  reference_resolution_ratio: 0.00869
+  resolved_reference_edges_count: 6165
+  unresolved_reference_edges_count: 703234
+  reference_field_distribution:
+    referenced_dois: 269355
+    referenced_ids: 440044
+  reference_type_distribution:
+    doi: 269355
+    openalex_id: 440044
+  required_source_families:
+    - acl_anthology
+    - arxiv
+    - crossref
+    - openalex
+    - semantic_scholar
+
+readme_required_markers:
+  graph:
+    - local derived citation/reference graph
+    - not canonical truth
+    - not a reconcile input
+    - not a runtime graph
+    - not a public API/UI artifact
+  package:
+    - Local package candidate
+    - not canonical truth
+    - not a reconcile input
+    - not a runtime graph
+    - not a publication-ready dataset
+    - manual_review_required
+    - publication_ready
+    - explicit canonical metadata reference fields only
+    - does not parse full text
+    - does not publish a dataset or graph
+
+safety:
+  read_only_evidence: true
+  rebuild_graph: false
+  rebuild_package: false
+  mutate_manual_review_config: false
+  mutate_manual_review_report: false
+  mutate_canonical_documents: false
+  mutate_retrieval_artifacts: false
+  mutate_qdrant: false
+  mutate_postgres: false
+  mutate_db_schema: false
+  mutate_api: false
+  mutate_ui: false
+  mutate_ranking: false
+  publish_dataset: false
+  publish_graph: false
+  create_latest_pointer_outside_report_dir: false
+  create_graph_runtime: false
+  require_networkx_runtime: false
+  require_neo4j_runtime: false
+  require_graphrag_runtime: false
+  parse_full_text: false
+  parse_pdfs: false
+  parse_bibliography_sections: false
+  automated_category_approval: false
+  automated_manual_approval: false
+  may_be_used_as_reconcile_input: false

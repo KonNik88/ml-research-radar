@@ -16,7 +16,7 @@ overlapping source-level observations.
 ## Current checkpoint
 
 ```text
-checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1 / Citation Graph Diagnostics UI v0.1 / Citation Graph External Reference Lookup UI v0.1 / Citation Graph UI Productization Checkpoint v0.1 / Citation Graph Store Cache & Reload Regression v0.1 / Citation Graph Failure Isolation & Error Recovery v0.1 / Citation Graph Live Smoke & Known-Issues Hardening v0.1
+checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1 / Citation Graph Diagnostics UI v0.1 / Citation Graph External Reference Lookup UI v0.1 / Citation Graph UI Productization Checkpoint v0.1 / Citation Graph Store Cache & Reload Regression v0.1 / Citation Graph Failure Isolation & Error Recovery v0.1 / Citation Graph Live Smoke & Known-Issues Hardening v0.1 / Citation Graph Manual-Review Evidence Preparation v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
@@ -81,6 +81,7 @@ sources
 → Citation Graph bounded store-cache / reload invalidation contract
 → Citation Graph failure isolation / repair-and-retry recovery contract
 → Citation Graph operator-facing live smoke / known-issues evidence
+→ Citation Graph manual-review evidence preparation
 → Streamlit Discovery UI
 → validators / regression / strict DoD
 ```
@@ -1031,3 +1032,41 @@ graphrag = not implemented
 The validator is intentionally opt-in because it depends on a separately running
 HTTP process and local graph artifacts. It is not added to the default refresh
 Definition of Done.
+
+
+## Citation Graph Manual-Review Evidence Preparation v0.1
+
+The current graph governance line includes a separate read-only evidence layer:
+
+```text
+manual-review checklist (18 pending categories)
++ accepted analytics / inspection / package / live API evidence
+→ deterministic category evidence report
+→ human review remains separate
+```
+
+Current split:
+
+```text
+automated_support_categories = 13
+human_decision_categories = 5
+evidence_ready does not mean passed
+summary.ok does not mean approved
+approval_state = not_reviewed
+manual_review_complete = false
+publication_ready = false
+```
+
+The validator does not reread the full graph output. It reuses accepted derived
+reports and small README/manifest/governance inputs. This avoids duplicating the
+analytics layer and preserves the graph as a derived evidence artifact.
+
+Architecture boundary:
+
+```text
+evidence report = derived review support
+manual-review config = unchanged
+canonical paper truth = unchanged
+API/UI/runtime = unchanged
+publication = separate explicit action
+```
