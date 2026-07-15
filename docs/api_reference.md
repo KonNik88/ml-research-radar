@@ -76,6 +76,7 @@ Citation Graph Diagnostics UI v0.1
 Citation Graph External Reference Lookup UI v0.1
 Citation Graph UI Productization Checkpoint v0.1
 Citation Graph Store Cache & Reload Regression v0.1
+Citation Graph Failure Isolation & Error Recovery v0.1
 ```
 
 Current canonical baseline:
@@ -2796,3 +2797,40 @@ Operational semantics:
 This lifecycle does not change the seven-route Citation Graph API contract,
 feature-flag defaults, compatibility gates, manual-review state, publication
 state, or the meaning of `runtime_loader_implemented=false`.
+
+
+## Citation Graph Failure Isolation & Error Recovery v0.1
+
+This checkpoint hardens file-loading failure behavior for the six existing
+Citation Graph traversal/diagnostics routes.
+
+```text
+citation_graph_failure_isolation = implemented
+graph_store_oserror_maps_to_graph_artifacts_invalid = true
+graph_store_failed_load_cached = false
+graph_runtime_failure_affects_general_health = false
+graph_runtime_recovery_requires_process_restart = false
+```
+
+Error mapping:
+
+```text
+missing required graph artifact or race-to-missing file
+→ 503 graph_artifacts_not_found
+
+invalid JSON/JSONL, invalid store structure, or graph-store OSError
+→ 503 graph_artifacts_invalid
+```
+
+The status endpoint continues to return `200` with its diagnostic `error_code`.
+Traversal routes return graph-scoped `503` responses. These failures do not
+change readiness or behavior of `/health`, `/info`, `/runtime`, `/search`,
+Discovery API, DB serving, or Qdrant diagnostics.
+
+`functools.lru_cache` caches successful store objects only. A failed
+`CitationGraphStore.load(...)` attempt does not create a cache entry. Once the
+files are repaired, a later request can recover without a process restart. A
+successfully cached store remains stable until `/reload` clears the cache.
+
+This checkpoint adds no route, query method, schema, graph rebuild, graph-file
+write, full graph runtime loader, graph DB, GraphRAG, or publication behavior.

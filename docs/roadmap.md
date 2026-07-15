@@ -7,12 +7,12 @@ document = primary living roadmap
 accepted checkpoint = Current State Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
 current active direction = review / regression / design-hardening
-current active slice = Citation Graph Store Cache & Reload Regression v0.1
+current active slice = Citation Graph Failure Isolation & Error Recovery v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = regression-hardening over the existing bounded CitationGraphStore cache and POST /reload invalidation contract; add graph-specific integration evidence, extend the existing regression validator, and synchronize living docs only; no new endpoint, store method, graph rebuild, graph artifact mutation, full graph runtime loader, graph DB, GraphRAG, canonical, retrieval, Qdrant, Postgres, ranking, UI, or publication behavior changes
+scope of current branch = regression-hardening over Citation Graph file-loading failures and recovery; map graph-store OSError failures to graph-scoped 503 responses, prove failed loads do not poison the bounded cache, prove general API health remains independent, and synchronize validation/docs; no new endpoint, store method, response schema, graph rebuild, full graph runtime loader, graph DB, GraphRAG, canonical, retrieval, Qdrant, Postgres, ranking, UI, or publication behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -92,11 +92,12 @@ Recently completed safe slices:
 29. **Citation Graph Diagnostics UI v0.1** — completed third UI code slice; Streamlit reads `/source-families`, `/top-referenced-papers`, and `/top-external-references` endpoints and renders diagnostic tables only.
 30. **Citation Graph External Reference Lookup UI v0.1** — completed fourth UI code slice; Streamlit reads `/external-references/{reference_id}/papers` with explicit URL/path quoting and renders referencing-paper evidence only.
 31. **Citation Graph UI Productization Checkpoint v0.1** — completed validator-light checkpoint over seven accepted API routes and four implemented thin Streamlit evidence consumers; no new runtime behavior.
-32. **Citation Graph Store Cache & Reload Regression v0.1** — active regression-hardening slice over the existing bounded file-backed store cache and `/reload` invalidation semantics; no new endpoint or graph mutation.
+32. **Citation Graph Store Cache & Reload Regression v0.1** — completed regression-hardening slice over the bounded file-backed store cache and `/reload` invalidation semantics; no new endpoint or graph mutation.
+33. **Citation Graph Failure Isolation & Error Recovery v0.1** — active regression-hardening slice over graph-file failures, graph-scoped error mapping, cache non-poisoning, and recovery without process restart.
 
 Recommended next safe slices:
 
-1. **Citation Graph Store Cache & Reload Regression v0.1** — freeze bounded cache reuse, `/reload` invalidation, disabled-reload behavior, and graph-artifact no-mutation semantics.
+1. **Citation Graph Failure Isolation & Error Recovery v0.1** — freeze graph-scoped file-error mapping, health independence, cache non-poisoning, and repair/retry recovery semantics.
 2. **Citation Graph Live Smoke & Known-Issues Hardening v0.1** — add operator-facing live smoke evidence and refresh known limitations without a new runtime surface.
 3. **Citation Graph Manual-Review Evidence Preparation v0.1** — prepare evidence for selected pending categories without approval or publication.
 4. **Paper–Artifact Graph API Design v0.1** — only if existing Artifact API surfaces prove insufficient for paper-artifact graph evidence.
@@ -3829,7 +3830,7 @@ no canonical/retrieval/Qdrant/Postgres/ranking/publication change
 
 ### Citation Graph UI Productization Checkpoint v0.1
 
-Status: **active validator-light checkpoint**
+Status: **completed validator-light checkpoint**
 
 Accepted implementation baseline:
 
@@ -3866,7 +3867,7 @@ no canonical/retrieval/Qdrant/Postgres/ranking/publication change
 
 ### Citation Graph Store Cache & Reload Regression v0.1
 
-Status: **active regression-hardening slice**
+Status: **completed regression-hardening slice**
 
 ```text
 citation_graph_store_cache = bounded_by_graph_root
@@ -3887,3 +3888,39 @@ root.
 The reload endpoint remains an invalidation/re-read operation only. It must not
 rebuild graph output, write graph files, change graph counters, approve manual
 review, publish the graph, or introduce a promoted full graph runtime loader.
+
+
+### Citation Graph Failure Isolation & Error Recovery v0.1
+
+Status: **active regression-hardening slice**
+
+```text
+citation_graph_failure_isolation = implemented
+graph_store_oserror_maps_to_graph_artifacts_invalid = true
+graph_store_failed_load_cached = false
+graph_runtime_failure_affects_general_health = false
+graph_runtime_recovery_requires_process_restart = false
+```
+
+The existing status probe already fails closed for missing or unreadable graph
+artifacts. This slice closes the remaining store-loading gap by mapping ordinary
+file-system `OSError` failures from every traversal route to the stable
+`503 graph_artifacts_invalid` contract instead of the generic API `500` path.
+
+Failed `CitationGraphStore.load(...)` calls are not retained by the bounded
+`lru_cache`. After files are repaired, the next request may load successfully
+without restarting the FastAPI process. A previously cached valid store remains
+usable until explicit `/reload` invalidation; after invalidation, current files
+are read and any failure remains isolated to `/citation-graph/*`.
+
+Boundary:
+
+```text
+no new endpoint or store query method
+no response schema change
+no graph rebuild or graph-file mutation
+no dependency of /health, /info, /runtime, /search, Discovery, DB, or Qdrant on graph availability
+no full graph runtime loader
+no graph DB / GraphRAG
+no canonical/retrieval/Postgres/Qdrant/ranking/UI/publication change
+```

@@ -89,7 +89,8 @@ Citation Graph Paper Workspace Panel v0.1 — 2026-07 completed selected-paper c
 Citation Graph Diagnostics UI v0.1 — 2026-07 completed graph diagnostics table UI slice
 Citation Graph External Reference Lookup UI v0.1 — 2026-07 completed external-reference lookup UI slice
 Citation Graph UI Productization Checkpoint v0.1 — 2026-07 completed validator-light docs/validation checkpoint
-Citation Graph Store Cache & Reload Regression v0.1 — 2026-07 active regression-hardening slice over bounded store-cache invalidation and graph-artifact no-mutation semantics
+Citation Graph Store Cache & Reload Regression v0.1 — 2026-07 completed regression-hardening slice over bounded store-cache invalidation and graph-artifact no-mutation semantics
+Citation Graph Failure Isolation & Error Recovery v0.1 — 2026-07 active regression-hardening slice over graph-scoped file errors, health independence, cache non-poisoning, and repair/retry recovery
 ```
 
 Current healthy baseline:
@@ -4103,3 +4104,50 @@ Expected contract:
 - disabled `/reload` returns `404` before cache invalidation;
 - general reload, health, Qdrant reset, seven graph routes, manual-review flags,
   and publication boundaries remain unchanged.
+
+
+# Citation Graph Failure Isolation & Error Recovery v0.1 validation
+
+Accepted markers:
+
+```text
+citation_graph_failure_isolation = implemented
+graph_store_oserror_maps_to_graph_artifacts_invalid = true
+graph_store_failed_load_cached = false
+graph_runtime_failure_affects_general_health = false
+graph_runtime_recovery_requires_process_restart = false
+```
+
+Run focused validation:
+
+```bat
+set ML_RADAR_SEARCH_BACKEND=file
+python -m py_compile services/api/app.py tests/integration/test_api_citation_graph_failure_isolation.py scripts/validation/check_citation_graph_api_regression.py tests/smoke/test_citation_graph_api_regression.py
+python -m pytest tests/integration/test_api_citation_graph_failure_isolation.py -q
+python -m scripts.validation.check_citation_graph_api_regression --strict
+python -m pytest tests/smoke/test_citation_graph_api_regression.py -q
+python -m pytest tests/smoke/test_citation_graph_api_regression_dod.py -q
+```
+
+Then run the connected regression block:
+
+```bat
+python -m pytest tests/integration/test_api_citation_graph_reload.py -q
+python -m pytest tests/integration/test_api_citation_graph_status.py -q
+python -m pytest tests/integration/test_api_citation_graph_references.py -q
+python -m pytest tests/smoke/test_citation_graph_fixture_store.py -q
+python -m scripts.update.check_refresh_definition_of_done --require-citation-graph-api-regression
+```
+
+Expected contract:
+
+- missing graph artifacts return graph-scoped `graph_artifacts_not_found`;
+- invalid content and graph-store `OSError` return graph-scoped
+  `graph_artifacts_invalid` rather than generic `internal_error`;
+- all six traversal/diagnostics routes share this file-error contract;
+- failed store construction creates no bounded-cache entry;
+- repaired files can be loaded on a later request without process restart;
+- cached valid stores remain stable until explicit `/reload` invalidation;
+- graph failures do not affect `/health`, `/info`, `/runtime`, `/search`,
+  Discovery, Postgres, or Qdrant behavior;
+- no graph artifact is rebuilt, mutated, promoted, or published.

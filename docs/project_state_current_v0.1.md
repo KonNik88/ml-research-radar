@@ -833,8 +833,8 @@ Recently completed safe slices after this checkpoint baseline:
 
 Recommended next slices:
 
-1. **Citation Graph Store Cache & Reload Regression v0.1**
-   - freeze bounded cache reuse, `/reload` invalidation, disabled-reload behavior, and graph-artifact no-mutation semantics;
+1. **Citation Graph Failure Isolation & Error Recovery v0.1**
+   - freeze graph-scoped missing/invalid/OSError mapping, health independence, cache non-poisoning, and repair/retry recovery semantics;
    - do not add endpoints or runtime behavior.
 
 2. **Citation Graph Live Smoke & Known-Issues Hardening v0.1**
@@ -1325,7 +1325,7 @@ hardening, not additional graph endpoints or a graph database.
 
 ## Citation Graph Store Cache & Reload Regression v0.1
 
-Current active hardening slice:
+Completed hardening slice:
 
 ```text
 citation_graph_store_cache = bounded_by_graph_root
@@ -1345,3 +1345,30 @@ the same root.
 
 No canonical, retrieval, Qdrant, Postgres, ranking, UI, graph schema, endpoint,
 manual-review, or publication behavior changes are included.
+
+
+## Citation Graph Failure Isolation & Error Recovery v0.1
+
+Current active hardening slice:
+
+```text
+citation_graph_failure_isolation = implemented
+graph_store_oserror_maps_to_graph_artifacts_invalid = true
+graph_store_failed_load_cached = false
+graph_runtime_failure_affects_general_health = false
+graph_runtime_recovery_requires_process_restart = false
+```
+
+The graph status probe and six traversal/diagnostics routes remain optional,
+read-only, and feature-flagged. Missing artifacts fail closed with
+`graph_artifacts_not_found`. Invalid JSON/JSONL, invalid store structure, and
+ordinary graph-store `OSError` failures fail closed with
+`graph_artifacts_invalid` rather than escaping to the generic `500` handler.
+
+A failed store load is not cached. After local files are repaired, the next
+request may recover without restarting the API process. A cached valid store is
+stable until `/reload` clears it, after which current files are re-read.
+
+General API readiness and serving remain independent of Citation Graph state.
+No endpoint, schema, graph output, canonical, retrieval, Postgres, Qdrant,
+ranking, UI, manual-review, or publication semantics are promoted or changed.

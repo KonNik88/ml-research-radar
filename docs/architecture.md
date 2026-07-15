@@ -16,7 +16,7 @@ overlapping source-level observations.
 ## Current checkpoint
 
 ```text
-checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1 / Citation Graph Diagnostics UI v0.1 / Citation Graph External Reference Lookup UI v0.1 / Citation Graph UI Productization Checkpoint v0.1 / Citation Graph Store Cache & Reload Regression v0.1
+checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1 / Citation Graph Diagnostics UI v0.1 / Citation Graph External Reference Lookup UI v0.1 / Citation Graph UI Productization Checkpoint v0.1 / Citation Graph Store Cache & Reload Regression v0.1 / Citation Graph Failure Isolation & Error Recovery v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
@@ -79,6 +79,7 @@ sources
 → Citation Graph diagnostics panel
 → Citation Graph external reference lookup panel
 → Citation Graph bounded store-cache / reload invalidation contract
+→ Citation Graph failure isolation / repair-and-retry recovery contract
 → Streamlit Discovery UI
 → validators / regression / strict DoD
 ```
@@ -963,3 +964,36 @@ graphrag = not implemented
 When the reload endpoint is disabled, the request returns `404` before graph
 cache invalidation. General API health remains governed by the normal API
 runtime and does not depend on Citation Graph availability.
+
+
+## Citation Graph failure isolation and recovery
+
+The Citation Graph local-inspection surface is optional and failure-isolated:
+
+```text
+citation_graph_failure_isolation = implemented
+graph_store_oserror_maps_to_graph_artifacts_invalid = true
+graph_store_failed_load_cached = false
+graph_runtime_failure_affects_general_health = false
+graph_runtime_recovery_requires_process_restart = false
+```
+
+The status probe checks graph/package/report compatibility without becoming a
+general runtime dependency. Each traversal route performs the compatibility gate
+before loading the file-backed store. Missing files map to
+`graph_artifacts_not_found`; invalid content and ordinary graph-store file I/O
+errors map to `graph_artifacts_invalid`.
+
+Only successful store construction enters the bounded cache. Therefore a failed
+load cannot poison future reads: repairing the files is sufficient for the next
+uncached request to recover. An already cached valid store remains immutable and
+usable until `/reload` explicitly invalidates it.
+
+This isolation preserves the architecture boundary:
+
+```text
+/health, /info, /runtime, /search, Discovery, Postgres, and Qdrant are graph-independent
+no graph rebuild or graph mutation on failure/recovery
+no full graph runtime subsystem
+no graph DB / GraphRAG
+```

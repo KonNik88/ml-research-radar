@@ -419,7 +419,7 @@ def citation_graph_paper_references(
             message=str(exc),
             details=None,
         )
-    except ValueError as exc:
+    except (OSError, ValueError) as exc:
         return _graph_error_response(
             status_code=503,
             error_code="graph_artifacts_invalid",
@@ -493,7 +493,7 @@ def citation_graph_paper_citations(
             message=str(exc),
             details=None,
         )
-    except ValueError as exc:
+    except (OSError, ValueError) as exc:
         return _graph_error_response(
             status_code=503,
             error_code="graph_artifacts_invalid",
@@ -567,7 +567,7 @@ def citation_graph_external_reference_papers(
             message=str(exc),
             details=None,
         )
-    except ValueError as exc:
+    except (OSError, ValueError) as exc:
         return _graph_error_response(
             status_code=503,
             error_code="graph_artifacts_invalid",
@@ -640,7 +640,7 @@ def citation_graph_source_families(
             message=str(exc),
             details=None,
         )
-    except ValueError as exc:
+    except (OSError, ValueError) as exc:
         return _graph_error_response(
             status_code=503,
             error_code="graph_artifacts_invalid",
@@ -709,7 +709,7 @@ def citation_graph_top_referenced_papers(
             message=str(exc),
             details=None,
         )
-    except ValueError as exc:
+    except (OSError, ValueError) as exc:
         return _graph_error_response(
             status_code=503,
             error_code="graph_artifacts_invalid",
@@ -779,7 +779,7 @@ def citation_graph_top_external_references(
             message=str(exc),
             details=None,
         )
-    except ValueError as exc:
+    except (OSError, ValueError) as exc:
         return _graph_error_response(
             status_code=503,
             error_code="graph_artifacts_invalid",
