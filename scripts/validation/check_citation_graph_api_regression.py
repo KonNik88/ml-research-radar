@@ -29,6 +29,9 @@ DEFAULT_RELOAD_TEST_PATH = Path("tests/integration/test_api_reload.py")
 DEFAULT_GRAPH_RELOAD_TEST_PATH = Path(
     "tests/integration/test_api_citation_graph_reload.py"
 )
+DEFAULT_FAILURE_ISOLATION_TEST_PATH = Path(
+    "tests/integration/test_api_citation_graph_failure_isolation.py"
+)
 
 ROUTES = {
     "status": "/citation-graph/status",
@@ -102,6 +105,12 @@ REQUIRED_DOC_SNIPPETS = [
     "citation_graph_store_cache_clear_on_reload = implemented",
     "graph_reload_rebuilds_artifacts = false",
     "graph_reload_mutates_artifacts = false",
+    "Citation Graph Failure Isolation & Error Recovery v0.1",
+    "citation_graph_failure_isolation = implemented",
+    "graph_store_oserror_maps_to_graph_artifacts_invalid = true",
+    "graph_store_failed_load_cached = false",
+    "graph_runtime_failure_affects_general_health = false",
+    "graph_runtime_recovery_requires_process_restart = false",
 ]
 
 FORBIDDEN_STALE_DOC_SNIPPETS = [
@@ -115,6 +124,8 @@ FORBIDDEN_STALE_DOC_SNIPPETS = [
     "Citation Graph External Reference Lookup UI v0.1 — 2026-07 active",
     "current active slice = Citation Graph UI Productization Checkpoint v0.1",
     "Citation Graph UI Productization Checkpoint v0.1 — 2026-07 active",
+    "current active slice = Citation Graph Store Cache & Reload Regression v0.1",
+    "Citation Graph Store Cache & Reload Regression v0.1 — 2026-07 active",
     "streamlit_graph_ui = not implemented",
 ]
 
@@ -255,6 +266,7 @@ def _paths_from_args(args: argparse.Namespace) -> dict[str, Path]:
         "store_test_path": Path(args.store_test_path),
         "reload_test_path": Path(args.reload_test_path),
         "graph_reload_test_path": Path(args.graph_reload_test_path),
+        "failure_isolation_test_path": Path(args.failure_isolation_test_path),
     }
 
 
@@ -294,6 +306,10 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
     store_test_text = file_texts.get("store_test_path", "")
     reload_test_text = file_texts.get("reload_test_path", "")
     graph_reload_test_text = file_texts.get("graph_reload_test_path", "")
+    failure_isolation_test_text = file_texts.get(
+        "failure_isolation_test_path",
+        "",
+    )
 
     route_counts = route_count_summary(app_text)
     diagnostics["route_counts"] = route_counts
@@ -437,6 +453,33 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         not missing_graph_reload_test_snippets
     )
 
+    checks["graph_store_oserror_is_graph_scoped_for_all_traversal_routes"] = (
+        app_text.count("except (OSError, ValueError) as exc:")
+        >= len(TRAVERSAL_ROUTES)
+    )
+    required_failure_isolation_test_snippets = [
+        "test_missing_graph_artifact_fails_closed_without_affecting_general_runtime",
+        "test_invalid_status_artifact_fails_closed_without_affecting_general_runtime",
+        "test_graph_store_oserror_maps_to_graph_artifacts_invalid_for_all_routes",
+        "test_failed_store_load_is_not_cached_and_recovers_without_reload",
+        "test_cached_store_survives_file_corruption_until_reload_then_recovers",
+        "TRAVERSAL_ENDPOINTS",
+        "_assert_general_runtime_healthy",
+        "_load_citation_graph_store_cached.cache_info().currsize == 0",
+        "graph_artifacts_not_found",
+        "graph_artifacts_invalid",
+    ]
+    missing_failure_isolation_test_snippets = missing_snippets(
+        failure_isolation_test_text,
+        required_failure_isolation_test_snippets,
+    )
+    diagnostics["missing_failure_isolation_test_snippets"] = (
+        missing_failure_isolation_test_snippets
+    )
+    checks["failure_isolation_tests_cover_errors_health_and_recovery"] = (
+        not missing_failure_isolation_test_snippets
+    )
+
     required_test_snippets = [
         "test_citation_graph_references_disabled_fails_closed",
         "test_citation_graph_references_returns_resolved_and_external_items",
@@ -551,6 +594,20 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
                 "graph_reload_mutates_artifacts = false",
             ]
         )
+        checks["docs_failure_isolation_checkpoint_synced"] = (
+            "Citation Graph Failure Isolation & Error Recovery v0.1"
+            in combined_docs
+        )
+        checks["docs_failure_isolation_contract_markers_present"] = all(
+            snippet in combined_docs
+            for snippet in [
+                "citation_graph_failure_isolation = implemented",
+                "graph_store_oserror_maps_to_graph_artifacts_invalid = true",
+                "graph_store_failed_load_cached = false",
+                "graph_runtime_failure_affects_general_health = false",
+                "graph_runtime_recovery_requires_process_restart = false",
+            ]
+        )
         checks["docs_non_goals_preserved"] = all(
             snippet in combined_docs
             for snippet in [
@@ -597,6 +654,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
             "citation_graph_api_regression_ready": not failed_checks,
             "current_graph_routes_checkpointed": not failed_checks,
             "cache_reload_regression_ready": not failed_checks,
+            "failure_isolation_regression_ready": not failed_checks,
             "runtime_loader_implemented": False,
             "publication_ready": False,
             "manual_review_required": True,
@@ -640,6 +698,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--graph-reload-test-path",
         type=Path,
         default=DEFAULT_GRAPH_RELOAD_TEST_PATH,
+    )
+    parser.add_argument(
+        "--failure-isolation-test-path",
+        type=Path,
+        default=DEFAULT_FAILURE_ISOLATION_TEST_PATH,
     )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--skip-docs", action="store_true")
