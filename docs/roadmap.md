@@ -7,12 +7,12 @@ document = primary living roadmap
 accepted checkpoint = Current State Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
 current active direction = review / regression / design-hardening
-current active slice = Citation Graph Live Smoke & Known-Issues Hardening v0.1
+current active slice = Citation Graph Manual-Review Evidence Preparation v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = operator-facing live HTTP smoke evidence and Citation Graph known-issues hardening; add an opt-in validator over the existing seven-route local-inspection API, resolve real smoke IDs from graph JSONL, write latest/history reports, document accepted limitations, and synchronize existing regression/docs only; no new endpoint, store method, response schema, graph rebuild, full graph runtime loader, graph DB, GraphRAG, canonical, retrieval, Qdrant, Postgres, ranking, UI, manual-review approval, publication, or default DoD behavior changes
+scope of current branch = read-only Citation / Reference Graph manual-review evidence preparation; assemble deterministic evidence for all 18 existing checklist categories from accepted reports, manifests, README files, known issues, live smoke, and regression evidence; keep 13 categories as automated-support evidence and 5 as explicit human-decision scaffolds; write latest/history reports and synchronize living docs only; no category-status change, approval, publication, graph rebuild, graph runtime, endpoint/schema, canonical, retrieval, Qdrant, Postgres, ranking, or UI behavior change
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -94,12 +94,13 @@ Recently completed safe slices:
 31. **Citation Graph UI Productization Checkpoint v0.1** — completed validator-light checkpoint over seven accepted API routes and four implemented thin Streamlit evidence consumers; no new runtime behavior.
 32. **Citation Graph Store Cache & Reload Regression v0.1** — completed regression-hardening slice over the bounded file-backed store cache and `/reload` invalidation semantics; no new endpoint or graph mutation.
 33. **Citation Graph Failure Isolation & Error Recovery v0.1** — completed regression-hardening slice over graph-file failures, graph-scoped error mapping, cache non-poisoning, and recovery without process restart.
-34. **Citation Graph Live Smoke & Known-Issues Hardening v0.1** — active operator-facing validation/docs slice over the existing seven-route local-inspection API; no runtime-surface expansion.
+34. **Citation Graph Live Smoke & Known-Issues Hardening v0.1** — completed operator-facing validation/docs slice over the existing seven-route local-inspection API; no runtime-surface expansion.
+35. **Citation Graph Manual-Review Evidence Preparation v0.1** — active read-only review-support slice over the existing 18-category checklist; no approval or publication.
 
 Recommended next safe slices:
 
-1. **Citation Graph Live Smoke & Known-Issues Hardening v0.1** — add operator-facing live HTTP smoke evidence and document accepted limitations without a new runtime surface or default DoD dependency.
-2. **Citation Graph Manual-Review Evidence Preparation v0.1** — prepare evidence for selected pending categories without approval or publication.
+1. **Citation Graph Manual-Review Evidence Preparation v0.1** — prepare deterministic evidence for all 18 pending checklist categories without changing category status, approval, or publication state.
+2. **Manual Citation Graph Review Execution v0.1** — human-only follow-up using the prepared evidence; any category/approval changes require explicit reviewer rationale and remain separate from publication.
 3. **Paper–Artifact Graph API Design v0.1** — only if existing Artifact API surfaces prove insufficient for paper-artifact graph evidence.
 
 Explicit immediate non-goals:
@@ -3928,7 +3929,7 @@ no canonical/retrieval/Postgres/Qdrant/ranking/UI/publication change
 
 ### Citation Graph Live Smoke & Known-Issues Hardening v0.1
 
-Status: **active operator-facing validation/docs slice**
+Status: **completed operator-facing validation/docs slice**
 
 ```text
 citation_graph_live_smoke = implemented_operator_facing_opt_in
@@ -3968,4 +3969,43 @@ no default DoD dependency on a running HTTP server
 no full graph runtime loader
 no graph DB / GraphRAG
 no canonical/retrieval/Postgres/Qdrant/ranking/UI/publication change
+```
+
+
+### Citation Graph Manual-Review Evidence Preparation v0.1
+
+Status: **active read-only review-support slice**
+
+```text
+citation_reference_graph_manual_review_evidence = implemented_read_only
+manual_review_evidence_categories = 18
+automated_support_categories = 13
+human_decision_categories = 5
+category_status_changed = false
+approval_state_changed = false
+manual_review_complete = false
+publication_ready = false
+```
+
+This slice assembles deterministic evidence from the accepted manual-review,
+analytics, inspection, release-candidate, package, line-checkpoint, live-smoke,
+API-regression, graph-review-pack, manifest, data-quality, README, source-matrix,
+merge-policy, and known-issues inputs. It does not reread the full graph JSONL.
+
+`evidence_ready=true` means review material is present. It does not set a
+category to `passed`, does not change `approval_state=not_reviewed`, and does not
+complete manual review. Five categories remain explicitly human-owned:
+license/redistribution, provider terms, README clarity, publication target, and
+final approval state.
+
+Boundary:
+
+```text
+no manual-review config/status mutation
+no automated category or final approval
+no graph/package rebuild
+no API/UI/runtime change
+no canonical/retrieval/Postgres/Qdrant/ranking change
+no graph DB / GraphRAG
+no publication or upload
 ```

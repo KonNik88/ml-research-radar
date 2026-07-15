@@ -835,13 +835,17 @@ Recently completed safe slices after this checkpoint baseline:
    - freezes graph-scoped missing/invalid/OSError mapping, health independence, cache non-poisoning, and repair/retry recovery semantics.
 
 30. **Citation Graph Live Smoke & Known-Issues Hardening v0.1**
-   - current operator-facing validation/docs slice;
+   - completed operator-facing validation/docs slice;
    - adds live HTTP evidence and documents accepted limitations without changing API/runtime behavior.
+
+31. **Citation Graph Manual-Review Evidence Preparation v0.1**
+   - current read-only review-support slice;
+   - assembles evidence for all 18 existing pending categories without changing approval or publication state.
 
 Recommended next slices:
 
-1. **Citation Graph Manual-Review Evidence Preparation v0.1**
-   - prepare evidence for selected pending categories without changing approval state.
+1. **Manual Citation Graph Review Execution v0.1**
+   - human-only follow-up using the prepared evidence; record explicit rationale for any status or approval change.
 
 2. **Paper–Artifact Graph API Design v0.1, only if needed**
    - start only after proving that existing Artifact API surfaces cannot cover a concrete product requirement.
@@ -1375,7 +1379,7 @@ ranking, UI, manual-review, or publication semantics are promoted or changed.
 
 ## Citation Graph Live Smoke & Known-Issues Hardening v0.1
 
-Current active validation/docs slice:
+Completed validation/docs slice:
 
 ```text
 citation_graph_live_smoke = implemented_operator_facing_opt_in
@@ -1398,3 +1402,37 @@ runtime expansion.
 No production API, store, schema, canonical, retrieval, Postgres, Qdrant,
 ranking, Streamlit, graph artifact, manual-review approval, or publication state
 is changed.
+
+
+## Citation Graph Manual-Review Evidence Preparation v0.1
+
+Current active review-support slice:
+
+```text
+citation_reference_graph_manual_review_evidence = implemented_read_only
+categories_count = 18
+automated_support_categories_count = 13
+human_decision_categories_count = 5
+evidence_ready_categories_count = 18 (expected)
+category_status_changed = false
+approval_state_changed = false
+manual_review_complete = false
+publication_ready = false
+```
+
+The evidence layer reads accepted local reports, graph/package manifests, data
+quality, README files, known issues, source roles, merge policy, live smoke, and
+API regression evidence. It produces one category record for every existing
+manual-review category and never changes the source checklist.
+
+Interpretation:
+
+```text
+evidence_ready = material exists for human review
+evidence_ready != passed
+validator ok != approval
+approval and publication remain explicit future actions
+```
+
+No graph JSONL rebuild/reprocessing, API/runtime change, canonical/retrieval/DB/
+Qdrant/ranking/UI change, GraphRAG, graph DB, or publication is introduced.
