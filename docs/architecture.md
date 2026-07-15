@@ -16,7 +16,7 @@ overlapping source-level observations.
 ## Current checkpoint
 
 ```text
-checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1 / Citation Graph Diagnostics UI v0.1 / Citation Graph External Reference Lookup UI v0.1 / Citation Graph UI Productization Checkpoint v0.1 / Citation Graph Store Cache & Reload Regression v0.1 / Citation Graph Failure Isolation & Error Recovery v0.1
+checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1 / Citation Graph Diagnostics UI v0.1 / Citation Graph External Reference Lookup UI v0.1 / Citation Graph UI Productization Checkpoint v0.1 / Citation Graph Store Cache & Reload Regression v0.1 / Citation Graph Failure Isolation & Error Recovery v0.1 / Citation Graph Live Smoke & Known-Issues Hardening v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
@@ -80,6 +80,7 @@ sources
 → Citation Graph external reference lookup panel
 → Citation Graph bounded store-cache / reload invalidation contract
 → Citation Graph failure isolation / repair-and-retry recovery contract
+→ Citation Graph operator-facing live smoke / known-issues evidence
 → Streamlit Discovery UI
 → validators / regression / strict DoD
 ```
@@ -997,3 +998,36 @@ no graph rebuild or graph mutation on failure/recovery
 no full graph runtime subsystem
 no graph DB / GraphRAG
 ```
+
+
+## Citation Graph live smoke and known-issues evidence
+
+```text
+citation_graph_live_smoke = implemented_operator_facing_opt_in
+citation_graph_live_smoke_dod_gate = not_required
+citation_graph_live_smoke_auto_samples = graph_jsonl
+citation_graph_known_issues = documented_v0.1
+```
+
+The live-smoke layer is validation evidence, not a runtime component. It uses
+ordinary HTTP calls against an already running file-backed API with the Citation
+Graph feature flag enabled. It selects one resolved paper-reference edge and one
+unresolved external-reference edge from current graph JSONL, then exercises the
+seven accepted graph routes plus general runtime and error-contract checks.
+
+This preserves the architecture boundary:
+
+```text
+live smoke report = derived operator evidence
+known-issues document = governance/operations evidence
+API and CitationGraphStore = unchanged
+manual_review_complete = false
+publication_ready = false
+full_graph_runtime_loader = not implemented
+graph_db_materialization = not implemented
+graphrag = not implemented
+```
+
+The validator is intentionally opt-in because it depends on a separately running
+HTTP process and local graph artifacts. It is not added to the default refresh
+Definition of Done.

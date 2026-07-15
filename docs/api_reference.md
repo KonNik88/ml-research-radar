@@ -77,6 +77,7 @@ Citation Graph External Reference Lookup UI v0.1
 Citation Graph UI Productization Checkpoint v0.1
 Citation Graph Store Cache & Reload Regression v0.1
 Citation Graph Failure Isolation & Error Recovery v0.1
+Citation Graph Live Smoke & Known-Issues Hardening v0.1
 ```
 
 Current canonical baseline:
@@ -2834,3 +2835,57 @@ successfully cached store remains stable until `/reload` clears the cache.
 
 This checkpoint adds no route, query method, schema, graph rebuild, graph-file
 write, full graph runtime loader, graph DB, GraphRAG, or publication behavior.
+
+
+## Citation Graph Live Smoke & Known-Issues Hardening v0.1
+
+This checkpoint adds no API route and changes no response model. It adds an
+operator-facing live HTTP validator over the existing local-inspection surface.
+
+```text
+citation_graph_live_smoke = implemented_operator_facing_opt_in
+citation_graph_live_smoke_dod_gate = not_required
+citation_graph_live_smoke_auto_samples = graph_jsonl
+citation_graph_known_issues = documented_v0.1
+```
+
+The validator requires an already running API process configured with:
+
+```text
+ML_RADAR_SEARCH_BACKEND=file
+ML_RADAR_CITATION_GRAPH_API_ENABLED=true
+```
+
+It calls:
+
+```text
+GET /health
+GET /info
+GET /runtime
+GET /citation-graph/status
+GET /citation-graph/papers/{canonical_id}/references
+GET /citation-graph/papers/{canonical_id}/citations
+GET /citation-graph/external-references/{reference_id}/papers
+GET /citation-graph/source-families
+GET /citation-graph/top-referenced-papers
+GET /citation-graph/top-external-references
+```
+
+It also verifies the stable `canonical_id_not_found`,
+`external_reference_not_found`, and `graph_result_limit_exceeded` contracts and
+confirms that general runtime health remains ready after graph calls. Sample IDs
+are selected from the configured graph JSONL rather than hard-coded.
+
+Reports:
+
+```text
+artifacts/reports/validation/citation_graph_live_smoke_latest.json
+artifacts/reports/validation/citation_graph_live_smoke_latest.md
+artifacts/reports/validation/history/citation_graph_live_smoke_<timestamp>.json
+artifacts/reports/validation/history/citation_graph_live_smoke_<timestamp>.md
+```
+
+The live report is operational evidence and is not a default DoD gate. Current
+limitations are documented in `docs/citation_graph_known_issues_v0.1.md`. A green
+report does not mean manual review is complete and does not make the graph
+publication-ready.
