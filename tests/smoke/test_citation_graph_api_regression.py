@@ -12,6 +12,9 @@ from scripts.validation.check_citation_graph_api_regression import (
     DEFAULT_RELOAD_TEST_PATH,
     DEFAULT_GRAPH_RELOAD_TEST_PATH,
     DEFAULT_FAILURE_ISOLATION_TEST_PATH,
+    DEFAULT_LIVE_SMOKE_VALIDATOR_PATH,
+    DEFAULT_LIVE_SMOKE_TEST_PATH,
+    DEFAULT_KNOWN_ISSUES_PATH,
     DEFAULT_ROADMAP_PATH,
     DEFAULT_SCHEMAS_PATH,
     DEFAULT_SERVICE_PATH,
@@ -42,6 +45,9 @@ def _args(tmp_path: Path, *, skip_docs: bool = False) -> argparse.Namespace:
         reload_test_path=DEFAULT_RELOAD_TEST_PATH,
         graph_reload_test_path=DEFAULT_GRAPH_RELOAD_TEST_PATH,
         failure_isolation_test_path=DEFAULT_FAILURE_ISOLATION_TEST_PATH,
+        live_smoke_validator_path=DEFAULT_LIVE_SMOKE_VALIDATOR_PATH,
+        live_smoke_test_path=DEFAULT_LIVE_SMOKE_TEST_PATH,
+        known_issues_path=DEFAULT_KNOWN_ISSUES_PATH,
         output_dir=tmp_path,
         skip_docs=skip_docs,
         strict=True,
@@ -61,6 +67,7 @@ def test_citation_graph_api_regression_current_repo_is_green(tmp_path):
     assert report["verdict"]["manual_review_required"] is True
     assert report["verdict"]["cache_reload_regression_ready"] is True
     assert report["verdict"]["failure_isolation_regression_ready"] is True
+    assert report["verdict"]["live_smoke_known_issues_ready"] is True
     assert report["checks"]["graph_store_cache_bounded_by_graph_root"] is True
     assert report["checks"]["graph_store_cache_clear_on_reload"] is True
     assert report["checks"]["graph_store_cache_clear_precedes_runtime_reload"] is True
@@ -78,6 +85,21 @@ def test_citation_graph_api_regression_current_repo_is_green(tmp_path):
     ] is True
     assert report["checks"][
         "docs_failure_isolation_contract_markers_present"
+    ] is True
+    assert report["checks"][
+        "live_smoke_validator_covers_live_routes_and_error_contract"
+    ] is True
+    assert report["checks"][
+        "live_smoke_tests_cover_report_failures_and_sample_resolution"
+    ] is True
+    assert report["checks"][
+        "known_issues_checkpoint_documents_current_limitations"
+    ] is True
+    assert report["checks"][
+        "docs_live_smoke_known_issues_checkpoint_synced"
+    ] is True
+    assert report["checks"][
+        "docs_live_smoke_known_issues_markers_present"
     ] is True
 
 

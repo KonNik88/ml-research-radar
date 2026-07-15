@@ -90,7 +90,8 @@ Citation Graph Diagnostics UI v0.1 — 2026-07 completed graph diagnostics table
 Citation Graph External Reference Lookup UI v0.1 — 2026-07 completed external-reference lookup UI slice
 Citation Graph UI Productization Checkpoint v0.1 — 2026-07 completed validator-light docs/validation checkpoint
 Citation Graph Store Cache & Reload Regression v0.1 — 2026-07 completed regression-hardening slice over bounded store-cache invalidation and graph-artifact no-mutation semantics
-Citation Graph Failure Isolation & Error Recovery v0.1 — 2026-07 active regression-hardening slice over graph-scoped file errors, health independence, cache non-poisoning, and repair/retry recovery
+Citation Graph Failure Isolation & Error Recovery v0.1 — 2026-07 completed regression-hardening slice over graph-scoped file errors, health independence, cache non-poisoning, and repair/retry recovery
+Citation Graph Live Smoke & Known-Issues Hardening v0.1 — 2026-07 active operator-facing live-validation and limitations-documentation slice
 ```
 
 Current healthy baseline:
@@ -4151,3 +4152,103 @@ Expected contract:
 - graph failures do not affect `/health`, `/info`, `/runtime`, `/search`,
   Discovery, Postgres, or Qdrant behavior;
 - no graph artifact is rebuilt, mutated, promoted, or published.
+
+
+# Citation Graph Live Smoke & Known-Issues Hardening v0.1 validation
+
+Accepted markers:
+
+```text
+citation_graph_live_smoke = implemented_operator_facing_opt_in
+citation_graph_live_smoke_dod_gate = not_required
+citation_graph_live_smoke_auto_samples = graph_jsonl
+citation_graph_known_issues = documented_v0.1
+```
+
+## 1. Static and smoke validation
+
+```bat
+python -m py_compile scripts/validation/check_citation_graph_live_smoke.py tests/smoke/test_citation_graph_live_smoke.py scripts/validation/check_citation_graph_api_regression.py tests/smoke/test_citation_graph_api_regression.py
+python -m pytest tests/smoke/test_citation_graph_live_smoke.py -q
+python -m scripts.validation.check_citation_graph_api_regression --strict
+python -m pytest tests/smoke/test_citation_graph_api_regression.py -q
+python -m pytest tests/smoke/test_citation_graph_api_regression_dod.py -q
+```
+
+## 2. Start the live API
+
+Open a dedicated Anaconda Prompt:
+
+```bat
+conda activate ml_radar
+cd /d D:\ML\ML_Research_Radar
+set ML_RADAR_SEARCH_BACKEND=file
+set ML_RADAR_CITATION_GRAPH_API_ENABLED=true
+python -m uvicorn services.api.app:app --host 127.0.0.1 --port 8000
+```
+
+Wait for:
+
+```text
+Application startup complete.
+```
+
+## 3. Run operator-facing live smoke
+
+In a second Anaconda Prompt:
+
+```bat
+conda activate ml_radar
+cd /d D:\ML\ML_Research_Radar
+python -m scripts.validation.check_citation_graph_live_smoke --strict
+```
+
+Optional explicit form:
+
+```bat
+python -m scripts.validation.check_citation_graph_live_smoke --base-url http://127.0.0.1:8000 --graph-root data/graphs/citation_reference_graph/v0.1 --limit 5 --invalid-limit 101 --timeout-sec 300 --strict
+```
+
+Expected reports:
+
+```text
+artifacts/reports/validation/citation_graph_live_smoke_latest.json
+artifacts/reports/validation/citation_graph_live_smoke_latest.md
+artifacts/reports/validation/history/citation_graph_live_smoke_<timestamp>.json
+artifacts/reports/validation/history/citation_graph_live_smoke_<timestamp>.md
+```
+
+Expected verdict:
+
+```text
+ok = true
+required_failed_count = 0
+live_smoke_ready = true
+operator_facing_evidence = true
+dod_gate_required = false
+runtime_loader_implemented = false
+manual_review_required = true
+publication_ready = false
+```
+
+The validator resolves one `paper_references_paper` edge and one
+`paper_references_external` edge from graph JSONL, maps their node IDs to real
+smoke inputs, then checks the existing API over HTTP. It does not start or
+mutate the API process, graph artifacts, reports from other validators,
+canonical truth, retrieval, Postgres, or Qdrant.
+
+## 4. Connected regression
+
+```bat
+python -m pytest tests/integration/test_api_citation_graph_status.py -q
+python -m pytest tests/integration/test_api_citation_graph_references.py -q
+python -m pytest tests/integration/test_api_citation_graph_reload.py -q
+python -m pytest tests/integration/test_api_citation_graph_failure_isolation.py -q
+python -m pytest tests/smoke/test_citation_graph_fixture_store.py -q
+python -m scripts.update.check_refresh_definition_of_done --require-citation-graph-api-regression
+```
+
+The live smoke remains opt-in and is not wired into the default or current
+Citation Graph regression DoD gate because it requires a separately running HTTP
+server. A green live report is technical operational evidence only; it does not
+complete manual review and does not authorize publication.

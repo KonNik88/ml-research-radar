@@ -827,24 +827,23 @@ Recently completed safe slices after this checkpoint baseline:
    - synchronized living docs, existing validators, terminology, and stale comments only.
 
 28. **Citation Graph Store Cache & Reload Regression v0.1**
-   - current regression-hardening slice;
-   - freezes bounded cache reuse, `/reload` invalidation, disabled-reload behavior, and graph-artifact no-mutation semantics;
-   - adds integration evidence and extends the existing Citation Graph API regression validator.
+   - completed regression-hardening slice;
+   - freezes bounded cache reuse, `/reload` invalidation, disabled-reload behavior, and graph-artifact no-mutation semantics.
+
+29. **Citation Graph Failure Isolation & Error Recovery v0.1**
+   - completed regression-hardening slice;
+   - freezes graph-scoped missing/invalid/OSError mapping, health independence, cache non-poisoning, and repair/retry recovery semantics.
+
+30. **Citation Graph Live Smoke & Known-Issues Hardening v0.1**
+   - current operator-facing validation/docs slice;
+   - adds live HTTP evidence and documents accepted limitations without changing API/runtime behavior.
 
 Recommended next slices:
 
-1. **Citation Graph Failure Isolation & Error Recovery v0.1**
-   - freeze graph-scoped missing/invalid/OSError mapping, health independence, cache non-poisoning, and repair/retry recovery semantics;
-   - do not add endpoints or runtime behavior.
-
-2. **Citation Graph Live Smoke & Known-Issues Hardening v0.1**
-   - prepare operator-facing live smoke evidence and refresh known limitations;
-   - do not approve or publish the graph.
-
-3. **Citation Graph Manual-Review Evidence Preparation v0.1**
+1. **Citation Graph Manual-Review Evidence Preparation v0.1**
    - prepare evidence for selected pending categories without changing approval state.
 
-4. **Paper–Artifact Graph API Design v0.1, only if needed**
+2. **Paper–Artifact Graph API Design v0.1, only if needed**
    - start only after proving that existing Artifact API surfaces cannot cover a concrete product requirement.
 
 ---
@@ -1349,7 +1348,7 @@ manual-review, or publication behavior changes are included.
 
 ## Citation Graph Failure Isolation & Error Recovery v0.1
 
-Current active hardening slice:
+Completed hardening slice:
 
 ```text
 citation_graph_failure_isolation = implemented
@@ -1372,3 +1371,30 @@ stable until `/reload` clears it, after which current files are re-read.
 General API readiness and serving remain independent of Citation Graph state.
 No endpoint, schema, graph output, canonical, retrieval, Postgres, Qdrant,
 ranking, UI, manual-review, or publication semantics are promoted or changed.
+
+
+## Citation Graph Live Smoke & Known-Issues Hardening v0.1
+
+Current active validation/docs slice:
+
+```text
+citation_graph_live_smoke = implemented_operator_facing_opt_in
+citation_graph_live_smoke_dod_gate = not_required
+citation_graph_live_smoke_auto_samples = graph_jsonl
+citation_graph_known_issues = documented_v0.1
+```
+
+The validator calls an already running API and exercises general runtime, the
+status endpoint, all six traversal/diagnostics routes, stable not-found errors,
+and the result-limit guard. Real samples come from current graph JSONL, so the
+check is not coupled to one hard-coded production paper.
+
+The known-issues checkpoint records metadata-only reference coverage, unresolved
+external-reference semantics, low resolution ratio, non-bibliometric top/source
+diagnostics, whole-file local store loading, and manual-review/publication
+blocks. These are current limitations and boundaries, not permission for broad
+runtime expansion.
+
+No production API, store, schema, canonical, retrieval, Postgres, Qdrant,
+ranking, Streamlit, graph artifact, manual-review approval, or publication state
+is changed.

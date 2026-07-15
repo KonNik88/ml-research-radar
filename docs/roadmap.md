@@ -7,12 +7,12 @@ document = primary living roadmap
 accepted checkpoint = Current State Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
 current active direction = review / regression / design-hardening
-current active slice = Citation Graph Failure Isolation & Error Recovery v0.1
+current active slice = Citation Graph Live Smoke & Known-Issues Hardening v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = regression-hardening over Citation Graph file-loading failures and recovery; map graph-store OSError failures to graph-scoped 503 responses, prove failed loads do not poison the bounded cache, prove general API health remains independent, and synchronize validation/docs; no new endpoint, store method, response schema, graph rebuild, full graph runtime loader, graph DB, GraphRAG, canonical, retrieval, Qdrant, Postgres, ranking, UI, or publication behavior changes
+scope of current branch = operator-facing live HTTP smoke evidence and Citation Graph known-issues hardening; add an opt-in validator over the existing seven-route local-inspection API, resolve real smoke IDs from graph JSONL, write latest/history reports, document accepted limitations, and synchronize existing regression/docs only; no new endpoint, store method, response schema, graph rebuild, full graph runtime loader, graph DB, GraphRAG, canonical, retrieval, Qdrant, Postgres, ranking, UI, manual-review approval, publication, or default DoD behavior changes
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -93,14 +93,14 @@ Recently completed safe slices:
 30. **Citation Graph External Reference Lookup UI v0.1** — completed fourth UI code slice; Streamlit reads `/external-references/{reference_id}/papers` with explicit URL/path quoting and renders referencing-paper evidence only.
 31. **Citation Graph UI Productization Checkpoint v0.1** — completed validator-light checkpoint over seven accepted API routes and four implemented thin Streamlit evidence consumers; no new runtime behavior.
 32. **Citation Graph Store Cache & Reload Regression v0.1** — completed regression-hardening slice over the bounded file-backed store cache and `/reload` invalidation semantics; no new endpoint or graph mutation.
-33. **Citation Graph Failure Isolation & Error Recovery v0.1** — active regression-hardening slice over graph-file failures, graph-scoped error mapping, cache non-poisoning, and recovery without process restart.
+33. **Citation Graph Failure Isolation & Error Recovery v0.1** — completed regression-hardening slice over graph-file failures, graph-scoped error mapping, cache non-poisoning, and recovery without process restart.
+34. **Citation Graph Live Smoke & Known-Issues Hardening v0.1** — active operator-facing validation/docs slice over the existing seven-route local-inspection API; no runtime-surface expansion.
 
 Recommended next safe slices:
 
-1. **Citation Graph Failure Isolation & Error Recovery v0.1** — freeze graph-scoped file-error mapping, health independence, cache non-poisoning, and repair/retry recovery semantics.
-2. **Citation Graph Live Smoke & Known-Issues Hardening v0.1** — add operator-facing live smoke evidence and refresh known limitations without a new runtime surface.
-3. **Citation Graph Manual-Review Evidence Preparation v0.1** — prepare evidence for selected pending categories without approval or publication.
-4. **Paper–Artifact Graph API Design v0.1** — only if existing Artifact API surfaces prove insufficient for paper-artifact graph evidence.
+1. **Citation Graph Live Smoke & Known-Issues Hardening v0.1** — add operator-facing live HTTP smoke evidence and document accepted limitations without a new runtime surface or default DoD dependency.
+2. **Citation Graph Manual-Review Evidence Preparation v0.1** — prepare evidence for selected pending categories without approval or publication.
+3. **Paper–Artifact Graph API Design v0.1** — only if existing Artifact API surfaces prove insufficient for paper-artifact graph evidence.
 
 Explicit immediate non-goals:
 
@@ -3892,7 +3892,7 @@ review, publish the graph, or introduce a promoted full graph runtime loader.
 
 ### Citation Graph Failure Isolation & Error Recovery v0.1
 
-Status: **active regression-hardening slice**
+Status: **completed regression-hardening slice**
 
 ```text
 citation_graph_failure_isolation = implemented
@@ -3920,6 +3920,51 @@ no new endpoint or store query method
 no response schema change
 no graph rebuild or graph-file mutation
 no dependency of /health, /info, /runtime, /search, Discovery, DB, or Qdrant on graph availability
+no full graph runtime loader
+no graph DB / GraphRAG
+no canonical/retrieval/Postgres/Qdrant/ranking/UI/publication change
+```
+
+
+### Citation Graph Live Smoke & Known-Issues Hardening v0.1
+
+Status: **active operator-facing validation/docs slice**
+
+```text
+citation_graph_live_smoke = implemented_operator_facing_opt_in
+citation_graph_live_smoke_dod_gate = not_required
+citation_graph_live_smoke_auto_samples = graph_jsonl
+citation_graph_known_issues = documented_v0.1
+```
+
+The live validator calls an already running FastAPI process over HTTP. It checks
+`/health`, `/info`, `/runtime`, the status route, all six traversal/diagnostics
+routes, stable 404 contracts, the result-limit guard, and post-graph general
+health. Real paper and external-reference samples are resolved from the current
+`nodes.jsonl` / `edges.jsonl` rather than hard-coded into the validator.
+
+Reports are operator evidence only:
+
+```text
+artifacts/reports/validation/citation_graph_live_smoke_latest.json
+artifacts/reports/validation/citation_graph_live_smoke_latest.md
+artifacts/reports/validation/history/citation_graph_live_smoke_<timestamp>.json
+artifacts/reports/validation/history/citation_graph_live_smoke_<timestamp>.md
+```
+
+`docs/citation_graph_known_issues_v0.1.md` records metadata-only coverage, low
+reference resolution, unresolved external-reference semantics, non-bibliometric
+diagnostics, whole-file local store loading, manual-review/publication blocks,
+and the absence of a promoted graph runtime. A green live smoke does not approve
+manual review or publication.
+
+Boundary:
+
+```text
+no API route or response schema change
+no CitationGraphStore method change
+no graph rebuild or graph artifact mutation
+no default DoD dependency on a running HTTP server
 no full graph runtime loader
 no graph DB / GraphRAG
 no canonical/retrieval/Postgres/Qdrant/ranking/UI/publication change

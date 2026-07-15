@@ -32,6 +32,15 @@ DEFAULT_GRAPH_RELOAD_TEST_PATH = Path(
 DEFAULT_FAILURE_ISOLATION_TEST_PATH = Path(
     "tests/integration/test_api_citation_graph_failure_isolation.py"
 )
+DEFAULT_LIVE_SMOKE_VALIDATOR_PATH = Path(
+    "scripts/validation/check_citation_graph_live_smoke.py"
+)
+DEFAULT_LIVE_SMOKE_TEST_PATH = Path(
+    "tests/smoke/test_citation_graph_live_smoke.py"
+)
+DEFAULT_KNOWN_ISSUES_PATH = Path(
+    "docs/citation_graph_known_issues_v0.1.md"
+)
 
 ROUTES = {
     "status": "/citation-graph/status",
@@ -111,6 +120,11 @@ REQUIRED_DOC_SNIPPETS = [
     "graph_store_failed_load_cached = false",
     "graph_runtime_failure_affects_general_health = false",
     "graph_runtime_recovery_requires_process_restart = false",
+    "Citation Graph Live Smoke & Known-Issues Hardening v0.1",
+    "citation_graph_live_smoke = implemented_operator_facing_opt_in",
+    "citation_graph_live_smoke_dod_gate = not_required",
+    "citation_graph_live_smoke_auto_samples = graph_jsonl",
+    "citation_graph_known_issues = documented_v0.1",
 ]
 
 FORBIDDEN_STALE_DOC_SNIPPETS = [
@@ -126,6 +140,8 @@ FORBIDDEN_STALE_DOC_SNIPPETS = [
     "Citation Graph UI Productization Checkpoint v0.1 — 2026-07 active",
     "current active slice = Citation Graph Store Cache & Reload Regression v0.1",
     "Citation Graph Store Cache & Reload Regression v0.1 — 2026-07 active",
+    "current active slice = Citation Graph Failure Isolation & Error Recovery v0.1",
+    "Citation Graph Failure Isolation & Error Recovery v0.1 — 2026-07 active",
     "streamlit_graph_ui = not implemented",
 ]
 
@@ -267,6 +283,9 @@ def _paths_from_args(args: argparse.Namespace) -> dict[str, Path]:
         "reload_test_path": Path(args.reload_test_path),
         "graph_reload_test_path": Path(args.graph_reload_test_path),
         "failure_isolation_test_path": Path(args.failure_isolation_test_path),
+        "live_smoke_validator_path": Path(args.live_smoke_validator_path),
+        "live_smoke_test_path": Path(args.live_smoke_test_path),
+        "known_issues_path": Path(args.known_issues_path),
     }
 
 
@@ -290,7 +309,14 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
 
     diagnostics["read_errors"] = read_errors
 
-    for key in ("app_path", "store_path", "service_path", "schemas_path"):
+    for key in (
+        "app_path",
+        "store_path",
+        "service_path",
+        "schemas_path",
+        "live_smoke_validator_path",
+        "live_smoke_test_path",
+    ):
         path = paths[key]
         ok, error = check_python_syntax(path)
         checks[f"{key}_syntax_ok"] = ok
@@ -310,6 +336,9 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "failure_isolation_test_path",
         "",
     )
+    live_smoke_validator_text = file_texts.get("live_smoke_validator_path", "")
+    live_smoke_test_text = file_texts.get("live_smoke_test_path", "")
+    known_issues_text = file_texts.get("known_issues_path", "")
 
     route_counts = route_count_summary(app_text)
     diagnostics["route_counts"] = route_counts
@@ -480,6 +509,78 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         not missing_failure_isolation_test_snippets
     )
 
+    required_live_smoke_validator_snippets = [
+        'SCHEMA_VERSION = "citation_graph_live_smoke_v1"',
+        "def resolve_smoke_samples(",
+        "from urllib.request import Request, urlopen",
+        '"/health"',
+        '"/info"',
+        '"/runtime"',
+        '"/citation-graph/status"',
+        '"/citation-graph/source-families"',
+        '"/citation-graph/top-referenced-papers"',
+        '"/citation-graph/top-external-references"',
+        "canonical_id_not_found",
+        "external_reference_not_found",
+        "graph_result_limit_exceeded",
+        '"dod_gate_required": False',
+        "citation_graph_live_smoke_latest.json",
+        "citation_graph_live_smoke_latest.md",
+    ]
+    missing_live_smoke_validator_snippets = missing_snippets(
+        live_smoke_validator_text,
+        required_live_smoke_validator_snippets,
+    )
+    diagnostics["missing_live_smoke_validator_snippets"] = (
+        missing_live_smoke_validator_snippets
+    )
+    checks["live_smoke_validator_covers_live_routes_and_error_contract"] = (
+        not missing_live_smoke_validator_snippets
+    )
+
+    required_live_smoke_test_snippets = [
+        "test_live_smoke_report_green_with_fake_http",
+        "test_live_smoke_detects_general_runtime_regression",
+        "test_sample_resolution_and_path_encoding",
+        "resolve_smoke_samples",
+        "general_runtime_remains_healthy",
+        "dod_gate_required",
+    ]
+    missing_live_smoke_test_snippets = missing_snippets(
+        live_smoke_test_text,
+        required_live_smoke_test_snippets,
+    )
+    diagnostics["missing_live_smoke_test_snippets"] = (
+        missing_live_smoke_test_snippets
+    )
+    checks["live_smoke_tests_cover_report_failures_and_sample_resolution"] = (
+        not missing_live_smoke_test_snippets
+    )
+
+    required_known_issues_snippets = [
+        "# Citation Graph Known Issues v0.1",
+        "metadata_reference_fields_only = true",
+        "not_a_complete_citation_index = true",
+        "reference_resolution_ratio = 0.00869",
+        "not_global_citation_metric = true",
+        "not_publication_grade_ranking = true",
+        "full_graph_runtime_loader = not implemented",
+        "graph_db_materialization = not implemented",
+        "graphrag = not implemented",
+        "citation_graph_live_smoke = operator_facing_opt_in",
+        "citation_graph_live_smoke_dod_gate = not_required",
+        "manual_review_complete = false",
+        "publication_ready = false",
+    ]
+    missing_known_issues_snippets = missing_snippets(
+        known_issues_text,
+        required_known_issues_snippets,
+    )
+    diagnostics["missing_known_issues_snippets"] = missing_known_issues_snippets
+    checks["known_issues_checkpoint_documents_current_limitations"] = (
+        not missing_known_issues_snippets
+    )
+
     required_test_snippets = [
         "test_citation_graph_references_disabled_fails_closed",
         "test_citation_graph_references_returns_resolved_and_external_items",
@@ -540,6 +641,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
                 "project_state_path",
                 "roadmap_path",
                 "refresh_contract_path",
+                "known_issues_path",
             )
         }
         combined_docs = "\n".join(doc_texts.values())
@@ -608,6 +710,19 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
                 "graph_runtime_recovery_requires_process_restart = false",
             ]
         )
+        checks["docs_live_smoke_known_issues_checkpoint_synced"] = (
+            "Citation Graph Live Smoke & Known-Issues Hardening v0.1"
+            in combined_docs
+        )
+        checks["docs_live_smoke_known_issues_markers_present"] = all(
+            snippet in combined_docs
+            for snippet in [
+                "citation_graph_live_smoke = implemented_operator_facing_opt_in",
+                "citation_graph_live_smoke_dod_gate = not_required",
+                "citation_graph_live_smoke_auto_samples = graph_jsonl",
+                "citation_graph_known_issues = documented_v0.1",
+            ]
+        )
         checks["docs_non_goals_preserved"] = all(
             snippet in combined_docs
             for snippet in [
@@ -655,6 +770,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
             "current_graph_routes_checkpointed": not failed_checks,
             "cache_reload_regression_ready": not failed_checks,
             "failure_isolation_regression_ready": not failed_checks,
+            "live_smoke_known_issues_ready": not failed_checks,
             "runtime_loader_implemented": False,
             "publication_ready": False,
             "manual_review_required": True,
@@ -703,6 +819,21 @@ def build_parser() -> argparse.ArgumentParser:
         "--failure-isolation-test-path",
         type=Path,
         default=DEFAULT_FAILURE_ISOLATION_TEST_PATH,
+    )
+    parser.add_argument(
+        "--live-smoke-validator-path",
+        type=Path,
+        default=DEFAULT_LIVE_SMOKE_VALIDATOR_PATH,
+    )
+    parser.add_argument(
+        "--live-smoke-test-path",
+        type=Path,
+        default=DEFAULT_LIVE_SMOKE_TEST_PATH,
+    )
+    parser.add_argument(
+        "--known-issues-path",
+        type=Path,
+        default=DEFAULT_KNOWN_ISSUES_PATH,
     )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--skip-docs", action="store_true")
