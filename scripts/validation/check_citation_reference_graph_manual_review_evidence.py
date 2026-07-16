@@ -93,6 +93,7 @@ REQUIRED_INPUT_KEYS = {
     "live_smoke_report",
     "api_regression_report",
     "graph_review_evidence_pack_report",
+    "decision_record_doc",
 }
 
 
@@ -278,12 +279,19 @@ def _base_category_record(
     review_questions: list[str],
     evidence_ready: bool,
 ) -> dict[str, Any]:
+    category_status = category.get("status")
+    reviewer_decision = (
+        category_status
+        if category_status in {"passed", "failed", "not_applicable"}
+        else None
+    )
+    reviewer_note = str(category.get("reviewer_note") or "").strip()
     return {
         "category_id": category.get("id"),
         "category_title": category.get("title"),
         "category_required": category.get("required"),
-        "category_status": category.get("status"),
-        "category_reviewer_note": category.get("reviewer_note"),
+        "category_status": category_status,
+        "category_reviewer_note": reviewer_note,
         "evidence_mode": evidence_mode,
         "evidence_ready": bool(evidence_ready),
         "source_paths": source_paths,
@@ -291,8 +299,8 @@ def _base_category_record(
         "samples": samples,
         "review_questions": review_questions,
         "automated_decision": False,
-        "reviewer_decision": None,
-        "reviewer_note": "",
+        "reviewer_decision": reviewer_decision,
+        "reviewer_note": reviewer_note,
     }
 
 
@@ -360,6 +368,7 @@ def _build_category_evidence(
                 path_text["package_readme"],
                 path_text["source_matrix_doc"],
                 path_text["merge_policy_doc"],
+                path_text["decision_record_doc"],
             ]
             facts = {
                 "package_status": package.get("status"),
@@ -378,6 +387,7 @@ def _build_category_evidence(
                 path_text["source_matrix_doc"],
                 path_text["merge_policy_doc"],
                 path_text["analytics_report"],
+                path_text["decision_record_doc"],
             ]
             facts = {
                 "source_families": sorted(source_distribution),
@@ -605,7 +615,11 @@ def _build_category_evidence(
             ]
             ready = facts["package_checksums_match"] is True
         elif category_id == "readme_clarity":
-            sources = [path_text["graph_readme"], path_text["package_readme"]]
+            sources = [
+                path_text["graph_readme"],
+                path_text["package_readme"],
+                path_text["decision_record_doc"],
+            ]
             facts = {
                 "graph_readme_missing_markers": graph_readme_missing,
                 "package_readme_missing_markers": package_readme_missing,
@@ -655,6 +669,7 @@ def _build_category_evidence(
                 path_text["package_manifest"],
                 path_text["release_candidate_report"],
                 path_text["manual_review_report"],
+                path_text["decision_record_doc"],
             ]
             facts = {
                 "technical_graph_candidate_ready": as_mapping(
@@ -676,6 +691,7 @@ def _build_category_evidence(
             sources = [
                 path_text["manual_review_config"],
                 path_text["manual_review_report"],
+                path_text["decision_record_doc"],
             ]
             facts = {
                 "approval_state": review_config.get("approval_state"),
@@ -1088,23 +1104,33 @@ def validate_manual_review_evidence(
     report_manual = as_mapping(manual_report.get("manual_review"))
     report_verdict = as_mapping(manual_report.get("verdict"))
     status_counts = _status_counts(categories)
-    expected_status = expected.get("required_category_status")
+    configured_expected_counts = as_mapping(
+        expected.get("required_category_status_counts")
+    )
+    if configured_expected_counts:
+        expected_status_counts = {
+            str(key): int(value)
+            for key, value in configured_expected_counts.items()
+        }
+    else:
+        expected_status = expected.get("required_category_status")
+        expected_status_counts = {str(expected_status): expected_category_count}
     statuses_ok = (
-        status_counts == {str(expected_status): expected_category_count}
+        status_counts == expected_status_counts
         and report_manual.get("category_status_counts") == status_counts
     )
     checks.append(
         make_check(
-            "source_category_statuses_unchanged",
+            "source_category_statuses_match_expected",
             statuses_ok,
             True,
-            "All source categories remain in the accepted pre-review state",
+            "Source category statuses match the accepted manual-review state",
             {
                 "category_status_counts": status_counts,
                 "report_category_status_counts": report_manual.get(
                     "category_status_counts"
                 ),
-                "expected_status": expected_status,
+                "expected_status_counts": expected_status_counts,
             },
         )
     )
@@ -1132,10 +1158,10 @@ def validate_manual_review_evidence(
     }
     checks.append(
         make_check(
-            "manual_review_state_unchanged",
+            "manual_review_state_matches_expected",
             not state_mismatches,
             True,
-            "Evidence preparation does not change approval, completion, or publication state",
+            "Evidence report is synchronized with the accepted manual-review state",
             {"mismatches": state_mismatches, "actual": state_actual},
         )
     )
@@ -1253,6 +1279,27 @@ def validate_manual_review_evidence(
         )
     )
 
+    decision_record = str(payloads.get("decision_record_doc") or "")
+    decision_record_markers = [
+        str(value)
+        for value in as_list(config.get("decision_record_required_markers"))
+    ]
+    missing_decision_record_markers = _missing_markers(
+        decision_record, decision_record_markers
+    )
+    checks.append(
+        make_check(
+            "decision_record_complete",
+            bool(decision_record_markers) and not missing_decision_record_markers,
+            True,
+            "Manual-review decision record contains the required scope and publication markers",
+            {
+                "configured_markers": decision_record_markers,
+                "missing": missing_decision_record_markers,
+            },
+        )
+    )
+
     category_evidence = _build_category_evidence(
         categories=categories,
         automated_ids=automated_ids,
@@ -1290,7 +1337,8 @@ def validate_manual_review_evidence(
 
     mode_counts: dict[str, int] = {}
     automated_decision_violations: list[str] = []
-    reviewer_decision_violations: list[str] = []
+    reviewer_decision_mismatches: list[str] = []
+    reviewer_note_violations: list[str] = []
     source_path_violations: list[str] = []
     for row in category_evidence:
         category_id = str(row.get("category_id") or "")
@@ -1298,8 +1346,18 @@ def validate_manual_review_evidence(
         mode_counts[mode] = mode_counts.get(mode, 0) + 1
         if row.get("automated_decision") is not False:
             automated_decision_violations.append(category_id)
-        if row.get("reviewer_decision") is not None:
-            reviewer_decision_violations.append(category_id)
+        category_status = row.get("category_status")
+        expected_reviewer_decision = (
+            category_status
+            if category_status in {"passed", "failed", "not_applicable"}
+            else None
+        )
+        if row.get("reviewer_decision") != expected_reviewer_decision:
+            reviewer_decision_mismatches.append(category_id)
+        if expected_reviewer_decision is not None and not str(
+            row.get("reviewer_note") or ""
+        ).strip():
+            reviewer_note_violations.append(category_id)
         if not as_list(row.get("source_paths")):
             source_path_violations.append(category_id)
 
@@ -1318,14 +1376,16 @@ def validate_manual_review_evidence(
     )
     checks.append(
         make_check(
-            "no_automated_review_decisions",
+            "manual_review_decisions_are_human_and_synchronized",
             not automated_decision_violations
-            and not reviewer_decision_violations,
+            and not reviewer_decision_mismatches
+            and not reviewer_note_violations,
             True,
-            "Evidence preparation makes no category or final human decision",
+            "Evidence remains non-automated and mirrors explicit human reviewer decisions",
             {
                 "automated_decision_violations": automated_decision_violations,
-                "reviewer_decision_violations": reviewer_decision_violations,
+                "reviewer_decision_mismatches": reviewer_decision_mismatches,
+                "reviewer_note_violations": reviewer_note_violations,
             },
         )
     )
@@ -1397,9 +1457,11 @@ def validate_manual_review_evidence(
             "automated_support_categories_count": len(automated_ids),
             "human_decision_categories_count": len(human_ids),
             "evidence_ready_categories_count": len(evidence_ready_ids),
-            "category_status_changed": False,
-            "manual_review_complete_changed": False,
-            "approval_state_changed": False,
+            "evidence_validator_mutated_category_status": False,
+            "evidence_validator_mutated_manual_review_complete": False,
+            "evidence_validator_mutated_approval_state": False,
+            "source_manual_review_complete": report_verdict.get("manual_review_complete"),
+            "source_approval_state": review_config.get("approval_state"),
             "publication_ready": False,
         },
         "verdict": {
@@ -1409,8 +1471,13 @@ def validate_manual_review_evidence(
             "warning_checks": warning_checks,
             "manual_review_evidence_ready": summary_ok,
             "manual_review_required": True,
-            "manual_review_complete": False,
+            "manual_review_complete": report_verdict.get("manual_review_complete"),
             "approval_state": review_config.get("approval_state"),
+            "manual_review_decisions_recorded": all(
+                row.get("reviewer_decision") in {"passed", "not_applicable"}
+                for row in category_evidence
+                if row.get("category_required") is True
+            ),
             "automated_approval_performed": False,
             "publication_ready": False,
             "publication_block_reason": report_verdict.get(

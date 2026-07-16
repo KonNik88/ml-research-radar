@@ -3,13 +3,13 @@
 ## Status
 
 ```text
-status = local read-only manual-review evidence preparation
+status = local read-only manual-review evidence and decision synchronization
 schema = citation_reference_graph_manual_review_evidence_v1
 manual_review_support = true
 automated_approval = false
 manual_review_required = true
-manual_review_complete = false
-approval_state = not_reviewed
+manual_review_complete = true
+approval_state = approved
 publication_ready = false
 ```
 
@@ -18,7 +18,7 @@ publication_ready = false
 This slice prepares deterministic review material for every category in the
 existing Citation / Reference Graph v0.1 manual-review checklist.
 
-It does not perform the human review and does not change the checklist state.
+It does not perform or automate the human review. After the separate manual-review execution updates the checklist, this validator reads and mirrors those explicit human decisions without mutating them.
 
 The key interpretation is:
 
@@ -26,7 +26,8 @@ The key interpretation is:
 evidence_ready = review material is present
 evidence_ready != category passed
 summary.ok = evidence layer is structurally valid
-summary.ok != human review complete
+summary.ok = evidence and decision synchronization is structurally valid
+reviewer_decision values come from the human-owned manual-review config
 no automated category approval
 no automated final approval
 publication_ready remains false
@@ -49,6 +50,7 @@ contract
 → API/UI/regression hardening
 → live smoke / known issues
 → manual-review evidence preparation
+→ manual review execution / decision record
 ```
 
 The evidence layer is a derived review-support report. It is not graph truth,
@@ -72,7 +74,7 @@ docs/refresh_contract_v1.md
 docs/roadmap.md
 ```
 
-The existing manual-review config is deliberately not changed:
+The evidence validator never changes the manual-review config. The separate human review execution updates this human-owned source of review state:
 
 ```text
 configs/citation_reference_graph_manual_review.yaml
@@ -103,6 +105,7 @@ data/graphs/citation_reference_graph/packages/v0.1/README.md
 docs/citation_graph_known_issues_v0.1.md
 docs/source_matrix.md
 docs/merge_policy.md
+docs/citation_reference_graph_manual_review_decision_record_v0.1.md
 ```
 
 It does not read `nodes.jsonl` or `edges.jsonl` again. Existing analytics and
@@ -111,19 +114,20 @@ reference targets, and graph counters required for this review-support layer.
 
 ## Current source review state
 
-The accepted pre-review state remains:
+The accepted reviewed state is:
 
 ```text
 required_category_count = 18
-category_status_counts = {pending: 18}
-approval_state = not_reviewed
+category_status_counts = {passed: 18}
+approval_state = approved
 manual_review_required = true
-manual_review_complete = false
+manual_review_complete = true
 publication_ready = false
-publication_block_reason = manual_review_not_completed
+publication_block_reason = publication_action_not_in_scope
 ```
 
-The evidence validator requires this state to remain unchanged in this slice.
+The evidence validator requires its report to match this human-owned state. It
+does not create or alter the decisions.
 
 ## Category model
 
@@ -142,8 +146,8 @@ facts
 samples
 review_questions
 automated_decision = false
-reviewer_decision = null
-reviewer_note = ""
+reviewer_decision = category_status for completed human decisions
+reviewer_note = human reviewer rationale from the manual-review config
 ```
 
 ### Automated-support categories
@@ -278,9 +282,12 @@ categories_count = 18
 automated_support_categories_count = 13
 human_decision_categories_count = 5
 evidence_ready_categories_count = 18
-category_status_changed = false
-manual_review_complete_changed = false
-approval_state_changed = false
+source_category_status_counts = {passed: 18}
+source_approval_state = approved
+source_manual_review_complete = true
+evidence_validator_mutated_category_status = false
+evidence_validator_mutated_manual_review_complete = false
+evidence_validator_mutated_approval_state = false
 publication_ready = false
 required_failed_count = 0
 ok = true
@@ -308,7 +315,7 @@ The validator fails on structural evidence drift, including:
 - non-green accepted source report;
 - manual-review category-set drift;
 - category-policy overlap or omission;
-- a category status or approval-state change in this preparation slice;
+- source category statuses or approval state not matching the accepted reviewed state;
 - graph/package identity or safety drift;
 - accepted count/distribution/resolution-ratio drift;
 - missing README boundary markers;
@@ -316,18 +323,22 @@ The validator fails on structural evidence drift, including:
 - missing OpenAlex normalization evidence;
 - failed package checksum evidence;
 - missing evidence source paths;
-- any automated category or reviewer decision.
+- any automated category decision;
+- reviewer decisions or notes not synchronized with the human-owned manual-review config;
+- an incomplete manual-review decision record.
 
 Pending categories themselves remain valid and publication-blocking.
 
 ## Boundaries
 
-This slice does not:
+The evidence validator itself does not mutate review state. The separate human
+review execution updates the manual-review config before this validator reads it.
+The evidence validator does not:
 
 ```text
-change manual-review category statuses
-change approval_state
-mark manual_review_complete=true
+mutate manual-review category statuses
+mutate approval_state
+automatically mark manual_review_complete=true
 mark publication_ready=true
 publish or upload anything
 rebuild graph or package output
@@ -345,7 +356,8 @@ introduce NetworkX/Neo4j/GraphRAG runtime
 
 ## Next action after this slice
 
-The report can be used by a human reviewer to work through the 18 checklist
-categories. Any status or approval update must be a separate explicit manual
-review action with recorded rationale. Publication remains a separate future
-action even after an eventual approval.
+The human review is complete and the report can be used as closure evidence. The next action is not another graph validator; it is a separate project-level decision about a source-aware public metadata/Kaggle release and later frontend work.
+
+The human decisions remain owned by
+`configs/citation_reference_graph_manual_review.yaml` and the tracked decision
+record. Publication remains a separate future action after approval.

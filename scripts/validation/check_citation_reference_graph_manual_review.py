@@ -446,6 +446,23 @@ def validate_manual_review(
         {"required_flag_errors": required_flag_errors},
     ))
 
+    completed_category_note_errors = {
+        str(category.get("id")): category.get("reviewer_note")
+        for category in categories
+        if category.get("required") is True
+        and category.get("status") in COMPLETED_CATEGORY_STATUSES
+        and not str(category.get("reviewer_note") or "").strip()
+    }
+    checks.append(make_check(
+        "completed_categories_have_reviewer_notes",
+        not completed_category_note_errors,
+        True,
+        "Completed categories have explicit human reviewer rationale"
+        if not completed_category_note_errors
+        else "Completed categories are missing human reviewer rationale",
+        {"missing_reviewer_notes": completed_category_note_errors},
+    ))
+
     derived_complete = manual_review_complete_from_state(config)
     configured_complete = review.get("manual_review_complete")
     complete_consistent = configured_complete is None or configured_complete is derived_complete
@@ -469,6 +486,55 @@ def validate_manual_review(
             "approval_state": approval_state,
             "required_categories_complete": required_categories_complete(categories),
             "category_status_counts": category_status_counts(categories),
+        },
+    ))
+
+    decision_record_raw = inputs.get("decision_record") or review.get("decision_record")
+    decision_record_path = resolve_path(decision_record_raw) if decision_record_raw else None
+    reviewed_at = review.get("reviewed_at")
+    reviewed_at_valid = False
+    if reviewed_at:
+        try:
+            datetime.fromisoformat(str(reviewed_at).replace("Z", "+00:00"))
+            reviewed_at_valid = True
+        except ValueError:
+            reviewed_at_valid = False
+    decision_record_markers_missing: list[str] = []
+    if decision_record_path and decision_record_path.exists():
+        decision_text = decision_record_path.read_text(encoding="utf-8").lower()
+        for marker in (
+            "approval_state = approved",
+            "manual_review_complete = true",
+            "publication_ready = false",
+            "publication action remains separate",
+        ):
+            if marker.lower() not in decision_text:
+                decision_record_markers_missing.append(marker)
+    approved_review_record_ok = (
+        approval_state != "approved"
+        or (
+            bool(str(review.get("reviewer_role") or "").strip())
+            and reviewed_at_valid
+            and decision_record_path is not None
+            and decision_record_path.exists()
+            and not decision_record_markers_missing
+        )
+    )
+    checks.append(make_check(
+        "approved_review_record_complete",
+        approved_review_record_ok,
+        True,
+        "Approved review has reviewer metadata and a complete decision record"
+        if approved_review_record_ok
+        else "Approved review is missing reviewer metadata or a complete decision record",
+        {
+            "approval_state": approval_state,
+            "reviewer_role": review.get("reviewer_role"),
+            "reviewed_at": reviewed_at,
+            "reviewed_at_valid": reviewed_at_valid,
+            "decision_record": normalize_path(decision_record_path),
+            "decision_record_exists": bool(decision_record_path and decision_record_path.exists()),
+            "decision_record_markers_missing": decision_record_markers_missing,
         },
     ))
 
@@ -606,6 +672,9 @@ def validate_manual_review(
             "manual_review_complete": derived_complete,
             "category_status_counts": category_status_counts(categories),
             "required_category_count": len(REQUIRED_CATEGORY_IDS),
+            "reviewer_role": review.get("reviewer_role"),
+            "reviewed_at": review.get("reviewed_at"),
+            "decision_record": normalize_path(decision_record_path),
             "citation_reference_caveats": citation_caveats,
         },
         "checks": [
@@ -628,6 +697,7 @@ def validate_manual_review(
             "pending_categories_block_publication": True,
             "pending_categories_fail_validator": False,
             "publication_action_in_scope": False,
+            "review_decision_recorded": approval_state == "approved" and derived_complete,
             "required_failed_checks": [check.name for check in required_failed],
             "warning_checks": [check.name for check in warnings],
         },

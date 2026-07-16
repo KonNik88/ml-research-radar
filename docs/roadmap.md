@@ -7,12 +7,12 @@ document = primary living roadmap
 accepted checkpoint = Current State Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
 current active direction = review / regression / design-hardening
-current active slice = Citation Graph Manual-Review Evidence Preparation v0.1
+current active slice = Manual Citation Graph Review Execution v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = read-only Citation / Reference Graph manual-review evidence preparation; assemble deterministic evidence for all 18 existing checklist categories from accepted reports, manifests, README files, known issues, live smoke, and regression evidence; keep 13 categories as automated-support evidence and 5 as explicit human-decision scaffolds; write latest/history reports and synchronize living docs only; no category-status change, approval, publication, graph rebuild, graph runtime, endpoint/schema, canonical, retrieval, Qdrant, Postgres, ranking, or UI behavior change
+scope of current branch = explicit human Citation / Reference Graph review execution over the prepared 18-category evidence set; record reviewer rationale for every required category; set 18 categories to passed, approval_state=approved, and manual_review_complete=true; preserve publication_ready=false and publication_block_reason=publication_action_not_in_scope; add a tracked decision record and synchronize evidence/manual-review validators and living docs; no graph/package rebuild, upload, endpoint/schema, canonical, retrieval, Qdrant, Postgres, ranking, or UI behavior change
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -95,13 +95,14 @@ Recently completed safe slices:
 32. **Citation Graph Store Cache & Reload Regression v0.1** — completed regression-hardening slice over the bounded file-backed store cache and `/reload` invalidation semantics; no new endpoint or graph mutation.
 33. **Citation Graph Failure Isolation & Error Recovery v0.1** — completed regression-hardening slice over graph-file failures, graph-scoped error mapping, cache non-poisoning, and recovery without process restart.
 34. **Citation Graph Live Smoke & Known-Issues Hardening v0.1** — completed operator-facing validation/docs slice over the existing seven-route local-inspection API; no runtime-surface expansion.
-35. **Citation Graph Manual-Review Evidence Preparation v0.1** — active read-only review-support slice over the existing 18-category checklist; no approval or publication.
+35. **Citation Graph Manual-Review Evidence Preparation v0.1** — completed read-only review-support slice over the existing 18-category checklist; no automated approval or publication.
+36. **Manual Citation Graph Review Execution v0.1** — active human-governance slice; 18/18 categories passed, checklist approved, publication remains separate.
 
 Recommended next safe slices:
 
-1. **Citation Graph Manual-Review Evidence Preparation v0.1** — prepare deterministic evidence for all 18 pending checklist categories without changing category status, approval, or publication state.
-2. **Manual Citation Graph Review Execution v0.1** — human-only follow-up using the prepared evidence; any category/approval changes require explicit reviewer rationale and remain separate from publication.
-3. **Paper–Artifact Graph API Design v0.1** — only if existing Artifact API surfaces prove insufficient for paper-artifact graph evidence.
+1. **Manual Citation Graph Review Execution v0.1** — complete and merge the explicit 18-category human decision record while keeping publication out of scope.
+2. **Public Metadata Dataset Release Policy & Kaggle Packaging v0.1** — return to the core portfolio goal with a source-aware metadata-only public projection, dataset card, attribution manifest, and no PDF/full-text redistribution.
+3. **Paper–Artifact Graph API Design v0.1** — only if existing Artifact API surfaces prove insufficient for a concrete product requirement.
 
 Explicit immediate non-goals:
 
@@ -3974,7 +3975,7 @@ no canonical/retrieval/Postgres/Qdrant/ranking/UI/publication change
 
 ### Citation Graph Manual-Review Evidence Preparation v0.1
 
-Status: **active read-only review-support slice**
+Status: **completed read-only review-support slice**
 
 ```text
 citation_reference_graph_manual_review_evidence = implemented_read_only
@@ -3992,9 +3993,9 @@ analytics, inspection, release-candidate, package, line-checkpoint, live-smoke,
 API-regression, graph-review-pack, manifest, data-quality, README, source-matrix,
 merge-policy, and known-issues inputs. It does not reread the full graph JSONL.
 
-`evidence_ready=true` means review material is present. It does not set a
-category to `passed`, does not change `approval_state=not_reviewed`, and does not
-complete manual review. Five categories remain explicitly human-owned:
+`evidence_ready=true` means review material is present. The preparation validator
+did not set categories or approval itself. Those five categories remained
+explicitly human-owned until the subsequent review-execution slice:
 license/redistribution, provider terms, README clarity, publication target, and
 final approval state.
 
@@ -4009,3 +4010,46 @@ no canonical/retrieval/Postgres/Qdrant/ranking change
 no graph DB / GraphRAG
 no publication or upload
 ```
+
+
+### Manual Citation Graph Review Execution v0.1
+
+Status: **active human-governance closure slice / not published**
+
+```text
+required_categories = 18
+passed_categories = 18
+failed_categories = 0
+pending_categories = 0
+approval_state = approved
+manual_review_complete = true
+publication_ready = false
+publication_block_reason = publication_action_not_in_scope
+```
+
+The project owner/maintainer reviewed the prepared evidence and accepted the
+Citation / Reference Graph v0.1 checklist for the declared non-commercial,
+educational, portfolio, metadata-first scope. Future targets are a Kaggle
+metadata/graph dataset, GitHub release, and public Radar website with explicit
+provider attribution and links to original publications. PDFs and full text are
+not redistributed.
+
+Tracked decision evidence:
+
+```text
+docs/citation_reference_graph_manual_review_decision_record_v0.1.md
+```
+
+Boundary:
+
+```text
+manual-review approval != publication
+no upload or package promotion
+no graph/package rebuild
+no canonical/retrieval/Postgres/Qdrant/ranking/API/UI change
+no GraphRAG / graph DB / full graph runtime promotion
+```
+
+After this slice, the recommended project direction returns to the public
+metadata dataset/Kaggle release track rather than extending Citation Graph
+runtime surface by default.

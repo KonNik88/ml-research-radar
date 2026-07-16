@@ -16,7 +16,7 @@ overlapping source-level observations.
 ## Current checkpoint
 
 ```text
-checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1 / Citation Graph Diagnostics UI v0.1 / Citation Graph External Reference Lookup UI v0.1 / Citation Graph UI Productization Checkpoint v0.1 / Citation Graph Store Cache & Reload Regression v0.1 / Citation Graph Failure Isolation & Error Recovery v0.1 / Citation Graph Live Smoke & Known-Issues Hardening v0.1 / Citation Graph Manual-Review Evidence Preparation v0.1
+checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1 / Citation Graph Diagnostics UI v0.1 / Citation Graph External Reference Lookup UI v0.1 / Citation Graph UI Productization Checkpoint v0.1 / Citation Graph Store Cache & Reload Regression v0.1 / Citation Graph Failure Isolation & Error Recovery v0.1 / Citation Graph Live Smoke & Known-Issues Hardening v0.1 / Citation Graph Manual-Review Evidence Preparation v0.1 / Manual Citation Graph Review Execution v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
@@ -82,6 +82,7 @@ sources
 → Citation Graph failure isolation / repair-and-retry recovery contract
 → Citation Graph operator-facing live smoke / known-issues evidence
 → Citation Graph manual-review evidence preparation
+→ Citation Graph human review decision record / checklist approval
 → Streamlit Discovery UI
 → validators / regression / strict DoD
 ```
@@ -1036,7 +1037,7 @@ Definition of Done.
 
 ## Citation Graph Manual-Review Evidence Preparation v0.1
 
-The current graph governance line includes a separate read-only evidence layer:
+The graph governance line includes a separate read-only evidence layer. At the preparation checkpoint it represented:
 
 ```text
 manual-review checklist (18 pending categories)
@@ -1045,17 +1046,19 @@ manual-review checklist (18 pending categories)
 → human review remains separate
 ```
 
-Current split:
+Preparation split:
 
 ```text
 automated_support_categories = 13
 human_decision_categories = 5
 evidence_ready does not mean passed
 summary.ok does not mean approved
-approval_state = not_reviewed
-manual_review_complete = false
+pre_review_approval_state = not_reviewed
+pre_review_manual_review_complete = false
 publication_ready = false
 ```
+
+The subsequent human review execution records the current approved state below.
 
 The validator does not reread the full graph output. It reuses accepted derived
 reports and small README/manifest/governance inputs. This avoids duplicating the
@@ -1065,8 +1068,40 @@ Architecture boundary:
 
 ```text
 evidence report = derived review support
-manual-review config = unchanged
+evidence validator does not mutate manual-review config
 canonical paper truth = unchanged
 API/UI/runtime = unchanged
 publication = separate explicit action
 ```
+
+
+## Manual Citation Graph Review Execution v0.1
+
+The graph governance path now separates automated evidence preparation from the
+human-owned review decision:
+
+```text
+accepted graph/package/analytics/API evidence
+→ read-only 18-category evidence report
+→ explicit human reviewer decisions in manual-review config
+→ tracked decision record
+→ approved checklist
+→ publication remains separate
+```
+
+Current reviewed state:
+
+```text
+category_status_counts = {passed: 18}
+approval_state = approved
+manual_review_complete = true
+publication_ready = false
+publication_block_reason = publication_action_not_in_scope
+```
+
+The approved scope is non-commercial educational/portfolio metadata discovery,
+Kaggle/GitHub metadata or graph releases, and a future public Radar website with
+provider attribution and links to originals. Radar does not redistribute PDFs
+or full text. The decision changes governance state only; it does not promote the
+graph to canonical truth or introduce a graph DB, full runtime loader, GraphRAG,
+API schema change, or publication action.

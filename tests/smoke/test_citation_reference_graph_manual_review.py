@@ -113,6 +113,15 @@ def _make_config(base: Path) -> Path:
     _green_optional_report(report_dir / "citation_reference_graph_package_latest.json", "citation_reference_graph_package_validation_v1")
     _green_optional_report(report_dir / "citation_reference_graph_release_candidate_latest.json", "citation_reference_graph_release_candidate_v1")
     _green_optional_report(report_dir / "citation_reference_graph_inspection_latest.json", "citation_reference_graph_inspection_v1")
+    decision_record = base / "docs/citation_reference_graph_manual_review_decision_record_v0.1.md"
+    decision_record.parent.mkdir(parents=True, exist_ok=True)
+    decision_record.write_text(
+        "approval_state = approved\n"
+        "manual_review_complete = true\n"
+        "publication_ready = false\n"
+        "publication action remains separate\n",
+        encoding="utf-8",
+    )
 
     config = {
         "schema_version": "citation_reference_graph_manual_review_config_v1",
@@ -134,6 +143,7 @@ def _make_config(base: Path) -> Path:
             "package_report": str(report_dir / "citation_reference_graph_package_latest.json"),
             "release_candidate_report": str(report_dir / "citation_reference_graph_release_candidate_latest.json"),
             "inspection_report": str(report_dir / "citation_reference_graph_inspection_latest.json"),
+            "decision_record": str(decision_record),
         },
         "validation": {
             "report_dir": str(report_dir),
@@ -316,6 +326,9 @@ def test_manual_review_fails_when_approved_but_required_category_pending(tmp_pat
     config = _load_config(config_path)
     config["review"]["approval_state"] = "approved"
     config["review"]["publication_block_reason"] = "publication_action_not_in_scope"
+    config["review"]["reviewer_role"] = "project_owner_maintainer"
+    config["review"]["reviewed_at"] = "2026-07-16"
+    config["review"]["decision_record"] = config["inputs"]["decision_record"]
     _write_config(config_path, config)
 
     result = validate_manual_review(config_path=config_path, strict=True, write_reports=False)
@@ -329,8 +342,12 @@ def test_manual_review_approved_complete_still_does_not_publish(tmp_path: Path) 
     config["review"]["approval_state"] = "approved"
     config["review"]["manual_review_complete"] = True
     config["review"]["publication_block_reason"] = "publication_action_not_in_scope"
+    config["review"]["reviewer_role"] = "project_owner_maintainer"
+    config["review"]["reviewed_at"] = "2026-07-16"
+    config["review"]["decision_record"] = config["inputs"]["decision_record"]
     for category in config["manual_review"]["categories"]:
         category["status"] = "passed"
+        category["reviewer_note"] = f"Human reviewer passed {category['id']}"
     _write_config(config_path, config)
 
     result = validate_manual_review(config_path=config_path, strict=True, write_reports=False)
@@ -339,6 +356,54 @@ def test_manual_review_approved_complete_still_does_not_publish(tmp_path: Path) 
     assert result["verdict"]["manual_review_complete"] is True
     assert result["verdict"]["publication_ready"] is False
     assert result["verdict"]["publication_block_reason"] == "publication_action_not_in_scope"
+    assert result["verdict"]["review_decision_recorded"] is True
+
+
+def test_manual_review_approved_fails_without_reviewer_notes(tmp_path: Path) -> None:
+    config_path = _make_config(tmp_path)
+    config = _load_config(config_path)
+    config["review"].update(
+        {
+            "approval_state": "approved",
+            "manual_review_complete": True,
+            "publication_block_reason": "publication_action_not_in_scope",
+            "reviewer_role": "project_owner_maintainer",
+            "reviewed_at": "2026-07-16",
+            "decision_record": config["inputs"]["decision_record"],
+        }
+    )
+    for category in config["manual_review"]["categories"]:
+        category["status"] = "passed"
+        category["reviewer_note"] = ""
+    _write_config(config_path, config)
+
+    result = validate_manual_review(config_path=config_path, strict=True, write_reports=False)
+
+    _assert_failed(result, "completed_categories_have_reviewer_notes")
+
+
+def test_manual_review_approved_fails_without_decision_record(tmp_path: Path) -> None:
+    config_path = _make_config(tmp_path)
+    config = _load_config(config_path)
+    config["review"].update(
+        {
+            "approval_state": "approved",
+            "manual_review_complete": True,
+            "publication_block_reason": "publication_action_not_in_scope",
+            "reviewer_role": "project_owner_maintainer",
+            "reviewed_at": "2026-07-16",
+            "decision_record": config["inputs"]["decision_record"],
+        }
+    )
+    for category in config["manual_review"]["categories"]:
+        category["status"] = "passed"
+        category["reviewer_note"] = f"Human reviewer passed {category['id']}"
+    Path(config["inputs"]["decision_record"]).unlink()
+    _write_config(config_path, config)
+
+    result = validate_manual_review(config_path=config_path, strict=True, write_reports=False)
+
+    _assert_failed(result, "approved_review_record_complete")
 
 
 def test_manual_review_cli_no_write_reports(tmp_path: Path) -> None:

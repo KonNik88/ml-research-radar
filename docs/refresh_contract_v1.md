@@ -92,7 +92,8 @@ Citation Graph UI Productization Checkpoint v0.1 — 2026-07 completed validator
 Citation Graph Store Cache & Reload Regression v0.1 — 2026-07 completed regression-hardening slice over bounded store-cache invalidation and graph-artifact no-mutation semantics
 Citation Graph Failure Isolation & Error Recovery v0.1 — 2026-07 completed regression-hardening slice over graph-scoped file errors, health independence, cache non-poisoning, and repair/retry recovery
 Citation Graph Live Smoke & Known-Issues Hardening v0.1 — 2026-07 completed operator-facing live-validation and limitations-documentation slice
-Citation Graph Manual-Review Evidence Preparation v0.1 — 2026-07 active read-only evidence-preparation slice over the existing 18-category checklist
+Citation Graph Manual-Review Evidence Preparation v0.1 — 2026-07 completed read-only evidence-preparation slice over the existing 18-category checklist
+Manual Citation Graph Review Execution v0.1 — 2026-07 active explicit human-review closure slice; 18/18 categories passed, approval recorded, publication remains out of scope
 ```
 
 Current healthy baseline:
@@ -4257,7 +4258,9 @@ complete manual review and does not authorize publication.
 
 # Citation Graph Manual-Review Evidence Preparation v0.1 validation
 
-Accepted markers:
+Historical preparation checkpoint; the reviewed current state is validated in the execution section appended below.
+
+Accepted preparation markers:
 
 ```text
 citation_reference_graph_manual_review_evidence = implemented_read_only
@@ -4330,3 +4333,86 @@ python -m scripts.validation.check_citation_graph_api_regression --strict
 
 A green evidence report only means that review material is prepared. Human review
 and any subsequent checklist/approval updates remain a separate explicit action.
+
+
+# Manual Citation Graph Review Execution v0.1 validation
+
+Current accepted target state:
+
+```text
+category_status_counts = {passed: 18}
+approval_state = approved
+manual_review_complete = true
+publication_ready = false
+publication_block_reason = publication_action_not_in_scope
+```
+
+## 1. Static validation
+
+```bat
+python -m py_compile scripts/validation/check_citation_reference_graph_manual_review.py
+python -m py_compile scripts/validation/check_citation_reference_graph_manual_review_evidence.py
+python -m pytest tests/smoke/test_citation_reference_graph_manual_review.py -q
+python -m pytest tests/smoke/test_citation_reference_graph_manual_review_evidence.py -q
+```
+
+## 2. Regenerate the human-review report first
+
+```bat
+python -m scripts.validation.check_citation_reference_graph_manual_review --strict
+```
+
+Expected current verdict:
+
+```text
+ok = true
+required_failed_count = 0
+category_status_counts = {passed: 18}
+approval_state = approved
+manual_review_complete = true
+review_decision_recorded = true
+publication_ready = false
+publication_block_reason = publication_action_not_in_scope
+```
+
+## 3. Regenerate synchronized evidence
+
+```bat
+python -m scripts.validation.check_citation_reference_graph_manual_review_evidence --strict
+```
+
+Expected evidence verdict:
+
+```text
+ok = true
+required_failed_count = 0
+categories_count = 18
+evidence_ready_categories_count = 18
+approval_state = approved
+manual_review_complete = true
+manual_review_decisions_recorded = true
+automated_approval_performed = false
+publication_ready = false
+publication_block_reason = publication_action_not_in_scope
+```
+
+## 4. Connected validation
+
+```bat
+python -m scripts.validation.check_citation_reference_graph_analytics --strict
+python -m scripts.validation.check_citation_graph_api_regression --strict
+git diff --check
+```
+
+Boundary:
+
+```text
+review execution changes only the human-owned checklist/config and governance docs
+no graph/package rebuild
+no upload or publication
+no canonical/retrieval/Postgres/Qdrant/ranking/API/UI change
+no graph DB / GraphRAG / full graph runtime promotion
+```
+
+Generated latest/history reports remain operational evidence and should not be
+committed by default.
