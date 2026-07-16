@@ -13,7 +13,7 @@ from scripts.validation.check_dataset_release_config import (
 
 def make_valid_config() -> dict:
     return {
-        "schema_version": "dataset_release_config_v1",
+        "schema_version": "dataset_release_config_v2",
         "release": {
             "dataset_name": "ml_research_radar_metadata",
             "version": "v0.1",
@@ -87,6 +87,24 @@ def make_valid_config() -> dict:
             "may_include_embeddings_without_review": False,
             "publish_without_manual_review": False,
         },
+        "public_release_policy": {
+            "path": "configs/public_metadata_release_policy_v0.1.yaml",
+            "required": True,
+            "expected_schema_version": "public_metadata_release_policy_v1",
+            "require_policy_validation_before_review": True,
+        },
+        "packaging": {
+            "dataset_card_file": "DATASET_CARD.md",
+            "attribution_file": "ATTRIBUTION.md",
+            "field_policy_file": "field_release_policy.json",
+            "source_attribution_file": "source_attribution.json",
+            "kaggle_metadata_template_file": "kaggle_metadata.template.json",
+            "kaggle_owner_slug": None,
+            "kaggle_dataset_slug": "ml-research-radar-metadata",
+            "kaggle_license_name": "other",
+            "kaggle_metadata_is_template_only": True,
+            "include_publication_command": False,
+        },
         "outputs": {
             "expected_release_layout": [
                 "data.parquet",
@@ -95,6 +113,11 @@ def make_valid_config() -> dict:
                 "README.md",
                 "data_quality_summary.json",
                 "checksums.txt",
+                "DATASET_CARD.md",
+                "ATTRIBUTION.md",
+                "field_release_policy.json",
+                "source_attribution.json",
+                "kaggle_metadata.template.json",
             ]
         },
     }
@@ -206,6 +229,24 @@ def test_validation_requires_data_quality_summary_flag() -> None:
 
     assert "validation_required_flags" in failed_names(config)
 
+
+
+def test_public_release_policy_is_required() -> None:
+    config = make_valid_config()
+    config["public_release_policy"]["required"] = False
+    assert "public_release_policy_required" in failed_names(config)
+
+
+def test_kaggle_metadata_must_remain_template_only() -> None:
+    config = make_valid_config()
+    config["packaging"]["include_publication_command"] = True
+    assert "kaggle_metadata_template_only" in failed_names(config)
+
+
+def test_kaggle_license_must_not_overclaim_cc0() -> None:
+    config = make_valid_config()
+    config["packaging"]["kaggle_license_name"] = "CC0-1.0"
+    assert "kaggle_license_not_overclaimed" in failed_names(config)
 
 def test_config_file_shape_matches_yaml_round_trip(tmp_path: Path) -> None:
     config = make_valid_config()

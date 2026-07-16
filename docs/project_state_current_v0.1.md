@@ -1464,3 +1464,29 @@ This closes the Citation Graph manual-review gate but does not publish or promot
 the package. The next project-level direction is a source-aware public metadata
 dataset/Kaggle release policy rather than more graph runtime expansion by
 default.
+
+## Public Metadata Release Policy & Kaggle Packaging v0.1
+
+Current implementation state:
+
+```text
+public_metadata_release_policy = implemented
+policy_schema = public_metadata_release_policy_v1
+policy_validation = implemented
+source_policies = 5
+field_policies = 34
+source_aware_abstract_gate = implemented
+kaggle_metadata_template = implemented_template_only
+public_upload = not_performed
+publication_ready = false
+publication_block_reason = public_release_decision_not_completed
+```
+
+The existing 60,954-row metadata candidate remains a derived projection of
+canonical truth. Its 34-column Parquet schema is unchanged. The local package
+now includes a dataset card, provider attribution, generated field/source policy
+artifacts, and an unresolved Kaggle metadata template. Final compilation-license
+selection, owner slug replacement, and upload remain explicit future actions.
+
+This slice does not change canonical reconciliation, Postgres, retrieval,
+Qdrant, ranking, API, Streamlit, graph outputs, or runtime behavior.

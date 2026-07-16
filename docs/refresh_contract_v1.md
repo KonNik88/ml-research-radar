@@ -4416,3 +4416,44 @@ no graph DB / GraphRAG / full graph runtime promotion
 
 Generated latest/history reports remain operational evidence and should not be
 committed by default.
+
+# Public Metadata Release Policy & Kaggle Packaging v0.1 refresh gate
+
+Run in this order:
+
+```bat
+python -m py_compile scripts/validation/check_public_metadata_release_policy.py
+python -m py_compile scripts/export/export_public_dataset.py
+python -m py_compile scripts/validation/check_dataset_release_config.py
+python -m py_compile scripts/validation/check_dataset_release_output.py
+python -m py_compile scripts/validation/check_dataset_release_review_readiness.py
+
+python -m pytest tests/smoke/test_public_metadata_release_policy.py -q
+python -m pytest tests/smoke/test_public_dataset_export_contract.py -q
+python -m pytest tests/smoke/test_dataset_release_config.py -q
+python -m pytest tests/smoke/test_dataset_release_output_validator.py -q
+python -m pytest tests/smoke/test_dataset_release_review_readiness.py -q
+
+python -m scripts.validation.check_dataset_release_config --strict --check-paths
+python -m scripts.validation.check_public_metadata_release_policy --strict --check-paths
+python -m scripts.export.export_public_dataset --force
+python -m scripts.validation.check_dataset_release_output --strict
+python -m scripts.validation.check_dataset_release_review_readiness --strict
+```
+
+Expected final state:
+
+```text
+config schema = dataset_release_config_v2
+manifest schema = dataset_release_manifest_v2
+policy validation ok = true
+output validation ok = true
+technical_candidate_ready = true
+public_policy_ready = true
+manual_release_decision_required = true
+publication_ready = false
+publication_block_reason = public_release_decision_not_completed
+```
+
+Generated dataset files and latest/history validation reports remain local
+operational artifacts and should not be committed by default.

@@ -27,15 +27,20 @@ else:
 
 DEFAULT_CONFIG_PATH = Path("configs/dataset_release.yaml")
 DATASET_SCHEMA_VERSION = "dataset_release_schema_v1"
-DATASET_MANIFEST_SCHEMA_VERSION = "dataset_release_manifest_v1"
+DATASET_MANIFEST_SCHEMA_VERSION = "dataset_release_manifest_v2"
 DATA_QUALITY_SUMMARY_SCHEMA_VERSION = "dataset_release_data_quality_summary_v1"
-EXPORTER_VERSION = "dataset_export_runner_v0.1"
+EXPORTER_VERSION = "dataset_export_runner_v0.2"
 
 REQUIRED_OUTPUT_FILES = [
     "data.parquet",
     "schema.json",
     "manifest.json",
     "README.md",
+    "DATASET_CARD.md",
+    "ATTRIBUTION.md",
+    "field_release_policy.json",
+    "source_attribution.json",
+    "kaggle_metadata.template.json",
     "data_quality_summary.json",
     "checksums.txt",
 ]
@@ -190,6 +195,41 @@ def load_config(path: Path) -> dict[str, Any]:
     return payload
 
 
+def policy_path_from_config(config: Mapping[str, Any], *, config_path: Path) -> Path:
+    policy_ref = as_mapping(config.get("public_release_policy"))
+    policy_path = Path(str(policy_ref.get("path") or ""))
+    root = project_root_from_config(config_path)
+    return root / policy_path
+
+
+def load_public_release_policy(path: Path, *, expected_schema_version: str | None = None) -> dict[str, Any]:
+    if yaml is None:
+        raise RuntimeError("PyYAML is required to read public release policy") from YAML_IMPORT_ERROR
+    if not path.exists():
+        raise FileNotFoundError(f"Public release policy not found: {path}")
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("Public release policy must be a YAML mapping")
+    if expected_schema_version and payload.get("schema_version") != expected_schema_version:
+        raise ValueError(
+            "Public release policy schema mismatch: "
+            f"expected={expected_schema_version!r} actual={payload.get('schema_version')!r}"
+        )
+    return payload
+
+
+def public_policy_meta(policy: Mapping[str, Any]) -> Mapping[str, Any]:
+    return as_mapping(policy.get("policy"))
+
+
+def public_field_policies(policy: Mapping[str, Any]) -> Mapping[str, Any]:
+    return as_mapping(policy.get("field_policies"))
+
+
+def public_source_policies(policy: Mapping[str, Any]) -> Mapping[str, Any]:
+    return as_mapping(policy.get("source_policies"))
+
+
 def as_mapping(value: Any) -> Mapping[str, Any]:
     return value if isinstance(value, Mapping) else {}
 
@@ -315,7 +355,41 @@ def external_ids_summary(doc: Mapping[str, Any]) -> dict[str, Any]:
     return summary
 
 
-def export_value(doc: Mapping[str, Any], column: str) -> Any:
+def abstract_public_release_allowed(
+    doc: Mapping[str, Any],
+    *,
+    policy: Mapping[str, Any],
+) -> bool:
+    field_cfg = as_mapping(public_field_policies(policy).get("abstract"))
+    allowed_families = {str(item) for item in as_list(field_cfg.get("allowed_source_families"))}
+    families = set(source_families_from_sources(doc.get("sources")))
+
+    if "arxiv" in families and "arxiv" in allowed_families:
+        return True
+
+    if "acl_anthology" in families and "acl_anthology" in allowed_families:
+        min_year = field_cfg.get("acl_min_year")
+        year = doc.get("year")
+        return isinstance(year, int) and isinstance(min_year, int) and year >= min_year
+
+    return False
+
+
+def export_value(
+    doc: Mapping[str, Any],
+    column: str,
+    *,
+    policy: Mapping[str, Any],
+) -> Any:
+    field_cfg = as_mapping(public_field_policies(policy).get(column))
+    action = field_cfg.get("action")
+    if not action:
+        raise ValueError(f"No public release field policy for selected column: {column}")
+
+    if column == "abstract":
+        if not abstract_public_release_allowed(doc, policy=policy):
+            return None
+        return as_string_or_none(doc.get("abstract"))
     if column == "source_families":
         return source_families_from_sources(doc.get("sources"))
     if column == "provenance_summary":
@@ -333,23 +407,43 @@ def canonical_doc_to_export_row(
     doc: Mapping[str, Any],
     *,
     selected_columns: Sequence[str],
-) -> dict[str, Any]:
-    return {column: export_value(doc, column) for column in selected_columns}
+    policy: Mapping[str, Any],
+) -> tuple[dict[str, Any], dict[str, int]]:
+    row = {
+        column: export_value(doc, column, policy=policy)
+        for column in selected_columns
+    }
+    transformations = {
+        "abstract_excluded_by_policy_count": int(
+            is_non_empty_value(doc.get("abstract")) and row.get("abstract") is None
+        ),
+    }
+    return row, transformations
 
 
 def build_export_rows(
     canonical_path: Path,
     *,
     selected_columns: Sequence[str],
+    policy: Mapping[str, Any],
     max_rows: int | None = None,
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], dict[str, int]]:
     rows: list[dict[str, Any]] = []
+    transformation_counts = {
+        "abstract_excluded_by_policy_count": 0,
+    }
     for doc in iter_jsonl(canonical_path):
-        rows.append(canonical_doc_to_export_row(doc, selected_columns=selected_columns))
+        row, row_transformations = canonical_doc_to_export_row(
+            doc,
+            selected_columns=selected_columns,
+            policy=policy,
+        )
+        rows.append(row)
+        for name, value in row_transformations.items():
+            transformation_counts[name] = transformation_counts.get(name, 0) + int(value)
         if max_rows is not None and len(rows) >= max_rows:
             break
-    return rows
-
+    return rows, transformation_counts
 
 def sort_rows(rows: list[dict[str, Any]], *, order_by: Sequence[str]) -> list[dict[str, Any]]:
     if not order_by:
@@ -461,6 +555,8 @@ def build_data_quality_summary(
     *,
     rows: Sequence[Mapping[str, Any]],
     selected_columns: Sequence[str],
+    policy: Mapping[str, Any],
+    transformation_counts: Mapping[str, int],
 ) -> dict[str, Any]:
     release = as_mapping(config.get("release"))
     row_count = len(rows)
@@ -524,6 +620,12 @@ def build_data_quality_summary(
         "top_primary_categories": top_counts((row.get("primary_category") for row in rows), limit=50),
         "source_count_distribution": numeric_distribution(rows, "source_count"),
         "unique_source_count_distribution": numeric_distribution(rows, "unique_source_count"),
+        "public_release_policy": {
+            "schema_version": policy.get("schema_version"),
+            "policy_id": public_policy_meta(policy).get("policy_id"),
+            "policy_version": public_policy_meta(policy).get("version"),
+            "field_transformations": dict(transformation_counts),
+        },
         "safety_note": (
             "This summary describes the local candidate dataset release only; "
             "it is not a publication decision and does not change canonical truth."
@@ -556,24 +658,46 @@ def build_schema(config: Mapping[str, Any], *, selected_columns: Sequence[str]) 
     }
 
 
+def packaging_filenames(config: Mapping[str, Any]) -> dict[str, str]:
+    packaging = as_mapping(config.get("packaging"))
+    return {
+        "dataset_card": str(packaging.get("dataset_card_file") or "DATASET_CARD.md"),
+        "attribution": str(packaging.get("attribution_file") or "ATTRIBUTION.md"),
+        "field_policy": str(packaging.get("field_policy_file") or "field_release_policy.json"),
+        "source_attribution": str(
+            packaging.get("source_attribution_file") or "source_attribution.json"
+        ),
+        "kaggle_metadata_template": str(
+            packaging.get("kaggle_metadata_template_file")
+            or "kaggle_metadata.template.json"
+        ),
+    }
+
+
 def build_manifest(
     config: Mapping[str, Any],
     *,
     config_path: Path,
+    policy_path: Path,
+    policy: Mapping[str, Any],
     canonical_path: Path,
     release_dir: Path,
     row_count: int,
+    transformation_counts: Mapping[str, int],
     data_file: str,
     schema_file: str,
     readme_file: str,
     data_quality_summary_file: str,
     checksums_file: str,
+    package_files: Mapping[str, str],
 ) -> dict[str, Any]:
     release = as_mapping(config.get("release"))
     source = as_mapping(config.get("source_checkpoint"))
     export = as_mapping(config.get("export"))
     safety = as_mapping(config.get("safety"))
     license_review = as_mapping(config.get("license_review"))
+    policy_meta = public_policy_meta(policy)
+    compilation_license = as_mapping(policy.get("compilation_license"))
 
     return {
         "schema_version": DATASET_MANIFEST_SCHEMA_VERSION,
@@ -582,6 +706,7 @@ def build_manifest(
         "status": "candidate_local_export",
         "publication_status": "not_published",
         "manual_review_required_before_publication": True,
+        "public_release_policy_validated_before_review": True,
         "config_path": normalize_path(config_path),
         "release_dir": normalize_path(release_dir),
         "release": {
@@ -600,6 +725,31 @@ def build_manifest(
             "retrieval_corpus_doc_count": source.get("retrieval_corpus_doc_count"),
             "embedding_model": source.get("embedding_model"),
             "retrieval_fingerprint": source.get("retrieval_fingerprint"),
+        },
+        "public_release_policy": {
+            "path": normalize_path(policy_path),
+            "schema_version": policy.get("schema_version"),
+            "policy_id": policy_meta.get("policy_id"),
+            "policy_version": policy_meta.get("version"),
+            "policy_status": policy_meta.get("status"),
+            "project_use": policy_meta.get("project_use"),
+            "publication_action_in_scope": policy_meta.get("publication_action_in_scope"),
+            "attribution_required_for_all_sources": policy_meta.get(
+                "attribution_required_for_all_sources"
+            ),
+            "field_transformations": dict(transformation_counts),
+        },
+        "compilation_license": {
+            "status": compilation_license.get("status"),
+            "kaggle_template_license_name": compilation_license.get(
+                "kaggle_template_license_name"
+            ),
+            "upstream_terms_retained": compilation_license.get(
+                "upstream_terms_retained"
+            ),
+            "single_cc0_claim_allowed": compilation_license.get(
+                "single_cc0_claim_allowed"
+            ),
         },
         "export": {
             "format": export.get("format"),
@@ -620,26 +770,256 @@ def build_manifest(
         },
         "safety": {
             "canonical_truth_impact": safety.get("canonical_truth_impact"),
-            "may_overwrite_operational_latest": safety.get("may_overwrite_operational_latest"),
-            "may_be_used_as_reconcile_input": safety.get("may_be_used_as_reconcile_input"),
+            "may_overwrite_operational_latest": safety.get(
+                "may_overwrite_operational_latest"
+            ),
+            "may_be_used_as_reconcile_input": safety.get(
+                "may_be_used_as_reconcile_input"
+            ),
             "may_include_full_text": safety.get("may_include_full_text"),
             "may_include_pdfs": safety.get("may_include_pdfs"),
-            "may_include_embeddings_without_review": safety.get("may_include_embeddings_without_review"),
-            "publish_without_manual_review": safety.get("publish_without_manual_review"),
-            "generated_release_is_immutable": safety.get("generated_release_is_immutable"),
+            "may_include_embeddings_without_review": safety.get(
+                "may_include_embeddings_without_review"
+            ),
+            "publish_without_manual_review": safety.get(
+                "publish_without_manual_review"
+            ),
+            "generated_release_is_immutable": safety.get(
+                "generated_release_is_immutable"
+            ),
         },
         "license_review": {
             "status": license_review.get("status"),
-            "publication_allowed_before_review": license_review.get("publication_allowed_before_review"),
+            "publication_allowed_before_review": license_review.get(
+                "publication_allowed_before_review"
+            ),
         },
         "files": {
             "data": data_file,
             "schema": schema_file,
             "manifest": "manifest.json",
             "readme": readme_file,
+            "dataset_card": package_files["dataset_card"],
+            "attribution": package_files["attribution"],
+            "field_release_policy": package_files["field_policy"],
+            "source_attribution": package_files["source_attribution"],
+            "kaggle_metadata_template": package_files["kaggle_metadata_template"],
             "data_quality_summary": data_quality_summary_file,
             "checksums": checksums_file,
         },
+    }
+
+
+def build_field_release_policy_artifact(
+    policy: Mapping[str, Any],
+    *,
+    selected_columns: Sequence[str],
+) -> dict[str, Any]:
+    policy_meta = public_policy_meta(policy)
+    field_policies = public_field_policies(policy)
+    return {
+        "schema_version": "dataset_field_release_policy_v1",
+        "policy_id": policy_meta.get("policy_id"),
+        "policy_version": policy_meta.get("version"),
+        "unknown_field_action": as_mapping(policy.get("dataset_boundary")).get(
+            "unknown_field_action"
+        ),
+        "selected_columns": list(selected_columns),
+        "fields": [
+            {
+                "name": column,
+                **dict(as_mapping(field_policies.get(column))),
+            }
+            for column in selected_columns
+        ],
+    }
+
+
+def build_source_attribution_artifact(policy: Mapping[str, Any]) -> dict[str, Any]:
+    policy_meta = public_policy_meta(policy)
+    source_policies = public_source_policies(policy)
+    return {
+        "schema_version": "dataset_source_attribution_v1",
+        "policy_id": policy_meta.get("policy_id"),
+        "policy_version": policy_meta.get("version"),
+        "attribution_required_for_all_sources": policy_meta.get(
+            "attribution_required_for_all_sources"
+        ),
+        "sources": [
+            {
+                "source_family": source_family,
+                **dict(as_mapping(source_cfg)),
+            }
+            for source_family, source_cfg in sorted(source_policies.items())
+        ],
+    }
+
+
+def build_attribution_markdown(policy: Mapping[str, Any]) -> str:
+    source_policies = public_source_policies(policy)
+    lines = [
+        "# Attribution and upstream sources",
+        "",
+        "ML Research Radar is a derived metadata and research-discovery project.",
+        "The project attributes every contributing provider even where attribution is not strictly required by the upstream metadata license.",
+        "Upstream terms remain applicable; this file does not transfer ownership of source data to ML Research Radar.",
+        "",
+        "## Sources",
+        "",
+    ]
+    for source_family, source_cfg in sorted(source_policies.items()):
+        cfg = as_mapping(source_cfg)
+        lines.extend(
+            [
+                f"### {cfg.get('display_name') or source_family}",
+                "",
+                f"- source_family: `{source_family}`",
+                f"- source_home: {cfg.get('source_home')}",
+                f"- terms_or_policy: {cfg.get('terms_url')}",
+                f"- metadata_basis: `{cfg.get('metadata_basis')}`",
+                f"- attribution_required_by_project: `{cfg.get('attribution_required')}`",
+                f"- raw_payload_included: `{cfg.get('raw_payload_allowed')}`",
+                f"- PDF_or_full_text_redistributed: `{cfg.get('pdf_or_full_text_redistribution_allowed')}`",
+                f"- notes: {cfg.get('notes')}",
+                "",
+            ]
+        )
+    lines.extend(
+        [
+            "## Content boundary",
+            "",
+            "The package contains metadata, identifiers, external links, compact provenance summaries, and ML Research Radar derived signals.",
+            "It does not contain PDF binaries, article full text, raw provider payloads, source snapshots, or embedding vectors.",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def build_dataset_card(
+    manifest: Mapping[str, Any],
+    *,
+    policy: Mapping[str, Any],
+) -> str:
+    release = as_mapping(manifest.get("release"))
+    checkpoint = as_mapping(manifest.get("source_checkpoint"))
+    policy_manifest = as_mapping(manifest.get("public_release_policy"))
+    transformations = as_mapping(policy_manifest.get("field_transformations"))
+    lines = [
+        f"# Dataset Card: {release.get('dataset_name')} {release.get('version')}",
+        "",
+        "## Status",
+        "",
+        "```text",
+        "status: local candidate package",
+        "publication_status: not_published",
+        "publication_action_in_scope: false",
+        "final_compilation_license: pending_explicit_release_decision",
+        "```",
+        "",
+        "## Purpose",
+        "",
+        "A reproducible, metadata-first dataset for research discovery, retrieval experiments, bibliographic analysis, and portfolio demonstration.",
+        "The package is intended for non-commercial educational and community use, with transparent attribution and links to original publication pages.",
+        "",
+        "## Source checkpoint",
+        "",
+        f"- canonical corpus: `{checkpoint.get('canonical_corpus_path')}`",
+        f"- exported rows: `{checkpoint.get('actual_exported_row_count')}`",
+        f"- retrieval build: `{checkpoint.get('retrieval_build_id')}`",
+        f"- policy: `{policy_manifest.get('policy_id')}`",
+        f"- policy version: `{policy_manifest.get('policy_version')}`",
+        "",
+        "## Included",
+        "",
+        "- canonical paper identifiers and bibliographic metadata",
+        "- abstracts only when the source-aware field policy permits them",
+        "- authors, years, venues, categories, concepts, keywords, and tags",
+        "- external identifiers and links to original source pages",
+        "- source-family and compact provenance summaries",
+        "- citation/reference counts where available",
+        "- ML Research Radar derived quality and classification flags",
+        "",
+        "## Excluded",
+        "",
+        "- article PDF binaries",
+        "- article full text",
+        "- raw provider/API payloads",
+        "- full normalized source records and source snapshots",
+        "- embedding vectors",
+        "- private notes",
+        "",
+        "## Source-aware transformations",
+        "",
+        f"- abstracts excluded by policy: `{transformations.get('abstract_excluded_by_policy_count', 0)}`",
+        "- unknown or unsupported text provenance: exported as null rather than copied",
+        "- PDF URLs: external links only; binaries are not included",
+        "",
+        "## Attribution and licensing",
+        "",
+        "See `ATTRIBUTION.md` and `source_attribution.json` for provider-level terms and source links.",
+        "This candidate does not claim that every upstream contribution is CC0 and does not select a final compilation license automatically.",
+        "",
+        "## Known limitations",
+        "",
+        "- source coverage is intentionally uneven across providers",
+        "- citation and reference counts are sparse and snapshot-dependent",
+        "- canonical fields may combine multiple source observations",
+        "- metadata correctness is not equivalent to correctness of the underlying research",
+        "- the candidate package is not an input to canonical reconciliation",
+        "",
+        "## Publication boundary",
+        "",
+        "Generating this directory is not a Kaggle, Hugging Face, or GitHub publication action.",
+        "A release owner must review the candidate, select the final compilation license, replace template owner metadata, and perform any upload explicitly.",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def build_kaggle_metadata_template(
+    config: Mapping[str, Any],
+    *,
+    manifest: Mapping[str, Any],
+) -> dict[str, Any]:
+    release = as_mapping(manifest.get("release"))
+    packaging = as_mapping(config.get("packaging"))
+    owner = packaging.get("kaggle_owner_slug") or "__KAGGLE_OWNER__"
+    slug = packaging.get("kaggle_dataset_slug") or "ml-research-radar-metadata"
+    return {
+        "template_schema_version": "kaggle_dataset_metadata_template_v1",
+        "template_only": True,
+        "publication_action": "not_performed",
+        "id": f"{owner}/{slug}",
+        "title": f"ML Research Radar Metadata {release.get('version')}",
+        "subtitle": "Source-aware ML research metadata with provenance summaries and links to original publications.",
+        "description": (
+            "Local candidate metadata package generated by ML Research Radar. "
+            "Review DATASET_CARD.md and ATTRIBUTION.md before publication."
+        ),
+        "licenses": [{"name": packaging.get("kaggle_license_name") or "other"}],
+        "keywords": [
+            "machine learning",
+            "research papers",
+            "metadata",
+            "information retrieval",
+            "bibliometrics",
+        ],
+        "resources": [
+            {
+                "path": "data.parquet",
+                "description": "Canonical paper-level public metadata projection.",
+            },
+            {"path": "schema.json", "description": "Dataset schema contract."},
+            {
+                "path": "DATASET_CARD.md",
+                "description": "Dataset scope, limitations, and release boundary.",
+            },
+            {
+                "path": "ATTRIBUTION.md",
+                "description": "Upstream source attribution and terms links.",
+            },
+        ],
     }
 
 
@@ -648,6 +1028,7 @@ def build_readme(config: Mapping[str, Any], *, manifest: Mapping[str, Any]) -> s
     source = as_mapping(manifest.get("source_checkpoint"))
     export = as_mapping(manifest.get("export"))
     safety = as_mapping(manifest.get("safety"))
+    policy = as_mapping(manifest.get("public_release_policy"))
 
     dataset_name = release.get("dataset_name")
     version = release.get("version")
@@ -657,13 +1038,14 @@ def build_readme(config: Mapping[str, Any], *, manifest: Mapping[str, Any]) -> s
         "## Status",
         "",
         "```text",
-        "status: local candidate export / not published",
-        "manual_review_required_before_publication: true",
+        "status: local candidate package / not published",
+        "public_release_policy: validated for local packaging",
+        "manual_release_decision_required: true",
         "publication_status: not_published",
         "```",
         "",
-        "This directory is a local candidate metadata dataset export generated from an accepted ML Research Radar canonical corpus checkpoint.",
-        "It is not a public release and must not be published before manual license/provenance review.",
+        "This directory is a source-aware local candidate metadata package generated from an accepted ML Research Radar canonical checkpoint.",
+        "It does not perform a Kaggle, Hugging Face, or GitHub upload.",
         "",
         "## Source checkpoint",
         "",
@@ -672,25 +1054,25 @@ def build_readme(config: Mapping[str, Any], *, manifest: Mapping[str, Any]) -> s
         f"expected_canonical_doc_count: {source.get('expected_canonical_doc_count')}",
         f"actual_exported_row_count: {source.get('actual_exported_row_count')}",
         f"retrieval_build_id: {source.get('retrieval_build_id')}",
-        f"embedding_model: {source.get('embedding_model')}",
+        f"public_release_policy_id: {policy.get('policy_id')}",
+        f"public_release_policy_version: {policy.get('policy_version')}",
         "```",
         "",
         "## Included",
         "",
-        "- canonical paper identifiers",
-        "- bibliographic metadata",
-        "- abstracts when available",
-        "- category/concept/topic metadata",
-        "- source-family summaries",
-        "- compact provenance and external-id summaries",
+        "- canonical paper identifiers and bibliographic metadata",
+        "- source-aware abstracts when permitted by policy",
+        "- categories, concepts, topics, identifiers, and external links",
+        "- compact provenance and external-ID summaries",
+        "- ML Research Radar derived metadata and quality signals",
         "",
         "## Excluded",
         "",
         "- embedding vectors",
-        "- full text",
+        "- article full text",
         "- PDF binaries",
         "- raw provider payloads",
-        "- full source records",
+        "- full source records and source snapshots",
         "- private notes",
         "",
         "## Safety",
@@ -705,6 +1087,15 @@ def build_readme(config: Mapping[str, Any], *, manifest: Mapping[str, Any]) -> s
         f"include_raw_provider_payloads: {export.get('include_raw_provider_payloads')}",
         "```",
         "",
+        "## Review order",
+        "",
+        "1. `DATASET_CARD.md`",
+        "2. `ATTRIBUTION.md`",
+        "3. `field_release_policy.json`",
+        "4. `source_attribution.json`",
+        "5. `data_quality_summary.json`",
+        "6. `kaggle_metadata.template.json`",
+        "",
         "## Files",
         "",
     ]
@@ -712,7 +1103,6 @@ def build_readme(config: Mapping[str, Any], *, manifest: Mapping[str, Any]) -> s
         lines.append(f"- `{filename}`")
     lines.append("")
     return "\n".join(lines)
-
 
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
@@ -758,6 +1148,12 @@ def export_public_dataset(
     config = load_config(config_path)
     export = as_mapping(config.get("export"))
     source = as_mapping(config.get("source_checkpoint"))
+    policy_ref = as_mapping(config.get("public_release_policy"))
+    resolved_policy_path = policy_path_from_config(config, config_path=config_path)
+    policy = load_public_release_policy(
+        resolved_policy_path,
+        expected_schema_version=as_string_or_none(policy_ref.get("expected_schema_version")),
+    )
     columns = selected_columns_from_config(config)
     forbidden = forbidden_columns_from_config(config)
     overlap = sorted(set(columns) & forbidden)
@@ -773,9 +1169,10 @@ def export_public_dataset(
     max_rows = int(max_rows_raw) if isinstance(max_rows_raw, int) and max_rows_raw > 0 else None
     order_by = [str(item) for item in as_list(export.get("deterministic_order_by"))]
 
-    rows = build_export_rows(
+    rows, transformation_counts = build_export_rows(
         resolved_canonical_path,
         selected_columns=columns,
+        policy=policy,
         max_rows=max_rows,
     )
     rows = sort_rows(rows, order_by=order_by)
@@ -795,6 +1192,7 @@ def export_public_dataset(
     readme_file = "README.md"
     data_quality_summary_file = "data_quality_summary.json"
     checksums_file = "checksums.txt"
+    package_files = packaging_filenames(config)
 
     write_parquet(
         rows,
@@ -808,22 +1206,52 @@ def export_public_dataset(
     manifest = build_manifest(
         config,
         config_path=config_path,
+        policy_path=resolved_policy_path,
+        policy=policy,
         canonical_path=resolved_canonical_path,
         release_dir=resolved_release_dir,
         row_count=len(rows),
+        transformation_counts=transformation_counts,
         data_file=data_file,
         schema_file=schema_file,
         readme_file=readme_file,
         data_quality_summary_file=data_quality_summary_file,
         checksums_file=checksums_file,
+        package_files=package_files,
     )
     dump_json(resolved_release_dir / "manifest.json", manifest)
     dump_text(resolved_release_dir / readme_file, build_readme(config, manifest=manifest))
-    data_quality_summary = build_data_quality_summary(config, rows=rows, selected_columns=columns)
+    dump_text(
+        resolved_release_dir / package_files["dataset_card"],
+        build_dataset_card(manifest, policy=policy),
+    )
+    dump_text(
+        resolved_release_dir / package_files["attribution"],
+        build_attribution_markdown(policy),
+    )
+    dump_json(
+        resolved_release_dir / package_files["field_policy"],
+        build_field_release_policy_artifact(policy, selected_columns=columns),
+    )
+    dump_json(
+        resolved_release_dir / package_files["source_attribution"],
+        build_source_attribution_artifact(policy),
+    )
+    dump_json(
+        resolved_release_dir / package_files["kaggle_metadata_template"],
+        build_kaggle_metadata_template(config, manifest=manifest),
+    )
+    data_quality_summary = build_data_quality_summary(
+        config,
+        rows=rows,
+        selected_columns=columns,
+        policy=policy,
+        transformation_counts=transformation_counts,
+    )
     dump_json(resolved_release_dir / data_quality_summary_file, data_quality_summary)
     write_checksums(
         resolved_release_dir,
-        [data_file, schema_file, "manifest.json", readme_file, data_quality_summary_file],
+        [name for name in REQUIRED_OUTPUT_FILES if name != checksums_file],
     )
 
     return {
@@ -832,6 +1260,9 @@ def export_public_dataset(
         "canonical_path": normalize_path(resolved_canonical_path),
         "row_count": len(rows),
         "column_count": len(columns),
+        "policy_path": normalize_path(resolved_policy_path),
+        "policy_id": public_policy_meta(policy).get("policy_id"),
+        "field_transformations": dict(transformation_counts),
         "files": REQUIRED_OUTPUT_FILES,
     }
 
@@ -868,6 +1299,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"[OK] canonical_path: {summary['canonical_path']}")
     print(f"[OK] row_count: {summary['row_count']}")
     print(f"[OK] column_count: {summary['column_count']}")
+    print(f"[OK] public_release_policy: {summary['policy_id']}")
+    print(f"[OK] field_transformations: {summary['field_transformations']}")
+    print("[OK] kaggle_metadata: template_only")
     print("[OK] public_upload: not_performed")
     print("[OK] manual_review_required_before_publication: true")
     return 0

@@ -25,7 +25,7 @@ else:
     YAML_IMPORT_ERROR = None
 
 
-REPORT_SCHEMA_VERSION = "dataset_release_output_quality_v1"
+REPORT_SCHEMA_VERSION = "dataset_release_output_quality_v2"
 DEFAULT_CONFIG_PATH = Path("configs/dataset_release.yaml")
 DEFAULT_OUTPUT_DIR = Path("artifacts/reports/validation")
 REQUIRED_OUTPUT_FILES = {
@@ -33,6 +33,11 @@ REQUIRED_OUTPUT_FILES = {
     "schema.json",
     "manifest.json",
     "README.md",
+    "DATASET_CARD.md",
+    "ATTRIBUTION.md",
+    "field_release_policy.json",
+    "source_attribution.json",
+    "kaggle_metadata.template.json",
     "data_quality_summary.json",
     "checksums.txt",
 }
@@ -245,6 +250,11 @@ def validate_release_output(
     schema_path = release_dir / "schema.json"
     manifest_path = release_dir / "manifest.json"
     readme_path = release_dir / "README.md"
+    dataset_card_path = release_dir / "DATASET_CARD.md"
+    attribution_path = release_dir / "ATTRIBUTION.md"
+    field_policy_path = release_dir / "field_release_policy.json"
+    source_attribution_path = release_dir / "source_attribution.json"
+    kaggle_template_path = release_dir / "kaggle_metadata.template.json"
     data_quality_summary_path = release_dir / "data_quality_summary.json"
     checksums_path = release_dir / "checksums.txt"
 
@@ -328,8 +338,89 @@ def validate_release_output(
         add_check(
             checks,
             name="readme_non_publication_warning",
-            ok="not published" in readme_text.lower() and "manual" in readme_text.lower(),
-            message="README.md states non-publication and manual-review boundary",
+            ok=(
+                "not published" in readme_text.lower()
+                and (
+                    "release decision" in readme_text.lower()
+                    or "manual_release_decision_required" in readme_text.lower()
+                )
+            ),
+            message="README.md states non-publication and explicit release-decision boundary",
+        )
+
+    if dataset_card_path.exists():
+        dataset_card_text = dataset_card_path.read_text(encoding="utf-8")
+        dataset_card_lower = dataset_card_text.lower()
+        add_check(
+            checks,
+            name="dataset_card_release_boundary",
+            ok=(
+                "not_published" in dataset_card_lower
+                and "pdf binaries" in dataset_card_lower
+                and "full text" in dataset_card_lower
+                and "attribution" in dataset_card_lower
+            ),
+            message="DATASET_CARD.md records status, exclusions, and attribution boundary",
+        )
+
+    if attribution_path.exists():
+        attribution_text = attribution_path.read_text(encoding="utf-8")
+        attribution_lower = attribution_text.lower()
+        required_source_names = ["arxiv", "openalex", "crossref", "semantic scholar", "acl anthology"]
+        missing_attribution_names = [
+            name for name in required_source_names if name not in attribution_lower
+        ]
+        add_check(
+            checks,
+            name="attribution_lists_current_sources",
+            ok=not missing_attribution_names,
+            message="ATTRIBUTION.md lists all current canonical source families",
+            details={"missing": missing_attribution_names},
+        )
+
+    field_policy: dict[str, Any] = {}
+    if field_policy_path.exists():
+        try:
+            field_policy = load_json(field_policy_path)
+            field_policy_error = None
+        except Exception as exc:  # pragma: no cover
+            field_policy_error = str(exc)
+        add_check(
+            checks,
+            name="field_release_policy_json_readable",
+            ok=bool(field_policy),
+            message="field_release_policy.json is readable",
+            details={"error": field_policy_error},
+        )
+
+    source_attribution: dict[str, Any] = {}
+    if source_attribution_path.exists():
+        try:
+            source_attribution = load_json(source_attribution_path)
+            source_attribution_error = None
+        except Exception as exc:  # pragma: no cover
+            source_attribution_error = str(exc)
+        add_check(
+            checks,
+            name="source_attribution_json_readable",
+            ok=bool(source_attribution),
+            message="source_attribution.json is readable",
+            details={"error": source_attribution_error},
+        )
+
+    kaggle_template: dict[str, Any] = {}
+    if kaggle_template_path.exists():
+        try:
+            kaggle_template = load_json(kaggle_template_path)
+            kaggle_template_error = None
+        except Exception as exc:  # pragma: no cover
+            kaggle_template_error = str(exc)
+        add_check(
+            checks,
+            name="kaggle_metadata_template_json_readable",
+            ok=bool(kaggle_template),
+            message="kaggle_metadata.template.json is readable",
+            details={"error": kaggle_template_error},
         )
 
     expected_columns = expected_columns_from_config(config)
@@ -430,6 +521,18 @@ def validate_release_output(
             message="data_quality_summary.json schema_version is dataset_release_data_quality_summary_v1",
             details={"actual": data_quality_summary.get("schema_version")},
         )
+        quality_policy = as_mapping(data_quality_summary.get("public_release_policy"))
+        add_check(
+            checks,
+            name="data_quality_summary_public_policy",
+            ok=(
+                quality_policy.get("schema_version") == "public_metadata_release_policy_v1"
+                and bool(str(quality_policy.get("policy_id") or "").strip())
+                and isinstance(quality_policy.get("field_transformations"), Mapping)
+            ),
+            message="data_quality_summary records public policy identity and transformations",
+            details={"actual": dict(quality_policy)},
+        )
         add_check(
             checks,
             name="data_quality_summary_row_count_matches_data",
@@ -477,12 +580,121 @@ def validate_release_output(
             details={"actual": schema.get("primary_key")},
         )
 
+    if field_policy:
+        field_names = [
+            as_mapping(item).get("name")
+            for item in as_list(field_policy.get("fields"))
+        ]
+        add_check(
+            checks,
+            name="field_release_policy_schema_version",
+            ok=field_policy.get("schema_version") == "dataset_field_release_policy_v1",
+            message="field_release_policy.json schema version is valid",
+            details={"actual": field_policy.get("schema_version")},
+        )
+        add_check(
+            checks,
+            name="field_release_policy_covers_data_columns",
+            ok=field_names == expected_columns,
+            message="field_release_policy.json covers data columns in deterministic order",
+            details={"expected": expected_columns, "actual": field_names},
+        )
+        field_by_name = {
+            as_mapping(item).get("name"): as_mapping(item)
+            for item in as_list(field_policy.get("fields"))
+        }
+        add_check(
+            checks,
+            name="field_release_policy_abstract_fail_closed",
+            ok=(
+                as_mapping(field_by_name.get("abstract")).get("action")
+                == "source_aware_include_or_null"
+                and as_mapping(field_by_name.get("abstract")).get("fallback_action") == "null"
+            ),
+            message="abstract release policy is source-aware and fail-closed",
+            details={"actual": dict(as_mapping(field_by_name.get("abstract")))},
+        )
+        add_check(
+            checks,
+            name="field_release_policy_pdf_link_only",
+            ok=(
+                as_mapping(field_by_name.get("pdf_url")).get("action")
+                == "include_link_only_no_binary"
+            ),
+            message="pdf_url release policy is link-only",
+            details={"actual": dict(as_mapping(field_by_name.get("pdf_url")))},
+        )
+
+    if source_attribution:
+        source_rows = as_list(source_attribution.get("sources"))
+        source_names = {
+            str(as_mapping(item).get("source_family"))
+            for item in source_rows
+            if as_mapping(item).get("source_family")
+        }
+        required_sources = {
+            "arxiv",
+            "openalex",
+            "crossref",
+            "semantic_scholar",
+            "acl_anthology",
+        }
+        add_check(
+            checks,
+            name="source_attribution_schema_version",
+            ok=source_attribution.get("schema_version") == "dataset_source_attribution_v1",
+            message="source_attribution.json schema version is valid",
+            details={"actual": source_attribution.get("schema_version")},
+        )
+        add_check(
+            checks,
+            name="source_attribution_covers_current_sources",
+            ok=required_sources.issubset(source_names),
+            message="source_attribution.json covers all current source families",
+            details={"missing": sorted(required_sources - source_names)},
+        )
+        add_check(
+            checks,
+            name="source_attribution_required",
+            ok=source_attribution.get("attribution_required_for_all_sources") is True,
+            message="source attribution artifact requires attribution for all sources",
+            details={"actual": source_attribution.get("attribution_required_for_all_sources")},
+        )
+
+    if kaggle_template:
+        add_check(
+            checks,
+            name="kaggle_template_not_publication",
+            ok=(
+                kaggle_template.get("template_only") is True
+                and kaggle_template.get("publication_action") == "not_performed"
+                and "__KAGGLE_OWNER__" in str(kaggle_template.get("id") or "")
+            ),
+            message="Kaggle metadata is an unresolved local template, not an upload action",
+            details={
+                "template_only": kaggle_template.get("template_only"),
+                "publication_action": kaggle_template.get("publication_action"),
+                "id": kaggle_template.get("id"),
+            },
+        )
+        licenses = as_list(kaggle_template.get("licenses"))
+        add_check(
+            checks,
+            name="kaggle_template_license_not_overclaimed",
+            ok=(
+                len(licenses) == 1
+                and as_mapping(licenses[0]).get("name") == "other"
+            ),
+            message="Kaggle template does not overclaim a single upstream license",
+            details={"licenses": licenses},
+        )
+
     if manifest:
         add_check(
             checks,
             name="manifest_schema_version",
-            ok=manifest.get("schema_version") == "dataset_release_manifest_v1",
-            message="manifest schema_version is dataset_release_manifest_v1",
+            ok=manifest.get("schema_version") == "dataset_release_manifest_v2",
+            message="manifest schema_version is dataset_release_manifest_v2",
             details={"actual": manifest.get("schema_version")},
         )
         add_check(
@@ -501,7 +713,45 @@ def validate_release_output(
         )
 
 
+        manifest_policy = as_mapping(manifest.get("public_release_policy"))
+        add_check(
+            checks,
+            name="manifest_public_release_policy",
+            ok=(
+                manifest.get("public_release_policy_validated_before_review") is True
+                and manifest_policy.get("schema_version") == "public_metadata_release_policy_v1"
+                and manifest_policy.get("publication_action_in_scope") is False
+            ),
+            message="manifest records the validated non-publishing public release policy",
+            details={"public_release_policy": dict(manifest_policy)},
+        )
+        manifest_compilation_license = as_mapping(manifest.get("compilation_license"))
+        add_check(
+            checks,
+            name="manifest_compilation_license_pending",
+            ok=(
+                manifest_compilation_license.get("status")
+                == "pending_explicit_release_decision"
+                and manifest_compilation_license.get("single_cc0_claim_allowed") is False
+            ),
+            message="manifest keeps final compilation license pending and forbids blanket CC0 claim",
+            details={"compilation_license": dict(manifest_compilation_license)},
+        )
+
         manifest_files = as_mapping(manifest.get("files"))
+        add_check(
+            checks,
+            name="manifest_lists_public_packaging_files",
+            ok=(
+                manifest_files.get("dataset_card") == "DATASET_CARD.md"
+                and manifest_files.get("attribution") == "ATTRIBUTION.md"
+                and manifest_files.get("field_release_policy") == "field_release_policy.json"
+                and manifest_files.get("source_attribution") == "source_attribution.json"
+                and manifest_files.get("kaggle_metadata_template") == "kaggle_metadata.template.json"
+            ),
+            message="manifest lists all public metadata packaging artifacts",
+            details={"files": dict(manifest_files)},
+        )
         add_check(
             checks,
             name="manifest_lists_data_quality_summary_file",

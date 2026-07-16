@@ -13,6 +13,12 @@ from scripts.validation.check_dataset_release_review_readiness import (
     build_report,
     validate_review_readiness,
 )
+from scripts.validation.check_public_metadata_release_policy import (
+    build_report as build_policy_report,
+    load_yaml as load_policy_yaml,
+    validate_policy,
+    write_reports as write_policy_reports,
+)
 from tests.smoke.test_public_dataset_export_contract import make_config
 
 
@@ -20,7 +26,7 @@ def required_failures(checks) -> set[str]:
     return {check.name for check in checks if check.severity == "required" and not check.ok}
 
 
-def build_review_candidate(tmp_path: Path) -> tuple[dict, Path, Path, Path]:
+def build_review_candidate(tmp_path: Path) -> tuple[dict, Path, Path, Path, Path]:
     config, config_path = make_config(tmp_path)
     summary = export_public_dataset(config_path=config_path)
     release_dir = Path(summary["release_dir"])
@@ -34,22 +40,46 @@ def build_review_candidate(tmp_path: Path) -> tuple[dict, Path, Path, Path]:
         strict=True,
     )
     latest_json, _latest_md, _history_json, _history_md = write_output_reports(output_report, output_dir)
-    return config, config_path, release_dir, latest_json
+
+    policy_path = tmp_path / config["public_release_policy"]["path"]
+    policy = load_policy_yaml(policy_path)
+    policy_checks = validate_policy(
+        policy,
+        policy_path=Path(config["public_release_policy"]["path"]),
+        dataset_config=config,
+        dataset_config_path=config_path,
+        check_paths=False,
+    )
+    policy_report = build_policy_report(
+        policy_path=Path(config["public_release_policy"]["path"]),
+        dataset_config_path=config_path,
+        output_dir=output_dir,
+        policy=policy,
+        checks=policy_checks,
+        strict=True,
+        check_paths=False,
+    )
+    policy_latest_json, _policy_md, _policy_history_json, _policy_history_md = write_policy_reports(
+        policy_report, output_dir
+    )
+    return config, config_path, release_dir, latest_json, policy_latest_json
 
 
 def test_valid_candidate_is_ready_for_manual_review_but_not_publication(tmp_path: Path) -> None:
-    config, config_path, release_dir, output_report_path = build_review_candidate(tmp_path)
+    config, config_path, release_dir, output_report_path, policy_report_path = build_review_candidate(tmp_path)
 
     checks = validate_review_readiness(
         config,
         config_path=config_path,
         release_dir=release_dir,
         output_validation_report_path=output_report_path,
+        policy_validation_report_path=policy_report_path,
     )
     report = build_report(
         config_path=config_path,
         release_dir=release_dir,
         output_validation_report_path=output_report_path,
+        policy_validation_report_path=policy_report_path,
         output_dir=tmp_path / "artifacts" / "reports" / "validation",
         checks=checks,
         strict=True,
@@ -59,12 +89,14 @@ def test_valid_candidate_is_ready_for_manual_review_but_not_publication(tmp_path
     assert report["technical_candidate_ready"] is True
     assert report["manual_review_required"] is True
     assert report["publication_ready"] is False
-    assert report["publication_block_reason"] == "manual_review_not_completed"
+    assert report["publication_block_reason"] == "public_release_decision_not_completed"
+    assert report["public_policy_ready"] is True
+    assert report["manual_release_decision_required"] is True
     assert report["required_failed_count"] == 0
 
 
 def test_review_readiness_fails_when_output_validation_report_is_missing(tmp_path: Path) -> None:
-    config, config_path, release_dir, output_report_path = build_review_candidate(tmp_path)
+    config, config_path, release_dir, output_report_path, policy_report_path = build_review_candidate(tmp_path)
     output_report_path.unlink()
 
     failures = required_failures(
@@ -73,6 +105,7 @@ def test_review_readiness_fails_when_output_validation_report_is_missing(tmp_pat
             config_path=config_path,
             release_dir=release_dir,
             output_validation_report_path=output_report_path,
+            policy_validation_report_path=policy_report_path,
         )
     )
 
@@ -80,7 +113,7 @@ def test_review_readiness_fails_when_output_validation_report_is_missing(tmp_pat
 
 
 def test_review_readiness_fails_when_output_validation_report_is_not_green(tmp_path: Path) -> None:
-    config, config_path, release_dir, output_report_path = build_review_candidate(tmp_path)
+    config, config_path, release_dir, output_report_path, policy_report_path = build_review_candidate(tmp_path)
     output_report = json.loads(output_report_path.read_text(encoding="utf-8"))
     output_report["ok"] = False
     output_report["required_failed_count"] = 1
@@ -93,6 +126,7 @@ def test_review_readiness_fails_when_output_validation_report_is_not_green(tmp_p
             config_path=config_path,
             release_dir=release_dir,
             output_validation_report_path=output_report_path,
+            policy_validation_report_path=policy_report_path,
         )
     )
 
@@ -101,7 +135,7 @@ def test_review_readiness_fails_when_output_validation_report_is_not_green(tmp_p
 
 
 def test_review_readiness_fails_when_manifest_claims_publication(tmp_path: Path) -> None:
-    config, config_path, release_dir, output_report_path = build_review_candidate(tmp_path)
+    config, config_path, release_dir, output_report_path, policy_report_path = build_review_candidate(tmp_path)
     manifest_path = release_dir / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     manifest["publication_status"] = "published"
@@ -114,6 +148,7 @@ def test_review_readiness_fails_when_manifest_claims_publication(tmp_path: Path)
             config_path=config_path,
             release_dir=release_dir,
             output_validation_report_path=output_report_path,
+            policy_validation_report_path=policy_report_path,
         )
     )
 
@@ -122,7 +157,7 @@ def test_review_readiness_fails_when_manifest_claims_publication(tmp_path: Path)
 
 
 def test_review_readiness_fails_when_data_quality_summary_has_duplicates(tmp_path: Path) -> None:
-    config, config_path, release_dir, output_report_path = build_review_candidate(tmp_path)
+    config, config_path, release_dir, output_report_path, policy_report_path = build_review_candidate(tmp_path)
     summary_path = release_dir / "data_quality_summary.json"
     quality_summary = json.loads(summary_path.read_text(encoding="utf-8"))
     quality_summary["canonical_id"]["duplicate_count"] = 1
@@ -134,6 +169,7 @@ def test_review_readiness_fails_when_data_quality_summary_has_duplicates(tmp_pat
             config_path=config_path,
             release_dir=release_dir,
             output_validation_report_path=output_report_path,
+            policy_validation_report_path=policy_report_path,
         )
     )
 
@@ -141,7 +177,7 @@ def test_review_readiness_fails_when_data_quality_summary_has_duplicates(tmp_pat
 
 
 def test_review_readiness_fails_when_publication_before_review_is_allowed(tmp_path: Path) -> None:
-    config, config_path, release_dir, output_report_path = build_review_candidate(tmp_path)
+    config, config_path, release_dir, output_report_path, policy_report_path = build_review_candidate(tmp_path)
     config["license_review"]["publication_allowed_before_review"] = True
 
     failures = required_failures(
@@ -150,6 +186,7 @@ def test_review_readiness_fails_when_publication_before_review_is_allowed(tmp_pa
             config_path=config_path,
             release_dir=release_dir,
             output_validation_report_path=output_report_path,
+            policy_validation_report_path=policy_report_path,
         )
     )
 
@@ -157,7 +194,7 @@ def test_review_readiness_fails_when_publication_before_review_is_allowed(tmp_pa
 
 
 def test_review_readiness_fails_when_output_report_points_to_other_release_dir(tmp_path: Path) -> None:
-    config, config_path, release_dir, output_report_path = build_review_candidate(tmp_path)
+    config, config_path, release_dir, output_report_path, policy_report_path = build_review_candidate(tmp_path)
     output_report = json.loads(output_report_path.read_text(encoding="utf-8"))
     output_report["release_dir"] = "data/datasets_release/other/v0.1"
     output_report_path.write_text(json.dumps(output_report, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -168,7 +205,23 @@ def test_review_readiness_fails_when_output_report_points_to_other_release_dir(t
             config_path=config_path,
             release_dir=release_dir,
             output_validation_report_path=output_report_path,
+            policy_validation_report_path=policy_report_path,
         )
     )
 
     assert "output_validation_report_release_dir_matches" in failures
+
+
+def test_review_readiness_fails_when_policy_validation_report_is_missing(tmp_path: Path) -> None:
+    config, config_path, release_dir, output_report_path, policy_report_path = build_review_candidate(tmp_path)
+    policy_report_path.unlink()
+    failures = required_failures(
+        validate_review_readiness(
+            config,
+            config_path=config_path,
+            release_dir=release_dir,
+            output_validation_report_path=output_report_path,
+            policy_validation_report_path=policy_report_path,
+        )
+    )
+    assert "policy_validation_report_readable" in failures

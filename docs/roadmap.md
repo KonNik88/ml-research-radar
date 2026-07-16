@@ -4014,7 +4014,7 @@ no publication or upload
 
 ### Manual Citation Graph Review Execution v0.1
 
-Status: **active human-governance closure slice / not published**
+Status: **completed human-governance closure slice / not published**
 
 ```text
 required_categories = 18
@@ -4053,3 +4053,40 @@ no GraphRAG / graph DB / full graph runtime promotion
 After this slice, the recommended project direction returns to the public
 metadata dataset/Kaggle release track rather than extending Citation Graph
 runtime surface by default.
+
+### Public Metadata Release Policy & Kaggle Packaging v0.1
+
+Status: **implemented local policy/packaging slice / not published**
+
+```text
+public_metadata_release_policy = implemented
+policy_validator = implemented
+selected_field_policy_coverage = 34/34
+current_source_policy_coverage = 5/5
+source_aware_abstract_filter = implemented
+kaggle_metadata = template_only
+technical_candidate_ready = expected_true_after_regeneration
+public_policy_ready = expected_true_after_regeneration
+manual_release_decision_required = true
+publication_ready = false
+publication_block_reason = public_release_decision_not_completed
+```
+
+The slice extends the existing dataset exporter rather than creating a second
+pipeline. It generates `DATASET_CARD.md`, `ATTRIBUTION.md`, field/source policy
+JSON, and `kaggle_metadata.template.json` beside the existing Parquet, schema,
+manifest, quality summary, README, and checksums.
+
+Boundary:
+
+```text
+no Kaggle/Hugging Face/GitHub upload
+no final compilation-license selection
+no canonical/retrieval/Postgres/Qdrant/ranking/API/UI change
+no PDF/full-text/raw-payload/embedding export
+```
+
+Recommended next step after merge and accepted validation: an explicit public
+metadata release decision and publication runbook, followed by the first human-
+initiated Kaggle release only when the owner slug and final compilation license
+are recorded.

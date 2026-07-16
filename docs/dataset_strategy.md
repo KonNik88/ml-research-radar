@@ -395,3 +395,25 @@ Manual review remains required before any public release.
 ```
 
 The first public release, if approved later, must be an explicit separate slice.
+
+## 9. Source-aware public policy and local Kaggle package
+
+The release strategy now has an implemented policy/packaging stage between
+technical candidate generation and any public release decision:
+
+```text
+accepted canonical checkpoint
+→ source-aware field policy
+→ local metadata package with attribution and dataset card
+→ policy/output/readiness validation
+→ explicit final license and publication decision
+```
+
+The strategy remains metadata-first. Full text, PDF binaries, raw source/API
+payloads, source snapshots, embeddings, and private notes are excluded. External
+PDF URLs are links only.
+
+The generated `kaggle_metadata.template.json` is not a publication artifact: it
+contains an unresolved owner placeholder and a deliberately non-overclaiming
+license label. A later human-owned release slice must record the final
+compilation license and perform the upload explicitly.

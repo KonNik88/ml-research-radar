@@ -1,0 +1,176 @@
+schema_version: public_metadata_release_policy_v1
+policy:
+  policy_id: ml_research_radar_public_metadata_release_v0.1
+  version: v0.1
+  status: approved_for_local_candidate_packaging
+  purpose: >-
+    Define a reproducible, source-aware public metadata projection for the
+    non-commercial educational and portfolio ML Research Radar project.
+  project_use: non_commercial_educational_portfolio
+  publication_targets:
+    - kaggle
+    - huggingface_datasets
+    - github_releases
+  publication_action_in_scope: false
+  attribution_required_for_all_sources: true
+  reviewed_at_utc: '2026-07-16T00:00:00Z'
+  review_note: >-
+    This policy approves local candidate packaging only. It does not upload,
+    publish, or choose a final compilation license on behalf of a release owner.
+
+dataset_boundary:
+  allowed_content:
+    - bibliographic_metadata
+    - paper_identifiers
+    - external_source_urls
+    - source_family_summaries
+    - compact_identifier_summaries
+    - citation_and_reference_counts
+    - canonical_quality_flags
+    - derived_radar_metadata
+  forbidden_content:
+    - pdf_binary
+    - article_full_text
+    - raw_provider_payload
+    - raw_source_record
+    - source_snapshot
+    - embedding_vector
+    - private_notes
+  unknown_field_action: exclude_or_null
+  raw_source_action: summarize_only
+  external_link_action: link_only_no_mirroring
+  public_rows_may_be_used_as_reconcile_input: false
+  canonical_truth_impact: none
+
+compilation_license:
+  status: pending_explicit_release_decision
+  kaggle_template_license_name: other
+  upstream_terms_retained: true
+  single_cc0_claim_allowed: false
+  note: >-
+    The package is a derived metadata compilation. Upstream source terms and
+    attribution remain applicable. A final public release must choose and record
+    a compatible compilation license explicitly.
+
+source_policies:
+  arxiv:
+    display_name: arXiv
+    source_home: https://arxiv.org/
+    terms_url: https://info.arxiv.org/help/api/tou.html
+    metadata_basis: cc0_descriptive_metadata
+    attribution_required: true
+    public_metadata_allowed: true
+    public_abstract_allowed: true
+    raw_payload_allowed: false
+    pdf_or_full_text_redistribution_allowed: false
+    notes: >-
+      Descriptive metadata may be used in the public metadata projection. PDF
+      and e-print content are linked at the original source and are not mirrored.
+  openalex:
+    display_name: OpenAlex
+    source_home: https://openalex.org/
+    terms_url: https://help.openalex.org/hc/en-us/articles/24396686889751-About-us
+    metadata_basis: cc0_dataset
+    attribution_required: true
+    public_metadata_allowed: true
+    public_abstract_allowed: false
+    raw_payload_allowed: false
+    pdf_or_full_text_redistribution_allowed: false
+    notes: >-
+      OpenAlex metadata may support canonical fields and derived summaries. Raw
+      provider payloads are excluded from the public package.
+  crossref:
+    display_name: Crossref
+    source_home: https://www.crossref.org/
+    terms_url: https://www.crossref.org/documentation/retrieve-metadata/
+    metadata_basis: reusable_bibliographic_metadata
+    attribution_required: true
+    public_metadata_allowed: true
+    public_abstract_allowed: false
+    raw_payload_allowed: false
+    pdf_or_full_text_redistribution_allowed: false
+    notes: >-
+      Bibliographic metadata and identifiers may be represented. Crossref
+      abstracts are not accepted as an independent public-abstract basis in v0.1.
+  semantic_scholar:
+    display_name: Semantic Scholar
+    source_home: https://www.semanticscholar.org/
+    terms_url: https://www.semanticscholar.org/product/api/license
+    metadata_basis: api_data_subject_to_accompanying_terms
+    attribution_required: true
+    public_metadata_allowed: true
+    public_abstract_allowed: false
+    raw_payload_allowed: false
+    pdf_or_full_text_redistribution_allowed: false
+    notes: >-
+      Public output is limited to canonical identifiers, selected metadata,
+      counts, links, and summaries. Raw API responses are not repackaged.
+  acl_anthology:
+    display_name: ACL Anthology
+    source_home: https://aclanthology.org/
+    terms_url: https://aclanthology.org/faq/copyright/
+    metadata_basis: anthology_metadata_and_material_specific_terms
+    attribution_required: true
+    public_metadata_allowed: true
+    public_abstract_allowed: source_aware_by_year
+    public_abstract_min_year: 2016
+    pre_2016_abstract_action: "null"
+    raw_payload_allowed: false
+    pdf_or_full_text_redistribution_allowed: false
+    notes: >-
+      ACL metadata and links may be represented. For the public abstract field,
+      v0.1 allows ACL-backed text only for records from 2016 onward; older ACL
+      text is nulled by the exporter. PDFs remain external links only.
+
+field_policies:
+  canonical_id: {classification: radar_identifier, action: include}
+  title: {classification: bibliographic_metadata, action: include}
+  abstract:
+    classification: descriptive_text
+    action: source_aware_include_or_null
+    allowed_source_families: [arxiv, acl_anthology]
+    acl_min_year: 2016
+    fallback_action: "null"
+  authors: {classification: bibliographic_metadata, action: include}
+  year: {classification: bibliographic_metadata, action: include}
+  doi: {classification: external_identifier, action: include}
+  arxiv_id: {classification: external_identifier, action: include}
+  openalex_id: {classification: external_identifier, action: include}
+  primary_category: {classification: source_metadata, action: include}
+  categories: {classification: source_and_canonical_metadata, action: include}
+  concepts: {classification: source_and_derived_metadata, action: include}
+  venue: {classification: bibliographic_metadata, action: include}
+  journal: {classification: bibliographic_metadata, action: include}
+  conference: {classification: bibliographic_metadata, action: include}
+  publisher: {classification: bibliographic_metadata, action: include}
+  publication_type: {classification: canonical_metadata, action: include}
+  language: {classification: canonical_metadata, action: include}
+  landing_page_url: {classification: external_link, action: include_link_only}
+  pdf_url: {classification: external_link, action: include_link_only_no_binary}
+  open_access: {classification: canonical_metadata, action: include}
+  source_count: {classification: provenance_summary, action: include}
+  unique_source_count: {classification: provenance_summary, action: include}
+  source_families: {classification: provenance_summary, action: include}
+  metadata_completeness_score: {classification: radar_derived_metric, action: include}
+  is_preprint: {classification: radar_derived_flag, action: include}
+  is_review: {classification: radar_derived_flag, action: include}
+  is_survey: {classification: radar_derived_flag, action: include}
+  is_withdrawn: {classification: radar_derived_flag, action: include}
+  keywords: {classification: source_and_derived_metadata, action: include}
+  tags: {classification: source_and_derived_metadata, action: include}
+  cited_by_count: {classification: source_metadata_count, action: include}
+  references_count: {classification: source_metadata_count, action: include}
+  provenance_summary: {classification: compact_provenance_summary, action: include_sanitized_summary}
+  external_ids_summary: {classification: compact_identifier_summary, action: include_sanitized_summary}
+
+packaging:
+  required_files:
+    - DATASET_CARD.md
+    - ATTRIBUTION.md
+    - field_release_policy.json
+    - source_attribution.json
+    - kaggle_metadata.template.json
+  dataset_card_must_state_not_published: true
+  attribution_must_list_all_sources: true
+  kaggle_metadata_is_template_only: true
+  kaggle_upload_command_in_scope: false

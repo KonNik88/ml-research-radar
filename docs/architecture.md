@@ -1105,3 +1105,37 @@ provider attribution and links to originals. Radar does not redistribute PDFs
 or full text. The decision changes governance state only; it does not promote the
 graph to canonical truth or introduce a graph DB, full runtime loader, GraphRAG,
 API schema change, or publication action.
+
+## Public Metadata Release Policy & Kaggle Packaging v0.1
+
+The dataset-release architecture now includes an explicit source-aware policy
+between canonical truth and the local public candidate package:
+
+```text
+canonical_documents.jsonl
+→ public_metadata_release_policy_v1
+→ field-level include/link/null decisions
+→ data.parquet + review/attribution artifacts
+→ policy/output/review-readiness validators
+→ explicit release decision remains separate
+```
+
+The table schema remains `dataset_release_schema_v1` with 34 columns. The
+package contract is extended through `dataset_release_config_v2` and
+`dataset_release_manifest_v2`.
+
+New generated review artifacts:
+
+```text
+DATASET_CARD.md
+ATTRIBUTION.md
+field_release_policy.json
+source_attribution.json
+kaggle_metadata.template.json
+```
+
+The abstract field is fail-closed: arXiv-backed abstracts and ACL-backed
+abstracts from 2016 onward are allowed; unsupported text provenance becomes
+null. `pdf_url` remains an external link only. No PDF binary, full text, raw
+provider payload, source snapshot, embedding vector, or publication action is
+introduced.

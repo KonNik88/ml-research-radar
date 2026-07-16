@@ -16,16 +16,23 @@ else:
     YAML_IMPORT_ERROR = None
 
 
-REPORT_SCHEMA_VERSION = "dataset_release_review_readiness_v1"
+REPORT_SCHEMA_VERSION = "dataset_release_review_readiness_v2"
 DEFAULT_CONFIG_PATH = Path("configs/dataset_release.yaml")
 DEFAULT_OUTPUT_DIR = Path("artifacts/reports/validation")
 DEFAULT_OUTPUT_VALIDATION_REPORT = DEFAULT_OUTPUT_DIR / "dataset_release_output_latest.json"
-EXPECTED_OUTPUT_REPORT_SCHEMA_VERSION = "dataset_release_output_quality_v1"
+DEFAULT_POLICY_VALIDATION_REPORT = DEFAULT_OUTPUT_DIR / "public_metadata_release_policy_latest.json"
+EXPECTED_POLICY_REPORT_SCHEMA_VERSION = "public_metadata_release_policy_quality_v1"
+EXPECTED_OUTPUT_REPORT_SCHEMA_VERSION = "dataset_release_output_quality_v2"
 EXPECTED_DATA_QUALITY_SUMMARY_SCHEMA_VERSION = "dataset_release_data_quality_summary_v1"
 REQUIRED_REVIEW_FILES = {
     "manifest.json",
     "schema.json",
     "README.md",
+    "DATASET_CARD.md",
+    "ATTRIBUTION.md",
+    "field_release_policy.json",
+    "source_attribution.json",
+    "kaggle_metadata.template.json",
     "data_quality_summary.json",
     "checksums.txt",
 }
@@ -41,6 +48,7 @@ CORE_DATA_QUALITY_KEYS = {
     "top_primary_categories",
     "source_count_distribution",
     "unique_source_count_distribution",
+    "public_release_policy",
 }
 
 
@@ -155,6 +163,7 @@ def validate_review_readiness(
     config_path: Path,
     release_dir: Path,
     output_validation_report_path: Path,
+    policy_validation_report_path: Path,
 ) -> list[CheckResult]:
     checks: list[CheckResult] = []
     safety = as_mapping(config.get("safety"))
@@ -185,6 +194,8 @@ def validate_review_readiness(
     manifest_path = release_dir / "manifest.json"
     schema_path = release_dir / "schema.json"
     readme_path = release_dir / "README.md"
+    dataset_card_path = release_dir / "DATASET_CARD.md"
+    attribution_path = release_dir / "ATTRIBUTION.md"
     data_quality_summary_path = release_dir / "data_quality_summary.json"
 
     manifest, manifest_ok, manifest_error = read_json_if_exists(manifest_path)
@@ -218,9 +229,12 @@ def validate_review_readiness(
         readme_text = readme_path.read_text(encoding="utf-8")
         readme_lower = readme_text.lower()
         readme_mentions_boundary = (
-            "not a public release" in readme_lower
-            and "manual" in readme_lower
-            and "review" in readme_lower
+            "not published" in readme_lower
+            and (
+                "release decision" in readme_lower
+                or "manual_release_decision_required" in readme_lower
+            )
+            and "does not perform" in readme_lower
         )
     else:
         readme_mentions_boundary = False
@@ -228,7 +242,32 @@ def validate_review_readiness(
         checks,
         name="readme_manual_review_boundary",
         ok=readme_mentions_boundary,
-        message="README.md states that the candidate is not public and requires manual review",
+        message="README.md states that the candidate is not published and requires an explicit release decision",
+    )
+
+    dataset_card_text = dataset_card_path.read_text(encoding="utf-8") if dataset_card_path.exists() else ""
+    add_check(
+        checks,
+        name="dataset_card_review_boundary",
+        ok=(
+            "not_published" in dataset_card_text.lower()
+            and "final_compilation_license" in dataset_card_text.lower()
+            and "attribution" in dataset_card_text.lower()
+        ),
+        message="DATASET_CARD.md records publication, licensing, and attribution boundaries",
+    )
+    attribution_text = attribution_path.read_text(encoding="utf-8") if attribution_path.exists() else ""
+    add_check(
+        checks,
+        name="attribution_review_material_present",
+        ok=(
+            "arxiv" in attribution_text.lower()
+            and "openalex" in attribution_text.lower()
+            and "crossref" in attribution_text.lower()
+            and "semantic scholar" in attribution_text.lower()
+            and "acl anthology" in attribution_text.lower()
+        ),
+        message="ATTRIBUTION.md contains provider-level review material",
     )
 
     if manifest:
@@ -238,8 +277,8 @@ def validate_review_readiness(
         add_check(
             checks,
             name="manifest_schema_version",
-            ok=manifest.get("schema_version") == "dataset_release_manifest_v1",
-            message="manifest schema_version is dataset_release_manifest_v1",
+            ok=manifest.get("schema_version") == "dataset_release_manifest_v2",
+            message="manifest schema_version is dataset_release_manifest_v2",
             details={"actual": manifest.get("schema_version")},
         )
         add_check(
@@ -284,6 +323,18 @@ def validate_review_readiness(
             message="manifest safety.canonical_truth_impact is none",
             details={"actual": manifest_safety.get("canonical_truth_impact")},
         )
+        manifest_policy = as_mapping(manifest.get("public_release_policy"))
+        add_check(
+            checks,
+            name="manifest_public_policy_ready",
+            ok=(
+                manifest.get("public_release_policy_validated_before_review") is True
+                and manifest_policy.get("schema_version") == "public_metadata_release_policy_v1"
+                and manifest_policy.get("publication_action_in_scope") is False
+            ),
+            message="manifest records a validated non-publishing public metadata policy",
+            details={"public_release_policy": dict(manifest_policy)},
+        )
         add_check(
             checks,
             name="manifest_lists_review_files",
@@ -291,10 +342,15 @@ def validate_review_readiness(
                 manifest_files.get("schema") == "schema.json"
                 and manifest_files.get("manifest") == "manifest.json"
                 and manifest_files.get("readme") == "README.md"
+                and manifest_files.get("dataset_card") == "DATASET_CARD.md"
+                and manifest_files.get("attribution") == "ATTRIBUTION.md"
+                and manifest_files.get("field_release_policy") == "field_release_policy.json"
+                and manifest_files.get("source_attribution") == "source_attribution.json"
+                and manifest_files.get("kaggle_metadata_template") == "kaggle_metadata.template.json"
                 and manifest_files.get("data_quality_summary") == "data_quality_summary.json"
                 and manifest_files.get("checksums") == "checksums.txt"
             ),
-            message="manifest files section lists review-readiness files",
+            message="manifest files section lists all review-readiness files",
             details={"files": dict(manifest_files)},
         )
 
@@ -385,6 +441,54 @@ def validate_review_readiness(
             details={"expected": normalize_path(release_dir), "actual": report_release_dir},
         )
 
+    policy_report, policy_report_ok, policy_report_error = read_json_if_exists(
+        policy_validation_report_path
+    )
+    add_check(
+        checks,
+        name="policy_validation_report_readable",
+        ok=policy_report_ok,
+        message="Public metadata release policy validation report is readable",
+        details={"path": normalize_path(policy_validation_report_path), "error": policy_report_error},
+    )
+    if policy_report:
+        add_check(
+            checks,
+            name="policy_validation_report_schema_version",
+            ok=policy_report.get("schema_version") == EXPECTED_POLICY_REPORT_SCHEMA_VERSION,
+            message=f"Policy validation report schema_version is {EXPECTED_POLICY_REPORT_SCHEMA_VERSION}",
+            details={"actual": policy_report.get("schema_version")},
+        )
+        add_check(
+            checks,
+            name="policy_validation_report_ok",
+            ok=policy_report.get("ok") is True,
+            message="Public metadata release policy validation report is green",
+            details={"actual": policy_report.get("ok")},
+        )
+        add_check(
+            checks,
+            name="policy_validation_report_required_failed_count_zero",
+            ok=policy_report.get("required_failed_count") == 0,
+            message="Public metadata release policy report has no required failures",
+            details={"actual": policy_report.get("required_failed_count")},
+        )
+        policy_ref = as_mapping(config.get("public_release_policy"))
+        add_check(
+            checks,
+            name="policy_validation_report_path_matches",
+            ok=policy_report.get("policy_path") == policy_ref.get("path"),
+            message="Policy validation report points to the configured policy path",
+            details={"expected": policy_ref.get("path"), "actual": policy_report.get("policy_path")},
+        )
+        add_check(
+            checks,
+            name="policy_validation_report_no_publication_action",
+            ok=policy_report.get("publication_action_in_scope") is False,
+            message="Policy validation report confirms publication action is out of scope",
+            details={"actual": policy_report.get("publication_action_in_scope")},
+        )
+
     if schema:
         primary_key = as_list(schema.get("primary_key"))
         add_check(
@@ -403,6 +507,7 @@ def build_report(
     config_path: Path,
     release_dir: Path,
     output_validation_report_path: Path,
+    policy_validation_report_path: Path,
     output_dir: Path,
     checks: Sequence[CheckResult],
     strict: bool,
@@ -410,7 +515,9 @@ def build_report(
     required_failed = [check for check in checks if check.severity == "required" and not check.ok]
     warnings = [check for check in checks if check.severity == "warning" and not check.ok]
     technical_candidate_ready = len(required_failed) == 0
+    public_policy_ready = technical_candidate_ready
     manual_review_required = True
+    manual_release_decision_required = True
     publication_ready = False
     return {
         "schema_version": REPORT_SCHEMA_VERSION,
@@ -420,10 +527,13 @@ def build_report(
         "config_path": normalize_path(config_path),
         "release_dir": normalize_path(release_dir),
         "output_validation_report_path": normalize_path(output_validation_report_path),
+        "policy_validation_report_path": normalize_path(policy_validation_report_path),
         "technical_candidate_ready": technical_candidate_ready,
+        "public_policy_ready": public_policy_ready,
         "manual_review_required": manual_review_required,
+        "manual_release_decision_required": manual_release_decision_required,
         "publication_ready": publication_ready,
-        "publication_block_reason": "manual_review_not_completed",
+        "publication_block_reason": "public_release_decision_not_completed",
         "checks": [
             {
                 "name": check.name,
@@ -456,19 +566,22 @@ def build_markdown(report: Mapping[str, Any]) -> str:
         f"- ok: **{report.get('ok')}**",
         f"- strict: `{report.get('strict')}`",
         f"- technical_candidate_ready: `{report.get('technical_candidate_ready')}`",
+        f"- public_policy_ready: `{report.get('public_policy_ready')}`",
         f"- manual_review_required: `{report.get('manual_review_required')}`",
+        f"- manual_release_decision_required: `{report.get('manual_release_decision_required')}`",
         f"- publication_ready: `{report.get('publication_ready')}`",
         f"- publication_block_reason: `{report.get('publication_block_reason')}`",
         f"- config_path: `{report.get('config_path')}`",
         f"- release_dir: `{report.get('release_dir')}`",
         f"- output_validation_report_path: `{report.get('output_validation_report_path')}`",
+        f"- policy_validation_report_path: `{report.get('policy_validation_report_path')}`",
         f"- required_failed_count: `{report.get('required_failed_count')}`",
         f"- warning_count: `{report.get('warning_count')}`",
         "",
         "## Interpretation",
         "",
-        "A green report means the local candidate dataset artifact is technically ready for manual review.",
-        "It does not approve public publication.",
+        "A green report means the local candidate package and source-aware policy are technically ready for an explicit release decision.",
+        "It does not approve or perform public publication.",
         "",
         "## Checks",
         "",
@@ -513,6 +626,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--config-path", type=Path, default=DEFAULT_CONFIG_PATH)
     parser.add_argument("--release-dir", type=Path, default=None)
     parser.add_argument("--output-validation-report", type=Path, default=DEFAULT_OUTPUT_VALIDATION_REPORT)
+    parser.add_argument("--policy-validation-report", type=Path, default=DEFAULT_POLICY_VALIDATION_REPORT)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--strict", action="store_true")
     return parser.parse_args(argv)
@@ -524,6 +638,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     config = load_config(config_path)
     release_dir = Path(args.release_dir) if args.release_dir else release_dir_from_config(config, config_path=config_path)
     output_validation_report_path = Path(args.output_validation_report)
+    policy_validation_report_path = Path(args.policy_validation_report)
     output_dir = Path(args.output_dir)
 
     checks = validate_review_readiness(
@@ -531,11 +646,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         config_path=config_path,
         release_dir=release_dir,
         output_validation_report_path=output_validation_report_path,
+        policy_validation_report_path=policy_validation_report_path,
     )
     report = build_report(
         config_path=config_path,
         release_dir=release_dir,
         output_validation_report_path=output_validation_report_path,
+        policy_validation_report_path=policy_validation_report_path,
         output_dir=output_dir,
         checks=checks,
         strict=bool(args.strict),
@@ -545,6 +662,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     status = "OK" if report["ok"] else "FAILED"
     print(f"[{status}] schema_version={report['schema_version']}")
     print(f"[{status}] technical_candidate_ready={report['technical_candidate_ready']}")
+    print(f"[{status}] public_policy_ready={report['public_policy_ready']}")
+    print(f"[{status}] manual_release_decision_required={report['manual_release_decision_required']}")
     print(f"[{status}] manual_review_required={report['manual_review_required']}")
     print(f"[{status}] publication_ready={report['publication_ready']}")
     print(f"[{status}] required_failed_count={report['required_failed_count']}")
