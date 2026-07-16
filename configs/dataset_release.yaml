@@ -1,14 +1,10 @@
-schema_version: dataset_release_config_v1
+schema_version: dataset_release_config_v2
 release:
   dataset_name: ml_research_radar_metadata
   version: v0.1
   release_family: clean_research_metadata
-  status: candidate_contract
-  description: 'Metadata-only public dataset candidate derived from an accepted ML
-    Research Radar canonical corpus checkpoint. This config is a release contract,
-    not a publication decision.
-
-    '
+  status: candidate_policy_packaging_contract
+  description: Metadata-only public dataset candidate derived from an accepted ML Research Radar canonical corpus checkpoint. The contract includes a source-aware public release policy and Kaggle-ready local packaging, but does not perform publication.
   publication_targets:
   - huggingface_datasets
   - kaggle
@@ -23,9 +19,7 @@ source_checkpoint:
   retrieval_corpus_doc_count: 60954
   embedding_model: sentence-transformers/all-MiniLM-L6-v2
   retrieval_fingerprint: 6282e3e78a604490d0626a243e1e93a1c8e2a012b6558739a88448cf19970fc7
-  source_checkpoint_notes: 'Current contract is tied to the accepted 60,954-document
-    corpus and retrieval build 20260504T164021Z. A material corpus or retrieval rebuild
-    requires a new release-candidate version and fresh validation.
+  source_checkpoint_notes: 'Current contract is tied to the accepted 60,954-document corpus and retrieval build 20260504T164021Z. A material corpus or retrieval rebuild requires a new release-candidate version and fresh validation.
 
     '
 export:
@@ -111,11 +105,7 @@ validation:
 license_review:
   status: required_before_publication
   publication_allowed_before_review: false
-  notes: 'Metadata-only candidate release. Provider-specific redistribution terms,
-    OpenAlex/Semantic Scholar/Crossref/ACL/arXiv metadata policies, and artifact provider
-    metadata redistribution rules must be reviewed before publication.
-
-    '
+  notes: The source-aware public metadata policy is defined and validated for local candidate packaging. Final compilation-license selection and any public upload remain a separate explicit release decision.
   excluded_until_review:
   - raw provider payloads
   - source snapshots
@@ -140,7 +130,30 @@ outputs:
   - README.md
   - data_quality_summary.json
   - checksums.txt
+  - DATASET_CARD.md
+  - ATTRIBUTION.md
+  - field_release_policy.json
+  - source_attribution.json
+  - kaggle_metadata.template.json
   generated_reports:
     latest_json: artifacts/reports/validation/dataset_release_config_latest.json
     latest_markdown: artifacts/reports/validation/dataset_release_config_latest.md
     history_dir: artifacts/reports/validation/history
+    public_policy_latest_json: artifacts/reports/validation/public_metadata_release_policy_latest.json
+    public_policy_latest_markdown: artifacts/reports/validation/public_metadata_release_policy_latest.md
+public_release_policy:
+  path: configs/public_metadata_release_policy_v0.1.yaml
+  required: true
+  expected_schema_version: public_metadata_release_policy_v1
+  require_policy_validation_before_review: true
+packaging:
+  dataset_card_file: DATASET_CARD.md
+  attribution_file: ATTRIBUTION.md
+  field_policy_file: field_release_policy.json
+  source_attribution_file: source_attribution.json
+  kaggle_metadata_template_file: kaggle_metadata.template.json
+  kaggle_owner_slug: null
+  kaggle_dataset_slug: ml-research-radar-metadata
+  kaggle_license_name: other
+  kaggle_metadata_is_template_only: true
+  include_publication_command: false

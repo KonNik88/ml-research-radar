@@ -146,3 +146,26 @@ def test_validator_fails_when_manifest_omits_data_quality_summary_file(tmp_path:
     )
 
     assert "manifest_lists_data_quality_summary_file" in failures
+
+
+def test_validator_fails_when_attribution_file_is_missing(tmp_path: Path) -> None:
+    config, config_path, release_dir = build_valid_release(tmp_path)
+    (release_dir / "ATTRIBUTION.md").unlink()
+    failures = required_failures(
+        validate_release_output(config, config_path=config_path, release_dir=release_dir)
+    )
+    assert "required_output_files" in failures
+
+
+def test_validator_fails_when_kaggle_template_claims_publication(tmp_path: Path) -> None:
+    config, config_path, release_dir = build_valid_release(tmp_path)
+    path = release_dir / "kaggle_metadata.template.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["template_only"] = False
+    payload["publication_action"] = "performed"
+    payload["id"] = "owner/ml-research-radar-metadata"
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    failures = required_failures(
+        validate_release_output(config, config_path=config_path, release_dir=release_dir)
+    )
+    assert "kaggle_template_not_publication" in failures

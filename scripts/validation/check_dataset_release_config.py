@@ -8,8 +8,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-SCHEMA_VERSION = "dataset_release_config_v1"
-REPORT_SCHEMA_VERSION = "dataset_release_config_quality_v1"
+SCHEMA_VERSION = "dataset_release_config_v2"
+REPORT_SCHEMA_VERSION = "dataset_release_config_quality_v2"
 
 DEFAULT_CONFIG_PATH = Path("configs/dataset_release.yaml")
 DEFAULT_OUTPUT_DIR = Path("artifacts/reports/validation")
@@ -38,6 +38,8 @@ REQUIRED_TOP_LEVEL_KEYS = {
     "validation",
     "license_review",
     "safety",
+    "public_release_policy",
+    "packaging",
 }
 
 REQUIRED_RELEASE_KEYS = {
@@ -431,6 +433,80 @@ def validate_config(
         details={"actual": license_review.get("publication_allowed_before_review")},
     )
 
+    public_policy = as_mapping(config.get("public_release_policy"))
+    add_check(
+        checks,
+        name="public_release_policy_path",
+        ok=(
+            isinstance(public_policy.get("path"), str)
+            and bool(str(public_policy.get("path")).strip())
+        ),
+        message="public_release_policy.path must be a non-empty string",
+        details={"actual": public_policy.get("path")},
+    )
+    add_check(
+        checks,
+        name="public_release_policy_required",
+        ok=public_policy.get("required") is True,
+        message="public_release_policy.required must be true",
+        details={"actual": public_policy.get("required")},
+    )
+    add_check(
+        checks,
+        name="public_release_policy_schema_version",
+        ok=public_policy.get("expected_schema_version") == "public_metadata_release_policy_v1",
+        message="public release policy schema version must be public_metadata_release_policy_v1",
+        details={"actual": public_policy.get("expected_schema_version")},
+    )
+    add_check(
+        checks,
+        name="policy_validation_required_before_review",
+        ok=public_policy.get("require_policy_validation_before_review") is True,
+        message="policy validation must be required before review readiness",
+        details={"actual": public_policy.get("require_policy_validation_before_review")},
+    )
+
+    packaging = as_mapping(config.get("packaging"))
+    required_packaging_values = {
+        "dataset_card_file": "DATASET_CARD.md",
+        "attribution_file": "ATTRIBUTION.md",
+        "field_policy_file": "field_release_policy.json",
+        "source_attribution_file": "source_attribution.json",
+        "kaggle_metadata_template_file": "kaggle_metadata.template.json",
+    }
+    bad_packaging = {
+        name: {"expected": expected, "actual": packaging.get(name)}
+        for name, expected in required_packaging_values.items()
+        if packaging.get(name) != expected
+    }
+    add_check(
+        checks,
+        name="packaging_file_contract",
+        ok=not bad_packaging,
+        message="packaging file names match the public metadata release contract",
+        details={"mismatched": bad_packaging},
+    )
+    add_check(
+        checks,
+        name="kaggle_metadata_template_only",
+        ok=(
+            packaging.get("kaggle_metadata_is_template_only") is True
+            and packaging.get("include_publication_command") is False
+        ),
+        message="Kaggle metadata is template-only and no upload command is generated",
+        details={
+            "kaggle_metadata_is_template_only": packaging.get("kaggle_metadata_is_template_only"),
+            "include_publication_command": packaging.get("include_publication_command"),
+        },
+    )
+    add_check(
+        checks,
+        name="kaggle_license_not_overclaimed",
+        ok=packaging.get("kaggle_license_name") == "other",
+        message="Kaggle template uses a non-overclaiming placeholder license",
+        details={"actual": packaging.get("kaggle_license_name")},
+    )
+
     safety = as_mapping(config.get("safety"))
     for name, expected in REQUIRED_SAFETY_FLAGS.items():
         add_check(
@@ -453,6 +529,11 @@ def validate_config(
         "README.md",
         "data_quality_summary.json",
         "checksums.txt",
+        "DATASET_CARD.md",
+        "ATTRIBUTION.md",
+        "field_release_policy.json",
+        "source_attribution.json",
+        "kaggle_metadata.template.json",
     }
     missing_layout = sorted(required_layout - expected_layout)
     add_check(
@@ -484,6 +565,14 @@ def validate_config(
             ok=manifest_path.exists(),
             message="retrieval_manifest_path exists",
             details={"path": normalize_path(manifest_path)},
+        )
+        policy_path = root / str(as_mapping(config.get("public_release_policy")).get("path", ""))
+        add_check(
+            checks,
+            name="path_public_release_policy_exists",
+            ok=policy_path.exists(),
+            message="public release policy path exists",
+            details={"path": normalize_path(policy_path)},
         )
 
     return checks
@@ -532,6 +621,8 @@ def build_report(
             "include_full_text": export.get("include_full_text"),
             "include_pdfs": export.get("include_pdfs"),
             "include_raw_provider_payloads": export.get("include_raw_provider_payloads"),
+            "public_release_policy_path": as_mapping(config.get("public_release_policy")).get("path"),
+            "kaggle_metadata_template_only": as_mapping(config.get("packaging")).get("kaggle_metadata_is_template_only"),
         },
         "checks": [
             {

@@ -94,7 +94,7 @@ def tiny_docs() -> list[dict]:
             "title": "B Paper",
             "abstract": "B abstract.",
             "authors": [],
-            "year": None,
+            "year": 2014,
             "doi": None,
             "arxiv_id": None,
             "openalex_id": None,
@@ -150,6 +150,10 @@ def make_config(tmp_path: Path) -> tuple[dict, Path]:
         yaml.safe_dump(config, sort_keys=False, allow_unicode=True),
         encoding="utf-8",
     )
+    policy_source = Path("configs/public_metadata_release_policy_v0.1.yaml")
+    policy_target = tmp_path / config["public_release_policy"]["path"]
+    policy_target.parent.mkdir(parents=True, exist_ok=True)
+    policy_target.write_text(policy_source.read_text(encoding="utf-8"), encoding="utf-8")
     write_jsonl(tmp_path / canonical_rel, tiny_docs())
     return config, config_path
 
@@ -170,11 +174,17 @@ def test_export_creates_valid_local_candidate_release(tmp_path: Path) -> None:
     assert (release_dir / "schema.json").exists()
     assert (release_dir / "manifest.json").exists()
     assert (release_dir / "README.md").exists()
+    assert (release_dir / "DATASET_CARD.md").exists()
+    assert (release_dir / "ATTRIBUTION.md").exists()
+    assert (release_dir / "field_release_policy.json").exists()
+    assert (release_dir / "source_attribution.json").exists()
+    assert (release_dir / "kaggle_metadata.template.json").exists()
     assert (release_dir / "data_quality_summary.json").exists()
     assert (release_dir / "checksums.txt").exists()
 
     frame = pd.read_parquet(release_dir / "data.parquet")
     assert frame["canonical_id"].tolist() == ["paper-a", "paper-b", "paper-c"]
+    assert frame.loc[1, "abstract"] is None
     assert "embedding_vector" not in frame.columns
     assert "raw_provider_payload" not in frame.columns
     assert list(frame.loc[0, "source_families"]) == [
@@ -190,6 +200,8 @@ def test_export_creates_valid_local_candidate_release(tmp_path: Path) -> None:
     assert manifest["manual_review_required_before_publication"] is True
     assert manifest["safety"]["canonical_truth_impact"] == "none"
     assert manifest["source_checkpoint"]["actual_exported_row_count"] == 3
+    assert manifest["schema_version"] == "dataset_release_manifest_v2"
+    assert manifest["public_release_policy"]["publication_action_in_scope"] is False
     assert manifest["files"]["data_quality_summary"] == "data_quality_summary.json"
 
     quality_summary = json.loads((release_dir / "data_quality_summary.json").read_text(encoding="utf-8"))
@@ -198,8 +210,9 @@ def test_export_creates_valid_local_candidate_release(tmp_path: Path) -> None:
     assert quality_summary["column_count"] == len(frame.columns)
     assert quality_summary["canonical_id"]["unique_count"] == 3
     assert quality_summary["canonical_id"]["duplicate_count"] == 0
-    assert quality_summary["field_coverage"]["abstract"]["non_empty_count"] == 2
-    assert quality_summary["year_range"] == {"min": 2024, "max": 2026}
+    assert quality_summary["field_coverage"]["abstract"]["non_empty_count"] == 1
+    assert quality_summary["public_release_policy"]["field_transformations"]["abstract_excluded_by_policy_count"] == 1
+    assert quality_summary["year_range"] == {"min": 2014, "max": 2026}
     assert quality_summary["source_family_counts"]["arxiv"] == 2
 
     checks = validate_release_output(config, config_path=config_path, release_dir=release_dir)

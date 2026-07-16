@@ -372,3 +372,42 @@ retrieval-pair dataset
 RAG/full-text chunk release
 automatic publication
 ```
+
+## 10. Public metadata policy and Kaggle-ready packaging
+
+The v0.1 track now includes a source-aware policy layer:
+
+```text
+configs/public_metadata_release_policy_v0.1.yaml
+scripts/validation/check_public_metadata_release_policy.py
+```
+
+The exporter enforces policy for every selected field. In particular, unsupported
+abstract provenance fails closed to null, and PDF URLs remain external links
+without PDF binary redistribution.
+
+Additional required local package files:
+
+```text
+DATASET_CARD.md
+ATTRIBUTION.md
+field_release_policy.json
+source_attribution.json
+kaggle_metadata.template.json
+```
+
+The Kaggle JSON is deliberately a template with an unresolved owner placeholder.
+No upload command or network publication is performed.
+
+Current contract versions:
+
+```text
+dataset_release_config_v2
+dataset_release_manifest_v2
+dataset_release_output_quality_v2
+dataset_release_review_readiness_v2
+public_metadata_release_policy_v1
+```
+
+`data.parquet` remains `dataset_release_schema_v1` because the 34-column table
+contract is unchanged.
