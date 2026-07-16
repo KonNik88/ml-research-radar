@@ -91,12 +91,15 @@ def _make_fixture(base: Path) -> Path:
             "version": "v0.1",
             "status": "local_manual_review_gate",
             "graph_version": "v0.1",
-            "approval_state": "not_reviewed",
+            "approval_state": "approved",
             "manual_review_required": True,
-            "manual_review_complete": False,
+            "manual_review_complete": True,
             "publication_ready": False,
-            "publication_block_reason": "manual_review_not_completed",
+            "publication_block_reason": "publication_action_not_in_scope",
             "may_be_used_as_reconcile_input": False,
+            "reviewer_role": "project_owner_maintainer",
+            "reviewed_at": "2026-07-16",
+            "decision_record": str(docs / "citation_reference_graph_manual_review_decision_record_v0.1.md"),
         },
         "manual_review": {
             "required_category_ids": list(CATEGORY_IDS),
@@ -105,8 +108,8 @@ def _make_fixture(base: Path) -> Path:
                     "id": category_id,
                     "title": category_id.replace("_", " ").title(),
                     "required": True,
-                    "status": "pending",
-                    "reviewer_note": f"Review {category_id}",
+                    "status": "passed",
+                    "reviewer_note": f"Passed by human reviewer: {category_id}",
                 }
                 for category_id in CATEGORY_IDS
             ],
@@ -115,11 +118,17 @@ def _make_fixture(base: Path) -> Path:
     _write_yaml(manual_config_path, manual_config)
 
     manual_report = _green_report("citation_reference_graph_manual_review_v1")
+    manual_report["verdict"].update(
+        {
+            "manual_review_complete": True,
+            "publication_block_reason": "publication_action_not_in_scope",
+        }
+    )
     manual_report["manual_review"] = {
-        "approval_state": "not_reviewed",
-        "category_status_counts": {"pending": 18},
+        "approval_state": "approved",
+        "category_status_counts": {"passed": 18},
         "manual_review_required": True,
-        "manual_review_complete": False,
+        "manual_review_complete": True,
         "required_category_count": 18,
     }
     _write_json(reports / "citation_reference_graph_manual_review_latest.json", manual_report)
@@ -315,6 +324,23 @@ graphrag = not implemented
     _write_text(docs / "citation_graph_known_issues_v0.1.md", known_issues)
     _write_text(docs / "source_matrix.md", "arxiv openalex crossref semantic_scholar acl_anthology")
     _write_text(docs / "merge_policy.md", "DOI and OpenAlex reference identity are conservative")
+    decision_record = """
+non-commercial educational and portfolio
+Kaggle
+GitHub
+public Radar website
+does not redistribute PDFs
+does not redistribute full text
+attribution
+publication action remains separate
+approval_state = approved
+manual_review_complete = true
+publication_ready = false
+"""
+    _write_text(
+        docs / "citation_reference_graph_manual_review_decision_record_v0.1.md",
+        decision_record,
+    )
 
     config = {
         "schema_version": "citation_reference_graph_manual_review_evidence_config_v1",
@@ -349,6 +375,7 @@ graphrag = not implemented
             "live_smoke_report": str(reports / "citation_graph_live_smoke_latest.json"),
             "api_regression_report": str(reports / "citation_graph_api_regression_latest.json"),
             "graph_review_evidence_pack_report": str(reports / "graph_review_evidence_pack_latest.json"),
+            "decision_record_doc": str(docs / "citation_reference_graph_manual_review_decision_record_v0.1.md"),
         },
         "validation": {"report_dir": str(reports), "strict_default": True},
         "category_policy": {
@@ -357,12 +384,12 @@ graphrag = not implemented
             "human_decision_category_ids": list(HUMAN_IDS),
         },
         "expected": {
-            "approval_state": "not_reviewed",
-            "required_category_status": "pending",
-            "manual_review_complete": False,
+            "approval_state": "approved",
+            "required_category_status_counts": {"passed": 18},
+            "manual_review_complete": True,
             "manual_review_required": True,
             "publication_ready": False,
-            "publication_block_reason": "manual_review_not_completed",
+            "publication_block_reason": "publication_action_not_in_scope",
             "reference_resolution_ratio": 0.00869,
             "resolved_reference_edges_count": 6165,
             "unresolved_reference_edges_count": 703234,
@@ -403,6 +430,16 @@ graphrag = not implemented
                 "does not publish a dataset or graph",
             ],
         },
+        "decision_record_required_markers": [
+            "non-commercial educational and portfolio",
+            "Kaggle",
+            "GitHub",
+            "public Radar website",
+            "does not redistribute PDFs",
+            "does not redistribute full text",
+            "attribution",
+            "publication action remains separate",
+        ],
         "safety": {
             "read_only_evidence": True,
             "rebuild_graph": False,
@@ -457,13 +494,15 @@ def test_manual_review_evidence_green_fixture(tmp_path: Path) -> None:
     assert report["summary"]["automated_support_categories_count"] == 13
     assert report["summary"]["human_decision_categories_count"] == 5
     assert report["summary"]["evidence_ready_categories_count"] == 18
-    assert report["verdict"]["approval_state"] == "not_reviewed"
-    assert report["verdict"]["manual_review_complete"] is False
+    assert report["verdict"]["approval_state"] == "approved"
+    assert report["verdict"]["manual_review_complete"] is True
+    assert report["verdict"]["manual_review_decisions_recorded"] is True
     assert report["verdict"]["publication_ready"] is False
     assert all(
-        row["category_status"] == "pending"
+        row["category_status"] == "passed"
         and row["automated_decision"] is False
-        and row["reviewer_decision"] is None
+        and row["reviewer_decision"] == "passed"
+        and row["reviewer_note"]
         for row in report["category_evidence"]
     )
 
@@ -519,14 +558,27 @@ def test_manual_review_evidence_source_status_change_fails(tmp_path: Path) -> No
     config = _read_yaml(config_path)
     manual_path = Path(config["inputs"]["manual_review_config"])
     manual_config = _read_yaml(manual_path)
-    manual_config["manual_review"]["categories"][0]["status"] = "passed"
+    manual_config["manual_review"]["categories"][0]["status"] = "pending"
     _write_yaml(manual_path, manual_config)
 
     report = validate_manual_review_evidence(
         config_path, strict=True, write_reports=False
     )
 
-    _assert_failed(report, "source_category_statuses_unchanged")
+    _assert_failed(report, "source_category_statuses_match_expected")
+
+
+def test_manual_review_evidence_decision_record_marker_drift_fails(tmp_path: Path) -> None:
+    config_path = _make_fixture(tmp_path)
+    config = _read_yaml(config_path)
+    decision_record = Path(config["inputs"]["decision_record_doc"])
+    decision_record.write_text("approved only\n", encoding="utf-8")
+
+    report = validate_manual_review_evidence(
+        config_path, strict=True, write_reports=False
+    )
+
+    _assert_failed(report, "decision_record_complete")
 
 
 def test_manual_review_evidence_readme_marker_drift_fails(tmp_path: Path) -> None:

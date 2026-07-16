@@ -646,9 +646,11 @@ Manual review status:
 
 ```text
 manual_review_required = true
-manual_review_complete = false
+manual_review_complete = true
+approval_state = approved
+category_status_counts = {passed: 18}
 publication_ready = false
-publication_block_reason = manual_review_not_completed
+publication_block_reason = publication_action_not_in_scope
 ```
 
 Manual-review validator semantics:
@@ -1406,7 +1408,7 @@ is changed.
 
 ## Citation Graph Manual-Review Evidence Preparation v0.1
 
-Current active review-support slice:
+Completed evidence-preparation checkpoint:
 
 ```text
 citation_reference_graph_manual_review_evidence = implemented_read_only
@@ -1414,9 +1416,9 @@ categories_count = 18
 automated_support_categories_count = 13
 human_decision_categories_count = 5
 evidence_ready_categories_count = 18 (expected)
-category_status_changed = false
-approval_state_changed = false
-manual_review_complete = false
+evidence_validator_mutated_category_status = false
+evidence_validator_mutated_approval_state = false
+pre_review_manual_review_complete = false
 publication_ready = false
 ```
 
@@ -1431,8 +1433,34 @@ Interpretation:
 evidence_ready = material exists for human review
 evidence_ready != passed
 validator ok != approval
-approval and publication remain explicit future actions
+approval remained a separate explicit human action; publication remains separate
 ```
 
 No graph JSONL rebuild/reprocessing, API/runtime change, canonical/retrieval/DB/
 Qdrant/ranking/UI change, GraphRAG, graph DB, or publication is introduced.
+
+
+## Manual Citation Graph Review Execution v0.1
+
+Completed human review state prepared on the active branch:
+
+```text
+required_categories = 18
+passed_categories = 18
+approval_state = approved
+manual_review_complete = true
+publication_ready = false
+publication_block_reason = publication_action_not_in_scope
+reviewer_role = project_owner_maintainer
+reviewed_at = 2026-07-16
+```
+
+The decision record accepts the graph for the project's non-commercial,
+educational, portfolio, metadata-first purpose. Future public targets are
+Kaggle, GitHub, and a Radar website with attribution and original-source links.
+No PDF or full-text redistribution is part of the project.
+
+This closes the Citation Graph manual-review gate but does not publish or promote
+the package. The next project-level direction is a source-aware public metadata
+dataset/Kaggle release policy rather than more graph runtime expansion by
+default.

@@ -1,5 +1,4 @@
 schema_version: citation_reference_graph_manual_review_evidence_config_v1
-
 evidence:
   name: citation_reference_graph_manual_review_evidence
   version: v0.1
@@ -11,7 +10,6 @@ evidence:
   manual_review_required: true
   publication_ready: false
   may_be_used_as_reconcile_input: false
-
 inputs:
   manual_review_config: configs/citation_reference_graph_manual_review.yaml
   manual_review_report: artifacts/reports/validation/citation_reference_graph_manual_review_latest.json
@@ -31,41 +29,38 @@ inputs:
   live_smoke_report: artifacts/reports/validation/citation_graph_live_smoke_latest.json
   api_regression_report: artifacts/reports/validation/citation_graph_api_regression_latest.json
   graph_review_evidence_pack_report: artifacts/reports/validation/graph_review_evidence_pack_latest.json
-
+  decision_record_doc: docs/citation_reference_graph_manual_review_decision_record_v0.1.md
 validation:
   report_dir: artifacts/reports/validation
   strict_default: true
-
 category_policy:
   required_category_count: 18
   automated_support_category_ids:
-    - reference_metadata_caveats
-    - explicit_reference_fields_only
-    - unresolved_external_reference_caveats
-    - low_resolution_ratio_caveat
-    - openalex_normalization_review
-    - doi_reference_policy_review
-    - source_family_reference_distribution_review
-    - top_internal_referenced_papers_review
-    - top_external_references_review
-    - full_text_not_parsed_caveat
-    - bibliography_not_parsed_caveat
-    - package_manifest_checksum_review
-    - known_limitations
+  - reference_metadata_caveats
+  - explicit_reference_fields_only
+  - unresolved_external_reference_caveats
+  - low_resolution_ratio_caveat
+  - openalex_normalization_review
+  - doi_reference_policy_review
+  - source_family_reference_distribution_review
+  - top_internal_referenced_papers_review
+  - top_external_references_review
+  - full_text_not_parsed_caveat
+  - bibliography_not_parsed_caveat
+  - package_manifest_checksum_review
+  - known_limitations
   human_decision_category_ids:
-    - license_redistribution
-    - source_provider_terms
-    - readme_clarity
-    - publication_target_decision
-    - manual_approval_state
-
+  - license_redistribution
+  - source_provider_terms
+  - readme_clarity
+  - publication_target_decision
+  - manual_approval_state
 expected:
-  approval_state: not_reviewed
-  required_category_status: pending
-  manual_review_complete: false
+  approval_state: approved
+  manual_review_complete: true
   manual_review_required: true
   publication_ready: false
-  publication_block_reason: manual_review_not_completed
+  publication_block_reason: publication_action_not_in_scope
   reference_resolution_ratio: 0.00869
   resolved_reference_edges_count: 6165
   unresolved_reference_edges_count: 703234
@@ -76,31 +71,31 @@ expected:
     doi: 269355
     openalex_id: 440044
   required_source_families:
-    - acl_anthology
-    - arxiv
-    - crossref
-    - openalex
-    - semantic_scholar
-
+  - acl_anthology
+  - arxiv
+  - crossref
+  - openalex
+  - semantic_scholar
+  required_category_status_counts:
+    passed: 18
 readme_required_markers:
   graph:
-    - local derived citation/reference graph
-    - not canonical truth
-    - not a reconcile input
-    - not a runtime graph
-    - not a public API/UI artifact
+  - local derived citation/reference graph
+  - not canonical truth
+  - not a reconcile input
+  - not a runtime graph
+  - not a public API/UI artifact
   package:
-    - Local package candidate
-    - not canonical truth
-    - not a reconcile input
-    - not a runtime graph
-    - not a publication-ready dataset
-    - manual_review_required
-    - publication_ready
-    - explicit canonical metadata reference fields only
-    - does not parse full text
-    - does not publish a dataset or graph
-
+  - Local package candidate
+  - not canonical truth
+  - not a reconcile input
+  - not a runtime graph
+  - not a publication-ready dataset
+  - manual_review_required
+  - publication_ready
+  - explicit canonical metadata reference fields only
+  - does not parse full text
+  - does not publish a dataset or graph
 safety:
   read_only_evidence: true
   rebuild_graph: false
@@ -128,3 +123,12 @@ safety:
   automated_category_approval: false
   automated_manual_approval: false
   may_be_used_as_reconcile_input: false
+decision_record_required_markers:
+- non-commercial educational and portfolio
+- Kaggle
+- GitHub
+- public Radar website
+- does not redistribute PDFs
+- does not redistribute full text
+- attribution
+- publication action remains separate

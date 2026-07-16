@@ -4,18 +4,30 @@ review:
   version: v0.1
   status: local_manual_review_gate
   graph_version: v0.1
-  approval_state: not_reviewed
+  approval_state: approved
   manual_review_required: true
-  manual_review_complete: false
+  manual_review_complete: true
   publication_ready: false
-  publication_block_reason: manual_review_not_completed
+  publication_block_reason: publication_action_not_in_scope
   may_be_used_as_reconcile_input: false
+  reviewer_role: project_owner_maintainer
+  reviewed_at: '2026-07-16'
+  decision_record: docs/citation_reference_graph_manual_review_decision_record_v0.1.md
+  publication_purpose: non_commercial_educational_portfolio
+  publication_targets:
+  - kaggle_dataset
+  - github_release
+  - public_radar_website
+  attribution_required: true
+  redistributes_pdfs: false
+  redistributes_full_text: false
 inputs:
   line_checkpoint_report: artifacts/reports/validation/citation_reference_graph_line_checkpoint_latest.json
   package_manifest: data/graphs/citation_reference_graph/packages/v0.1/package_manifest.json
   package_report: artifacts/reports/validation/citation_reference_graph_package_latest.json
   release_candidate_report: artifacts/reports/validation/citation_reference_graph_release_candidate_latest.json
   inspection_report: artifacts/reports/validation/citation_reference_graph_inspection_latest.json
+  decision_record: docs/citation_reference_graph_manual_review_decision_record_v0.1.md
 validation:
   report_dir: artifacts/reports/validation
 manual_review:
@@ -52,108 +64,118 @@ manual_review:
   - id: license_redistribution
     title: License and redistribution status
     required: true
-    status: pending
-    reviewer_note: Review whether the packaged citation/reference graph can be redistributed
-      or shared externally.
+    status: passed
+    reviewer_note: Passed for the intended non-commercial educational and portfolio scope. The graph package
+      contains metadata/reference identifiers and derived graph evidence only; it does not redistribute
+      PDFs or full text. Any future public release must preserve source-specific terms and attribution
+      and remains a separate publication action.
   - id: source_provider_terms
     title: Source provider terms and citation metadata caveats
     required: true
-    status: pending
-    reviewer_note: Review source/provider terms for reference metadata carried from
-      upstream sources.
+    status: passed
+    reviewer_note: Passed for the intended metadata-only, non-commercial, attribution-preserving scope
+      after review of current official arXiv, OpenAlex, Crossref, Semantic Scholar, and ACL Anthology
+      terms. Future public releases must retain source attribution and must not claim that all upstream
+      data is owned by or uniformly licensed by Radar.
   - id: reference_metadata_caveats
     title: Reference metadata caveats
     required: true
-    status: pending
-    reviewer_note: Acknowledge that graph edges are built from explicit metadata reference
-      identifiers only.
+    status: passed
+    reviewer_note: Passed. The graph is explicitly documented as metadata-reference evidence only and
+      not as a complete citation index or global bibliometric source.
   - id: explicit_reference_fields_only
     title: Explicit reference fields only
     required: true
-    status: pending
-    reviewer_note: Confirm that v0.1 uses referenced_dois, referenced_ids, and referenced_arxiv_ids
-      only.
+    status: passed
+    reviewer_note: Passed. v0.1 edges derive only from explicit canonical referenced_dois, referenced_ids,
+      and referenced_arxiv_ids fields; no raw bibliography or full-text extraction is implied.
   - id: unresolved_external_reference_caveats
     title: Unresolved external-reference caveats
     required: true
-    status: pending
-    reviewer_note: Review that unresolved references are preserved as external_reference
-      nodes.
+    status: passed
+    reviewer_note: Passed. Unresolved references are preserved as external_reference evidence nodes and
+      are not represented as resolved publication-grade entities.
   - id: low_resolution_ratio_caveat
     title: Low resolution-ratio caveat
     required: true
-    status: pending
-    reviewer_note: Document reference_resolution_ratio=0.00869 as an expected v0.1
-      limitation, not a validator failure.
+    status: passed
+    reviewer_note: Passed. reference_resolution_ratio=0.00869 is accepted as an explicit v0.1 coverage
+      limitation, not a quality or completeness claim.
   - id: openalex_normalization_review
     title: OpenAlex normalization review
     required: true
-    status: pending
-    reviewer_note: Confirm OpenAlex IDs from referenced_ids remain openalex_id, not
-      DOI-like URL values.
+    status: passed
+    reviewer_note: Passed. Accepted evidence confirms OpenAlex references remain typed as openalex_id
+      and are not mislabeled as DOI-like URL values.
   - id: doi_reference_policy_review
     title: DOI reference policy review
     required: true
-    status: pending
-    reviewer_note: Review DOI normalization and matching caveats for reference edges.
+    status: passed
+    reviewer_note: Passed. DOI normalization and matching remain conservative; resolved paper links require
+      accepted canonical identity evidence and must not collapse unrelated papers.
   - id: source_family_reference_distribution_review
     title: Source-family reference distribution review
     required: true
-    status: pending
-    reviewer_note: Review source-family distribution for reference-bearing papers.
+    status: passed
+    reviewer_note: Passed. The source-family distribution was reviewed as reference-bearing provenance
+      evidence only, not as complete provider coverage.
   - id: top_internal_referenced_papers_review
     title: Top internal referenced papers review
     required: true
-    status: pending
-    reviewer_note: Inspect top resolved canonical papers and their incoming internal
-      reference counts.
+    status: passed
+    reviewer_note: Passed. Top internal rows are bounded diagnostics over resolved internal reference
+      counts only and are not global citation metrics or publication-grade rankings.
   - id: top_external_references_review
     title: Top external references review
     required: true
-    status: pending
-    reviewer_note: Inspect top unresolved external references and their citing-paper
-      counts.
+    status: passed
+    reviewer_note: Passed. Top external rows are bounded diagnostics over unresolved external-reference
+      counts only and are not publication-grade reference entities or rankings.
   - id: full_text_not_parsed_caveat
     title: Full text not parsed caveat
     required: true
-    status: pending
-    reviewer_note: Confirm that v0.1 does not parse paper full text, PDFs, HTML bodies,
-      or in-text citation contexts.
+    status: passed
+    reviewer_note: Passed. Citation Graph v0.1 does not parse or redistribute full text, PDFs, HTML bodies,
+      or in-text citation contexts; users are directed to original publication sources.
   - id: bibliography_not_parsed_caveat
     title: Bibliography/reference sections not parsed caveat
     required: true
-    status: pending
-    reviewer_note: Confirm that v0.1 does not parse bibliography/reference sections
-      or raw reference strings without metadata identifiers.
+    status: passed
+    reviewer_note: Passed. Citation Graph v0.1 does not parse bibliography/reference sections or raw reference
+      strings without explicit metadata identifiers.
   - id: package_manifest_checksum_review
     title: Package manifest and checksum review
     required: true
-    status: pending
-    reviewer_note: Review package manifest and checksum evidence before any external
-      sharing.
+    status: passed
+    reviewer_note: Passed. The reviewed package manifest and package-validator evidence report matching
+      checksums for the local candidate archive and included files.
   - id: readme_clarity
     title: README clarity
     required: true
-    status: pending
-    reviewer_note: Review README wording for source, scope, caveats, and publication
-      status clarity.
+    status: passed
+    reviewer_note: Passed. The graph and package README files clearly state local derived/package-candidate
+      status, metadata-only scope, non-canonical boundaries, no runtime/publication claim, and no full-text
+      parsing.
   - id: known_limitations
     title: Known limitations
     required: true
-    status: pending
-    reviewer_note: Confirm limitations are visible before publication/API/UI/runtime
-      decisions.
+    status: passed
+    reviewer_note: Passed. Known limitations are visible in the package, evidence, API/runtime, and known-issues
+      documentation and remain mandatory caveats for future public use.
   - id: publication_target_decision
     title: Publication target decision
     required: true
-    status: pending
-    reviewer_note: Decide whether any publication or external sharing target exists;
-      no publication is performed here.
+    status: passed
+    reviewer_note: Passed. Intended future targets are a non-commercial Kaggle metadata/graph dataset,
+      a GitHub release, and a public Radar discovery website with source attribution and links to originals.
+      No publication or upload is performed by this review slice.
   - id: manual_approval_state
     title: Manual approval state
     required: true
-    status: pending
-    reviewer_note: Record final human approval state; default remains not_reviewed.
+    status: passed
+    reviewer_note: Passed. The project owner/maintainer reviewed all 18 required categories and approved
+      the checklist. This approval completes manual review only; publication remains a separate explicit
+      action and publication_ready remains false.
 expected_citation_reference_caveats:
   metadata_reference_fields_only: true
   full_text_parsed: false

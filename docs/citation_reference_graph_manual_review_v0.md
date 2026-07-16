@@ -21,9 +21,10 @@ What must a human review before the Citation / Reference Graph v0.1 package can 
 ```text
 status = local_manual_review_gate
 manual_review_required = true
-manual_review_complete = false by default
+manual_review_complete = true (current reviewed state)
+approval_state = approved (current reviewed state)
 publication_ready = false
-publication_block_reason = manual_review_not_completed by default
+publication_block_reason = publication_action_not_in_scope
 ```
 
 ## Key v0.1 semantics
@@ -35,18 +36,40 @@ pending categories block publication
 pending categories do not fail the validator
 ```
 
-Therefore, the default expected validator result is:
+The original default/pre-review validator result is:
 
 ```text
 summary.ok = true
 summary.required_failed_count = 0
 verdict.manual_review_required = true
-verdict.manual_review_complete = false
+manual_review.category_status_counts = {passed: 18}
+manual_review.approval_state = approved
+verdict.manual_review_complete = true
+verdict.review_decision_recorded = true
 verdict.publication_ready = false
-verdict.publication_block_reason = manual_review_not_completed
+verdict.publication_block_reason = publication_action_not_in_scope
 ```
 
 `summary.ok=true` means the manual-review gate is structurally valid and publication is correctly blocked. It does not mean that human review is complete.
+
+Current accepted reviewed state:
+
+```text
+summary.ok = true
+summary.required_failed_count = 0
+manual_review.category_status_counts = {passed: 18}
+verdict.manual_review_required = true
+verdict.manual_review_complete = true
+manual_review.approval_state = approved
+verdict.publication_ready = false
+verdict.publication_block_reason = publication_action_not_in_scope
+```
+
+The reviewed decision and source-use boundaries are recorded in:
+
+```text
+docs/citation_reference_graph_manual_review_decision_record_v0.1.md
+```
 
 ## Tracked files
 
@@ -55,6 +78,7 @@ configs/citation_reference_graph_manual_review.yaml
 scripts/validation/check_citation_reference_graph_manual_review.py
 tests/smoke/test_citation_reference_graph_manual_review.py
 docs/citation_reference_graph_manual_review_v0.md
+docs/citation_reference_graph_manual_review_decision_record_v0.1.md
 ```
 
 This slice also updates:
@@ -80,6 +104,7 @@ artifacts/reports/validation/history/citation_reference_graph_manual_review_<run
 ```text
 artifacts/reports/validation/citation_reference_graph_line_checkpoint_latest.json
 data/graphs/citation_reference_graph/packages/v0.1/package_manifest.json
+docs/citation_reference_graph_manual_review_decision_record_v0.1.md
 ```
 
 The line checkpoint report proves that the completed local graph line is green. The package manifest preserves the package-level safety boundaries.
@@ -129,7 +154,7 @@ failed
 not_applicable
 ```
 
-Default status is `pending`.
+Default/pre-review status is `pending`. The current accepted execution state has all 18 required categories set to `passed`, with explicit human reviewer notes.
 
 ## Citation/reference-specific caveats
 
@@ -168,7 +193,30 @@ publication_ready = false
 publication_block_reason = publication_action_not_in_scope
 ```
 
-Publication remains a separate future slice/action.
+Publication remains a separate future slice/action. The current checklist is approved, but no upload, Kaggle dataset publication, GitHub release, or public package promotion is performed here.
+
+## Manual Citation Graph Review Execution v0.1
+
+The human review execution records:
+
+```text
+required_categories = 18
+passed_categories = 18
+approval_state = approved
+manual_review_complete = true
+publication_ready = false
+publication_block_reason = publication_action_not_in_scope
+```
+
+Approval is scoped to a non-commercial educational and portfolio project that
+publishes metadata, links, provenance, graph relations, and derived Radar
+features with attribution. The project does not redistribute PDFs or full text
+and directs users to original publication sources. Source-specific terms remain
+applicable and are documented in the decision record.
+
+The validator now additionally requires completed categories to have reviewer
+rationale and requires an approved state to include reviewer metadata and a
+complete decision record.
 
 ## Validator failure conditions
 
@@ -221,15 +269,18 @@ python -m pytest tests/smoke/test_citation_reference_graph_manual_review.py -q
 python -m scripts.validation.check_citation_reference_graph_manual_review --strict
 ```
 
-Expected default result:
+Expected current reviewed result:
 
 ```text
 summary.ok = true
 summary.required_failed_count = 0
+manual_review.category_status_counts = {passed: 18}
+manual_review.approval_state = approved
 verdict.manual_review_required = true
-verdict.manual_review_complete = false
+verdict.manual_review_complete = true
+verdict.review_decision_recorded = true
 verdict.publication_ready = false
-verdict.publication_block_reason = manual_review_not_completed
+verdict.publication_block_reason = publication_action_not_in_scope
 ```
 
 ## Git hygiene
@@ -238,9 +289,16 @@ Commit tracked files only:
 
 ```text
 configs/citation_reference_graph_manual_review.yaml
+configs/citation_reference_graph_manual_review_evidence.yaml
 scripts/validation/check_citation_reference_graph_manual_review.py
+scripts/validation/check_citation_reference_graph_manual_review_evidence.py
 tests/smoke/test_citation_reference_graph_manual_review.py
+tests/smoke/test_citation_reference_graph_manual_review_evidence.py
 docs/citation_reference_graph_manual_review_v0.md
+docs/citation_reference_graph_manual_review_evidence_v0.1.md
+docs/citation_reference_graph_manual_review_decision_record_v0.1.md
+docs/architecture.md
+docs/project_state_current_v0.1.md
 docs/roadmap.md
 docs/refresh_contract_v1.md
 ```
