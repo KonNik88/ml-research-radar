@@ -1490,3 +1490,30 @@ selection, owner slug replacement, and upload remain explicit future actions.
 
 This slice does not change canonical reconciliation, Postgres, retrieval,
 Qdrant, ranking, API, Streamlit, graph outputs, or runtime behavior.
+
+
+## Public Metadata Release Manual-Review Evidence Preparation v0.1
+
+Current implementation state:
+
+```text
+public_metadata_release_review = implemented pending gate
+public_metadata_release_review_evidence = implemented read-only evidence layer
+required_category_count = 20
+automated_support_category_count = 15
+human_decision_category_count = 5
+manual_review_evidence_ready = expected_true_after_validation
+approval_state = not_reviewed
+category_status_counts = {pending: 20}
+manual_review_complete = false
+publication_ready = false
+publication_block_reason = public_release_decision_not_completed
+```
+
+This layer reads the already-generated local candidate, package metadata,
+checksums, source attribution, tracked policy/docs, and existing green reports.
+It does not rebuild the dataset or alter any paper, retrieval, DB, Qdrant, graph,
+API, UI, or ranking state.
+
+The next possible slice is explicit human review execution. Actual publication
+remains a later separate action.

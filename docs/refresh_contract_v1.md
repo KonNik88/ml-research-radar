@@ -94,6 +94,8 @@ Citation Graph Failure Isolation & Error Recovery v0.1 — 2026-07 completed reg
 Citation Graph Live Smoke & Known-Issues Hardening v0.1 — 2026-07 completed operator-facing live-validation and limitations-documentation slice
 Citation Graph Manual-Review Evidence Preparation v0.1 — 2026-07 completed read-only evidence-preparation slice over the existing 18-category checklist
 Manual Citation Graph Review Execution v0.1 — 2026-07 active explicit human-review closure slice; 18/18 categories passed, approval recorded, publication remains out of scope
+Public Metadata Release Policy & Kaggle Packaging v0.1 — 2026-07 completed source-aware metadata policy and local Kaggle-ready packaging slice
+Public Metadata Release Manual-Review Evidence Preparation v0.1 — 2026-07 active read-only 20-category checklist/evidence slice; no approval or publication
 ```
 
 Current healthy baseline:
@@ -4457,3 +4459,42 @@ publication_block_reason = public_release_decision_not_completed
 
 Generated dataset files and latest/history validation reports remain local
 operational artifacts and should not be committed by default.
+
+
+## Public metadata release manual-review evidence validation
+
+Use this after the public metadata candidate and its existing validators are
+green. The sequence is read-only after package generation:
+
+```bat
+python -m py_compile scripts/validation/check_public_metadata_release_review.py
+python -m py_compile scripts/validation/check_public_metadata_release_review_evidence.py
+
+python -m pytest tests/smoke/test_public_metadata_release_review.py -q
+python -m pytest tests/smoke/test_public_metadata_release_review_evidence.py -q
+
+python -m scripts.validation.check_dataset_release_config --strict --check-paths
+python -m scripts.validation.check_public_metadata_release_policy --strict --check-paths
+python -m scripts.validation.check_dataset_release_output --strict
+python -m scripts.validation.check_dataset_release_review_readiness --strict
+python -m scripts.validation.check_public_metadata_release_review --strict --check-paths
+python -m scripts.validation.check_public_metadata_release_review_evidence --strict --check-paths
+```
+
+Expected final state:
+
+```text
+manual-review gate ok = true
+approval_state = not_reviewed
+category_status_counts = {pending: 20}
+manual_review_evidence_ready = true
+evidence_ready_category_count = 20
+automated_support_category_count = 15
+human_decision_category_count = 5
+manual_review_complete = false
+publication_ready = false
+publication_block_reason = public_release_decision_not_completed
+```
+
+Generated review/evidence reports are local operational artifacts and are not
+committed by default.

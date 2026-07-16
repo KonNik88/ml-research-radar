@@ -1,0 +1,177 @@
+schema_version: public_metadata_release_review_config_v1
+
+review:
+  name: public_metadata_release_review
+  version: v0.1
+  status: local_manual_release_review_gate
+  dataset_name: ml_research_radar_metadata
+  dataset_version: v0.1
+  approval_state: not_reviewed
+  manual_review_required: true
+  manual_review_complete: false
+  publication_ready: false
+  publication_block_reason: public_release_decision_not_completed
+  publication_action_in_scope: false
+  may_be_used_as_reconcile_input: false
+
+inputs:
+  dataset_release_config: configs/dataset_release.yaml
+  public_release_policy: configs/public_metadata_release_policy_v0.1.yaml
+  review_readiness_report: artifacts/reports/validation/dataset_release_review_readiness_latest.json
+  policy_validation_report: artifacts/reports/validation/public_metadata_release_policy_latest.json
+  output_validation_report: artifacts/reports/validation/dataset_release_output_latest.json
+  release_manifest: data/datasets_release/ml_research_radar_metadata/v0.1/manifest.json
+  data_quality_summary: data/datasets_release/ml_research_radar_metadata/v0.1/data_quality_summary.json
+  dataset_card: data/datasets_release/ml_research_radar_metadata/v0.1/DATASET_CARD.md
+  attribution: data/datasets_release/ml_research_radar_metadata/v0.1/ATTRIBUTION.md
+  kaggle_metadata_template: data/datasets_release/ml_research_radar_metadata/v0.1/kaggle_metadata.template.json
+
+manual_review:
+  required_category_ids:
+    - release_identity_checkpoint
+    - canonical_truth_boundary
+    - selected_field_policy_coverage
+    - abstract_source_aware_handling
+    - bibliographic_metadata_contract
+    - external_identifiers_and_links
+    - taxonomy_and_counts_contract
+    - excluded_content_boundary
+    - source_attribution_coverage
+    - arxiv_policy_evidence
+    - openalex_policy_evidence
+    - crossref_policy_evidence
+    - semantic_scholar_policy_evidence
+    - acl_anthology_policy_evidence
+    - package_manifest_checksums_kaggle_template
+    - compilation_license_decision
+    - provider_terms_review
+    - dataset_card_and_attribution_wording
+    - publication_target_decision
+    - manual_release_approval_state
+  categories:
+    - id: release_identity_checkpoint
+      title: Release identity and checkpoint
+      required: true
+      status: pending
+      reviewer_note: Confirm dataset name/version, canonical row count, retrieval build, and package identity.
+    - id: canonical_truth_boundary
+      title: Canonical truth and reconcile boundary
+      required: true
+      status: pending
+      reviewer_note: Confirm the public package remains derived, rebuildable, and forbidden as reconcile input.
+    - id: selected_field_policy_coverage
+      title: Selected field policy coverage
+      required: true
+      status: pending
+      reviewer_note: Confirm every exported field has an explicit public-release action.
+    - id: abstract_source_aware_handling
+      title: Source-aware abstract handling
+      required: true
+      status: pending
+      reviewer_note: Confirm arXiv/ACL handling and fail-closed null behavior are acceptable.
+    - id: bibliographic_metadata_contract
+      title: Bibliographic metadata contract
+      required: true
+      status: pending
+      reviewer_note: Review title, authors, year, venue, journal, conference, publisher, and publication-type semantics.
+    - id: external_identifiers_and_links
+      title: External identifiers and links
+      required: true
+      status: pending
+      reviewer_note: Review DOI/arXiv/OpenAlex identifiers and link-only landing/PDF URL behavior.
+    - id: taxonomy_and_counts_contract
+      title: Taxonomy, derived flags, and count metadata
+      required: true
+      status: pending
+      reviewer_note: Review categories, concepts, keywords, tags, derived flags, citation counts, and reference counts.
+    - id: excluded_content_boundary
+      title: Excluded content boundary
+      required: true
+      status: pending
+      reviewer_note: Confirm PDFs, full text, raw payloads, source snapshots, embeddings, and private notes are excluded.
+    - id: source_attribution_coverage
+      title: Source attribution coverage
+      required: true
+      status: pending
+      reviewer_note: Confirm every current canonical source family is represented in machine- and human-readable attribution.
+    - id: arxiv_policy_evidence
+      title: arXiv policy evidence
+      required: true
+      status: pending
+      reviewer_note: Review metadata basis, attribution, abstract rule, and no-mirroring boundary for arXiv.
+    - id: openalex_policy_evidence
+      title: OpenAlex policy evidence
+      required: true
+      status: pending
+      reviewer_note: Review metadata basis, attribution, and raw-payload exclusion for OpenAlex.
+    - id: crossref_policy_evidence
+      title: Crossref policy evidence
+      required: true
+      status: pending
+      reviewer_note: Review bibliographic metadata basis, attribution, and abstract/raw-payload boundaries for Crossref.
+    - id: semantic_scholar_policy_evidence
+      title: Semantic Scholar policy evidence
+      required: true
+      status: pending
+      reviewer_note: Review API-data terms, attribution, selected-field scope, and raw-response exclusion.
+    - id: acl_anthology_policy_evidence
+      title: ACL Anthology policy evidence
+      required: true
+      status: pending
+      reviewer_note: Review year-aware abstract handling, attribution, and external-link-only PDF behavior.
+    - id: package_manifest_checksums_kaggle_template
+      title: Package manifest, checksums, and Kaggle template
+      required: true
+      status: pending
+      reviewer_note: Confirm package integrity and that Kaggle metadata remains an unresolved non-publishing template.
+    - id: compilation_license_decision
+      title: Final compilation license decision
+      required: true
+      status: pending
+      reviewer_note: Human decision required; do not infer a blanket upstream license.
+    - id: provider_terms_review
+      title: Provider terms review
+      required: true
+      status: pending
+      reviewer_note: Human review required for the current provider terms and the intended public-use scope.
+    - id: dataset_card_and_attribution_wording
+      title: Dataset card and attribution wording
+      required: true
+      status: pending
+      reviewer_note: Human review required for clarity, limitations, and attribution sufficiency.
+    - id: publication_target_decision
+      title: Publication target decision
+      required: true
+      status: pending
+      reviewer_note: Human decision required for Kaggle, Hugging Face Datasets, GitHub Releases, or no publication.
+    - id: manual_release_approval_state
+      title: Final manual release approval state
+      required: true
+      status: pending
+      reviewer_note: Human release owner must explicitly approve or reject after all required categories are reviewed.
+
+validation:
+  report_dir: artifacts/reports/validation
+  strict_default: true
+  pending_categories_fail_validator: false
+  pending_categories_block_publication: true
+
+safety:
+  read_only_review_gate: true
+  rebuild_dataset: false
+  mutate_release_package: false
+  mutate_canonical_documents: false
+  mutate_retrieval_artifacts: false
+  mutate_qdrant: false
+  mutate_postgres: false
+  mutate_db_schema: false
+  mutate_api: false
+  mutate_ui: false
+  mutate_ranking: false
+  publish_dataset: false
+  call_kaggle_api: false
+  call_huggingface_api: false
+  create_github_release: false
+  automated_category_approval: false
+  automated_manual_approval: false
+  may_be_used_as_reconcile_input: false
