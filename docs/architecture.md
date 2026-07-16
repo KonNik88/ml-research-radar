@@ -16,7 +16,7 @@ overlapping source-level observations.
 ## Current checkpoint
 
 ```text
-checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1 / Citation Graph Diagnostics UI v0.1 / Citation Graph External Reference Lookup UI v0.1 / Citation Graph UI Productization Checkpoint v0.1 / Citation Graph Store Cache & Reload Regression v0.1 / Citation Graph Failure Isolation & Error Recovery v0.1 / Citation Graph Live Smoke & Known-Issues Hardening v0.1 / Citation Graph Manual-Review Evidence Preparation v0.1 / Manual Citation Graph Review Execution v0.1
+checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1 / Citation Graph Diagnostics UI v0.1 / Citation Graph External Reference Lookup UI v0.1 / Citation Graph UI Productization Checkpoint v0.1 / Citation Graph Store Cache & Reload Regression v0.1 / Citation Graph Failure Isolation & Error Recovery v0.1 / Citation Graph Live Smoke & Known-Issues Hardening v0.1 / Citation Graph Manual-Review Evidence Preparation v0.1 / Manual Citation Graph Review Execution v0.1 / Public Metadata Release Policy & Kaggle Packaging v0.1 / Public Metadata Release Manual-Review Evidence Preparation v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
@@ -1139,3 +1139,29 @@ abstracts from 2016 onward are allowed; unsupported text provenance becomes
 null. `pdf_url` remains an external link only. No PDF binary, full text, raw
 provider payload, source snapshot, embedding vector, or publication action is
 introduced.
+
+
+## Public metadata manual-review evidence preparation v0.1
+
+The dataset-release line now includes a read-only governance/evidence layer:
+
+```text
+canonical_documents.jsonl
+→ source-aware public metadata package
+→ config / policy / output / readiness validation
+→ 20-category manual-review checklist
+→ deterministic evidence preparation
+→ separate human review execution
+→ separate publication action
+```
+
+The checklist contains 15 categories with automated evidence support and 5
+human-decision categories. All current category statuses remain `pending`.
+`manual_review_evidence_ready=true` means the necessary review material exists;
+it does not mean any category passed, the release was approved, a license was
+selected, or a publication was performed.
+
+The review/evidence validators are read-only. They do not rebuild the dataset,
+mutate package files, canonical truth, retrieval, Qdrant, Postgres, ranking, API,
+UI, or graph layers, and they do not call Kaggle/Hugging Face/GitHub publication
+surfaces.

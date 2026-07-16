@@ -4,7 +4,7 @@
 
 ```text
 status: active local candidate release track / not published
-slice: Dataset Release Track Checkpoint v0.1
+slice: Public Metadata Release Manual-Review Evidence Preparation v0.1
 release family: clean_research_metadata
 public upload: not performed
 canonical truth impact: none
@@ -23,6 +23,8 @@ contract
 → output validation
 → data-quality summary
 → review-readiness gate
+→ 20-category manual-review checklist
+→ deterministic review-evidence preparation
 ```
 
 The dataset release remains a derived artifact. It is not canonical truth, not a
@@ -411,3 +413,38 @@ public_metadata_release_policy_v1
 
 `data.parquet` remains `dataset_release_schema_v1` because the 34-column table
 contract is unchanged.
+
+
+## 10. Manual-review checklist and evidence preparation v0.1
+
+The local candidate now has a tracked 20-category manual-review gate and a
+separate deterministic evidence report.
+
+Tracked files:
+
+```text
+configs/public_metadata_release_review.yaml
+configs/public_metadata_release_review_evidence.yaml
+scripts/validation/check_public_metadata_release_review.py
+scripts/validation/check_public_metadata_release_review_evidence.py
+docs/public_metadata_release_review_v0.1.md
+docs/public_metadata_release_review_evidence_v0.1.md
+```
+
+Current intended result:
+
+```text
+manual_review_evidence_ready = true
+required_category_count = 20
+evidence_ready_category_count = 20
+automated_support_category_count = 15
+human_decision_category_count = 5
+category_status_counts = {pending: 20}
+manual_review_complete = false
+publication_ready = false
+publication_block_reason = public_release_decision_not_completed
+```
+
+Pending categories do not fail structural validation, but they continue to block
+publication. Evidence readiness does not approve categories, choose a final
+compilation license, select a publication target, or perform an upload.

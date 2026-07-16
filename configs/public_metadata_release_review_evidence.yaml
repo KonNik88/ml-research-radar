@@ -1,0 +1,166 @@
+schema_version: public_metadata_release_review_evidence_config_v1
+
+evidence:
+  name: public_metadata_release_review_evidence
+  version: v0.1
+  status: local_read_only_manual_release_evidence
+  dataset_name: ml_research_radar_metadata
+  dataset_version: v0.1
+  manual_review_support: true
+  automated_approval: false
+  mutates_manual_review_state: false
+  manual_review_required: true
+  publication_ready: false
+  publication_action_in_scope: false
+  may_be_used_as_reconcile_input: false
+
+inputs:
+  manual_review_config: configs/public_metadata_release_review.yaml
+  manual_review_report: artifacts/reports/validation/public_metadata_release_review_latest.json
+  dataset_release_config: configs/dataset_release.yaml
+  public_release_policy: configs/public_metadata_release_policy_v0.1.yaml
+  review_readiness_report: artifacts/reports/validation/dataset_release_review_readiness_latest.json
+  policy_validation_report: artifacts/reports/validation/public_metadata_release_policy_latest.json
+  config_validation_report: artifacts/reports/validation/dataset_release_config_latest.json
+  output_validation_report: artifacts/reports/validation/dataset_release_output_latest.json
+  release_manifest: data/datasets_release/ml_research_radar_metadata/v0.1/manifest.json
+  release_schema: data/datasets_release/ml_research_radar_metadata/v0.1/schema.json
+  data_quality_summary: data/datasets_release/ml_research_radar_metadata/v0.1/data_quality_summary.json
+  field_release_policy: data/datasets_release/ml_research_radar_metadata/v0.1/field_release_policy.json
+  source_attribution: data/datasets_release/ml_research_radar_metadata/v0.1/source_attribution.json
+  release_readme: data/datasets_release/ml_research_radar_metadata/v0.1/README.md
+  dataset_card: data/datasets_release/ml_research_radar_metadata/v0.1/DATASET_CARD.md
+  attribution: data/datasets_release/ml_research_radar_metadata/v0.1/ATTRIBUTION.md
+  kaggle_metadata_template: data/datasets_release/ml_research_radar_metadata/v0.1/kaggle_metadata.template.json
+  checksums: data/datasets_release/ml_research_radar_metadata/v0.1/checksums.txt
+  policy_doc: docs/public_metadata_release_policy_v0.1.md
+  dataset_release_doc: docs/dataset-release-v0.1.md
+  dataset_strategy_doc: docs/dataset_strategy.md
+  source_matrix_doc: docs/source_matrix.md
+  provenance_semantics_doc: docs/provenance_semantics.md
+  merge_policy_doc: docs/merge_policy.md
+
+validation:
+  report_dir: artifacts/reports/validation
+  strict_default: true
+
+category_policy:
+  required_category_count: 20
+  automated_support_category_ids:
+    - release_identity_checkpoint
+    - canonical_truth_boundary
+    - selected_field_policy_coverage
+    - abstract_source_aware_handling
+    - bibliographic_metadata_contract
+    - external_identifiers_and_links
+    - taxonomy_and_counts_contract
+    - excluded_content_boundary
+    - source_attribution_coverage
+    - arxiv_policy_evidence
+    - openalex_policy_evidence
+    - crossref_policy_evidence
+    - semantic_scholar_policy_evidence
+    - acl_anthology_policy_evidence
+    - package_manifest_checksums_kaggle_template
+  human_decision_category_ids:
+    - compilation_license_decision
+    - provider_terms_review
+    - dataset_card_and_attribution_wording
+    - publication_target_decision
+    - manual_release_approval_state
+
+expected:
+  approval_state: not_reviewed
+  required_category_status: pending
+  manual_review_complete: false
+  manual_review_required: true
+  publication_ready: false
+  publication_block_reason: public_release_decision_not_completed
+  canonical_doc_count: 60954
+  column_count: 34
+  duplicate_canonical_id_count: 0
+  abstract_excluded_by_policy_count: 0
+  policy_id: ml_research_radar_public_metadata_release_v0.1
+  policy_version: v0.1
+  required_source_families:
+    - acl_anthology
+    - arxiv
+    - crossref
+    - openalex
+    - semantic_scholar
+  required_checksum_files:
+    - data.parquet
+    - schema.json
+    - manifest.json
+    - README.md
+    - DATASET_CARD.md
+    - ATTRIBUTION.md
+    - field_release_policy.json
+    - source_attribution.json
+    - kaggle_metadata.template.json
+    - data_quality_summary.json
+
+required_markers:
+  release_readme:
+    - not published
+    - manual_release_decision_required
+    - canonical_truth_impact
+    - may_be_used_as_reconcile_input
+  dataset_card:
+    - "publication_status: not_published"
+    - "final_compilation_license: pending_explicit_release_decision"
+    - article PDF binaries
+    - article full text
+    - release owner must review
+  attribution:
+    - ACL Anthology
+    - arXiv
+    - Crossref
+    - OpenAlex
+    - Semantic Scholar
+    - does not contain PDF binaries
+  policy_doc:
+    - source-aware public metadata projection
+    - explicit human release decision
+    - never download or package the PDF binary
+  dataset_release_doc:
+    - publication_ready = false
+    - public upload
+  dataset_strategy_doc:
+    - derived public artifact candidate
+    - manual license/provenance review
+  source_matrix_doc:
+    - arxiv
+    - openalex_alignment
+    - semantic_scholar_alignment
+    - crossref_alignment
+    - acl_anthology
+  provenance_semantics_doc:
+    - provenance rows list
+    - source_count
+    - unique_source_count
+  merge_policy_doc:
+    - field-dependent
+    - artifact sources are not paper truth sources
+
+safety:
+  read_only_evidence: true
+  rebuild_dataset: false
+  mutate_release_package: false
+  mutate_manual_review_config: false
+  mutate_manual_review_report: false
+  mutate_canonical_documents: false
+  mutate_retrieval_artifacts: false
+  mutate_qdrant: false
+  mutate_postgres: false
+  mutate_db_schema: false
+  mutate_api: false
+  mutate_ui: false
+  mutate_ranking: false
+  publish_dataset: false
+  call_kaggle_api: false
+  call_huggingface_api: false
+  create_github_release: false
+  automated_category_approval: false
+  automated_manual_approval: false
+  may_be_used_as_reconcile_input: false

@@ -7,12 +7,12 @@ document = primary living roadmap
 accepted checkpoint = Current State Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
 current active direction = review / regression / design-hardening
-current active slice = Manual Citation Graph Review Execution v0.1
+current active slice = Public Metadata Release Manual-Review Evidence Preparation v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = explicit human Citation / Reference Graph review execution over the prepared 18-category evidence set; record reviewer rationale for every required category; set 18 categories to passed, approval_state=approved, and manual_review_complete=true; preserve publication_ready=false and publication_block_reason=publication_action_not_in_scope; add a tracked decision record and synchronize evidence/manual-review validators and living docs; no graph/package rebuild, upload, endpoint/schema, canonical, retrieval, Qdrant, Postgres, ranking, or UI behavior change
+scope of current branch = add a tracked 20-category manual public-metadata release checklist and deterministic evidence-preparation report over the existing validated 60,954-row / 34-column local candidate; provide automated evidence support for 15 categories and review materials for 5 human-decision categories; keep all statuses pending, approval_state=not_reviewed, manual_review_complete=false, publication_ready=false, and publication_block_reason=public_release_decision_not_completed; no dataset rebuild, package mutation, upload, canonical, retrieval, Qdrant, Postgres, graph, ranking, API, or UI behavior change
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -4086,7 +4086,46 @@ no canonical/retrieval/Postgres/Qdrant/ranking/API/UI change
 no PDF/full-text/raw-payload/embedding export
 ```
 
-Recommended next step after merge and accepted validation: an explicit public
-metadata release decision and publication runbook, followed by the first human-
-initiated Kaggle release only when the owner slug and final compilation license
-are recorded.
+Recommended next step after merge and accepted validation: explicit human
+execution of the 20-category public metadata review. Actual Kaggle/Hugging Face/
+GitHub publication remains a later separate action after approval, owner metadata,
+and a final compilation license are recorded.
+
+
+### Public Metadata Release Manual-Review Evidence Preparation v0.1
+
+Status: **active read-only governance/evidence slice / not approved / not published**
+
+Implemented sequence:
+
+```text
+public metadata policy and local package
+→ green config/policy/output/readiness reports
+→ 20-category manual-review checklist
+→ deterministic evidence preparation
+```
+
+Target verdict:
+
+```text
+manual_review_evidence_ready = true
+evidence_ready_category_count = 20
+automated_support_category_count = 15
+human_decision_category_count = 5
+approval_state = not_reviewed
+category_status_counts = {pending: 20}
+manual_review_complete = false
+publication_ready = false
+publication_block_reason = public_release_decision_not_completed
+```
+
+Boundary:
+
+```text
+no automatic category approval
+no final compilation-license choice
+no publication-target choice
+no Kaggle/Hugging Face/GitHub API call
+no dataset/package rebuild in the evidence validators
+no canonical/retrieval/Postgres/Qdrant/graph/ranking/API/UI change
+```

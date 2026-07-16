@@ -4,7 +4,7 @@
 
 ```text
 status: active local candidate release track / no publication yet
-current checkpoint: Dataset Release Track Checkpoint v0.1
+current checkpoint: Public Metadata Release Manual-Review Evidence Preparation v0.1
 current local pipeline: implemented
 canonical truth impact: none
 public dataset publication: not performed
@@ -30,6 +30,8 @@ accepted operational checkpoint
 → schema/output validation
 → data-quality summary
 → technical review-readiness gate
+→ 20-category manual-review checklist
+→ deterministic evidence preparation
 → manual license/provenance review
 → separate explicit release decision
 ```
@@ -417,3 +419,29 @@ The generated `kaggle_metadata.template.json` is not a publication artifact: it
 contains an unresolved owner placeholder and a deliberately non-overclaiming
 license label. A later human-owned release slice must record the final
 compilation license and perform the upload explicitly.
+
+
+## 10. Manual-review evidence strategy
+
+The release strategy distinguishes four states:
+
+```text
+technical_candidate_ready
+public_policy_ready
+manual_review_evidence_ready
+manual_review_complete
+```
+
+The first three may be established by deterministic tooling. The fourth is a
+human decision. A green evidence report must not silently become approval.
+
+Current category split:
+
+```text
+15 automated-support categories
+5 human-decision categories
+20 required categories total
+```
+
+Actual publication remains outside both the evidence-preparation and human-review
+execution layers.

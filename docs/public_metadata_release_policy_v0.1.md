@@ -279,3 +279,22 @@ This slice does not:
   or ranking.
 
 The next release-action slice must be explicit and human-owned.
+
+
+## 9. Manual-review evidence layer
+
+The policy/package layer is now followed by a separate 20-category manual-review
+checklist and deterministic evidence-preparation validator:
+
+```text
+configs/public_metadata_release_review.yaml
+configs/public_metadata_release_review_evidence.yaml
+scripts/validation/check_public_metadata_release_review.py
+scripts/validation/check_public_metadata_release_review_evidence.py
+```
+
+The evidence layer confirms that policy, attribution, package integrity,
+field-level decisions, source-specific rules, and human-decision materials are
+available. It keeps all category statuses pending and does not change the policy
+status, final compilation-license state, Kaggle owner placeholder, or publication
+status.
