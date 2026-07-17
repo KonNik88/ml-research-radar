@@ -6,10 +6,10 @@ It never approves categories, never publishes a dataset, and never mutates the
 release package or canonical truth.
 
 Important semantics:
-- pending required categories block publication;
-- pending categories do not fail this validator;
-- report ok=true means the gate is structurally valid and its inputs are green;
-- ok=true does not mean the manual review is complete.
+- category outcomes are human-owned configuration, never inferred by this validator;
+- approved manual review still does not publish the dataset;
+- report ok=true means the recorded decision is structurally valid and its inputs are green;
+- publication remains a separate explicit action.
 """
 
 from __future__ import annotations
@@ -60,13 +60,27 @@ EXPECTED_REVIEW_METADATA = {
     "status": "local_manual_release_review_gate",
     "dataset_name": "ml_research_radar_metadata",
     "dataset_version": "v0.1",
-    "approval_state": "not_reviewed",
+    "approval_state": "rejected",
     "manual_review_required": True,
-    "manual_review_complete": False,
+    "manual_review_complete": True,
     "publication_ready": False,
-    "publication_block_reason": "public_release_decision_not_completed",
+    "publication_block_reason": "manual_release_rejected",
     "publication_action_in_scope": False,
     "may_be_used_as_reconcile_input": False,
+    "reviewer_role": "project_owner_maintainer",
+    "reviewed_at": "2026-07-17",
+    "decision_record": "docs/public_metadata_release_review_decision_v0.1.md",
+    "publication_purpose": "non_commercial_educational_portfolio",
+    "compilation_license_decision": "not_selected_due_semantic_scholar_redistribution_blocker",
+    "kaggle_license_name": "other_template_only",
+    "primary_publication_target": "kaggle_dataset_after_remediation",
+    "publication_targets": ["kaggle_dataset_after_remediation", "github_release_after_remediation"],
+    "deferred_publication_targets": ["huggingface_datasets"],
+    "attribution_required": True,
+    "remediation_required": True,
+    "blocking_source_family": "semantic_scholar",
+    "redistributes_pdfs": False,
+    "redistributes_full_text": False,
 }
 
 EXPECTED_SAFETY = {
@@ -101,7 +115,18 @@ REQUIRED_INPUT_KEYS = {
     "dataset_card",
     "attribution",
     "kaggle_metadata_template",
+    "decision_record",
 }
+
+DECISION_RECORD_MARKERS = [
+    "approval_state: rejected",
+    "category_status_counts: passed = 15, failed = 5",
+    "Semantic Scholar",
+    "downloadable Kaggle dataset",
+    "written permission",
+    "exclude Semantic Scholar-derived data",
+    "publication action remains separate",
+]
 
 ALLOWED_CATEGORY_STATUSES = {"pending", "passed", "failed"}
 ALLOWED_APPROVAL_STATES = {"not_reviewed", "approved", "rejected"}
@@ -239,7 +264,7 @@ def validate_review(
             checks,
             name=f"review_{key}",
             ok=review.get(key) == expected,
-            message=f"review.{key} matches the evidence-preparation state",
+            message=f"review.{key} matches the approved review-execution state",
             details={"expected": expected, "actual": review.get(key)},
         )
 
@@ -372,6 +397,8 @@ def validate_review(
         or (
             approval_state == "rejected"
             and any_failed
+            and counts.get("pending", 0) == 0
+            and counts.get("passed", 0) + counts.get("failed", 0) == len(CATEGORY_IDS)
             and review.get("manual_review_complete") is True
             and review.get("publication_ready") is False
             and review.get("publication_block_reason") == "manual_release_rejected"
@@ -670,6 +697,25 @@ def validate_review(
             },
         )
 
+    decision_record, decision_ok, decision_error = read_text_if_exists(resolved["decision_record"])
+    add_check(
+        checks,
+        name="decision_record_readable",
+        ok=decision_ok,
+        message="manual review decision record is readable",
+        details={"error": decision_error},
+    )
+    if decision_record:
+        lower = decision_record.lower()
+        missing_markers = [marker for marker in DECISION_RECORD_MARKERS if marker.lower() not in lower]
+        add_check(
+            checks,
+            name="decision_record_markers",
+            ok=not missing_markers,
+            message="decision record contains approval, license, target, attribution, and non-publication markers",
+            details={"missing": missing_markers},
+        )
+
     return checks
 
 
@@ -705,6 +751,13 @@ def build_report(
             "category_status_counts": counts,
             "manual_review_required": review.get("manual_review_required"),
             "manual_review_complete": review.get("manual_review_complete"),
+            "reviewer_role": review.get("reviewer_role"),
+            "reviewed_at": review.get("reviewed_at"),
+            "decision_record": review.get("decision_record"),
+            "compilation_license_decision": review.get("compilation_license_decision"),
+            "primary_publication_target": review.get("primary_publication_target"),
+            "publication_targets": review.get("publication_targets"),
+            "deferred_publication_targets": review.get("deferred_publication_targets"),
         },
         "manual_review_required": True,
         "manual_review_complete": review.get("manual_review_complete") is True,
@@ -788,8 +841,8 @@ def write_reports(report: Mapping[str, Any], output_dir: Path) -> tuple[Path, Pa
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Validate the public metadata manual-release review gate. Pending categories "
-            "block publication but do not fail structural validation."
+            "Validate the human-owned public metadata release review decision while keeping "
+            "actual publication out of scope."
         )
     )
     parser.add_argument("--config-path", type=Path, default=DEFAULT_CONFIG_PATH)

@@ -1467,7 +1467,7 @@ default.
 
 ## Public Metadata Release Policy & Kaggle Packaging v0.1
 
-Current implementation state:
+Evidence-preparation checkpoint state:
 
 ```text
 public_metadata_release_policy = implemented
@@ -1515,5 +1515,37 @@ checksums, source attribution, tracked policy/docs, and existing green reports.
 It does not rebuild the dataset or alter any paper, retrieval, DB, Qdrant, graph,
 API, UI, or ranking state.
 
-The next possible slice is explicit human review execution. Actual publication
-remains a later separate action.
+The subsequent slice executes the human review. Actual publication remains a
+later separate action.
+
+## Public Metadata Manual Review Execution v0.1
+
+Status: **human review completed / publication rejected**
+
+```text
+dataset = ml_research_radar_metadata v0.1
+rows = 60954
+columns = 34
+approval_state = rejected
+category_status_counts = {failed: 5, passed: 15}
+manual_review_complete = true
+publication_ready = false
+publication_block_reason = manual_release_rejected
+```
+
+Decision record:
+
+```text
+docs/public_metadata_release_review_decision_v0.1.md
+```
+
+Blocking finding:
+
+```text
+source family = semantic_scholar
+issue = downloadable public redistribution not sufficiently resolved
+remediation = written permission or validated S2-exclusion rebuild
+```
+
+This is a governance/publication result only. It does not mutate the reviewed
+package, canonical truth, or any runtime/serving layer.

@@ -3,24 +3,24 @@
 ## Document status
 
 ```text
-status: implemented local manual-review governance gate
-approval_state: not_reviewed
+status: completed human-owned manual review
+approval_state: rejected
 required_categories: 20
-category_statuses: pending = 20
-manual_review_complete: false
+category_statuses: passed = 15, failed = 5
+manual_review_complete: true
 publication_ready: false
-publication_block_reason: public_release_decision_not_completed
+publication_block_reason: manual_release_rejected
 publication action: not performed
 canonical truth impact: none
 ```
 
-This document defines the manual-review checklist for the local
+This document defines the completed manual review for the local
 `ml_research_radar_metadata` v0.1 candidate.
 
-The checklist is a governance layer above the already-green config, policy,
-export, output, and review-readiness reports. It does not rebuild the candidate,
-change field values, choose a license, approve publication, or call a publishing
-API.
+The technical candidate and evidence layer remain green. The human review rejects
+public publication of the current candidate because redistribution of
+Semantic Scholar-derived data in a downloadable public dataset is not
+sufficiently resolved by the current source terms and package provenance.
 
 ---
 
@@ -30,13 +30,14 @@ API.
 canonical checkpoint
 → source-aware public metadata package
 → config / policy / output / readiness validation
-→ manual-review checklist
-→ evidence preparation
-→ separate human review execution
-→ separate publication action, if approved
+→ 20-category manual-review checklist
+→ deterministic evidence preparation
+→ human review execution
+→ rejected publication decision
+→ remediation before any future publication action
 ```
 
-The current slice stops at checklist and evidence preparation.
+The current slice completes review and stops before publication.
 
 ---
 
@@ -60,6 +61,12 @@ Smoke tests:
 tests/smoke/test_public_metadata_release_review.py
 ```
 
+Decision record:
+
+```text
+docs/public_metadata_release_review_decision_v0.1.md
+```
+
 Generated reports, not committed by default:
 
 ```text
@@ -71,109 +78,143 @@ artifacts/reports/validation/history/public_metadata_release_review_<timestamp>.
 
 ---
 
-## 3. Category contract
+## 3. Category outcomes
 
-The gate contains 20 required categories:
+Passed categories: 15.
 
 ```text
-1. release identity and checkpoint
-2. canonical truth and reconcile boundary
-3. selected field policy coverage
-4. source-aware abstract handling
-5. bibliographic metadata contract
-6. external identifiers and links
-7. taxonomy, derived flags, and count metadata
-8. excluded content boundary
-9. source attribution coverage
-10. arXiv policy evidence
-11. OpenAlex policy evidence
-12. Crossref policy evidence
-13. Semantic Scholar policy evidence
-14. ACL Anthology policy evidence
-15. package manifest, checksums, and Kaggle template
-16. final compilation license decision
-17. provider terms review
-18. dataset card and attribution wording
-19. publication target decision
-20. final manual release approval state
+release identity and checkpoint
+canonical truth and reconcile boundary
+selected field policy coverage
+source-aware abstract handling
+bibliographic metadata contract
+external identifiers and links
+taxonomy, derived flags, and count metadata
+excluded content boundary
+source attribution coverage
+arXiv policy evidence
+OpenAlex policy evidence
+Crossref policy evidence
+ACL Anthology policy evidence
+package manifest, checksums, and Kaggle template
+publication target decision
 ```
 
-The first 15 categories receive automated evidence support. The final 5 require
-explicit human judgment.
+Failed categories: 5.
+
+```text
+Semantic Scholar policy evidence
+final compilation license decision
+provider terms review
+dataset card and attribution wording
+final manual release approval state
+```
+
+Detailed rationale is stored in the review config and decision record.
 
 ---
 
-## 4. Pending-state semantics
+## 4. Blocking finding
 
-Current state:
+Current official Semantic Scholar terms support attributed public displays and
+non-commercial research/educational use, while also imposing restrictions that
+make public downloadable redistribution insufficiently clear for the current
+candidate.
+
+The current export does not prove that all Semantic Scholar-derived values were
+removed or independently sourced. Therefore:
 
 ```text
-approval_state = not_reviewed
-required category status = pending
-manual_review_complete = false
+approval_state = rejected
 publication_ready = false
-publication_block_reason = public_release_decision_not_completed
+publication_block_reason = manual_release_rejected
+```
+
+This is a provider-terms/publication-policy blocker, not a package-integrity
+failure.
+
+---
+
+## 5. Compilation-license decision
+
+No final compilation/release license is selected:
+
+```text
+compilation_license_decision = not_selected_due_semantic_scholar_redistribution_blocker
+Kaggle license = other_template_only
+```
+
+`other` remains an unresolved template label. It does not authorize upload.
+
+---
+
+## 6. Publication-target decision
+
+```text
+preferred future target = Kaggle after remediation
+optional mirror = GitHub Release after remediation
+Hugging Face Datasets = deferred
+```
+
+Target selection passed as a planning decision, but no target may be used while
+the review remains rejected.
+
+---
+
+## 7. Required remediation
+
+A separate slice must complete one of these paths:
+
+```text
+A. obtain written Semantic Scholar/AI2 permission for the intended public downloadable redistribution
+or
+B. rebuild the public candidate without Semantic Scholar-derived data and prove the exclusion
+```
+
+Option B requires field/source provenance evidence, updated package wording,
+regenerated checksums, fresh output validation, and a full rerun of all 20 review
+categories.
+
+---
+
+## 8. State consistency
+
+Accepted completed state:
+
+```text
+approval_state = rejected
+category_status_counts = {failed: 5, passed: 15}
+manual_review_complete = true
+publication_ready = false
+publication_block_reason = manual_release_rejected
 ```
 
 Important:
 
 ```text
-pending categories block publication
-pending categories do not fail the validator
-validator ok=true means the gate is structurally valid
-validator ok=true does not mean human review is complete
+validator ok=true = recorded human decision is structurally valid
+validator ok=true ≠ candidate approved
+manual_review_complete=true ≠ publication allowed
+publication action remains separate
 ```
-
-A future human-review execution slice may change category statuses and the
-approval state. Evidence preparation must not do so.
 
 ---
 
-## 5. Approval-state consistency
+## 9. Safety boundary
 
-Supported states are intentionally explicit:
-
-```text
-not_reviewed
-→ all required categories pending
-→ manual_review_complete = false
-→ publication_ready = false
-→ publication_block_reason = public_release_decision_not_completed
-
-approved
-→ all required categories passed
-→ manual_review_complete = true
-→ publication_ready = false
-→ publication_block_reason = publication_action_not_in_scope
-
-rejected
-→ at least one required category failed
-→ manual_review_complete = true
-→ publication_ready = false
-→ publication_block_reason = manual_release_rejected
-```
-
-Even an approved manual review does not itself publish the dataset.
-
----
-
-## 6. Safety boundary
-
-This gate must not:
+This review does not:
 
 - rebuild `data.parquet`;
 - rewrite package files;
 - mutate canonical documents;
-- mutate retrieval, Qdrant, Postgres, ranking, API, or UI state;
-- call Kaggle or Hugging Face APIs;
-- create a GitHub Release;
-- select a final compilation license automatically;
-- approve categories automatically;
-- become a reconciliation input.
+- mutate retrieval, Qdrant, Postgres, ranking, API, UI, or graph state;
+- call Kaggle, Hugging Face, Semantic Scholar, or GitHub APIs;
+- create a public release;
+- make the package a reconciliation input.
 
 ---
 
-## 7. Validation
+## 10. Validation
 
 ```bat
 python -m py_compile scripts/validation/check_public_metadata_release_review.py
@@ -181,14 +222,15 @@ python -m pytest tests/smoke/test_public_metadata_release_review.py -q
 python -m scripts.validation.check_public_metadata_release_review --strict --check-paths
 ```
 
-Expected evidence-preparation state:
+Expected result:
 
 ```text
 ok = true
-approval_state = not_reviewed
+approval_state = rejected
 required_category_count = 20
-category_status_counts = {pending: 20}
-manual_review_complete = false
+category_status_counts = {failed: 5, passed: 15}
+manual_review_complete = true
 publication_ready = false
+publication_block_reason = manual_release_rejected
 required_failed_count = 0
 ```

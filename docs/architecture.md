@@ -16,7 +16,7 @@ overlapping source-level observations.
 ## Current checkpoint
 
 ```text
-checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1 / Citation Graph Diagnostics UI v0.1 / Citation Graph External Reference Lookup UI v0.1 / Citation Graph UI Productization Checkpoint v0.1 / Citation Graph Store Cache & Reload Regression v0.1 / Citation Graph Failure Isolation & Error Recovery v0.1 / Citation Graph Live Smoke & Known-Issues Hardening v0.1 / Citation Graph Manual-Review Evidence Preparation v0.1 / Manual Citation Graph Review Execution v0.1 / Public Metadata Release Policy & Kaggle Packaging v0.1 / Public Metadata Release Manual-Review Evidence Preparation v0.1
+checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1 / Citation Graph Diagnostics UI v0.1 / Citation Graph External Reference Lookup UI v0.1 / Citation Graph UI Productization Checkpoint v0.1 / Citation Graph Store Cache & Reload Regression v0.1 / Citation Graph Failure Isolation & Error Recovery v0.1 / Citation Graph Live Smoke & Known-Issues Hardening v0.1 / Citation Graph Manual-Review Evidence Preparation v0.1 / Manual Citation Graph Review Execution v0.1 / Public Metadata Release Policy & Kaggle Packaging v0.1 / Public Metadata Release Manual-Review Evidence Preparation v0.1 / Manual Public Metadata Release Review Execution v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
@@ -1156,12 +1156,41 @@ canonical_documents.jsonl
 ```
 
 The checklist contains 15 categories with automated evidence support and 5
-human-decision categories. All current category statuses remain `pending`.
-`manual_review_evidence_ready=true` means the necessary review material exists;
-it does not mean any category passed, the release was approved, a license was
-selected, or a publication was performed.
+human-decision categories. At the evidence-preparation checkpoint all statuses
+were `pending`; `manual_review_evidence_ready=true` meant only that review material
+existed. The later execution records the human-owned passed statuses and approval.
 
 The review/evidence validators are read-only. They do not rebuild the dataset,
 mutate package files, canonical truth, retrieval, Qdrant, Postgres, ranking, API,
 UI, or graph layers, and they do not call Kaggle/Hugging Face/GitHub publication
 surfaces.
+
+## Public Metadata manual-review execution boundary
+
+The metadata-release governance line now includes a completed human review:
+
+```text
+policy and local package
+→ technical review readiness
+→ 20-category checklist
+→ deterministic evidence preparation
+→ human review execution
+→ rejected publication decision
+→ source-boundary remediation
+→ fresh review before any publication action
+```
+
+Accepted state:
+
+```text
+approval_state = rejected
+category_status_counts = {failed: 5, passed: 15}
+manual_review_complete = true
+publication_ready = false
+publication_block_reason = manual_release_rejected
+```
+
+The blocker is confined to public redistribution governance for
+Semantic Scholar-derived data. It does not invalidate canonical truth or package
+integrity and does not change reconciliation, retrieval, Qdrant, Postgres, graph,
+ranking, API, or UI behavior.

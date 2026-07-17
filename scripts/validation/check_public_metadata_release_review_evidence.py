@@ -6,15 +6,16 @@ publication target, never approves a release, and never publishes anything.
 
 Important semantics:
 - evidence_ready=true means sufficient review material was found;
-- evidence_ready=true does not mean category_status=passed;
-- summary ok=true does not mean manual review is complete;
-- all human decisions remain pending in the evidence-preparation slice.
+- passed category statuses come only from the human-owned review config;
+- the evidence validator never performs or infers approval;
+- completed manual review still does not authorize publication.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -94,6 +95,7 @@ REQUIRED_INPUT_KEYS = {
     "source_matrix_doc",
     "provenance_semantics_doc",
     "merge_policy_doc",
+    "decision_record_doc",
 }
 
 CATEGORY_TITLES = {
@@ -250,6 +252,7 @@ def checksum_entries(text: str) -> dict[str, str]:
 def build_category(
     category_id: str,
     *,
+    category_status: str,
     evidence_ready: bool,
     automated_support: bool,
     evidence_refs: Sequence[str],
@@ -259,7 +262,7 @@ def build_category(
         "id": category_id,
         "title": CATEGORY_TITLES[category_id],
         "required": True,
-        "category_status": "pending",
+        "category_status": category_status,
         "evidence_ready": bool(evidence_ready),
         "automated_support": bool(automated_support),
         "human_decision_required": not automated_support,
@@ -399,6 +402,7 @@ def validate_evidence(
         )
 
     text_payloads: dict[str, str] = {}
+    text_marker_results: dict[str, bool] = {}
     for key in [
         "release_readme",
         "dataset_card",
@@ -410,6 +414,7 @@ def validate_evidence(
         "source_matrix_doc",
         "provenance_semantics_doc",
         "merge_policy_doc",
+        "decision_record_doc",
     ]:
         text, ok, error = safe_load_text(resolved[key])
         text_payloads[key] = text
@@ -422,6 +427,7 @@ def validate_evidence(
         )
         markers = [str(item) for item in as_list(required_markers.get(key))]
         markers_ok, missing = marker_check(text, markers)
+        text_marker_results[key] = markers_ok
         add_check(
             checks,
             name=f"{key}_markers",
@@ -433,6 +439,10 @@ def validate_evidence(
     manual_review = as_mapping(manual_config.get("review"))
     manual_categories = [as_mapping(item) for item in as_list(as_mapping(manual_config.get("manual_review")).get("categories"))]
     manual_statuses = {str(item.get("id") or ""): item.get("status") for item in manual_categories}
+    manual_status_counts = dict(sorted(Counter(str(status) for status in manual_statuses.values()).items()))
+    expected_status_counts = {str(k): int(v) for k, v in as_mapping(expected.get("required_category_status_counts")).items()}
+    actual_failed_ids = [category_id for category_id in CATEGORY_IDS if manual_statuses.get(category_id) == "failed"]
+    expected_failed_ids = [str(item) for item in as_list(expected.get("failed_category_ids"))]
     manual_report_review = as_mapping(manual_report.get("review"))
     manual_gate_ok = (
         manual_config.get("schema_version") == "public_metadata_release_review_config_v1"
@@ -441,24 +451,29 @@ def validate_evidence(
         and manual_review.get("publication_ready") is expected.get("publication_ready")
         and manual_review.get("publication_block_reason") == expected.get("publication_block_reason")
         and list(manual_statuses) == CATEGORY_IDS
-        and all(status == expected.get("required_category_status") for status in manual_statuses.values())
+        and manual_status_counts == expected_status_counts
+        and actual_failed_ids == expected_failed_ids
         and manual_report.get("schema_version") == "public_metadata_release_review_v1"
         and manual_report.get("ok") is True
         and manual_report.get("required_failed_count") == 0
         and manual_report_review.get("approval_state") == expected.get("approval_state")
+        and manual_report_review.get("category_status_counts") == expected_status_counts
         and manual_report.get("manual_review_complete") is expected.get("manual_review_complete")
         and manual_report.get("publication_ready") is expected.get("publication_ready")
+        and manual_report.get("publication_block_reason") == expected.get("publication_block_reason")
     )
     add_check(
         checks,
-        name="manual_review_gate_pending_and_green",
+        name="manual_review_gate_rejected_and_green",
         ok=manual_gate_ok,
-        message="manual-review gate is structurally green while all 20 categories remain pending",
+        message="manual-review gate records a complete human rejection while publication remains blocked",
         details={
             "approval_state": manual_review.get("approval_state"),
             "manual_review_complete": manual_review.get("manual_review_complete"),
             "publication_ready": manual_review.get("publication_ready"),
             "category_statuses": manual_statuses,
+            "category_status_counts": manual_status_counts,
+            "failed_category_ids": actual_failed_ids,
             "report_schema_version": manual_report.get("schema_version"),
             "report_ok": manual_report.get("ok"),
         },
@@ -696,6 +711,8 @@ def validate_evidence(
         and source_coverage_ok
         and bool(text_payloads.get("dataset_card", "").strip())
         and bool(text_payloads.get("attribution", "").strip())
+        and bool(text_payloads.get("decision_record_doc", "").strip())
+        and text_marker_results.get("decision_record_doc") is True
         and bool(publication_targets)
         and manual_gate_ok
     )
@@ -703,7 +720,7 @@ def validate_evidence(
         checks,
         name="human_decision_material_ready",
         ok=human_material_ok,
-        message="license, provider terms, wording, target, and final approval materials are present without making decisions",
+        message="license, provider terms, wording, target, and human approval decisions are documented without publication",
         details={
             "compilation_license": compilation,
             "publication_targets": publication_targets,
@@ -754,11 +771,11 @@ def validate_evidence(
         "semantic_scholar_policy_evidence": ["source_attribution.json", "ATTRIBUTION.md", "public_metadata_release_policy_v0.1.yaml"],
         "acl_anthology_policy_evidence": ["source_attribution.json", "ATTRIBUTION.md", "public_metadata_release_policy_v0.1.yaml"],
         "package_manifest_checksums_kaggle_template": ["manifest.json", "checksums.txt", "kaggle_metadata.template.json", "dataset_release_output_latest.json"],
-        "compilation_license_decision": ["manifest.json", "DATASET_CARD.md", "source_attribution.json"],
-        "provider_terms_review": ["ATTRIBUTION.md", "source_attribution.json", "docs/source_matrix.md"],
-        "dataset_card_and_attribution_wording": ["DATASET_CARD.md", "ATTRIBUTION.md", "README.md"],
-        "publication_target_decision": ["manifest.json", "configs/dataset_release.yaml", "kaggle_metadata.template.json"],
-        "manual_release_approval_state": ["configs/public_metadata_release_review.yaml", "public_metadata_release_review_latest.json"],
+        "compilation_license_decision": ["manifest.json", "DATASET_CARD.md", "docs/public_metadata_release_review_decision_v0.1.md"],
+        "provider_terms_review": ["ATTRIBUTION.md", "source_attribution.json", "docs/public_metadata_release_review_decision_v0.1.md"],
+        "dataset_card_and_attribution_wording": ["DATASET_CARD.md", "ATTRIBUTION.md", "docs/public_metadata_release_review_decision_v0.1.md"],
+        "publication_target_decision": ["kaggle_metadata.template.json", "configs/public_metadata_release_review.yaml", "docs/public_metadata_release_review_decision_v0.1.md"],
+        "manual_release_approval_state": ["configs/public_metadata_release_review.yaml", "public_metadata_release_review_latest.json", "docs/public_metadata_release_review_decision_v0.1.md"],
     }
 
     readiness_by_category = {
@@ -789,6 +806,7 @@ def validate_evidence(
         categories.append(
             build_category(
                 category_id,
+                category_status=str(manual_statuses.get(category_id) or "missing"),
                 evidence_ready=readiness_by_category[category_id],
                 automated_support=automated,
                 evidence_refs=common_refs[category_id],
@@ -796,7 +814,7 @@ def validate_evidence(
                     "Evidence material is present and consistent with the local candidate checkpoint."
                     if readiness_by_category[category_id]
                     else "Evidence material is missing, stale, or inconsistent.",
-                    "Category status remains pending; no automated approval was performed.",
+                    "Category status comes from the human-owned review config; no automated approval was performed.",
                 ],
             )
         )
@@ -812,8 +830,12 @@ def validate_evidence(
     add_check(
         checks,
         name="evidence_does_not_approve_categories",
-        ok=all(item["category_status"] == "pending" and item["automated_decision"] is None for item in categories),
-        message="evidence preparation leaves every category pending and makes no automated decision",
+        ok=all(
+            item["category_status"] == manual_statuses.get(item["id"])
+            and item["automated_decision"] is None
+            for item in categories
+        ),
+        message="evidence mirrors human-owned category statuses and makes no automated decision",
     )
 
     return checks, categories
@@ -836,6 +858,8 @@ def build_report(
     human_ids = [str(item) for item in as_list(category_policy.get("human_decision_category_ids"))]
     evidence_ready_count = sum(1 for item in categories if item.get("evidence_ready") is True)
     evidence_ready = len(required_failed) == 0 and evidence_ready_count == len(CATEGORY_IDS)
+    category_status_counts = dict(sorted(Counter(str(item.get("category_status")) for item in categories).items()))
+    expected = as_mapping(config.get("expected"))
 
     return {
         "schema_version": REPORT_SCHEMA_VERSION,
@@ -853,14 +877,14 @@ def build_report(
             "evidence_ready_category_count": evidence_ready_count,
             "automated_support_category_count": len(automated_ids),
             "human_decision_category_count": len(human_ids),
-            "category_status_counts": {"pending": len(CATEGORY_IDS)},
+            "category_status_counts": category_status_counts,
             "categories": list(categories),
         },
         "manual_review_evidence_ready": evidence_ready,
         "manual_review_required": True,
-        "manual_review_complete": False,
+        "manual_review_complete": expected.get("manual_review_complete") is True,
         "publication_ready": False,
-        "publication_block_reason": "public_release_decision_not_completed",
+        "publication_block_reason": expected.get("publication_block_reason"),
         "publication_action_in_scope": False,
         "automated_category_approval": False,
         "automated_manual_approval": False,

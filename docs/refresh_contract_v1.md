@@ -95,7 +95,8 @@ Citation Graph Live Smoke & Known-Issues Hardening v0.1 — 2026-07 completed op
 Citation Graph Manual-Review Evidence Preparation v0.1 — 2026-07 completed read-only evidence-preparation slice over the existing 18-category checklist
 Manual Citation Graph Review Execution v0.1 — 2026-07 active explicit human-review closure slice; 18/18 categories passed, approval recorded, publication remains out of scope
 Public Metadata Release Policy & Kaggle Packaging v0.1 — 2026-07 completed source-aware metadata policy and local Kaggle-ready packaging slice
-Public Metadata Release Manual-Review Evidence Preparation v0.1 — 2026-07 active read-only 20-category checklist/evidence slice; no approval or publication
+Public Metadata Release Manual-Review Evidence Preparation v0.1 — 2026-07 completed read-only 20-category checklist/evidence slice; no automated approval or publication
+Manual Public Metadata Release Review Execution v0.1 — 2026-07 active explicit human-review closure slice; review completed with 15 passed / 5 failed, approval_state=rejected, publication remains blocked and out of scope
 ```
 
 Current healthy baseline:
@@ -4481,7 +4482,7 @@ python -m scripts.validation.check_public_metadata_release_review --strict --che
 python -m scripts.validation.check_public_metadata_release_review_evidence --strict --check-paths
 ```
 
-Expected final state:
+Expected evidence-preparation state before human execution:
 
 ```text
 manual-review gate ok = true
@@ -4498,3 +4499,53 @@ publication_block_reason = public_release_decision_not_completed
 
 Generated review/evidence reports are local operational artifacts and are not
 committed by default.
+
+# Manual Public Metadata Release Review Execution v0.1 validation
+
+Use this after the public metadata evidence-preparation layer is green.
+
+```bat
+python -m py_compile scripts/validation/check_public_metadata_release_review.py
+python -m py_compile scripts/validation/check_public_metadata_release_review_evidence.py
+python -m pytest tests/smoke/test_public_metadata_release_review.py -q
+python -m pytest tests/smoke/test_public_metadata_release_review_evidence.py -q
+python -m scripts.validation.check_public_metadata_release_review --strict --check-paths
+python -m scripts.validation.check_public_metadata_release_review_evidence --strict --check-paths
+```
+
+Expected result:
+
+```text
+approval_state = rejected
+category_status_counts = {failed: 5, passed: 15}
+manual_review_complete = true
+manual_review_evidence_ready = true
+evidence_ready_category_count = 20
+publication_ready = false
+publication_block_reason = manual_release_rejected
+required_failed_count = 0
+```
+
+Interpretation:
+
+```text
+validator green = the human rejection is valid and fully evidenced
+validator green != publication approval
+```
+
+Boundary:
+
+```text
+no dataset rebuild
+no package mutation
+no Kaggle/Hugging Face/Semantic Scholar/GitHub API call
+no public upload
+no canonical/reconcile/retrieval/Qdrant/Postgres/graph/ranking/API/UI change
+generated latest/history reports are not committed by default
+```
+
+Next safe slice:
+
+```text
+Semantic Scholar Public Release Boundary Remediation v0.1
+```

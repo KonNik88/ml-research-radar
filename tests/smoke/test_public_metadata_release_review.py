@@ -194,10 +194,15 @@ def build_manual_review_fixture(tmp_path: Path) -> tuple[dict, Path]:
     review_config = yaml.safe_load(Path("configs/public_metadata_release_review.yaml").read_text(encoding="utf-8"))
     review_config_path = tmp_path / "configs/public_metadata_release_review.yaml"
     write_yaml(review_config_path, review_config)
+    decision_source = Path("docs/public_metadata_release_review_decision_v0.1.md")
+    write_text(
+        tmp_path / review_config["inputs"]["decision_record"],
+        decision_source.read_text(encoding="utf-8"),
+    )
     return review_config, review_config_path
 
 
-def test_pending_review_gate_is_structurally_green_but_not_complete(tmp_path: Path) -> None:
+def test_rejected_review_gate_is_green_and_blocks_publication(tmp_path: Path) -> None:
     config, config_path = build_manual_review_fixture(tmp_path)
     checks = validate_review(config, config_path=config_path, check_paths=True)
     report = build_report(
@@ -210,18 +215,27 @@ def test_pending_review_gate_is_structurally_green_but_not_complete(tmp_path: Pa
     )
 
     assert report["ok"] is True
-    assert report["review"]["approval_state"] == "not_reviewed"
+    assert report["review"]["approval_state"] == "rejected"
     assert report["review"]["required_category_count"] == 20
-    assert report["review"]["category_status_counts"] == {"pending": 20}
-    assert report["manual_review_complete"] is False
+    assert report["review"]["category_status_counts"] == {"failed": 5, "passed": 15}
+    assert report["manual_review_complete"] is True
     assert report["publication_ready"] is False
-    assert report["publication_block_reason"] == "public_release_decision_not_completed"
+    assert report["publication_block_reason"] == "manual_release_rejected"
+    assert report["review"]["compilation_license_decision"] == "not_selected_due_semantic_scholar_redistribution_blocker"
+    assert report["review"]["primary_publication_target"] == "kaggle_dataset_after_remediation"
     assert report["required_failed_count"] == 0
 
 
-def test_pending_categories_do_not_fail_validator(tmp_path: Path) -> None:
+def test_completed_rejected_categories_do_not_authorize_publication(tmp_path: Path) -> None:
     config, config_path = build_manual_review_fixture(tmp_path)
-    assert not required_failures(validate_review(config, config_path=config_path, check_paths=True))
+    checks = validate_review(config, config_path=config_path, check_paths=True)
+    assert not required_failures(checks)
+    statuses = [category["status"] for category in config["manual_review"]["categories"]]
+    assert statuses.count("passed") == 15
+    assert statuses.count("failed") == 5
+    assert "pending" not in statuses
+    assert config["review"]["publication_ready"] is False
+    assert config["review"]["publication_action_in_scope"] is False
 
 
 def test_review_rejects_missing_required_category(tmp_path: Path) -> None:
@@ -232,16 +246,18 @@ def test_review_rejects_missing_required_category(tmp_path: Path) -> None:
     assert "categories_cover_required_ids" in failures
 
 
-def test_review_rejects_automatic_approval_state_mismatch(tmp_path: Path) -> None:
+def test_review_rejects_approval_state_regression(tmp_path: Path) -> None:
     config, config_path = build_manual_review_fixture(tmp_path)
-    config["review"]["approval_state"] = "approved"
-    config["review"]["manual_review_complete"] = True
-    config["review"]["publication_block_reason"] = "publication_action_not_in_scope"
+    config["review"]["approval_state"] = "not_reviewed"
+    config["review"]["manual_review_complete"] = False
+    config["review"]["publication_block_reason"] = "public_release_decision_not_completed"
+    for category in config["manual_review"]["categories"]:
+        category["status"] = "pending"
     failures = required_failures(validate_review(config, config_path=config_path, check_paths=False))
     assert "review_approval_state" in failures
     assert "review_manual_review_complete" in failures
     assert "review_publication_block_reason" in failures
-    assert "review_state_consistency" in failures
+    assert "review_state_consistency" not in failures
 
 
 def test_review_rejects_published_manifest(tmp_path: Path) -> None:
@@ -273,6 +289,21 @@ def test_review_rejects_kaggle_publication_claim(tmp_path: Path) -> None:
     failures = required_failures(validate_review(config, config_path=config_path, check_paths=True))
     assert "kaggle_template_non_publishing" in failures
 
+
+
+def test_review_rejects_missing_decision_record(tmp_path: Path) -> None:
+    config, config_path = build_manual_review_fixture(tmp_path)
+    (tmp_path / config["inputs"]["decision_record"]).unlink()
+    failures = required_failures(validate_review(config, config_path=config_path, check_paths=True))
+    assert "input_decision_record_exists" in failures
+    assert "decision_record_readable" in failures
+
+
+def test_review_rejects_incomplete_decision_record(tmp_path: Path) -> None:
+    config, config_path = build_manual_review_fixture(tmp_path)
+    write_text(tmp_path / config["inputs"]["decision_record"], "approval_state: approved\n")
+    failures = required_failures(validate_review(config, config_path=config_path, check_paths=True))
+    assert "decision_record_markers" in failures
 
 def test_review_category_contract_is_stable() -> None:
     assert len(CATEGORY_IDS) == 20

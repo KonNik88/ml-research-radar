@@ -4,7 +4,7 @@
 
 ```text
 status: active local candidate release track / no publication yet
-current checkpoint: Public Metadata Release Manual-Review Evidence Preparation v0.1
+current checkpoint: Manual Public Metadata Release Review Execution v0.1
 current local pipeline: implemented
 canonical truth impact: none
 public dataset publication: not performed
@@ -33,7 +33,8 @@ accepted operational checkpoint
 → 20-category manual-review checklist
 → deterministic evidence preparation
 → manual license/provenance review
-→ separate explicit release decision
+→ approved human decision record
+→ separate explicit publication action
 ```
 
 The current track stops before public publication.
@@ -445,3 +446,25 @@ Current category split:
 
 Actual publication remains outside both the evidence-preparation and human-review
 execution layers.
+
+## Manual-review completion checkpoint
+
+The metadata v0.1 candidate completed human review with a rejected publication
+decision:
+
+```text
+approval_state = rejected
+required categories passed = 15/20
+required categories failed = 5/20
+manual_review_complete = true
+publication_ready = false
+publication action = not performed
+```
+
+The blocker is the unresolved right to redistribute Semantic Scholar-derived
+metadata as a downloadable public dataset. `other` remains a Kaggle template
+label, not a final compilation-license decision.
+
+The next strategic slice is source-boundary remediation: obtain written
+permission or rebuild the candidate without S2-derived values. The candidate
+remains derived and cannot become a reconciliation input.
