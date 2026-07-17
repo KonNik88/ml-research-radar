@@ -4,7 +4,7 @@
 
 ```text
 status: active local candidate release track / not published
-slice: Public Metadata Release Manual-Review Evidence Preparation v0.1
+slice: Manual Public Metadata Release Review Execution v0.1
 release family: clean_research_metadata
 public upload: not performed
 canonical truth impact: none
@@ -25,6 +25,7 @@ contract
 → review-readiness gate
 → 20-category manual-review checklist
 → deterministic review-evidence preparation
+→ human review execution and approved decision record
 ```
 
 The dataset release remains a derived artifact. It is not canonical truth, not a
@@ -431,7 +432,7 @@ docs/public_metadata_release_review_v0.1.md
 docs/public_metadata_release_review_evidence_v0.1.md
 ```
 
-Current intended result:
+Evidence-preparation result before human execution:
 
 ```text
 manual_review_evidence_ready = true
@@ -445,6 +446,41 @@ publication_ready = false
 publication_block_reason = public_release_decision_not_completed
 ```
 
-Pending categories do not fail structural validation, but they continue to block
-publication. Evidence readiness does not approve categories, choose a final
-compilation license, select a publication target, or perform an upload.
+At the evidence-preparation checkpoint, pending categories did not fail structural
+validation but continued to block publication. The subsequent execution section
+records the separate human decisions.
+
+## Manual Public Metadata Release Review Execution v0.1
+
+Status: **completed human review / rejected / not published**
+
+The 20-category manual review is closed:
+
+```text
+approval_state = rejected
+category_status_counts = {failed: 5, passed: 15}
+manual_review_complete = true
+publication_ready = false
+publication_block_reason = manual_release_rejected
+```
+
+The candidate remains technically valid, but publication is blocked by the
+unresolved Semantic Scholar downloadable-redistribution boundary.
+
+```text
+compilation license = not selected
+Kaggle license = other_template_only
+preferred target = Kaggle after remediation
+optional mirror = GitHub Release after remediation
+Hugging Face Datasets = deferred
+```
+
+Decision record:
+
+```text
+docs/public_metadata_release_review_decision_v0.1.md
+```
+
+Required next work is either written AI2/Semantic Scholar permission or a rebuilt
+public candidate that excludes Semantic Scholar-derived data and proves that
+exclusion. No upload is authorized.

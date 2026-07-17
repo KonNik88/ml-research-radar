@@ -1,5 +1,4 @@
 schema_version: public_metadata_release_review_evidence_config_v1
-
 evidence:
   name: public_metadata_release_review_evidence
   version: v0.1
@@ -13,7 +12,6 @@ evidence:
   publication_ready: false
   publication_action_in_scope: false
   may_be_used_as_reconcile_input: false
-
 inputs:
   manual_review_config: configs/public_metadata_release_review.yaml
   manual_review_report: artifacts/reports/validation/public_metadata_release_review_latest.json
@@ -39,43 +37,40 @@ inputs:
   source_matrix_doc: docs/source_matrix.md
   provenance_semantics_doc: docs/provenance_semantics.md
   merge_policy_doc: docs/merge_policy.md
-
+  decision_record_doc: docs/public_metadata_release_review_decision_v0.1.md
 validation:
   report_dir: artifacts/reports/validation
   strict_default: true
-
 category_policy:
   required_category_count: 20
   automated_support_category_ids:
-    - release_identity_checkpoint
-    - canonical_truth_boundary
-    - selected_field_policy_coverage
-    - abstract_source_aware_handling
-    - bibliographic_metadata_contract
-    - external_identifiers_and_links
-    - taxonomy_and_counts_contract
-    - excluded_content_boundary
-    - source_attribution_coverage
-    - arxiv_policy_evidence
-    - openalex_policy_evidence
-    - crossref_policy_evidence
-    - semantic_scholar_policy_evidence
-    - acl_anthology_policy_evidence
-    - package_manifest_checksums_kaggle_template
+  - release_identity_checkpoint
+  - canonical_truth_boundary
+  - selected_field_policy_coverage
+  - abstract_source_aware_handling
+  - bibliographic_metadata_contract
+  - external_identifiers_and_links
+  - taxonomy_and_counts_contract
+  - excluded_content_boundary
+  - source_attribution_coverage
+  - arxiv_policy_evidence
+  - openalex_policy_evidence
+  - crossref_policy_evidence
+  - semantic_scholar_policy_evidence
+  - acl_anthology_policy_evidence
+  - package_manifest_checksums_kaggle_template
   human_decision_category_ids:
-    - compilation_license_decision
-    - provider_terms_review
-    - dataset_card_and_attribution_wording
-    - publication_target_decision
-    - manual_release_approval_state
-
+  - compilation_license_decision
+  - provider_terms_review
+  - dataset_card_and_attribution_wording
+  - publication_target_decision
+  - manual_release_approval_state
 expected:
-  approval_state: not_reviewed
-  required_category_status: pending
-  manual_review_complete: false
+  approval_state: rejected
+  manual_review_complete: true
   manual_review_required: true
   publication_ready: false
-  publication_block_reason: public_release_decision_not_completed
+  publication_block_reason: manual_release_rejected
   canonical_doc_count: 60954
   column_count: 34
   duplicate_canonical_id_count: 0
@@ -83,66 +78,84 @@ expected:
   policy_id: ml_research_radar_public_metadata_release_v0.1
   policy_version: v0.1
   required_source_families:
-    - acl_anthology
-    - arxiv
-    - crossref
-    - openalex
-    - semantic_scholar
+  - acl_anthology
+  - arxiv
+  - crossref
+  - openalex
+  - semantic_scholar
   required_checksum_files:
-    - data.parquet
-    - schema.json
-    - manifest.json
-    - README.md
-    - DATASET_CARD.md
-    - ATTRIBUTION.md
-    - field_release_policy.json
-    - source_attribution.json
-    - kaggle_metadata.template.json
-    - data_quality_summary.json
-
+  - data.parquet
+  - schema.json
+  - manifest.json
+  - README.md
+  - DATASET_CARD.md
+  - ATTRIBUTION.md
+  - field_release_policy.json
+  - source_attribution.json
+  - kaggle_metadata.template.json
+  - data_quality_summary.json
+  compilation_license_decision: not_selected_due_semantic_scholar_redistribution_blocker
+  kaggle_license_name: other_template_only
+  primary_publication_target: kaggle_dataset_after_remediation
+  required_category_status_counts:
+    failed: 5
+    passed: 15
+  failed_category_ids:
+  - semantic_scholar_policy_evidence
+  - compilation_license_decision
+  - provider_terms_review
+  - dataset_card_and_attribution_wording
+  - manual_release_approval_state
 required_markers:
   release_readme:
-    - not published
-    - manual_release_decision_required
-    - canonical_truth_impact
-    - may_be_used_as_reconcile_input
+  - not published
+  - manual_release_decision_required
+  - canonical_truth_impact
+  - may_be_used_as_reconcile_input
   dataset_card:
-    - "publication_status: not_published"
-    - "final_compilation_license: pending_explicit_release_decision"
-    - article PDF binaries
-    - article full text
-    - release owner must review
+  - 'publication_status: not_published'
+  - 'final_compilation_license: pending_explicit_release_decision'
+  - article PDF binaries
+  - article full text
+  - release owner must review
   attribution:
-    - ACL Anthology
-    - arXiv
-    - Crossref
-    - OpenAlex
-    - Semantic Scholar
-    - does not contain PDF binaries
+  - ACL Anthology
+  - arXiv
+  - Crossref
+  - OpenAlex
+  - Semantic Scholar
+  - does not contain PDF binaries
   policy_doc:
-    - source-aware public metadata projection
-    - explicit human release decision
-    - never download or package the PDF binary
+  - source-aware public metadata projection
+  - explicit human release decision
+  - never download or package the PDF binary
   dataset_release_doc:
-    - publication_ready = false
-    - public upload
+  - publication_ready = false
+  - public upload
   dataset_strategy_doc:
-    - derived public artifact candidate
-    - manual license/provenance review
+  - derived public artifact candidate
+  - manual license/provenance review
   source_matrix_doc:
-    - arxiv
-    - openalex_alignment
-    - semantic_scholar_alignment
-    - crossref_alignment
-    - acl_anthology
+  - arxiv
+  - openalex_alignment
+  - semantic_scholar_alignment
+  - crossref_alignment
+  - acl_anthology
   provenance_semantics_doc:
-    - provenance rows list
-    - source_count
-    - unique_source_count
+  - provenance rows list
+  - source_count
+  - unique_source_count
   merge_policy_doc:
-    - field-dependent
-    - artifact sources are not paper truth sources
-
+  - field-dependent
+  - artifact sources are not paper truth sources
+  decision_record_doc:
+  - 'approval_state: rejected'
+  - 'category_status_counts: passed = 15, failed = 5'
+  - Semantic Scholar
+  - downloadable Kaggle dataset
+  - written permission
+  - exclude Semantic Scholar-derived data
+  - publication action remains separate
 safety:
   read_only_evidence: true
   rebuild_dataset: false

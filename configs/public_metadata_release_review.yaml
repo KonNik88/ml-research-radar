@@ -1,19 +1,34 @@
 schema_version: public_metadata_release_review_config_v1
-
 review:
   name: public_metadata_release_review
   version: v0.1
   status: local_manual_release_review_gate
   dataset_name: ml_research_radar_metadata
   dataset_version: v0.1
-  approval_state: not_reviewed
+  approval_state: rejected
   manual_review_required: true
-  manual_review_complete: false
+  manual_review_complete: true
   publication_ready: false
-  publication_block_reason: public_release_decision_not_completed
+  publication_block_reason: manual_release_rejected
   publication_action_in_scope: false
   may_be_used_as_reconcile_input: false
-
+  reviewer_role: project_owner_maintainer
+  reviewed_at: '2026-07-17'
+  decision_record: docs/public_metadata_release_review_decision_v0.1.md
+  publication_purpose: non_commercial_educational_portfolio
+  compilation_license_decision: not_selected_due_semantic_scholar_redistribution_blocker
+  kaggle_license_name: other_template_only
+  primary_publication_target: kaggle_dataset_after_remediation
+  publication_targets:
+  - kaggle_dataset_after_remediation
+  - github_release_after_remediation
+  deferred_publication_targets:
+  - huggingface_datasets
+  attribution_required: true
+  redistributes_pdfs: false
+  redistributes_full_text: false
+  remediation_required: true
+  blocking_source_family: semantic_scholar
 inputs:
   dataset_release_config: configs/dataset_release.yaml
   public_release_policy: configs/public_metadata_release_policy_v0.1.yaml
@@ -25,137 +40,163 @@ inputs:
   dataset_card: data/datasets_release/ml_research_radar_metadata/v0.1/DATASET_CARD.md
   attribution: data/datasets_release/ml_research_radar_metadata/v0.1/ATTRIBUTION.md
   kaggle_metadata_template: data/datasets_release/ml_research_radar_metadata/v0.1/kaggle_metadata.template.json
-
+  decision_record: docs/public_metadata_release_review_decision_v0.1.md
 manual_review:
   required_category_ids:
-    - release_identity_checkpoint
-    - canonical_truth_boundary
-    - selected_field_policy_coverage
-    - abstract_source_aware_handling
-    - bibliographic_metadata_contract
-    - external_identifiers_and_links
-    - taxonomy_and_counts_contract
-    - excluded_content_boundary
-    - source_attribution_coverage
-    - arxiv_policy_evidence
-    - openalex_policy_evidence
-    - crossref_policy_evidence
-    - semantic_scholar_policy_evidence
-    - acl_anthology_policy_evidence
-    - package_manifest_checksums_kaggle_template
-    - compilation_license_decision
-    - provider_terms_review
-    - dataset_card_and_attribution_wording
-    - publication_target_decision
-    - manual_release_approval_state
+  - release_identity_checkpoint
+  - canonical_truth_boundary
+  - selected_field_policy_coverage
+  - abstract_source_aware_handling
+  - bibliographic_metadata_contract
+  - external_identifiers_and_links
+  - taxonomy_and_counts_contract
+  - excluded_content_boundary
+  - source_attribution_coverage
+  - arxiv_policy_evidence
+  - openalex_policy_evidence
+  - crossref_policy_evidence
+  - semantic_scholar_policy_evidence
+  - acl_anthology_policy_evidence
+  - package_manifest_checksums_kaggle_template
+  - compilation_license_decision
+  - provider_terms_review
+  - dataset_card_and_attribution_wording
+  - publication_target_decision
+  - manual_release_approval_state
   categories:
-    - id: release_identity_checkpoint
-      title: Release identity and checkpoint
-      required: true
-      status: pending
-      reviewer_note: Confirm dataset name/version, canonical row count, retrieval build, and package identity.
-    - id: canonical_truth_boundary
-      title: Canonical truth and reconcile boundary
-      required: true
-      status: pending
-      reviewer_note: Confirm the public package remains derived, rebuildable, and forbidden as reconcile input.
-    - id: selected_field_policy_coverage
-      title: Selected field policy coverage
-      required: true
-      status: pending
-      reviewer_note: Confirm every exported field has an explicit public-release action.
-    - id: abstract_source_aware_handling
-      title: Source-aware abstract handling
-      required: true
-      status: pending
-      reviewer_note: Confirm arXiv/ACL handling and fail-closed null behavior are acceptable.
-    - id: bibliographic_metadata_contract
-      title: Bibliographic metadata contract
-      required: true
-      status: pending
-      reviewer_note: Review title, authors, year, venue, journal, conference, publisher, and publication-type semantics.
-    - id: external_identifiers_and_links
-      title: External identifiers and links
-      required: true
-      status: pending
-      reviewer_note: Review DOI/arXiv/OpenAlex identifiers and link-only landing/PDF URL behavior.
-    - id: taxonomy_and_counts_contract
-      title: Taxonomy, derived flags, and count metadata
-      required: true
-      status: pending
-      reviewer_note: Review categories, concepts, keywords, tags, derived flags, citation counts, and reference counts.
-    - id: excluded_content_boundary
-      title: Excluded content boundary
-      required: true
-      status: pending
-      reviewer_note: Confirm PDFs, full text, raw payloads, source snapshots, embeddings, and private notes are excluded.
-    - id: source_attribution_coverage
-      title: Source attribution coverage
-      required: true
-      status: pending
-      reviewer_note: Confirm every current canonical source family is represented in machine- and human-readable attribution.
-    - id: arxiv_policy_evidence
-      title: arXiv policy evidence
-      required: true
-      status: pending
-      reviewer_note: Review metadata basis, attribution, abstract rule, and no-mirroring boundary for arXiv.
-    - id: openalex_policy_evidence
-      title: OpenAlex policy evidence
-      required: true
-      status: pending
-      reviewer_note: Review metadata basis, attribution, and raw-payload exclusion for OpenAlex.
-    - id: crossref_policy_evidence
-      title: Crossref policy evidence
-      required: true
-      status: pending
-      reviewer_note: Review bibliographic metadata basis, attribution, and abstract/raw-payload boundaries for Crossref.
-    - id: semantic_scholar_policy_evidence
-      title: Semantic Scholar policy evidence
-      required: true
-      status: pending
-      reviewer_note: Review API-data terms, attribution, selected-field scope, and raw-response exclusion.
-    - id: acl_anthology_policy_evidence
-      title: ACL Anthology policy evidence
-      required: true
-      status: pending
-      reviewer_note: Review year-aware abstract handling, attribution, and external-link-only PDF behavior.
-    - id: package_manifest_checksums_kaggle_template
-      title: Package manifest, checksums, and Kaggle template
-      required: true
-      status: pending
-      reviewer_note: Confirm package integrity and that Kaggle metadata remains an unresolved non-publishing template.
-    - id: compilation_license_decision
-      title: Final compilation license decision
-      required: true
-      status: pending
-      reviewer_note: Human decision required; do not infer a blanket upstream license.
-    - id: provider_terms_review
-      title: Provider terms review
-      required: true
-      status: pending
-      reviewer_note: Human review required for the current provider terms and the intended public-use scope.
-    - id: dataset_card_and_attribution_wording
-      title: Dataset card and attribution wording
-      required: true
-      status: pending
-      reviewer_note: Human review required for clarity, limitations, and attribution sufficiency.
-    - id: publication_target_decision
-      title: Publication target decision
-      required: true
-      status: pending
-      reviewer_note: Human decision required for Kaggle, Hugging Face Datasets, GitHub Releases, or no publication.
-    - id: manual_release_approval_state
-      title: Final manual release approval state
-      required: true
-      status: pending
-      reviewer_note: Human release owner must explicitly approve or reject after all required categories are reviewed.
-
+  - id: release_identity_checkpoint
+    title: Release identity and checkpoint
+    required: true
+    status: passed
+    reviewer_note: Passed. The reviewed candidate is ml_research_radar_metadata v0.1, tied to the accepted 60,954-document
+      canonical checkpoint and retrieval build 20260504T164021Z; the package contains 60,954 rows and 34 columns.
+  - id: canonical_truth_boundary
+    title: Canonical truth and reconcile boundary
+    required: true
+    status: passed
+    reviewer_note: Passed. The public package remains a derived, rebuildable artifact with canonical_truth_impact=none
+      and may_be_used_as_reconcile_input=false. Manual approval does not promote the package into paper truth.
+  - id: selected_field_policy_coverage
+    title: Selected field policy coverage
+    required: true
+    status: passed
+    reviewer_note: Passed. All 34 exported columns are covered by the deterministic field release policy, with no
+      uncovered or forbidden output columns.
+  - id: abstract_source_aware_handling
+    title: Source-aware abstract handling
+    required: true
+    status: passed
+    reviewer_note: Passed. Abstracts are retained only for the accepted arXiv or year-aware ACL basis and otherwise
+      fail closed to null. The reviewed full-corpus candidate records abstract_excluded_by_policy_count=0.
+  - id: bibliographic_metadata_contract
+    title: Bibliographic metadata contract
+    required: true
+    status: passed
+    reviewer_note: Passed. Title, authors, year, venue, journal, conference, publisher, and publication_type are
+      approved as canonical/merged bibliographic metadata with provenance and uneven-coverage caveats.
+  - id: external_identifiers_and_links
+    title: External identifiers and links
+    required: true
+    status: passed
+    reviewer_note: Passed. DOI, arXiv, and OpenAlex identifiers are metadata only; landing_page_url and pdf_url
+      remain external links. No linked PDF or publication content is mirrored.
+  - id: taxonomy_and_counts_contract
+    title: Taxonomy, derived flags, and count metadata
+    required: true
+    status: passed
+    reviewer_note: Passed. Categories, concepts, keywords, tags, derived flags, cited_by_count, and references_count
+      are approved as snapshot-dependent metadata/derived signals, not curated taxonomy or global bibliometric truth.
+  - id: excluded_content_boundary
+    title: Excluded content boundary
+    required: true
+    status: passed
+    reviewer_note: Passed. PDF binaries, article full text, raw provider payloads, raw source records/snapshots,
+      embedding vectors, and private notes remain excluded.
+  - id: source_attribution_coverage
+    title: Source attribution coverage
+    required: true
+    status: passed
+    reviewer_note: Passed. Human- and machine-readable attribution covers ACL Anthology, arXiv, Crossref, OpenAlex,
+      and Semantic Scholar, and upstream terms remain applicable.
+  - id: arxiv_policy_evidence
+    title: arXiv policy evidence
+    required: true
+    status: passed
+    reviewer_note: Passed. arXiv descriptive metadata, including abstracts, is accepted under the recorded metadata
+      policy; attribution is retained and e-print/PDF content is not redistributed.
+  - id: openalex_policy_evidence
+    title: OpenAlex policy evidence
+    required: true
+    status: passed
+    reviewer_note: Passed. OpenAlex metadata is accepted under the recorded CC0 dataset basis; raw provider payloads
+      and publication content are not repackaged.
+  - id: crossref_policy_evidence
+    title: Crossref policy evidence
+    required: true
+    status: passed
+    reviewer_note: Passed. Crossref bibliographic facts, identifiers, and count/reference metadata are accepted.
+      Crossref abstracts are not used as an independent public-abstract basis because abstract rights may remain
+      with publishers or authors.
+  - id: semantic_scholar_policy_evidence
+    title: Semantic Scholar policy evidence
+    required: true
+    status: failed
+    reviewer_note: Failed. Current official Semantic Scholar API/data terms support attributed public displays and
+      non-commercial research use, but do not provide a sufficiently clear grant for redistributing the current
+      S2-derived metadata as a downloadable Kaggle dataset. The candidate must be remediated or written permission
+      obtained.
+  - id: acl_anthology_policy_evidence
+    title: ACL Anthology policy evidence
+    required: true
+    status: passed
+    reviewer_note: Passed for the intended non-commercial educational/portfolio scope. ACL-backed abstracts are
+      allowed only for 2016+ records, pre-2016 text fails closed to null, attribution is retained, and PDFs/third-party
+      materials are not redistributed.
+  - id: package_manifest_checksums_kaggle_template
+    title: Package manifest, checksums, and Kaggle template
+    required: true
+    status: passed
+    reviewer_note: Passed. Manifest, schema, quality summary, and checksums are internally consistent. Kaggle metadata
+      remains template_only with __KAGGLE_OWNER__, license=other, and publication_action=not_performed.
+  - id: compilation_license_decision
+    title: Final compilation license decision
+    required: true
+    status: failed
+    reviewer_note: Failed. A final cross-source compilation/release license cannot be selected while Semantic Scholar
+      redistribution rights for the downloadable candidate remain unresolved. Kaggle license=other remains a template
+      placeholder only.
+  - id: provider_terms_review
+    title: Provider terms review
+    required: true
+    status: failed
+    reviewer_note: Failed. arXiv, OpenAlex, Crossref, and the constrained ACL policy are acceptable for the intended
+      metadata-only scope, but Semantic Scholar terms remain a publication blocker for downloadable redistribution.
+  - id: dataset_card_and_attribution_wording
+    title: Dataset card and attribution wording
+    required: true
+    status: failed
+    reviewer_note: Failed. Current wording attributes Semantic Scholar and excludes raw responses, but it does not
+      clearly state that redistribution of S2-derived fields is unresolved and blocked. The publication package
+      must be revised after remediation.
+  - id: publication_target_decision
+    title: Publication target decision
+    required: true
+    status: passed
+    reviewer_note: Passed as a target-selection decision only. Kaggle remains the preferred future target and GitHub
+      Release an optional mirror, but both are blocked until Semantic Scholar redistribution is remediated. Hugging
+      Face Datasets remains deferred.
+  - id: manual_release_approval_state
+    title: Final manual release approval state
+    required: true
+    status: failed
+    reviewer_note: Failed by explicit human decision. The project owner/maintainer completed all 20 categories and
+      rejected the current candidate for publication until the Semantic Scholar boundary is remediated. No upload
+      is authorized.
 validation:
   report_dir: artifacts/reports/validation
   strict_default: true
   pending_categories_fail_validator: false
   pending_categories_block_publication: true
-
 safety:
   read_only_review_gate: true
   rebuild_dataset: false

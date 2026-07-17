@@ -108,7 +108,7 @@ def build_evidence_fixture(tmp_path: Path) -> tuple[dict, Path]:
     return evidence_config, evidence_config_path
 
 
-def test_valid_evidence_is_ready_without_approving_review(tmp_path: Path) -> None:
+def test_valid_evidence_supports_completed_rejected_review_without_publication(tmp_path: Path) -> None:
     config, config_path = build_evidence_fixture(tmp_path)
     checks, categories = validate_evidence(config, config_path=config_path, check_paths=True)
     report = build_report(
@@ -125,15 +125,16 @@ def test_valid_evidence_is_ready_without_approving_review(tmp_path: Path) -> Non
     assert report["evidence"]["evidence_ready_category_count"] == 20
     assert report["evidence"]["automated_support_category_count"] == 15
     assert report["evidence"]["human_decision_category_count"] == 5
-    assert report["evidence"]["category_status_counts"] == {"pending": 20}
-    assert report["manual_review_complete"] is False
+    assert report["evidence"]["category_status_counts"] == {"failed": 5, "passed": 15}
+    assert report["manual_review_complete"] is True
     assert report["publication_ready"] is False
 
 
-def test_evidence_does_not_pass_or_approve_categories(tmp_path: Path) -> None:
+def test_evidence_mirrors_human_pass_fail_statuses_without_automated_approval(tmp_path: Path) -> None:
     config, config_path = build_evidence_fixture(tmp_path)
     _checks, categories = validate_evidence(config, config_path=config_path, check_paths=True)
-    assert all(category["category_status"] == "pending" for category in categories)
+    assert sum(category["category_status"] == "passed" for category in categories) == 15
+    assert sum(category["category_status"] == "failed" for category in categories) == 5
     assert all(category["automated_decision"] is None for category in categories)
     assert sum(category["human_decision_required"] for category in categories) == 5
 
@@ -184,21 +185,32 @@ def test_evidence_fails_when_checksum_entry_is_missing(tmp_path: Path) -> None:
     assert "package_manifest_checksums_kaggle_template" in required_failures(checks)
 
 
-def test_evidence_fails_if_manual_review_is_preapproved(tmp_path: Path) -> None:
+def test_evidence_fails_if_manual_review_regresses_to_pending(tmp_path: Path) -> None:
     config, config_path = build_evidence_fixture(tmp_path)
     manual_path = tmp_path / config["inputs"]["manual_review_config"]
     manual = yaml.safe_load(manual_path.read_text(encoding="utf-8"))
     manual["review"].update({
-        "approval_state": "approved",
-        "manual_review_complete": True,
-        "publication_block_reason": "publication_action_not_in_scope",
+        "approval_state": "not_reviewed",
+        "manual_review_complete": False,
+        "publication_block_reason": "public_release_decision_not_completed",
     })
     for category in manual["manual_review"]["categories"]:
-        category["status"] = "passed"
+        category["status"] = "pending"
     write_yaml(manual_path, manual)
     checks, _ = validate_evidence(config, config_path=config_path, check_paths=True)
-    assert "manual_review_gate_pending_and_green" in required_failures(checks)
+    assert "manual_review_gate_rejected_and_green" in required_failures(checks)
 
+
+
+def test_evidence_fails_when_decision_record_marker_is_missing(tmp_path: Path) -> None:
+    config, config_path = build_evidence_fixture(tmp_path)
+    path = tmp_path / config["inputs"]["decision_record_doc"]
+    write_text(path, "approval_state: approved\ncategory_status_counts: passed = 20\n")
+    checks, _ = validate_evidence(config, config_path=config_path, check_paths=True)
+    failures = required_failures(checks)
+    assert "decision_record_doc_markers" in failures
+    assert "human_decision_material_ready" in failures
+    assert "all_categories_evidence_ready" in failures
 
 def test_evidence_fails_when_manifest_claims_publication(tmp_path: Path) -> None:
     config, config_path = build_evidence_fixture(tmp_path)

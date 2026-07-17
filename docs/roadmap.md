@@ -7,12 +7,12 @@ document = primary living roadmap
 accepted checkpoint = Current State Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
 current active direction = review / regression / design-hardening
-current active slice = Public Metadata Release Manual-Review Evidence Preparation v0.1
+current active slice = Manual Public Metadata Release Review Execution v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = add a tracked 20-category manual public-metadata release checklist and deterministic evidence-preparation report over the existing validated 60,954-row / 34-column local candidate; provide automated evidence support for 15 categories and review materials for 5 human-decision categories; keep all statuses pending, approval_state=not_reviewed, manual_review_complete=false, publication_ready=false, and publication_block_reason=public_release_decision_not_completed; no dataset rebuild, package mutation, upload, canonical, retrieval, Qdrant, Postgres, graph, ranking, API, or UI behavior change
+scope of current branch = execute and record the human-owned 20-category public metadata release review over the validated 60,954-row / 34-column local candidate; record 15 passed and 5 failed categories, approval_state=rejected, manual_review_complete=true, publication_ready=false, and publication_block_reason=manual_release_rejected because Semantic Scholar downloadable redistribution is not sufficiently resolved; perform no dataset rebuild, package mutation, upload, canonical, retrieval, Qdrant, Postgres, graph, ranking, API, or UI behavior change
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -4086,15 +4086,13 @@ no canonical/retrieval/Postgres/Qdrant/ranking/API/UI change
 no PDF/full-text/raw-payload/embedding export
 ```
 
-Recommended next step after merge and accepted validation: explicit human
-execution of the 20-category public metadata review. Actual Kaggle/Hugging Face/
-GitHub publication remains a later separate action after approval, owner metadata,
-and a final compilation license are recorded.
+The evidence-preparation checkpoint is followed by the explicit human execution
+recorded below. Actual Kaggle/GitHub publication remains a later separate action.
 
 
 ### Public Metadata Release Manual-Review Evidence Preparation v0.1
 
-Status: **active read-only governance/evidence slice / not approved / not published**
+Status: **completed read-only governance/evidence slice / pre-execution state / not published**
 
 Implemented sequence:
 
@@ -4105,7 +4103,7 @@ public metadata policy and local package
 → deterministic evidence preparation
 ```
 
-Target verdict:
+Accepted pre-execution verdict:
 
 ```text
 manual_review_evidence_ready = true
@@ -4129,3 +4127,37 @@ no Kaggle/Hugging Face/GitHub API call
 no dataset/package rebuild in the evidence validators
 no canonical/retrieval/Postgres/Qdrant/graph/ranking/API/UI change
 ```
+
+### Manual Public Metadata Release Review Execution v0.1
+
+Status: **active human-governance closure slice / completed and rejected / not published**
+
+```text
+approval_state = rejected
+category_status_counts = {failed: 5, passed: 15}
+manual_review_complete = true
+publication_ready = false
+publication_block_reason = manual_release_rejected
+```
+
+The technical candidate, package checksums, policy, and evidence remain green.
+The human review rejects publication because the current candidate cannot prove a
+sufficiently clear redistribution boundary for Semantic Scholar-derived data in
+a downloadable Kaggle dataset.
+
+Next safe slice:
+
+```text
+Semantic Scholar Public Release Boundary Remediation v0.1
+```
+
+Two valid remediation paths:
+
+```text
+obtain written AI2/Semantic Scholar redistribution permission
+or
+rebuild and validate a public candidate with Semantic Scholar-derived data excluded
+```
+
+No automatic upload, GraphRAG, graph DB materialization, Qdrant promotion, or
+unrelated runtime expansion is authorized.

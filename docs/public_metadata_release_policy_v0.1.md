@@ -278,7 +278,7 @@ This slice does not:
 - change canonical truth, reconciliation, retrieval, Qdrant, Postgres, API, UI,
   or ranking.
 
-The next release-action slice must be explicit and human-owned.
+The subsequent manual-review execution is human-owned and remains separate from any publication action.
 
 
 ## 9. Manual-review evidence layer
@@ -295,6 +295,28 @@ scripts/validation/check_public_metadata_release_review_evidence.py
 
 The evidence layer confirms that policy, attribution, package integrity,
 field-level decisions, source-specific rules, and human-decision materials are
-available. It keeps all category statuses pending and does not change the policy
-status, final compilation-license state, Kaggle owner placeholder, or publication
-status.
+available. At the evidence-preparation checkpoint it kept all category statuses pending and
+did not change the policy status, final compilation-license state, Kaggle owner
+placeholder, or publication status. The later execution records human decisions
+without mutating the reviewed package.
+
+## Manual review execution result
+
+The separate human-owned review is complete and rejected publication of the
+current candidate:
+
+```text
+approval_state = rejected
+category_status_counts = {failed: 5, passed: 15}
+manual_review_complete = true
+publication_ready = false
+publication_block_reason = manual_release_rejected
+```
+
+The policy/package validators remain green, but the review found that current
+Semantic Scholar terms do not provide a sufficiently clear basis for distributing
+the S2-influenced candidate as a downloadable Kaggle dataset.
+
+No final compilation license is selected. Kaggle `other` remains template-only.
+The package must be remediated or written permission obtained before a new manual
+review and any publication action.
