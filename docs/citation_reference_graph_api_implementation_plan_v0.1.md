@@ -33,7 +33,7 @@ publication_ready = false
 ## Implementation progress after this plan
 
 This plan document remains implementation-plan-only, but later code slices have
-now implemented the first five narrow steps from the rollout path:
+now implemented the complete accepted narrow read-only endpoint sequence:
 
 ```text
 Citation Graph API Disabled Status Endpoint v0.1 = implemented
@@ -41,26 +41,34 @@ Citation Graph Status Compatibility Probe v0.1 = implemented
 Citation Graph Fixture Store v0.1 = implemented_internal
 Citation Graph Outgoing References Endpoint v0.1 = implemented
 Citation Graph Incoming Citations Endpoint v0.1 = implemented
+Citation Graph External Reference Papers Endpoint v0.1 = implemented
+Citation Graph Source Families Endpoint v0.1 = implemented
+Citation Graph Top Referenced Papers Endpoint v0.1 = implemented
+Citation Graph Top External References Endpoint v0.1 = implemented
+narrow read-only traversal endpoint count = 6
 ```
 
-Current implemented public API surface is limited to:
+Current implemented API surface is:
 
 ```text
-GET /citation-graph/status
-GET /citation-graph/papers/{canonical_id}/references
-GET /citation-graph/papers/{canonical_id}/citations
+GET /citation-graph/status = implemented
+GET /citation-graph/papers/{canonical_id}/references = implemented
+GET /citation-graph/papers/{canonical_id}/citations = implemented
+GET /citation-graph/external-references/{reference_id}/papers = implemented
+GET /citation-graph/source-families = implemented
+GET /citation-graph/top-referenced-papers = implemented
+GET /citation-graph/top-external-references = implemented
 ```
 
-An internal fixture-backed `CitationGraphStore` exists for query-semantics
-hardening and now backs the first narrow outgoing-references route and second narrow incoming-citations route.
+A file-backed `CitationGraphStore` provides the bounded read-only query methods
+used by all six traversal routes. The store is loaded lazily and cached by graph
+root; `/reload` clears that cache without mutating graph artifacts.
 
-The implemented compatibility probe is read-only. It checks local graph
-artifacts/reports for status compatibility when explicitly enabled. The fixture
-store, outgoing references endpoint, and incoming citations endpoint are also read-only and feature/compatibility
-gated. These slices do not implement external-reference
-lookup, source-family/top-reference endpoints, a full runtime graph loader, DB
-materialization, Streamlit UI, GraphRAG, publication, or canonical/retrieval
-mutation.
+The compatibility probe and traversal routes remain disabled by default,
+read-only, local-inspection oriented, and fail closed through the same status
+compatibility gate. This implementation is not a promoted full graph runtime
+subsystem and does not implement DB materialization, Streamlit UI, GraphRAG,
+publication, or canonical/retrieval mutation.
 
 ## Purpose
 
@@ -451,19 +459,20 @@ Qdrant is not required for citation graph API
 
 ## Rollout plan
 
-Recommended future implementation sequence:
+Accepted implementation sequence and current state:
 
 1. Add config/settings and disabled-by-default status endpoint. **Done.**
-2. Add compatibility checker/status probe with fixture tests. **Done for status only.**
-3. Add read-only file-backed graph store for tiny fixture graph. **Done for internal fixture store.**
-4. Add one narrow references endpoint on the fixture-backed store. **Done for outgoing references.**
-5. Add one narrow incoming citations endpoint on the fixture-backed store. **Done for incoming resolved internal citations.**
-6. Add external-reference/source-family/top-reference endpoints in later slices, one endpoint at a time.
-6. Add source-family and top-reference endpoints only after the paper reference/citation endpoints are stable.
-7. Add integration tests against accepted local graph artifacts only after the
-   fixture-backed behavior is stable.
-8. Update API reference after implementation tests are green.
-9. Keep Streamlit UI out of scope until API behavior is accepted.
+2. Add compatibility checker/status probe with fixture tests. **Done.**
+3. Add read-only file-backed graph store. **Done.**
+4. Add outgoing references endpoint. **Done.**
+5. Add incoming citations endpoint. **Done.**
+6. Add external-reference linked-papers endpoint. **Done.**
+7. Add source-family diagnostics endpoint. **Done.**
+8. Add top-referenced-papers endpoint. **Done.**
+9. Add top-external-references endpoint. **Done.**
+10. Add cache/reload and failure-isolation regression coverage. **Done.**
+11. Keep Streamlit UI, graph DB materialization, GraphRAG, and public promotion
+    out of scope until separately designed and approved. **Still required.**
 
 ## Rollback plan
 
@@ -489,7 +498,7 @@ Streamlit UI
 ## Explicit non-goals
 
 ```text
-no additional endpoint code in this docs slice
+no additional endpoint code in this lifecycle-consistency slice
 no full runtime loader in this slice
 no graph DB materialization
 no Postgres schema change
@@ -502,11 +511,11 @@ no retrieval rebuild
 no ranking changes
 ```
 
-## Current next step after incoming citations endpoint
+## Current lifecycle checkpoint
 
-After the disabled status endpoint, read-only compatibility probe, internal
-fixture store, outgoing references endpoint, and incoming citations endpoint have
-been implemented, the next safe slice is documentation synchronization.
+The complete accepted narrow file-backed API surface has been implemented and
+covered by fixture, integration, cache/reload, failure-isolation, and live-smoke
+checks.
 
 Current implemented status:
 
@@ -516,25 +525,23 @@ Citation Graph Status Compatibility Probe v0.1 = done
 Citation Graph Fixture Store v0.1 = done_internal
 Citation Graph Outgoing References Endpoint v0.1 = done
 Citation Graph Incoming Citations Endpoint v0.1 = done
+Citation Graph External Reference Papers Endpoint v0.1 = done
+Citation Graph Source Families Endpoint v0.1 = done
+Citation Graph Top Referenced Papers Endpoint v0.1 = done
+Citation Graph Top External References Endpoint v0.1 = done
 GET /citation-graph/status = implemented
 GET /citation-graph/papers/{canonical_id}/references = implemented
 GET /citation-graph/papers/{canonical_id}/citations = implemented
-GET /citation-graph/external-references/{reference_id}/papers = not implemented
-GET /citation-graph/source-families = not implemented
-GET /citation-graph/top-referenced-papers = not implemented
-GET /citation-graph/top-external-references = not implemented
+GET /citation-graph/external-references/{reference_id}/papers = implemented
+GET /citation-graph/source-families = implemented
+GET /citation-graph/top-referenced-papers = implemented
+GET /citation-graph/top-external-references = implemented
+file-backed CitationGraphStore loader = implemented
 full graph runtime query service = not implemented
+public graph exposure = not approved
 ```
 
-Recommended next code direction after docs sync:
-
-```text
-Citation Graph External Reference Papers Endpoint v0.1
-```
-
-The next code slice should add at most one endpoint and must preserve feature
-flagging, compatibility checks, pagination bounds, graph caveats, and fail-closed
-error mapping.
-
-Manual live API validation for the incoming-citations endpoint confirmed status,
-outgoing references, incoming citations, unknown-id handling, and limit guards.
+The next safe direction is review/regression/design hardening rather than adding
+another graph runtime direction. Any graph DB materialization, GraphRAG,
+Streamlit graph UI, public exposure, or use as canonical/reconciliation truth
+requires a separate explicit design and approval slice.

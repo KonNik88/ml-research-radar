@@ -33,13 +33,16 @@ REQUIRED_MARKERS = (
     "publication_ready = false",
     "ML_RADAR_CITATION_GRAPH_API_ENABLED=false",
     "ML_RADAR_CITATION_GRAPH_EXPOSURE_MODE=local_inspection",
-    "GET /citation-graph/status",
-    "GET /citation-graph/papers/{canonical_id}/references",
-    "GET /citation-graph/papers/{canonical_id}/citations",
-    "GET /citation-graph/external-references/{reference_id}/papers",
-    "GET /citation-graph/source-families",
-    "GET /citation-graph/top-referenced-papers",
-    "GET /citation-graph/top-external-references",
+    "GET /citation-graph/status = implemented",
+    "GET /citation-graph/papers/{canonical_id}/references = implemented",
+    "GET /citation-graph/papers/{canonical_id}/citations = implemented",
+    "GET /citation-graph/external-references/{reference_id}/papers = implemented",
+    "GET /citation-graph/source-families = implemented",
+    "GET /citation-graph/top-referenced-papers = implemented",
+    "GET /citation-graph/top-external-references = implemented",
+    "narrow read-only traversal endpoint count = 6",
+    "file-backed CitationGraphStore loader = implemented",
+    "full graph runtime query service = not implemented",
     "graph_runtime_not_enabled",
     "graph_artifacts_not_found",
     "graph_artifacts_invalid",
@@ -52,11 +55,11 @@ REQUIRED_MARKERS = (
     "/search behavior does not change",
     "Qdrant is not required for citation graph API",
     "set ML_RADAR_CITATION_GRAPH_API_ENABLED=false",
-    "No traversal endpoints should be implemented in the first code slice.",
+    "The next safe direction is review/regression/design hardening rather than adding",
 )
 
 FORBIDDEN_MARKERS = (
-    "status = implemented",
+    "status = promoted-runtime",
     "implements_public_api = true",
     "implements_endpoint_code = true",
     "creates_runtime_graph = true",
@@ -125,8 +128,8 @@ def validate_implementation_plan_doc(path: Path = DEFAULT_DOC_PATH) -> dict[str,
     if "Citation Graph API Disabled Status Endpoint v0.1" not in text:
         failed_checks.append("first_code_slice_named")
 
-    if "no endpoint code in this slice" not in text:
-        failed_checks.append("non_goal_no_endpoint_code_present")
+    if "no additional endpoint code in this lifecycle-consistency slice" not in text:
+        failed_checks.append("non_goal_no_additional_endpoint_code_present")
 
     return {
         "summary": {

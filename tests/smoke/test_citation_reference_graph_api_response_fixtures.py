@@ -23,7 +23,7 @@ def test_citation_reference_graph_api_response_fixtures_fail_when_marker_missing
     tmp_path: Path,
 ) -> None:
     text = DEFAULT_DOC_PATH.read_text(encoding="utf-8")
-    broken = text.replace(REQUIRED_MARKERS[0], "status = implemented")
+    broken = text.replace(REQUIRED_MARKERS[0], "status = promoted-runtime")
     doc_path = tmp_path / "citation_reference_graph_api_response_fixtures_v0.1.md"
     doc_path.write_text(broken, encoding="utf-8")
 
@@ -31,7 +31,7 @@ def test_citation_reference_graph_api_response_fixtures_fail_when_marker_missing
 
     assert report["summary"]["ok"] is False
     assert f"required_marker_present:{REQUIRED_MARKERS[0]}" in report["verdict"]["required_failed_checks"]
-    assert "forbidden_marker_absent:status = implemented" in report["verdict"]["required_failed_checks"]
+    assert "forbidden_marker_absent:status = promoted-runtime" in report["verdict"]["required_failed_checks"]
 
 
 def test_citation_reference_graph_api_response_fixtures_fail_on_broken_json(

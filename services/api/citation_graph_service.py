@@ -344,8 +344,11 @@ def _disabled_status(settings: ApiSettings) -> CitationGraphStatusResponse:
             "runtime_enabled": False,
             "safe_to_serve_locally": False,
             "status_probe_implemented": True,
+            "file_backed_store_loader_implemented": True,
             "runtime_loader_implemented": False,
-            "traversal_endpoints_implemented": False,
+            "traversal_endpoints_implemented": True,
+            "implemented_traversal_endpoint_count": 6,
+            "full_graph_runtime_subsystem_implemented": False,
         },
         artifacts={
             "graph_root": _path_status(settings.citation_graph_root),
@@ -510,7 +513,8 @@ def build_citation_graph_status(
     if not manual_review["publication_ready"]:
         caveats.append("publication_not_ready")
     if available:
-        caveats.append("status_probe_only_no_traversal_runtime")
+        caveats.append("file_backed_read_only_traversal_runtime")
+        caveats.append("not_promoted_full_graph_runtime")
 
     return CitationGraphStatusResponse(
         graph=CitationGraphStatusGraph(
@@ -542,8 +546,11 @@ def build_citation_graph_status(
             "runtime_enabled": True,
             "safe_to_serve_locally": available,
             "status_probe_implemented": True,
+            "file_backed_store_loader_implemented": True,
             "runtime_loader_implemented": False,
-            "traversal_endpoints_implemented": False,
+            "traversal_endpoints_implemented": True,
+            "implemented_traversal_endpoint_count": 6,
+            "full_graph_runtime_subsystem_implemented": False,
         },
         artifacts=artifacts_status,
         reports=reports_status,

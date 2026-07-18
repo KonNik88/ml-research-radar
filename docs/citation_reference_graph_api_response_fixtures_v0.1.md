@@ -29,30 +29,37 @@ publication_ready = false
 ## Implementation progress note
 
 This fixture document remains a design/contract document. Since it was accepted,
-the project has implemented the status surface, an internal fixture store, and the first narrow outgoing-references endpoint and second narrow incoming-citations endpoint:
+the project has implemented the status surface, the file-backed store, and all
+six accepted narrow read-only traversal endpoints:
 
 ```text
 GET /citation-graph/status = implemented
 read-only compatibility probe = implemented
-internal CitationGraphStore fixture query core = implemented
+file-backed CitationGraphStore query core = implemented
 GET /citation-graph/papers/{canonical_id}/references = implemented
-external/source-family/top traversal endpoints = not implemented
+GET /citation-graph/papers/{canonical_id}/citations = implemented
+GET /citation-graph/external-references/{reference_id}/papers = implemented
+GET /citation-graph/source-families = implemented
+GET /citation-graph/top-referenced-papers = implemented
+GET /citation-graph/top-external-references = implemented
+narrow read-only traversal endpoint count = 6
 ```
 
-The outgoing references fixture below is implemented as the first public
-read-only traversal endpoint. The incoming citations fixture is implemented as
-the second public read-only traversal endpoint. The remaining traversal fixtures
-remain future endpoint contracts. The internal fixture store exercises their query semantics,
-but they must not be read as implemented public API behavior.
+The fixtures below are now retained as response-contract and regression evidence
+for the implemented local-inspection surface. They do not approve public graph
+promotion, graph DB materialization, GraphRAG, publication, or use as canonical
+truth.
 
 ## Purpose
 
-This document defines expected JSON response and error fixtures for the candidate
-Citation / Reference Graph API before any endpoint is implemented.
+This document originally fixed expected JSON response and error fixtures before
+endpoint implementation. It is now retained as the accepted contract for the
+implemented narrow file-backed Citation / Reference Graph API.
 
-It is a design-hardening slice only. The fixtures are intended to make future
-implementation reviewable, testable, and safe by fixing response shape, caveat
-semantics, pagination shape, and error shape before runtime code exists.
+The fixtures keep implementation reviewable, testable, and safe by fixing
+response shape, caveat semantics, pagination shape, error shape, and lifecycle
+boundaries while the feature remains disabled by default and local-inspection
+oriented.
 
 This document does not implement:
 
@@ -220,9 +227,12 @@ Expected successful response:
     "available": true,
     "runtime_enabled": true,
     "safe_to_serve_locally": true,
-    "compatibility_probe_implemented": true,
+    "status_probe_implemented": true,
+    "file_backed_store_loader_implemented": true,
     "runtime_loader_implemented": false,
-    "traversal_endpoints_implemented": false
+    "traversal_endpoints_implemented": true,
+    "implemented_traversal_endpoint_count": 6,
+    "full_graph_runtime_subsystem_implemented": false
   }
 }
 ```
@@ -390,7 +400,7 @@ limit=101 for references/citations -> 400 graph_result_limit_exceeded
 
 ## External reference linked-papers fixture
 
-Candidate endpoint, not implemented yet:
+Implemented endpoint:
 
 ```text
 GET /citation-graph/external-references/{reference_id}/papers
@@ -452,7 +462,7 @@ URL, arXiv, or OpenAlex lookup aliases requires a separate lookup contract.
 
 ## Source-family diagnostics fixture
 
-Candidate endpoint, not implemented yet:
+Implemented endpoint:
 
 ```text
 GET /citation-graph/source-families
@@ -503,7 +513,7 @@ Expected successful response:
 
 ## Top referenced papers fixture
 
-Candidate endpoint, not implemented yet:
+Implemented endpoint:
 
 ```text
 GET /citation-graph/top-referenced-papers
@@ -562,7 +572,7 @@ Expected successful response:
 
 ## Top external references fixture
 
-Candidate endpoint, not implemented yet:
+Implemented endpoint:
 
 ```text
 GET /citation-graph/top-external-references
@@ -667,9 +677,9 @@ Required error fixtures:
 | unknown canonical paper | 404 | `canonical_id_not_found` |
 | unknown external reference | 404 | `external_reference_not_found` |
 
-## Required future tests
+## Required implementation regression tests
 
-Future endpoint implementation must add tests that assert:
+The implemented endpoint surface must retain tests that assert:
 
 ```text
 status response includes graph safety flags
@@ -694,7 +704,8 @@ graph API does not require Qdrant
 
 ## Implementation gates
 
-Endpoint implementation must not start until these design gates are accepted:
+The narrow endpoint implementation started only after these design gates were
+accepted:
 
 ```text
 Citation / Reference Graph API Design v0.1
@@ -703,5 +714,8 @@ Graph Runtime Stale-Version Compatibility Design v0.1
 Graph API Implementation Plan v0.1
 ```
 
-The fixture contract does not approve endpoint implementation by itself.
+The fixture contract approves only the implemented bounded read-only
+local-inspection surface. It does not approve broad traversal/runtime promotion,
+public exposure, graph DB materialization, GraphRAG, publication, or canonical
+truth mutation.
 
