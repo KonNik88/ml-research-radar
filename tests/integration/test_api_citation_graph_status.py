@@ -131,8 +131,11 @@ def test_citation_graph_status_disabled_by_default(monkeypatch):
     assert payload["availability"]["available"] is False
     assert payload["availability"]["runtime_enabled"] is False
     assert payload["availability"]["safe_to_serve_locally"] is False
+    assert payload["availability"]["file_backed_store_loader_implemented"] is True
     assert payload["availability"]["runtime_loader_implemented"] is False
-    assert payload["availability"]["traversal_endpoints_implemented"] is False
+    assert payload["availability"]["traversal_endpoints_implemented"] is True
+    assert payload["availability"]["implemented_traversal_endpoint_count"] == 6
+    assert payload["availability"]["full_graph_runtime_subsystem_implemented"] is False
     assert payload["error_code"] == "graph_runtime_not_enabled"
 
     assert "metadata_reference_fields_only" in payload["caveats"]
@@ -181,8 +184,11 @@ def test_citation_graph_status_enabled_missing_artifacts(tmp_path):
     assert payload["graph"]["available"] is False
     assert payload["availability"]["configured"] is True
     assert payload["availability"]["available"] is False
+    assert payload["availability"]["file_backed_store_loader_implemented"] is True
     assert payload["availability"]["runtime_loader_implemented"] is False
-    assert payload["availability"]["traversal_endpoints_implemented"] is False
+    assert payload["availability"]["traversal_endpoints_implemented"] is True
+    assert payload["availability"]["implemented_traversal_endpoint_count"] == 6
+    assert payload["availability"]["full_graph_runtime_subsystem_implemented"] is False
     assert payload["error_code"] == "graph_artifacts_not_found"
     assert payload["compatibility"]["ok"] is False
     assert payload["compatibility"]["missing_graph_files"]
@@ -209,8 +215,11 @@ def test_citation_graph_status_enabled_compatible_local_probe(tmp_path):
     assert payload["availability"]["configured"] is True
     assert payload["availability"]["available"] is True
     assert payload["availability"]["safe_to_serve_locally"] is True
+    assert payload["availability"]["file_backed_store_loader_implemented"] is True
     assert payload["availability"]["runtime_loader_implemented"] is False
-    assert payload["availability"]["traversal_endpoints_implemented"] is False
+    assert payload["availability"]["traversal_endpoints_implemented"] is True
+    assert payload["availability"]["implemented_traversal_endpoint_count"] == 6
+    assert payload["availability"]["full_graph_runtime_subsystem_implemented"] is False
 
     assert payload["error_code"] is None
     assert payload["compatibility"]["ok"] is True
@@ -221,7 +230,9 @@ def test_citation_graph_status_enabled_compatible_local_probe(tmp_path):
 
     assert "manual_review_incomplete" in payload["caveats"]
     assert "publication_not_ready" in payload["caveats"]
-    assert "status_probe_only_no_traversal_runtime" in payload["caveats"]
+    assert "file_backed_read_only_traversal_runtime" in payload["caveats"]
+    assert "not_promoted_full_graph_runtime" in payload["caveats"]
+    assert "status_probe_only_no_traversal_runtime" not in payload["caveats"]
 
 
 def test_citation_graph_status_enabled_count_mismatch_blocks_availability(tmp_path):

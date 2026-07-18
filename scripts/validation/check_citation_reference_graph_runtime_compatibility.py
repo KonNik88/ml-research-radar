@@ -56,11 +56,20 @@ REQUIRED_MARKERS = (
     "graph_exposure_mode = local_inspection",
     "graph_exposure_mode = public",
     "Future graph runtime readiness must not affect general API health by default.",
-    "The compatibility design does not approve endpoint implementation by itself.",
+    "file-backed CitationGraphStore loader = implemented",
+    "GET /citation-graph/papers/{canonical_id}/references = implemented",
+    "GET /citation-graph/papers/{canonical_id}/citations = implemented",
+    "GET /citation-graph/external-references/{reference_id}/papers = implemented",
+    "GET /citation-graph/source-families = implemented",
+    "GET /citation-graph/top-referenced-papers = implemented",
+    "GET /citation-graph/top-external-references = implemented",
+    "narrow read-only traversal endpoint count = 6",
+    "full runtime graph query service = not implemented",
+    "The compatibility design does not approve broad traversal/runtime promotion by",
 )
 
 FORBIDDEN_MARKERS = (
-    "status = implemented",
+    "status = promoted-runtime",
     "implements_public_api = true",
     "creates_runtime_graph = true",
     "implements_runtime_loader = true",
@@ -86,7 +95,7 @@ REQUIRED_SECTIONS = (
     "## Error mapping",
     "## Runtime readiness semantics",
     "## No-mutation requirements",
-    "## Future test plan",
+    "## Regression test plan",
     "## Implementation gates",
 )
 

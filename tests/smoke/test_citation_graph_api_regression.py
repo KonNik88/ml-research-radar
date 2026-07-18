@@ -62,12 +62,17 @@ def test_citation_graph_api_regression_current_repo_is_green(tmp_path):
     assert report["summary"]["traversal_routes_count"] == 6
     assert report["verdict"]["ok"] is True
     assert report["verdict"]["required_failed_count"] == 0
+    assert report["verdict"]["file_backed_store_loader_implemented"] is True
     assert report["verdict"]["runtime_loader_implemented"] is False
+    assert report["verdict"]["traversal_endpoints_implemented"] is True
+    assert report["verdict"]["implemented_traversal_endpoint_count"] == 6
+    assert report["verdict"]["full_graph_runtime_subsystem_implemented"] is False
     assert report["verdict"]["publication_ready"] is False
     assert report["verdict"]["manual_review_required"] is True
     assert report["verdict"]["cache_reload_regression_ready"] is True
     assert report["verdict"]["failure_isolation_regression_ready"] is True
     assert report["verdict"]["live_smoke_known_issues_ready"] is True
+    assert report["checks"]["status_reports_file_backed_traversal_capability"] is True
     assert report["checks"]["graph_store_cache_bounded_by_graph_root"] is True
     assert report["checks"]["graph_store_cache_clear_on_reload"] is True
     assert report["checks"]["graph_store_cache_clear_precedes_runtime_reload"] is True

@@ -423,9 +423,15 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "runtime_loader_implemented=False" in service_text
         or '"runtime_loader_implemented": False' in service_text
     )
-    checks["status_traversal_full_runtime_marker_remains_false"] = (
-        '"traversal_endpoints_implemented": False' in service_text
-        or "traversal_endpoints_implemented" in service_text
+    checks["status_reports_file_backed_traversal_capability"] = all(
+        snippet in service_text
+        for snippet in [
+            '"file_backed_store_loader_implemented": True',
+            '"runtime_loader_implemented": False',
+            '"traversal_endpoints_implemented": True',
+            '"implemented_traversal_endpoint_count": 6',
+            '"full_graph_runtime_subsystem_implemented": False',
+        ]
     )
 
     checks["graph_store_cache_bounded_by_graph_root"] = all(
@@ -771,7 +777,11 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
             "cache_reload_regression_ready": not failed_checks,
             "failure_isolation_regression_ready": not failed_checks,
             "live_smoke_known_issues_ready": not failed_checks,
+            "file_backed_store_loader_implemented": True,
             "runtime_loader_implemented": False,
+            "traversal_endpoints_implemented": True,
+            "implemented_traversal_endpoint_count": 6,
+            "full_graph_runtime_subsystem_implemented": False,
             "publication_ready": False,
             "manual_review_required": True,
         },

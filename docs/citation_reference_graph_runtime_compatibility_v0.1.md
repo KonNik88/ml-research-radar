@@ -30,21 +30,29 @@ publication_ready = false
 
 ## Implementation progress note
 
-This document remains a compatibility design contract. Since it was accepted, the
-project has implemented compatibility checks through the
-`GET /citation-graph/status` status surface, added an internal fixture store for
-query-semantics hardening, and exposed the first narrow outgoing-references endpoint and second narrow incoming-citations endpoint and second narrow incoming-citations
-endpoint. The implementation remains read-only and does not include a full graph
-runtime loader:
+This document remains a compatibility design contract. Since it was accepted,
+the project has implemented compatibility checks through the
+`GET /citation-graph/status` surface, a file-backed `CitationGraphStore`, and all
+six accepted narrow read-only traversal endpoints. The implementation remains
+disabled by default and does not include a promoted full graph runtime loader:
 
 ```text
 Citation Graph Status Compatibility Probe v0.1 = implemented
 Citation Graph Fixture Store v0.1 = implemented_internal
+file-backed CitationGraphStore loader = implemented
 Citation Graph Outgoing References Endpoint v0.1 = implemented
 Citation Graph Incoming Citations Endpoint v0.1 = implemented
+Citation Graph External Reference Papers Endpoint v0.1 = implemented
+Citation Graph Source Families Endpoint v0.1 = implemented
+Citation Graph Top Referenced Papers Endpoint v0.1 = implemented
+Citation Graph Top External References Endpoint v0.1 = implemented
 GET /citation-graph/papers/{canonical_id}/references = implemented
 GET /citation-graph/papers/{canonical_id}/citations = implemented
-external/source-family/top traversal endpoints = not implemented
+GET /citation-graph/external-references/{reference_id}/papers = implemented
+GET /citation-graph/source-families = implemented
+GET /citation-graph/top-referenced-papers = implemented
+GET /citation-graph/top-external-references = implemented
+narrow read-only traversal endpoint count = 6
 full runtime graph query service = not implemented
 DB materialization = not implemented
 Streamlit graph UI = not implemented
@@ -53,36 +61,39 @@ GraphRAG = not implemented
 
 ## Implemented narrow traversal compatibility
 
-The implemented `/references` and `/citations` routes reuse the same status
-compatibility gate before loading `CitationGraphStore`. They fail closed on
-disabled runtime, missing/incompatible graph artifacts, unknown canonical ids,
-and over-limit requests.
+All six implemented traversal routes reuse the same status compatibility gate
+before loading the file-backed `CitationGraphStore`. They fail closed on disabled
+runtime, missing/incompatible graph artifacts, unknown identifiers where
+applicable, and over-limit requests.
 
-The incoming citations route is intentionally narrower than outgoing references:
+The query boundaries remain intentionally narrow:
 
 ```text
 references -> paper_references_paper + paper_references_external
-citations  -> paper_references_paper only
+citations -> paper_references_paper only
+external reference papers -> incoming paper_references_external only
+source families -> reference-evidence diagnostics only
+top referenced papers -> resolved internal reference counts only
+top external references -> unresolved reference counts only
 ```
 
-Unresolved external references are preserved as evidence for outgoing references
-but are not counted as incoming canonical-paper citations.
+Unresolved external references remain evidence rather than canonical-paper
+citations. Top lists are not global citation metrics or publication-grade
+rankings.
 
 ## Purpose
 
 This document defines compatibility checks and stale-version failure semantics
 for a possible future Citation / Reference Graph runtime.
 
-It is a design-hardening contract. The later status compatibility probe implements
-the read-only status-check portion of this contract, the fixture store
-implements internal fixture-backed query semantics, the first outgoing
-references endpoint exposes one narrow compatibility-gated traversal surface,
-and the second incoming citations endpoint exposes one additional narrow
-compatibility-gated traversal surface.
-These do not implement external-reference lookup, source-family
-or top-reference endpoints, a full runtime graph loader, Postgres
-materialization, Streamlit UI, GraphRAG, graph DB runtime, package rebuild,
-graph rebuild, or publication step.
+It is a design-hardening contract. The status compatibility probe implements
+the read-only status-check portion of this contract, and the file-backed store
+implements the query semantics used by all six narrow compatibility-gated
+traversal routes.
+
+These routes do not constitute a promoted full runtime graph subsystem and do
+not implement Postgres materialization, Streamlit UI, GraphRAG, graph DB runtime,
+package rebuild, graph rebuild, public exposure, or publication.
 
 The goal is to decide how future code will verify that local graph artifacts are
 safe to read before serving graph evidence through any API surface.
@@ -463,9 +474,9 @@ publish datasets
 If future validators write reports, report writing must be explicit and must not
 be part of request-time runtime compatibility checks.
 
-## Future test plan
+## Regression test plan
 
-Future implementation must include tests for:
+The implemented local-inspection surface must retain tests for:
 
 ```text
 compatible fixture passes
@@ -486,7 +497,9 @@ compatibility checks do not write graph outputs or reports at request time
 
 ## Implementation gates
 
-Traversal/runtime endpoint implementation must not start until these design gates are accepted, the status compatibility probe remains green, and the fixture store semantics remain green:
+The implemented narrow traversal surface started only after these design gates
+were accepted, the status compatibility probe was green, and fixture-store
+semantics were green:
 
 ```text
 Citation / Reference Graph API Design v0.1
@@ -495,5 +508,7 @@ Citation / Reference Graph Runtime Compatibility Design v0.1
 Graph API Implementation Plan v0.1
 ```
 
-The compatibility design, status probe, and fixture store do not approve broad traversal/runtime promotion by themselves. They only allow a narrow fixture-backed endpoint slice when caveats and fail-closed behavior remain intact.
+The compatibility design does not approve broad traversal/runtime promotion by
+itself. The current approval is limited to the implemented bounded read-only
+file-backed local-inspection surface with caveats and fail-closed behavior.
 
