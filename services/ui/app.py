@@ -1503,13 +1503,34 @@ def render_citation_graph_status_panel(base_url: str) -> None:
     runtime_enabled = availability.get("runtime_enabled", graph.get("runtime_enabled"))
     available = availability.get("available", graph.get("available"))
     safe_to_serve_locally = availability.get("safe_to_serve_locally")
-    runtime_loader = availability.get("runtime_loader_implemented")
+    status_probe = availability.get("status_probe_implemented")
+    file_backed_store_loader = availability.get(
+        "file_backed_store_loader_implemented"
+    )
+    traversal_endpoints = availability.get("traversal_endpoints_implemented")
+    traversal_routes = availability.get("implemented_traversal_endpoint_count")
+    full_graph_runtime = availability.get(
+        "full_graph_runtime_subsystem_implemented"
+    )
+    promoted_runtime_loader = availability.get("runtime_loader_implemented")
 
     status_cols = st.sidebar.columns(2)
     status_cols[0].metric("Runtime enabled", dash(runtime_enabled))
     status_cols[1].metric("Available", dash(available))
     status_cols[0].metric("Safe locally", dash(safe_to_serve_locally))
-    status_cols[1].metric("Runtime loader", dash(runtime_loader))
+    status_cols[1].metric("File-backed loader", dash(file_backed_store_loader))
+    status_cols[0].metric("Traversal endpoints", dash(traversal_endpoints))
+    status_cols[1].metric("Traversal routes", dash(traversal_routes))
+    status_cols[0].metric("Full graph runtime", dash(full_graph_runtime))
+    status_cols[1].metric(
+        "Promoted runtime loader",
+        dash(promoted_runtime_loader),
+    )
+
+    st.sidebar.caption(
+        "Capability markers distinguish the implemented file-backed read-only "
+        "traversal surface from current availability and from a promoted full graph runtime."
+    )
 
     review_required = first_non_empty(
         graph.get("manual_review_required"),
@@ -1526,6 +1547,8 @@ def render_citation_graph_status_panel(base_url: str) -> None:
         render_kv("Graph", graph.get("name"))
         render_kv("Version", graph.get("version"))
         render_kv("Exposure mode", graph.get("exposure_mode"))
+        render_kv("Status probe", status_probe)
+        render_kv("Configured", availability.get("configured"))
         render_kv("Manual review required", review_required)
         render_kv("Publication ready", publication_ready)
 

@@ -119,7 +119,18 @@ CITATION_GRAPH_STATUS_UI_SNIPPETS = [
     "Load citation graph status",
     "Runtime enabled",
     "Safe locally",
-    "Runtime loader",
+    "File-backed loader",
+    "Traversal endpoints",
+    "Traversal routes",
+    "Full graph runtime",
+    "Promoted runtime loader",
+    "status_probe_implemented",
+    "file_backed_store_loader_implemented",
+    "runtime_loader_implemented",
+    "traversal_endpoints_implemented",
+    "implemented_traversal_endpoint_count",
+    "full_graph_runtime_subsystem_implemented",
+    "implemented file-backed read-only",
     "publication-ready",
 ]
 
@@ -493,6 +504,72 @@ def coerce_bool(value: Any) -> bool | None:
     return None
 
 
+def record_citation_graph_status_checks(
+    *,
+    endpoint_ok: bool,
+    payload: dict[str, Any],
+    endpoint_error: str | None,
+    checks: dict[str, bool],
+    extracted_values: dict[str, Any],
+    errors: dict[str, Any],
+) -> None:
+    availability = (
+        payload.get("availability")
+        if isinstance(payload.get("availability"), dict)
+        else {}
+    )
+    caveats = payload.get("caveats") if isinstance(payload.get("caveats"), list) else []
+
+    checks["api_citation_graph_status_endpoint_ok"] = endpoint_ok
+    checks["api_citation_graph_status_capabilities_match"] = (
+        availability.get("status_probe_implemented") is True
+        and availability.get("file_backed_store_loader_implemented") is True
+        and availability.get("runtime_loader_implemented") is False
+        and availability.get("traversal_endpoints_implemented") is True
+        and availability.get("implemented_traversal_endpoint_count") == 6
+        and availability.get("full_graph_runtime_subsystem_implemented") is False
+    )
+    checks["api_citation_graph_status_legacy_caveat_absent"] = (
+        "status_probe_only_no_traversal_runtime" not in caveats
+    )
+    checks["api_citation_graph_status_available_caveats_match"] = (
+        availability.get("available") is not True
+        or (
+            "file_backed_read_only_traversal_runtime" in caveats
+            and "not_promoted_full_graph_runtime" in caveats
+        )
+    )
+
+    extracted_values["api_citation_graph_status_available"] = availability.get(
+        "available"
+    )
+    extracted_values["api_citation_graph_status_runtime_enabled"] = availability.get(
+        "runtime_enabled"
+    )
+    extracted_values["api_citation_graph_status_capabilities"] = {
+        "status_probe_implemented": availability.get("status_probe_implemented"),
+        "file_backed_store_loader_implemented": availability.get(
+            "file_backed_store_loader_implemented"
+        ),
+        "runtime_loader_implemented": availability.get(
+            "runtime_loader_implemented"
+        ),
+        "traversal_endpoints_implemented": availability.get(
+            "traversal_endpoints_implemented"
+        ),
+        "implemented_traversal_endpoint_count": availability.get(
+            "implemented_traversal_endpoint_count"
+        ),
+        "full_graph_runtime_subsystem_implemented": availability.get(
+            "full_graph_runtime_subsystem_implemented"
+        ),
+    }
+    extracted_values["api_citation_graph_status_caveats"] = caveats
+
+    if endpoint_error:
+        errors["api_citation_graph_status_error"] = endpoint_error
+
+
 def run_api_checks(
     *,
     base_url: str,
@@ -519,6 +596,24 @@ def run_api_checks(
     extracted_values["api_health_build_id"] = health_payload.get("build_id")
     if health_error:
         errors["api_health_error"] = health_error
+
+    (
+        citation_graph_status_ok,
+        citation_graph_status_payload,
+        citation_graph_status_error,
+    ) = request_json(
+        base_url=base_url,
+        path="/citation-graph/status",
+        timeout_seconds=timeout_seconds,
+    )
+    record_citation_graph_status_checks(
+        endpoint_ok=citation_graph_status_ok,
+        payload=citation_graph_status_payload,
+        endpoint_error=citation_graph_status_error,
+        checks=checks,
+        extracted_values=extracted_values,
+        errors=errors,
+    )
 
     profiles_ok, profiles_payload, profiles_error = request_json(
         base_url=base_url,
@@ -1273,6 +1368,10 @@ def build_report(
             [
                 "api_health_endpoint_ok",
                 "api_health_ready",
+                "api_citation_graph_status_endpoint_ok",
+                "api_citation_graph_status_capabilities_match",
+                "api_citation_graph_status_legacy_caveat_absent",
+                "api_citation_graph_status_available_caveats_match",
                 "api_profiles_endpoint_ok",
                 "api_profiles_non_empty",
                 "api_ranking_override_endpoint_ok",
