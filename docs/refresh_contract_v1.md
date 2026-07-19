@@ -93,10 +93,12 @@ Citation Graph Store Cache & Reload Regression v0.1 — 2026-07 completed regres
 Citation Graph Failure Isolation & Error Recovery v0.1 — 2026-07 completed regression-hardening slice over graph-scoped file errors, health independence, cache non-poisoning, and repair/retry recovery
 Citation Graph Live Smoke & Known-Issues Hardening v0.1 — 2026-07 completed operator-facing live-validation and limitations-documentation slice
 Citation Graph Manual-Review Evidence Preparation v0.1 — 2026-07 completed read-only evidence-preparation slice over the existing 18-category checklist
-Manual Citation Graph Review Execution v0.1 — 2026-07 active explicit human-review closure slice; 18/18 categories passed, approval recorded, publication remains out of scope
+Manual Citation Graph Review Execution v0.1 — 2026-07 completed explicit human-review closure slice; 18/18 categories passed, approval recorded, publication remains out of scope
 Public Metadata Release Policy & Kaggle Packaging v0.1 — 2026-07 completed source-aware metadata policy and local Kaggle-ready packaging slice
 Public Metadata Release Manual-Review Evidence Preparation v0.1 — 2026-07 completed read-only 20-category checklist/evidence slice; no automated approval or publication
-Manual Public Metadata Release Review Execution v0.1 — 2026-07 active explicit human-review closure slice; review completed with 15 passed / 5 failed, approval_state=rejected, publication remains blocked and out of scope
+Manual Public Metadata Release Review Execution v0.1 — 2026-07 completed explicit human-review closure slice; review completed with 15 passed / 5 failed, approval_state=rejected, publication remains blocked and out of scope
+Citation Graph Lifecycle Consistency v0.1 — 2026-07 completed API/docs/tests lifecycle-semantics hardening for the implemented file-backed traversal surface versus the unimplemented promoted full graph runtime
+Citation Graph UI Lifecycle Status Sync v0.1 — 2026-07 completed Streamlit status-panel, validator, live-API, and smoke-test synchronization
 ```
 
 Current healthy baseline:
@@ -167,8 +169,15 @@ graph_api_streamlit_productization_design = completed_design_only
 citation_graph_streamlit_status_panel = completed_ui_status_only
 citation_graph_paper_workspace_panel = completed_selected_paper_evidence_ui
 citation_graph_diagnostics_ui = completed_diagnostics_table_ui
-citation_graph_external_reference_lookup_ui = active_external_reference_lookup_ui
-citation_graph_runtime_loader = not_implemented
+citation_graph_external_reference_lookup_ui = completed_external_reference_lookup_ui
+citation_graph_lifecycle_consistency = accepted_file_backed_traversal_semantics
+citation_graph_status_probe_implemented = true
+citation_graph_file_backed_store_loader_implemented = true
+citation_graph_traversal_endpoints_implemented = true
+citation_graph_implemented_traversal_endpoint_count = 6
+citation_graph_promoted_runtime_loader_implemented = false
+citation_graph_full_runtime_subsystem_implemented = false
+citation_graph_ui_lifecycle_status_sync = completed
 paper_artifact_graph_dod_gate = not required yet
 paper_artifact_graph_manual_review_dod_gate = not required yet
 paper_artifact_graph_analytics_dod_gate = not required yet
@@ -356,6 +365,7 @@ python -m pytest tests/smoke/test_citation_graph_fixture_store.py -q
 python -m scripts.validation.check_citation_graph_api_regression --strict
 python -m scripts.validation.check_qdrant_api_experimental --strict
 python -m scripts.validation.check_streamlit_discovery_ui --strict
+python -m pytest tests/smoke/test_streamlit_discovery_ui.py -q
 ```
 
 Expected:
@@ -371,6 +381,7 @@ citation graph fixture store = 7 passed, internal/read-only core
 citation graph API regression = ok, required_failed_count = 0
 experimental qdrant API = status_code 200, mode dense_qdrant
 streamlit UI required_failed_count = 0
+streamlit lifecycle smoke = 4 passed
 qdrant_runtime_status_ui_snippets_present = true
 citation_graph_status_ui_snippets_present = true
 paper_workspace_citation_graph_ui_snippets_present = true
@@ -410,7 +421,7 @@ no direct Streamlit reads from data/graphs/*
 no CitationGraphStore import from Streamlit
 no NetworkX or Neo4j runtime
 no GraphRAG
-no full graph runtime loader
+no promoted full graph runtime loader
 no graph DB materialization
 no publication
 no change to /search, Qdrant, ranking, canonical truth, retrieval, or Postgres materialization
@@ -433,15 +444,15 @@ python -m scripts.validation.check_streamlit_discovery_ui --strict
 
 ## A.6 Citation Graph Streamlit status panel smoke
 
-Use this when changing the first graph UI productization surface.
+Use this when changing the Citation Graph status panel or its lifecycle semantics.
 
 Scope:
 
 ```text
-Streamlit calls only /citation-graph/status.
+The status panel calls only /citation-graph/status for Citation Graph lifecycle data.
 Streamlit does not read data/graphs/* directly.
 Streamlit does not import CitationGraphStore.
-Streamlit does not add references/citations/source-family/top-reference UI in this slice.
+Existing references/citations/diagnostics/external-reference panels remain separate thin API consumers and are not changed by this status-panel smoke.
 ```
 
 Static validation:
@@ -449,7 +460,9 @@ Static validation:
 ```bat
 python -m py_compile services/ui/app.py
 python -m py_compile scripts/validation/check_streamlit_discovery_ui.py
+python -m py_compile tests/smoke/test_streamlit_discovery_ui.py
 python -m scripts.validation.check_streamlit_discovery_ui --strict
+python -m pytest tests/smoke/test_streamlit_discovery_ui.py -q
 python -m scripts.validation.check_citation_graph_api_regression --strict
 git diff --check
 ```
@@ -458,9 +471,11 @@ Expected Streamlit validator result:
 
 ```text
 citation_graph_status_ui_snippets_present = true
+citation_graph_ui_uses_api_only = true
 paper_workspace_citation_graph_ui_snippets_present = true
 citation_graph_diagnostics_ui_snippets_present = true
 citation_graph_external_reference_lookup_ui_snippets_present = true
+streamlit lifecycle smoke = 4 passed
 required_failed_count = 0
 ```
 
@@ -471,15 +486,15 @@ Start FastAPI.
 Start Streamlit.
 Open the sidebar Citation graph status panel.
 Click Load citation graph status.
-Confirm Runtime enabled / Available / Safe locally / Runtime loader are visible.
+Confirm Runtime enabled / Available / Safe locally / File-backed loader / Traversal endpoints / Traversal routes / Full graph runtime / Promoted runtime loader are visible.
 Confirm status details expose caveats and raw /citation-graph/status payload.
 ```
 
 Boundary:
 
 ```text
-status panel only
-no graph traversal UI
+status-panel lifecycle rendering only
+existing graph traversal/diagnostics UI remains unchanged
 no graph visualization
 no direct graph file reads
 no GraphRAG / NetworkX / Neo4j
@@ -696,14 +711,18 @@ curl http://127.0.0.1:8000/citation-graph/status
 Expected citation graph status endpoint interpretation:
 
 ```text
-endpoint is reachable
-status/compatibility-only surface
+status endpoint is reachable and remains a read-only status/compatibility surface
 disabled by default unless ML_RADAR_CITATION_GRAPH_API_ENABLED is explicitly enabled
 when enabled, probes local graph manifests/reports read-only
+status_probe_implemented = true
+file_backed_store_loader_implemented = true
+traversal_endpoints_implemented = true
+implemented_traversal_endpoint_count = 6
+runtime_loader_implemented = false
+full_graph_runtime_subsystem_implemented = false
 outgoing references, incoming citations, external-reference papers, source-families, top-referenced-papers, and top-external-references endpoints are implemented and compatibility-gated
-full graph runtime loader is not implemented
-internal fixture store exists and backs outgoing references, incoming citations, external-reference papers, and source-family diagnostics semantics
-no full graph runtime loader
+internal fixture/store semantics back the six read-only traversal/diagnostics routes
+runtime_loader_implemented=false refers to the unimplemented promoted full runtime loader, not to the implemented file-backed store loader
 manual_review_required = true
 publication_ready = false
 ```
@@ -760,7 +779,11 @@ After clicking **Load citation graph status**, expected citation graph status pa
 Runtime enabled
 Available
 Safe locally
-Runtime loader
+File-backed loader
+Traversal endpoints
+Traversal routes
+Full graph runtime
+Promoted runtime loader
 Citation graph status details
 ```
 
@@ -1891,10 +1914,14 @@ read_only = true
 disabled_by_default = true
 feature_flag = ML_RADAR_CITATION_GRAPH_API_ENABLED
 fixture_store = implemented_internal
+file_backed_store_loader_implemented = true
 source_family_endpoint = implemented
 top_referenced_papers_endpoint = implemented
 top_external_references_endpoint = implemented
-full_graph_runtime_loader = not implemented
+traversal_endpoints_implemented = true
+implemented_traversal_endpoint_count = 6
+promoted_runtime_loader_implemented = false
+full_graph_runtime_subsystem_implemented = false
 graph_db_materialization = not implemented
 streamlit_graph_evidence_panels = implemented
 full_graph_visualization_ui = not implemented
@@ -2043,7 +2070,9 @@ external-reference papers endpoint = implemented
 source-family endpoint = implemented
 top-referenced-papers endpoint = implemented
 top-external-references endpoint = implemented
-full runtime graph loader = not implemented
+file-backed store loader = implemented
+promoted full runtime loader = not implemented
+full graph runtime subsystem = not implemented
 ```
 
 Recommended next slice after this docs sync:
@@ -2113,7 +2142,7 @@ Boundary:
 ```text
 checkpoint is docs/regression-hardening only
 no new endpoint
-no full graph runtime loader
+no promoted full graph runtime loader
 no graph DB materialization
 no Streamlit graph UI
 no GraphRAG
@@ -2173,8 +2202,8 @@ Boundary:
 external references remain unresolved evidence nodes
 not a publication-grade reference entity resolver
 source-family endpoint = implemented
-no top-reference endpoints
-no full runtime graph loader
+top-reference endpoints were outside this historical endpoint slice and are now implemented separately
+no promoted full runtime loader
 no GraphRAG/public graph API promotion
 ```
 
@@ -2265,7 +2294,12 @@ ok = true
 required_failed_count = 0
 routes_count = 7
 traversal_routes_count = 6
+status_probe_implemented = true
+file_backed_store_loader_implemented = true
+traversal_endpoints_implemented = true
+implemented_traversal_endpoint_count = 6
 runtime_loader_implemented = false
+full_graph_runtime_subsystem_implemented = false
 publication_ready = false
 manual_review_required = true
 ```
@@ -2301,7 +2335,7 @@ It does not run graph endpoints itself.
 It does not rebuild graph output.
 It does not write graph reports directly.
 It does not enable the Citation Graph API.
-It does not implement full graph runtime loader.
+It does not implement the promoted full graph runtime loader or a full graph runtime subsystem.
 It does not add graph DB materialization.
 It does not add or change Streamlit graph runtime behavior; the four thin evidence consumers are already implemented.
 It does not implement GraphRAG.
@@ -4031,7 +4065,12 @@ streamlit_graph_status_panel = implemented
 streamlit_graph_paper_workspace_panel = implemented
 streamlit_graph_diagnostics_ui = implemented
 streamlit_graph_external_reference_lookup_ui = implemented
-full_graph_runtime_loader = not implemented
+status_probe_implemented = true
+file_backed_store_loader_implemented = true
+traversal_endpoints_implemented = true
+implemented_traversal_endpoint_count = 6
+promoted_runtime_loader_implemented = false
+full_graph_runtime_subsystem_implemented = false
 full_graph_visualization_ui = not implemented
 graph_db_materialization = not implemented
 graphrag = not implemented
@@ -4065,6 +4104,144 @@ The optional full DoD command also depends on the repository database and the
 other current validation reports. A failure outside the Citation Graph block must
 be classified separately rather than treated as a productization regression.
 
+
+# Citation Graph Lifecycle Consistency and UI Lifecycle Status Sync v0.1 validation
+
+Use this after changing Citation Graph lifecycle metadata, caveats, or the
+Streamlit status consumer.
+
+Accepted API lifecycle semantics:
+
+```text
+status_probe_implemented = true
+file_backed_store_loader_implemented = true
+runtime_loader_implemented = false
+traversal_endpoints_implemented = true
+implemented_traversal_endpoint_count = 6
+full_graph_runtime_subsystem_implemented = false
+```
+
+When the feature flag is enabled and local artifacts are compatible:
+
+```text
+runtime_enabled = true
+configured = true
+available = true
+safe_to_serve_locally = true
+```
+
+Expected available-state caveats:
+
+```text
+file_backed_read_only_traversal_runtime
+not_promoted_full_graph_runtime
+```
+
+Forbidden stale caveat:
+
+```text
+status_probe_only_no_traversal_runtime
+```
+
+Expected Streamlit status metrics:
+
+```text
+Runtime enabled
+Available
+Safe locally
+File-backed loader
+Traversal endpoints
+Traversal routes
+Full graph runtime
+Promoted runtime loader
+```
+
+Interpretation:
+
+```text
+File-backed loader = True
+Traversal endpoints = True
+Traversal routes = 6
+Full graph runtime = False
+Promoted runtime loader = False
+```
+
+The final two `False` values are intentional. They preserve the boundary between
+the implemented bounded file-backed read-only traversal surface and an
+unimplemented promoted full graph runtime subsystem.
+
+Static and smoke validation:
+
+```bat
+python -m py_compile services/ui/app.py scripts/validation/check_streamlit_discovery_ui.py tests/smoke/test_streamlit_discovery_ui.py
+python -m pytest tests/smoke/test_streamlit_discovery_ui.py -q
+python -m scripts.validation.check_streamlit_discovery_ui --strict
+python -m scripts.validation.check_citation_graph_api_regression --strict
+```
+
+Accepted focused result:
+
+```text
+test_streamlit_discovery_ui.py = 4 passed
+required_failed_count = 0
+```
+
+Accepted connected regression result:
+
+```text
+Citation Graph/UI connected regression = 49 passed
+full smoke suite = 567 passed
+```
+
+Live validation:
+
+```bat
+set ML_RADAR_CITATION_GRAPH_API_ENABLED=true
+python -m uvicorn services.api.app:app --host 127.0.0.1 --port 8000
+```
+
+In another prompt:
+
+```bat
+python -m scripts.validation.check_streamlit_discovery_ui --check-api --strict
+```
+
+Expected live lifecycle checks:
+
+```text
+api_citation_graph_status_endpoint_ok = true
+api_citation_graph_status_capabilities_match = true
+api_citation_graph_status_legacy_caveat_absent = true
+api_citation_graph_status_available_caveats_match = true
+required_failed_count = 0
+```
+
+Manual UI smoke should confirm the status metrics above and successful HTTP 200
+responses for:
+
+```text
+/citation-graph/status
+/citation-graph/papers/{canonical_id}/references
+/citation-graph/papers/{canonical_id}/citations
+/citation-graph/external-references/{reference_id}/papers
+/citation-graph/source-families
+/citation-graph/top-referenced-papers
+/citation-graph/top-external-references
+```
+
+Boundary:
+
+```text
+no endpoint URL or response-schema change
+no graph artifact rebuild or mutation
+no canonical truth change
+no reconcile input change
+no Postgres/retrieval/Qdrant/ranking change
+no graph DB materialization
+no GraphRAG
+no promoted full graph runtime
+no publication
+```
 
 # Citation Graph Store Cache & Reload Regression v0.1 validation
 
@@ -4231,7 +4408,7 @@ required_failed_count = 0
 live_smoke_ready = true
 operator_facing_evidence = true
 dod_gate_required = false
-runtime_loader_implemented = false
+runtime_loader_implemented = false  # promoted full runtime loader remains intentionally absent
 manual_review_required = true
 publication_ready = false
 ```
