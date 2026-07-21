@@ -41,6 +41,9 @@ CREATE INDEX IF NOT EXISTS idx_canonical_documents_tags_gin
 CREATE INDEX IF NOT EXISTS idx_source_documents_source
     ON source_documents (source);
 
+CREATE INDEX IF NOT EXISTS idx_source_documents_doc_id
+    ON source_documents (doc_id);
+
 CREATE INDEX IF NOT EXISTS idx_source_documents_source_record_id
     ON source_documents (source, source_record_id);
 
@@ -63,6 +66,10 @@ CREATE INDEX IF NOT EXISTS idx_source_documents_title_trgm
 CREATE INDEX IF NOT EXISTS idx_canonical_source_links_canonical_id
     ON canonical_source_links (canonical_id);
 
+CREATE INDEX IF NOT EXISTS idx_canonical_source_links_source_observation_id
+    ON canonical_source_links (source_observation_id);
+
+-- Legacy diagnostic lookup only; doc_id is no longer a foreign-key identity.
 CREATE INDEX IF NOT EXISTS idx_canonical_source_links_doc_id
     ON canonical_source_links (doc_id);
 

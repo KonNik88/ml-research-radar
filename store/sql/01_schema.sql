@@ -76,10 +76,11 @@ CREATE TABLE IF NOT EXISTS canonical_documents (
 );
 
 CREATE TABLE IF NOT EXISTS source_documents (
-    doc_id TEXT PRIMARY KEY,
+    source_observation_id TEXT PRIMARY KEY,
+    doc_id TEXT NOT NULL,
 
     source TEXT NOT NULL,
-    source_id TEXT NOT NULL,
+    source_id TEXT,
     source_record_id TEXT,
     source_record_url TEXT,
     source_api_url TEXT,
@@ -97,7 +98,7 @@ CREATE TABLE IF NOT EXISTS source_documents (
     dblp_id TEXT,
     mag_id TEXT,
 
-    title TEXT NOT NULL,
+    title TEXT,
     abstract TEXT,
 
     year INTEGER,
@@ -165,7 +166,9 @@ CREATE TABLE IF NOT EXISTS canonical_source_links (
     id BIGSERIAL PRIMARY KEY,
 
     canonical_id TEXT NOT NULL REFERENCES canonical_documents(canonical_id) ON DELETE CASCADE,
-    doc_id TEXT NULL REFERENCES source_documents(doc_id) ON DELETE SET NULL,
+    source_observation_id TEXT NOT NULL
+        REFERENCES source_documents(source_observation_id) ON DELETE RESTRICT,
+    doc_id TEXT NULL,
 
     source TEXT NOT NULL,
     source_id TEXT,
@@ -176,7 +179,9 @@ CREATE TABLE IF NOT EXISTS canonical_source_links (
     source_updated_at TIMESTAMPTZ,
     source_api_url TEXT,
     raw_source_name TEXT,
-    run_ts TIMESTAMPTZ
+    run_ts TIMESTAMPTZ,
+
+    UNIQUE (canonical_id, source_observation_id)
 );
 
 CREATE TABLE IF NOT EXISTS document_references (

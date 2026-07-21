@@ -323,7 +323,7 @@ CREATE TABLE source_documents (
 
     doc_id TEXT NOT NULL,
     source TEXT NOT NULL,
-    source_id TEXT NOT NULL,
+    source_id TEXT,
     source_record_id TEXT,
     source_record_url TEXT,
     source_api_url TEXT,
@@ -353,6 +353,14 @@ No `identity_basis` or normalized identity-value columns are required in v0.1.
 They remain deterministically recoverable from the preserved source identity
 fields.
 
+`source_documents` is an evidence/materialization table, not canonical truth.
+Incomplete source metadata must remain representable:
+
+- `source_id` may be NULL when another accepted identity basis is available;
+- `title` may be NULL for an incomplete but identity-valid observation;
+- missing bibliographic metadata must not cause an otherwise valid selected
+  observation to disappear from materialization.
+
 ### 8.2 `canonical_source_links`
 
 ```sql
@@ -367,7 +375,7 @@ CREATE TABLE canonical_source_links (
         REFERENCES source_documents(source_observation_id)
         ON DELETE RESTRICT,
 
-    doc_id TEXT NOT NULL,
+    doc_id TEXT NULL,
     source TEXT NOT NULL,
     source_id TEXT,
     source_record_id TEXT,
@@ -384,8 +392,8 @@ CREATE TABLE canonical_source_links (
 Normative semantics:
 
 - `source_observation_id` is the only source-row foreign key;
-- link `doc_id` is a denormalized legacy diagnostic copy;
-- link `doc_id` is not a foreign key;
+- link `doc_id` is an optional denormalized legacy diagnostic copy;
+- link `doc_id` is nullable and is not a foreign key;
 - `ON DELETE RESTRICT` prevents accidental deletion of a linked observation;
 - full `--replace` rebuild remains free to truncate dependent paper tables in
   the established order.
