@@ -328,19 +328,21 @@ def collect_db_evidence(
     canonical_provenance_pairs: set[tuple[str, str]],
     sample_limit: int = 20,
 ) -> dict[str, Any]:
-    """Read current PostgreSQL materialization without mutating it."""
+    """Read legacy or candidate PostgreSQL materialization without mutating it."""
 
     samples: dict[str, list[dict[str, Any]]] = defaultdict(list)
     db_observation_ids: set[str] = set()
     db_observation_source_counts: Counter[str] = Counter()
     db_identity_errors = 0
     db_duplicate_observation_ids = 0
+    db_stored_identity_mismatches = 0
     db_observation_descriptors: dict[str, dict[str, Any]] = {}
 
     link_pairs: set[tuple[str, str]] = set()
     link_observation_ids: set[str] = set()
     link_identity_errors = 0
     link_duplicate_pairs = 0
+    link_stored_identity_mismatches = 0
 
     with psycopg.connect(**dict(db_config), row_factory=dict_row) as conn:
         with conn.cursor() as cur:
@@ -350,6 +352,12 @@ def collect_db_evidence(
             source_columns = _table_columns(cur, "source_documents")
             link_columns = _table_columns(cur, "canonical_source_links")
 
+            source_has_observation_id = "source_observation_id" in source_columns
+            link_has_observation_id = "source_observation_id" in link_columns
+            candidate_identity_join = (
+                source_has_observation_id and link_has_observation_id
+            )
+
             cur.execute("SELECT COUNT(*) AS total FROM source_documents")
             source_documents_count = int(cur.fetchone()["total"])
             source_documents_by_source = _count_by_source(cur, "source_documents")
@@ -357,13 +365,22 @@ def collect_db_evidence(
             cur.execute("SELECT COUNT(*) AS total FROM canonical_source_links")
             canonical_source_links_count = int(cur.fetchone()["total"])
 
+            link_identity_column = (
+                "source_observation_id"
+                if link_has_observation_id
+                else "doc_id"
+            )
             cur.execute(
-                """
+                f"""
                 SELECT
                     source,
                     COUNT(*) AS total,
-                    COUNT(*) FILTER (WHERE doc_id IS NOT NULL) AS resolved,
-                    COUNT(*) FILTER (WHERE doc_id IS NULL) AS unresolved
+                    COUNT(*) FILTER (
+                        WHERE {link_identity_column} IS NOT NULL
+                    ) AS resolved,
+                    COUNT(*) FILTER (
+                        WHERE {link_identity_column} IS NULL
+                    ) AS unresolved
                 FROM canonical_source_links
                 GROUP BY source
                 ORDER BY source
@@ -379,43 +396,87 @@ def collect_db_evidence(
             }
 
             cur.execute(
-                "SELECT COUNT(*) AS total FROM canonical_source_links WHERE doc_id IS NULL"
+                f"""
+                SELECT COUNT(*) AS total
+                FROM canonical_source_links
+                WHERE {link_identity_column} IS NULL
+                """
             )
             null_link_count = int(cur.fetchone()["total"])
 
-            cur.execute(
-                """
-                SELECT COUNT(*) AS total
-                FROM canonical_source_links csl
-                LEFT JOIN source_documents sd ON sd.doc_id = csl.doc_id
-                WHERE csl.doc_id IS NOT NULL
-                  AND sd.doc_id IS NULL
-                """
-            )
-            dangling_non_null_link_count = int(cur.fetchone()["total"])
+            if candidate_identity_join:
+                cur.execute(
+                    """
+                    SELECT COUNT(*) AS total
+                    FROM canonical_source_links csl
+                    LEFT JOIN source_documents sd
+                      ON sd.source_observation_id = csl.source_observation_id
+                    WHERE csl.source_observation_id IS NOT NULL
+                      AND sd.source_observation_id IS NULL
+                    """
+                )
+                dangling_non_null_link_count = int(cur.fetchone()["total"])
 
-            cur.execute(
-                """
-                SELECT COUNT(*) AS total
-                FROM canonical_source_links csl
-                JOIN source_documents sd ON sd.doc_id = csl.doc_id
-                WHERE csl.source IS DISTINCT FROM sd.source
-                """
-            )
-            joined_source_mismatch_count = int(cur.fetchone()["total"])
+                cur.execute(
+                    """
+                    SELECT COUNT(*) AS total
+                    FROM canonical_source_links csl
+                    JOIN source_documents sd
+                      ON sd.source_observation_id = csl.source_observation_id
+                    WHERE csl.source IS DISTINCT FROM sd.source
+                    """
+                )
+                joined_source_mismatch_count = int(cur.fetchone()["total"])
+            else:
+                cur.execute(
+                    """
+                    SELECT COUNT(*) AS total
+                    FROM canonical_source_links csl
+                    LEFT JOIN source_documents sd ON sd.doc_id = csl.doc_id
+                    WHERE csl.doc_id IS NOT NULL
+                      AND sd.doc_id IS NULL
+                    """
+                )
+                dangling_non_null_link_count = int(cur.fetchone()["total"])
 
+                cur.execute(
+                    """
+                    SELECT COUNT(*) AS total
+                    FROM canonical_source_links csl
+                    JOIN source_documents sd ON sd.doc_id = csl.doc_id
+                    WHERE csl.source IS DISTINCT FROM sd.source
+                    """
+                )
+                joined_source_mismatch_count = int(cur.fetchone()["total"])
+
+            source_select = [
+                "source",
+                "source_record_id",
+                "source_id",
+                "source_record_url",
+                "source_api_url",
+                "doc_id",
+                "canonical_url",
+                "landing_page_url",
+            ]
+            if source_has_observation_id:
+                source_select.insert(0, "source_observation_id")
+
+            source_order = (
+                "source, source_observation_id"
+                if source_has_observation_id
+                else "source, doc_id"
+            )
             cur.execute(
-                """
-                SELECT
-                    source, source_record_id, source_id, source_record_url,
-                    source_api_url, doc_id, canonical_url, landing_page_url
+                f"""
+                SELECT {", ".join(source_select)}
                 FROM source_documents
-                ORDER BY source, doc_id
+                ORDER BY {source_order}
                 """
             )
             for row in cur:
                 try:
-                    source, observation_id = _build_identity(row)
+                    source, computed_observation_id = _build_identity(row)
                 except (TypeError, ValueError) as exc:
                     db_identity_errors += 1
                     _sample_append(
@@ -426,11 +487,45 @@ def collect_db_evidence(
                     )
                     continue
 
+                stored_observation_id = (
+                    str(row.get("source_observation_id") or "").strip()
+                    if source_has_observation_id
+                    else computed_observation_id
+                )
+                if not stored_observation_id:
+                    db_identity_errors += 1
+                    _sample_append(
+                        samples,
+                        "db_source_identity_errors",
+                        {
+                            "error": "stored source_observation_id is empty",
+                            **_observation_summary(row),
+                        },
+                        sample_limit=sample_limit,
+                    )
+                    continue
+
+                if (
+                    source_has_observation_id
+                    and stored_observation_id != computed_observation_id
+                ):
+                    db_stored_identity_mismatches += 1
+                    _sample_append(
+                        samples,
+                        "db_source_stored_identity_mismatches",
+                        {
+                            "stored_source_observation_id": stored_observation_id,
+                            "computed_source_observation_id": computed_observation_id,
+                            **_observation_summary(row),
+                        },
+                        sample_limit=sample_limit,
+                    )
+
                 compact = _observation_summary(
                     row,
-                    source_observation_id=observation_id,
+                    source_observation_id=stored_observation_id,
                 )
-                previous = db_observation_descriptors.get(observation_id)
+                previous = db_observation_descriptors.get(stored_observation_id)
                 if previous is not None:
                     db_duplicate_observation_ids += 1
                     _sample_append(
@@ -440,22 +535,34 @@ def collect_db_evidence(
                         sample_limit=sample_limit,
                     )
                 else:
-                    db_observation_descriptors[observation_id] = compact
-                db_observation_ids.add(observation_id)
+                    db_observation_descriptors[stored_observation_id] = compact
+
+                db_observation_ids.add(stored_observation_id)
                 db_observation_source_counts[source] += 1
 
+            link_select = [
+                "canonical_id",
+                "doc_id",
+                "source",
+                "source_id",
+                "source_record_id",
+                "source_record_url",
+                "source_api_url",
+                "canonical_url",
+            ]
+            if link_has_observation_id:
+                link_select.insert(1, "source_observation_id")
+
             cur.execute(
-                """
-                SELECT
-                    canonical_id, doc_id, source, source_id, source_record_id,
-                    source_record_url, source_api_url, canonical_url
+                f"""
+                SELECT {", ".join(link_select)}
                 FROM canonical_source_links
                 ORDER BY canonical_id, id
                 """
             )
             for row in cur:
                 try:
-                    _, observation_id = _build_identity(row)
+                    _, computed_observation_id = _build_identity(row)
                 except (TypeError, ValueError) as exc:
                     link_identity_errors += 1
                     _sample_append(
@@ -472,8 +579,48 @@ def collect_db_evidence(
                     )
                     continue
 
+                stored_observation_id = (
+                    str(row.get("source_observation_id") or "").strip()
+                    if link_has_observation_id
+                    else computed_observation_id
+                )
+                if not stored_observation_id:
+                    link_identity_errors += 1
+                    _sample_append(
+                        samples,
+                        "db_link_identity_errors",
+                        {
+                            "error": "stored source_observation_id is empty",
+                            **_observation_summary(
+                                row,
+                                canonical_id=str(row.get("canonical_id") or ""),
+                            ),
+                        },
+                        sample_limit=sample_limit,
+                    )
+                    continue
+
+                if (
+                    link_has_observation_id
+                    and stored_observation_id != computed_observation_id
+                ):
+                    link_stored_identity_mismatches += 1
+                    _sample_append(
+                        samples,
+                        "db_link_stored_identity_mismatches",
+                        {
+                            "stored_source_observation_id": stored_observation_id,
+                            "computed_source_observation_id": computed_observation_id,
+                            **_observation_summary(
+                                row,
+                                canonical_id=str(row.get("canonical_id") or ""),
+                            ),
+                        },
+                        sample_limit=sample_limit,
+                    )
+
                 canonical_id = str(row.get("canonical_id") or "")
-                pair = (canonical_id, observation_id)
+                pair = (canonical_id, stored_observation_id)
                 if pair in link_pairs:
                     link_duplicate_pairs += 1
                     _sample_append(
@@ -481,13 +628,13 @@ def collect_db_evidence(
                         "db_duplicate_link_pairs",
                         _observation_summary(
                             row,
-                            source_observation_id=observation_id,
+                            source_observation_id=stored_observation_id,
                             canonical_id=canonical_id,
                         ),
                         sample_limit=sample_limit,
                     )
                 link_pairs.add(pair)
-                link_observation_ids.add(observation_id)
+                link_observation_ids.add(stored_observation_id)
 
     missing_db_observation_ids = selected_observation_ids - db_observation_ids
     unexpected_db_observation_ids = db_observation_ids - selected_observation_ids
@@ -545,11 +692,12 @@ def collect_db_evidence(
             "source_documents_columns": source_columns,
             "canonical_source_links_columns": link_columns,
             "source_documents_has_source_observation_id": (
-                "source_observation_id" in source_columns
+                source_has_observation_id
             ),
             "canonical_source_links_has_source_observation_id": (
-                "source_observation_id" in link_columns
+                link_has_observation_id
             ),
+            "candidate_identity_join_active": candidate_identity_join,
             "legacy_source_documents_doc_id_present": "doc_id" in source_columns,
             "legacy_canonical_source_links_doc_id_present": "doc_id" in link_columns,
         },
@@ -558,6 +706,7 @@ def collect_db_evidence(
             "source_documents_by_source": source_documents_by_source,
             "db_observation_identity_count": len(db_observation_ids),
             "db_observation_identity_error_count": db_identity_errors,
+            "db_stored_identity_mismatch_count": db_stored_identity_mismatches,
             "db_duplicate_observation_id_count": db_duplicate_observation_ids,
             "db_observation_source_counts": dict(
                 sorted(db_observation_source_counts.items())
@@ -571,6 +720,9 @@ def collect_db_evidence(
             "db_link_identity_count": len(link_observation_ids),
             "db_link_pair_count": len(link_pairs),
             "db_link_identity_error_count": link_identity_errors,
+            "db_link_stored_identity_mismatch_count": (
+                link_stored_identity_mismatches
+            ),
             "db_duplicate_link_pair_count": link_duplicate_pairs,
             "selected_observation_missing_from_db_count": len(
                 missing_db_observation_ids
@@ -588,7 +740,6 @@ def collect_db_evidence(
         },
         "samples": dict(samples),
     }
-
 
 def build_report(
     *,
@@ -622,6 +773,12 @@ def build_report(
         "db_rows_have_identity": (
             int(db_summary["db_observation_identity_error_count"]) == 0
             and int(db_summary["db_link_identity_error_count"]) == 0
+        ),
+        "stored_source_observation_ids_match_contract": (
+            int(db_summary.get("db_stored_identity_mismatch_count", 0)) == 0
+            and int(
+                db_summary.get("db_link_stored_identity_mismatch_count", 0)
+            ) == 0
         ),
         "no_dangling_non_null_links": (
             int(db_summary["dangling_non_null_link_count"]) == 0

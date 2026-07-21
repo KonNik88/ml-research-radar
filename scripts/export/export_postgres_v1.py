@@ -8,6 +8,10 @@ from typing import Any, Iterable
 
 import psycopg
 
+from radar_core.utils.source_observation_identity import (
+    build_source_observation_identity_from_mapping,
+)
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CANONICAL_PATH = (
@@ -165,9 +169,11 @@ def canonical_row(doc: dict[str, Any]) -> dict[str, Any]:
 
 
 def source_row(doc: dict[str, Any]) -> dict[str, Any]:
+    identity = build_source_observation_identity_from_mapping(doc)
     return {
+        "source_observation_id": identity.source_observation_id,
         "doc_id": doc.get("doc_id"),
-        "source": doc.get("source"),
+        "source": identity.normalized_source,
         "source_id": doc.get("source_id"),
         "source_record_id": doc.get("source_record_id"),
         "source_record_url": doc.get("source_record_url"),
@@ -284,7 +290,7 @@ def insert_source(cur: psycopg.Cursor, row: dict[str, Any]) -> None:
     cur.execute(
         """
         INSERT INTO source_documents (
-            doc_id, source, source_id, source_record_id, source_record_url, source_api_url, canonical_url,
+            source_observation_id, doc_id, source, source_id, source_record_id, source_record_url, source_api_url, canonical_url,
             content_hash, document_type,
             doi, arxiv_id, openalex_id, pmid, pmcid, semantic_scholar_id, dblp_id, mag_id,
             title, abstract, year, published_at, publication_date, updated_source_at,
@@ -300,7 +306,7 @@ def insert_source(cur: psycopg.Cursor, row: dict[str, Any]) -> None:
             created_at, updated_at
         )
         VALUES (
-            %(doc_id)s, %(source)s, %(source_id)s, %(source_record_id)s, %(source_record_url)s, %(source_api_url)s, %(canonical_url)s,
+            %(source_observation_id)s, %(doc_id)s, %(source)s, %(source_id)s, %(source_record_id)s, %(source_record_url)s, %(source_api_url)s, %(canonical_url)s,
             %(content_hash)s, %(document_type)s,
             %(doi)s, %(arxiv_id)s, %(openalex_id)s, %(pmid)s, %(pmcid)s, %(semantic_scholar_id)s, %(dblp_id)s, %(mag_id)s,
             %(title)s, %(abstract)s, %(year)s, %(published_at)s, %(publication_date)s, %(updated_source_at)s,
@@ -315,7 +321,7 @@ def insert_source(cur: psycopg.Cursor, row: dict[str, Any]) -> None:
             %(code_links)s::jsonb, %(dataset_links)s::jsonb, %(model_links)s::jsonb, %(stages)s::jsonb,
             %(created_at)s, %(updated_at)s
         )
-        ON CONFLICT (doc_id) DO UPDATE SET
+        ON CONFLICT (source_observation_id) DO UPDATE SET
             title = EXCLUDED.title,
             abstract = EXCLUDED.abstract,
             updated_at = EXCLUDED.updated_at,
@@ -325,70 +331,41 @@ def insert_source(cur: psycopg.Cursor, row: dict[str, Any]) -> None:
     )
 
 
-SOURCE_DOC_LOOKUP_FIELDS = (
-    "source_id",
-    "source_record_id",
-    "source_record_url",
-    "canonical_url",
-    "landing_page_url",
-)
+def insert_link(
+    cur: psycopg.Cursor,
+    canonical_id: str,
+    link: dict[str, Any],
+) -> None:
+    """Insert one canonical provenance contribution using deterministic identity.
 
-
-def resolve_source_doc_id(cur: psycopg.Cursor, link: dict[str, Any]) -> str | None:
-    """Resolve source_documents.doc_id for a canonical-source link.
-
-    This is intentionally source-agnostic. The source layer is a collection of
-    observations from arXiv, OpenAlex, Semantic Scholar, Crossref, ACL
-    Anthology, and future sources. canonical_source_links is the many-to-many
-    bridge between canonical paper entities and source-level observations.
+    The source observation must already exist in ``source_documents``. The
+    non-null foreign key fails closed when canonical provenance and selected
+    normalized snapshots drift apart.
     """
-    source = link.get("source")
-    if not source:
-        return None
 
-    # Use a whitelist of SQL column names. Values remain parameterized below.
-    for field_name in SOURCE_DOC_LOOKUP_FIELDS:
-        value = link.get(field_name)
-        if not value:
-            continue
-
-        cur.execute(
-            f"""
-            SELECT doc_id
-            FROM source_documents
-            WHERE source = %s AND {field_name} = %s
-            LIMIT 1
-            """,
-            (source, value),
-        )
-        row = cur.fetchone()
-        if row:
-            return row[0]
-
-    return None
-
-
-def insert_link(cur: psycopg.Cursor, canonical_id: str, link: dict[str, Any]) -> None:
-    source = link.get("source")
-    source_id = link.get("source_id")
-    doc_id = resolve_source_doc_id(cur, link)
+    identity = build_source_observation_identity_from_mapping(link)
 
     cur.execute(
         """
         INSERT INTO canonical_source_links (
-            canonical_id, doc_id, source, source_id, source_record_id, source_record_url,
-            canonical_url, fetched_at, source_updated_at, source_api_url, raw_source_name, run_ts
+            canonical_id, source_observation_id, doc_id,
+            source, source_id, source_record_id, source_record_url,
+            canonical_url, fetched_at, source_updated_at, source_api_url,
+            raw_source_name, run_ts
         )
         VALUES (
-            %s, %s, %s, %s, %s, %s,
-            %s, %s, %s, %s, %s, %s
+            %s, %s, %s,
+            %s, %s, %s, %s,
+            %s, %s, %s, %s,
+            %s, %s
         )
         """,
         (
             canonical_id,
-            doc_id,
-            source,
-            source_id,
+            identity.source_observation_id,
+            link.get("doc_id"),
+            identity.normalized_source,
+            link.get("source_id"),
             link.get("source_record_id"),
             link.get("source_record_url"),
             link.get("canonical_url"),
@@ -399,7 +376,6 @@ def insert_link(cur: psycopg.Cursor, canonical_id: str, link: dict[str, Any]) ->
             link.get("run_ts"),
         ),
     )
-
 
 def insert_references(cur: psycopg.Cursor, canonical_id: str, doc: dict[str, Any]) -> None:
     for value in doc.get("referenced_dois", []):
@@ -468,22 +444,26 @@ def main() -> None:
             for path in iter_normalized_files(normalized_dir):
                 print(f"Loading source file: {path}")
                 for line_idx, doc in enumerate(read_jsonl(path), start=1):
-                    row = source_row(doc)
-
-                    missing_fields = []
-                    if not row.get("source"):
-                        missing_fields.append("source")
-                    if not row.get("source_id"):
-                        missing_fields.append("source_id")
-                    if not row.get("title"):
-                        missing_fields.append("title")
-
-                    if missing_fields:
+                    try:
+                        row = source_row(doc)
+                    except (TypeError, ValueError) as exc:
                         skipped_source_rows += 1
                         print(
-                            f"[WARN] skipping invalid source document: "
-                            f"path={path} line={line_idx} missing={missing_fields} "
-                            f"doc_id={doc.get('doc_id')}"
+                            f"[WARN] skipping source document with invalid identity: "
+                            f"path={path} line={line_idx} doc_id={doc.get('doc_id')} "
+                            f"error={exc}"
+                        )
+                        continue
+
+                    # Admission is identity-based. Incomplete bibliographic
+                    # metadata (for example a missing title) must remain
+                    # materializable as source evidence. Legacy doc_id remains
+                    # required by the current normalized-row contract.
+                    if not row.get("doc_id"):
+                        skipped_source_rows += 1
+                        print(
+                            f"[WARN] skipping source document without legacy doc_id: "
+                            f"path={path} line={line_idx}"
                         )
                         continue
 
@@ -536,6 +516,7 @@ def main() -> None:
                     json.dumps(
                         {
                             "replace": bool(args.replace),
+                            "source_observations_processed": source_count,
                             "source_documents": source_count,
                             "skipped_source_documents": skipped_source_rows,
                             "canonical_documents": canonical_count,
