@@ -6,13 +6,13 @@
 document = primary living roadmap
 accepted checkpoint = Current State Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
-current active direction = review / regression / design-hardening
-current active slice = Manual Public Metadata Release Review Execution v0.1
+current active direction = operational source identity complete / field-level provenance design next
+current active slice = Source Observation Materialization Operational Promotion v0.1 completed / living-docs sync
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = execute and record the human-owned 20-category public metadata release review over the validated 60,954-row / 34-column local candidate; record 15 passed and 5 failed categories, approval_state=rejected, manual_review_complete=true, publication_ready=false, and publication_block_reason=manual_release_rejected because Semantic Scholar downloadable redistribution is not sufficiently resolved; perform no dataset rebuild, package mutation, upload, canonical, retrieval, Qdrant, Postgres, graph, ranking, API, or UI behavior change
+scope of current branch = record the completed promotion of the validated 88,178-row source-observation materialization to the default ml_radar database; retain the 70,244-row legacy database and checked dumps for rollback; synchronize living docs; perform no canonical, reconciliation, retrieval, Qdrant, graph, ranking, API, UI, or publication behavior change
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -20,9 +20,10 @@ architectural invariants that must remain stable, and the recommended order of
 future work.
 
 The project prefers complete, validated vertical slices over broad feature
-expansion. After the completed local graph lines, the next safe direction is
-review, regression, and design-hardening before any new runtime, public API,
-GraphRAG, graph DB, or Qdrant-promotion work.
+expansion. After the completed source-observation operational promotion, the
+next safe architecture direction is a file-first Field-Level Canonical
+Provenance Contract before any new runtime, public API, GraphRAG, graph DB, or
+Qdrant-promotion work.
 
 ---
 
@@ -55,7 +56,8 @@ creates_runtime_graph = false
 Accepted current direction:
 
 ```text
-review / regression / design-hardening first
+operational source-observation identity = completed
+next = Field-Level Canonical Provenance Contract v0.1
 runtime / public API / GraphRAG / Qdrant promotion only after a separate accepted design slice
 ```
 
@@ -96,12 +98,14 @@ Recently completed safe slices:
 33. **Citation Graph Failure Isolation & Error Recovery v0.1** — completed regression-hardening slice over graph-file failures, graph-scoped error mapping, cache non-poisoning, and recovery without process restart.
 34. **Citation Graph Live Smoke & Known-Issues Hardening v0.1** — completed operator-facing validation/docs slice over the existing seven-route local-inspection API; no runtime-surface expansion.
 35. **Citation Graph Manual-Review Evidence Preparation v0.1** — completed read-only review-support slice over the existing 18-category checklist; no automated approval or publication.
-36. **Manual Citation Graph Review Execution v0.1** — active human-governance slice; 18/18 categories passed, checklist approved, publication remains separate.
+36. **Manual Citation Graph Review Execution v0.1** — completed human-governance slice; 18/18 categories passed, checklist approved, publication remains separate.
+37. **Source Observation Materialization Identity v0.1** — completed deterministic physical identity for all selected source observations.
+38. **Source Observation Materialization Operational Promotion v0.1** — completed default-DB promotion with checked backups, retained rollback DB, and green product gates.
 
 Recommended next safe slices:
 
-1. **Manual Citation Graph Review Execution v0.1** — complete and merge the explicit 18-category human decision record while keeping publication out of scope.
-2. **Public Metadata Dataset Release Policy & Kaggle Packaging v0.1** — return to the core portfolio goal with a source-aware metadata-only public projection, dataset card, attribution manifest, and no PDF/full-text redistribution.
+1. **Field-Level Canonical Provenance Contract v0.1** — file-first derived provenance evidence over canonical field selection; no new truth or runtime behavior.
+2. **Semantic Scholar Public Release Boundary Remediation v0.1** — separate publication-governance track after the rejected release review.
 3. **Paper–Artifact Graph API Design v0.1** — only if existing Artifact API surfaces prove insufficient for a concrete product requirement.
 
 Explicit immediate non-goals:
@@ -230,7 +234,8 @@ None of these layers may redefine paper identity.
 ### 2.2 Identity separation
 
 ```text
-source_doc_id = source-level observation identity
+source_observation_id = deterministic operational source-observation identity
+doc_id = legacy normalized-document id, not globally unique across sources
 canonical_id = reconciled paper-level identity
 artifact_id = normalized artifact identity
 dense_index / Qdrant point_id = serving mapping inside one retrieval generation
@@ -295,6 +300,25 @@ embedding_model = sentence-transformers/all-MiniLM-L6-v2
 embedding_shape = [60954, 384]
 dense_vectors_normalized = true
 ```
+
+### 3.1.1 Operational source-observation materialization
+
+```text
+operational_db = ml_radar
+source_documents = 88,178
+canonical_source_links = 88,037
+resolved_links = 88,037
+non_contributing_source_observations = 141
+null_links = 0
+dangling_links = 0
+missing_selected_observations = 0
+full_parity_ok = true
+rollback_db = ml_radar_pre_source_identity_v01_20260722t101620z
+```
+
+Canonical documents remain 60,954 and the active retrieval build remains
+`20260504T164021Z`. This was a derived serving-layer identity correction, not a
+reconciliation or canonical promotion.
 
 ### 3.2 Golden Set
 
@@ -1984,7 +2008,79 @@ GraphRAG = not implemented
 ```
 
 
+### 4.39 Source Observation Materialization Operational Promotion v0.1
+
+Status: **done / green operational promotion / rollback retained**
+
+Implemented after the source-observation materialization identity slice:
+
+```text
+validated candidate materialization
+→ read-only preflight
+→ checked operational and candidate dumps
+→ controlled database-name swap
+→ post-promotion validation
+→ DB / artifact / parity / Artifact API product gates
+```
+
+Accepted evidence:
+
+```text
+source_documents = 88,178
+canonical_source_links = 88,037
+resolved_links = 88,037
+non_contributing_source_observations = 141
+preflight = 24 / 24
+backup-required preflight = 28 / 28
+post-promotion = 29 / 29
+promotion validator tests = 10 passed
+```
+
+Rollback state:
+
+```text
+rollback database = ml_radar_pre_source_identity_v01_20260722t101620z
+rollback source_documents = 70,244
+operational and candidate dumps = retained and SHA-256 recorded
+legacy database drop = not performed
+```
+
+Boundary:
+
+```text
+no canonical ID or reconcile change
+no retrieval or embedding rebuild
+no Qdrant change
+no artifact-policy change
+no graph/ranking/API/UI behavior change
+no publication action
+```
+
 ## 5. Current active direction
+
+### 5.0 Current immediate direction after operational promotion
+
+```text
+Field-Level Canonical Provenance Contract v0.1
+```
+
+The next slice should specify, file-first and read-only, how selected canonical
+field values relate to contributing source observations. It must reuse the
+accepted identities:
+
+```text
+source_observation_id = physical source observation identity
+canonical_id = paper identity
+doc_id = legacy diagnostic only
+```
+
+It must not mutate canonical documents, run reconciliation, add a new serving
+truth, alter Postgres, rebuild retrieval, promote Qdrant, change ranking, expand
+graph runtime, or publish data.
+
+The rejected public metadata release remains a separate governance track. A
+Semantic Scholar exclusion/permission remediation must not be mixed into this
+architecture slice.
 
 ### 5.1 Citation Graph Top External References Endpoint Docs Sync v0.1
 
@@ -4145,7 +4241,13 @@ The human review rejects publication because the current candidate cannot prove 
 sufficiently clear redistribution boundary for Semantic Scholar-derived data in
 a downloadable Kaggle dataset.
 
-Next safe slice:
+Primary next architecture slice:
+
+```text
+Field-Level Canonical Provenance Contract v0.1
+```
+
+Separate publication-governance slice:
 
 ```text
 Semantic Scholar Public Release Boundary Remediation v0.1
@@ -4161,3 +4263,89 @@ rebuild and validate a public candidate with Semantic Scholar-derived data exclu
 
 No automatic upload, GraphRAG, graph DB materialization, Qdrant promotion, or
 unrelated runtime expansion is authorized.
+
+## Source Observation Materialization Operational Promotion v0.1
+
+Status: **completed / operationally promoted / rollback retained**
+
+Purpose:
+
+```text
+Promote the fully validated source-observation materialization candidate to the
+default operational Postgres database without changing canonical paper truth.
+```
+
+Completed database-name transition:
+
+```text
+ml_radar
+→ ml_radar_pre_source_identity_v01_20260722t101620z
+
+ml_radar_source_identity_candidate_v01
+→ ml_radar
+```
+
+Current operational schema:
+
+```text
+source_documents.source_observation_id = PRIMARY KEY
+source_documents.doc_id = NOT NULL, non-unique legacy diagnostic
+canonical_source_links.source_observation_id = NOT NULL
+canonical_source_links.source_observation_id
+  → source_documents(source_observation_id) ON DELETE RESTRICT
+canonical_source_links.doc_id = nullable legacy diagnostic
+UNIQUE(canonical_id, source_observation_id)
+```
+
+Accepted operational counters:
+
+```text
+canonical_documents = 60,954
+source_documents = 88,178
+canonical_source_links = 88,037
+document_references = 709,662
+artifact_entities = 7,333
+artifact_observations = 38,246
+paper_artifact_links = 7,430
+non_contributing_source_observations = 141
+null_links = 0
+dangling_links = 0
+missing_selected_observations = 0
+```
+
+Accepted validation evidence:
+
+```text
+promotion validator smoke tests = 10 passed
+preflight = 24 / 24
+backup-required preflight = 28 / 28
+post-promotion = 29 / 29
+DB smoke = green
+artifact DB smoke = green
+full source-observation parity = green
+Artifact API strict filter gate = green
+```
+
+Backup and rollback evidence:
+
+```text
+operational dump SHA-256 = af40c266cf12f284b20ccad6f1877ff85c3c3b05d4ccc4a36fcd114a92e71303
+candidate dump SHA-256 = 8f9e4ee2765a7eeb6f368adec263787402b0a030ff305bfcfcb634509e684b4f
+rollback DB retained = true
+rollback DB source_documents = 70,244
+rollback DB deletion = not performed
+```
+
+Architectural interpretation:
+
+```text
+source_observation_id fixes physical source-row identity in the derived serving layer
+doc_id remains useful legacy/diagnostic metadata but is not globally unique
+canonical_documents.jsonl remains paper truth
+reconciliation behavior and canonical IDs are unchanged
+Postgres remains rebuildable and derived
+```
+
+The next architectural slice is **Field-Level Canonical Provenance Contract v0.1**.
+It should remain file-first and derived, document how canonical field values map
+to contributing observations, and must not create a second canonical truth.

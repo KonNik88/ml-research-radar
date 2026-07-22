@@ -99,6 +99,8 @@ Public Metadata Release Manual-Review Evidence Preparation v0.1 — 2026-07 comp
 Manual Public Metadata Release Review Execution v0.1 — 2026-07 completed explicit human-review closure slice; review completed with 15 passed / 5 failed, approval_state=rejected, publication remains blocked and out of scope
 Citation Graph Lifecycle Consistency v0.1 — 2026-07 completed API/docs/tests lifecycle-semantics hardening for the implemented file-backed traversal surface versus the unimplemented promoted full graph runtime
 Citation Graph UI Lifecycle Status Sync v0.1 — 2026-07 completed Streamlit status-panel, validator, live-API, and smoke-test synchronization
+Source Observation Materialization Identity v0.1 — 2026-07 completed deterministic source-observation materialization identity
+Source Observation Materialization Operational Promotion v0.1 — 2026-07 completed default-DB promotion with checked backups and retained rollback DB
 ```
 
 Current healthy baseline:
@@ -115,6 +117,16 @@ ACL-enriched existing docs = 3
 retrieval_build_id = 20260504T164021Z
 embedding_model = sentence-transformers/all-MiniLM-L6-v2
 embedding_shape = [60954, 384]
+
+source_documents_operational_count = 88178
+canonical_source_links_operational_count = 88037
+resolved_source_observation_links = 88037
+non_contributing_source_observations = 141
+null_source_observation_links = 0
+dangling_source_observation_links = 0
+missing_selected_source_observations = 0
+source_observation_full_parity_ok = true
+rollback_db = ml_radar_pre_source_identity_v01_20260722t101620z
 
 artifact_entities_db_count = 7333
 artifact_observations_db_count = 38246
@@ -237,6 +249,7 @@ known_issues_latest.json
 
 ```text
 canonical_documents.jsonl = paper-level truth
+source_observation_id = authoritative physical source-row identity in Postgres
 Postgres = rebuildable materialized serving layer
 retrieval artifacts = derived retrieval layer
 artifact DB = derived evidence/materialization plane
@@ -305,6 +318,63 @@ reconcile must run from full intended inputs, not accidental mini-batches
 ```
 
 This prevents corpus collapse, source loss and misleading multisource counts.
+
+---
+
+# A.0 Operational source-observation baseline
+
+The default database name `ml_radar` now points to the corrected
+source-observation materialization.
+
+```text
+source_documents = 88,178
+canonical_source_links = 88,037
+resolved_links = 88,037
+non_contributing_observations = 141
+null_links = 0
+dangling_links = 0
+missing_selected_observations = 0
+```
+
+The old operational materialization is retained for rollback:
+
+```text
+ml_radar_pre_source_identity_v01_20260722t101620z
+source_documents = 70,244
+```
+
+Normal startup must use the unchanged default settings:
+
+```text
+ML_RADAR_SEARCH_BACKEND=db
+ML_RADAR_POSTGRES_DBNAME=ml_radar
+```
+
+Do not point ordinary runtime back to the archived database. Do not delete the
+archive or the checked dumps as part of routine development.
+
+Quick operational checks:
+
+```bat
+python -m scripts.export.test_db_read
+python -m scripts.export.test_artifact_db_read
+python -m scripts.validation.check_source_observation_materialization_parity ^
+  --dbname ml_radar ^
+  --require-full-parity
+python -m scripts.validation.check_artifact_api_filters --strict
+```
+
+Expected key results:
+
+```text
+canonical_documents = 60,954
+source_documents = 88,178
+canonical_source_links = 88,037
+artifact_entities = 7,333
+artifact_observations = 38,246
+paper_artifact_links = 7,430
+required_failed_count = 0
+```
 
 ---
 
@@ -4721,8 +4791,64 @@ no canonical/reconcile/retrieval/Qdrant/Postgres/graph/ranking/API/UI change
 generated latest/history reports are not committed by default
 ```
 
-Next safe slice:
+Parallel publication-governance follow-up:
 
 ```text
 Semantic Scholar Public Release Boundary Remediation v0.1
 ```
+
+Primary architecture follow-up:
+
+```text
+Field-Level Canonical Provenance Contract v0.1
+```
+
+# Source Observation Materialization Operational Promotion v0.1 — completed procedure
+
+This was a bounded one-time operational promotion, not a canonical refresh.
+
+Completed sequence:
+
+```text
+read-only preflight 24/24
+→ operational + candidate custom-format dumps
+→ pg_restore --list evidence
+→ backup-required preflight 28/28
+→ old ml_radar renamed to rollback name
+→ candidate renamed to ml_radar
+→ post-promotion validation 29/29
+→ DB/artifact/parity/Artifact API product gates
+```
+
+Backup evidence:
+
+```text
+backups/postgres/ml_radar_operational_20260722t101620z.dump
+SHA-256 af40c266cf12f284b20ccad6f1877ff85c3c3b05d4ccc4a36fcd114a92e71303
+
+backups/postgres/ml_radar_candidate_20260722t101620z.dump
+SHA-256 8f9e4ee2765a7eeb6f368adec263787402b0a030ff305bfcfcb634509e684b4f
+```
+
+Rollback rule:
+
+```text
+never patch operational tables manually
+rename the new operational DB aside
+rename the retained rollback DB back to ml_radar
+preserve failed/new DB for diagnosis
+```
+
+Future routine refreshes should export into the already-correct operational
+schema and run full source-observation parity. They should not repeat this
+historic database-name swap unless a separately designed migration requires it.
+
+Next safe architecture slice:
+
+```text
+Field-Level Canonical Provenance Contract v0.1
+```
+
+The Semantic Scholar public-release remediation remains a separate publication
+governance track and must not be mixed into source materialization or canonical
+field-provenance work.

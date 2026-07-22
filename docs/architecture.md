@@ -16,7 +16,7 @@ overlapping source-level observations.
 ## Current checkpoint
 
 ```text
-checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1 / Citation Graph Diagnostics UI v0.1 / Citation Graph External Reference Lookup UI v0.1 / Citation Graph UI Productization Checkpoint v0.1 / Citation Graph Store Cache & Reload Regression v0.1 / Citation Graph Failure Isolation & Error Recovery v0.1 / Citation Graph Live Smoke & Known-Issues Hardening v0.1 / Citation Graph Manual-Review Evidence Preparation v0.1 / Manual Citation Graph Review Execution v0.1 / Public Metadata Release Policy & Kaggle Packaging v0.1 / Public Metadata Release Manual-Review Evidence Preparation v0.1 / Manual Public Metadata Release Review Execution v0.1
+checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1 / Citation Graph Diagnostics UI v0.1 / Citation Graph External Reference Lookup UI v0.1 / Citation Graph UI Productization Checkpoint v0.1 / Citation Graph Store Cache & Reload Regression v0.1 / Citation Graph Failure Isolation & Error Recovery v0.1 / Citation Graph Live Smoke & Known-Issues Hardening v0.1 / Citation Graph Manual-Review Evidence Preparation v0.1 / Manual Citation Graph Review Execution v0.1 / Public Metadata Release Policy & Kaggle Packaging v0.1 / Public Metadata Release Manual-Review Evidence Preparation v0.1 / Manual Public Metadata Release Review Execution v0.1 / Source Observation Materialization Operational Promotion v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
@@ -31,6 +31,14 @@ canonical_multisource_docs = 9192
 doi_count = 10183
 arXiv backbone = 60000
 ACL-family docs = 957
+
+source_documents_operational_count = 88178
+canonical_source_links_operational_count = 88037
+resolved_source_observation_links = 88037
+non_contributing_source_observations = 141
+null_source_observation_links = 0
+dangling_source_observation_links = 0
+rollback_db = ml_radar_pre_source_identity_v01_20260722t101620z
 
 retrieval_build_id = 20260504T164021Z
 embedding_model = sentence-transformers/all-MiniLM-L6-v2
@@ -65,6 +73,7 @@ sources
 → reconcile / identity resolution
 → canonical paper corpus
 → retrieval artifacts
+→ deterministic source-observation identity materialization
 → Postgres materialized serving layer
 → artifact evidence/materialization layer
 → GitHub / Hugging Face enrichment
@@ -115,8 +124,11 @@ No derived layer is allowed to mutate or redefine canonical truth.
 Identity domains:
 
 ```text
-source_doc_id / doc_id
-= source-level observation identity
+source_observation_id
+= deterministic operational source-observation row identity
+
+doc_id
+= legacy normalized-document id; not globally unique across sources
 
 canonical_id
 = reconciled paper-level identity
@@ -322,6 +334,24 @@ GET /documents/{canonical_id}/artifacts
 GET /search?mode=lexical
 ```
 
+Operational source-observation schema:
+
+```text
+source_documents.source_observation_id = PRIMARY KEY
+source_documents.doc_id = non-unique legacy diagnostic
+canonical_source_links.source_observation_id = authoritative FK
+canonical_source_links.doc_id = nullable legacy diagnostic
+UNIQUE(canonical_id, source_observation_id)
+```
+
+Current default operational state:
+
+```text
+ml_radar source_documents = 88,178
+ml_radar canonical_source_links = 88,037
+rollback DB = ml_radar_pre_source_identity_v01_20260722t101620z
+```
+
 DB backend does not currently support:
 
 ```text
@@ -341,6 +371,12 @@ Artifact evidence is separate from paper identity.
 Current artifact/enrichment baseline:
 
 ```text
+source_documents_operational_count = 88178
+canonical_source_links_operational_count = 88037
+source_observation_links_resolved = 88037
+source_observation_links_null = 0
+source_observation_links_dangling = 0
+
 artifact_entities_db_count = 7333
 artifact_observations_db_count = 38246
 paper_artifact_links_db_count = 7430
@@ -832,6 +868,8 @@ topic cluster/projection validators
 Streamlit UI validators
 Definition-of-Done checks
 retrieval-serving checkpoint gate
+source-observation materialization parity validator
+source-observation operational-promotion validator
 ```
 
 Lightweight retrieval-serving checkpoint:
@@ -890,6 +928,8 @@ Qdrant is experimentally validated but not promoted.
 Unranked hybrid remains the search relevance reference.
 The retrieval-serving checkpoint gate is the lightweight regression guard.
 Future promotion decisions must be explicit, evidence-backed, and reversible.
+The source-observation promotion follows this rule: two checked dumps and the
+70,244-row legacy database remain available for rollback.
 Citation graph status/references/citations/external-reference-papers/source-families/top-referenced-papers/top-external-references are the checkpointed v0.3 narrow local-inspection API block, not a graph-runtime promotion.
 Graph API / Streamlit productization starts as a design-only thin-client plan, not UI implementation.
 ```
@@ -1194,3 +1234,89 @@ The blocker is confined to public redistribution governance for
 Semantic Scholar-derived data. It does not invalidate canonical truth or package
 integrity and does not change reconciliation, retrieval, Qdrant, Postgres, graph,
 ranking, API, or UI behavior.
+
+## Source Observation Materialization Operational Promotion v0.1
+
+Status: **completed / operationally promoted / rollback retained**
+
+Purpose:
+
+```text
+Promote the fully validated source-observation materialization candidate to the
+default operational Postgres database without changing canonical paper truth.
+```
+
+Completed database-name transition:
+
+```text
+ml_radar
+→ ml_radar_pre_source_identity_v01_20260722t101620z
+
+ml_radar_source_identity_candidate_v01
+→ ml_radar
+```
+
+Current operational schema:
+
+```text
+source_documents.source_observation_id = PRIMARY KEY
+source_documents.doc_id = NOT NULL, non-unique legacy diagnostic
+canonical_source_links.source_observation_id = NOT NULL
+canonical_source_links.source_observation_id
+  → source_documents(source_observation_id) ON DELETE RESTRICT
+canonical_source_links.doc_id = nullable legacy diagnostic
+UNIQUE(canonical_id, source_observation_id)
+```
+
+Accepted operational counters:
+
+```text
+canonical_documents = 60,954
+source_documents = 88,178
+canonical_source_links = 88,037
+document_references = 709,662
+artifact_entities = 7,333
+artifact_observations = 38,246
+paper_artifact_links = 7,430
+non_contributing_source_observations = 141
+null_links = 0
+dangling_links = 0
+missing_selected_observations = 0
+```
+
+Accepted validation evidence:
+
+```text
+promotion validator smoke tests = 10 passed
+preflight = 24 / 24
+backup-required preflight = 28 / 28
+post-promotion = 29 / 29
+DB smoke = green
+artifact DB smoke = green
+full source-observation parity = green
+Artifact API strict filter gate = green
+```
+
+Backup and rollback evidence:
+
+```text
+operational dump SHA-256 = af40c266cf12f284b20ccad6f1877ff85c3c3b05d4ccc4a36fcd114a92e71303
+candidate dump SHA-256 = 8f9e4ee2765a7eeb6f368adec263787402b0a030ff305bfcfcb634509e684b4f
+rollback DB retained = true
+rollback DB source_documents = 70,244
+rollback DB deletion = not performed
+```
+
+Architectural interpretation:
+
+```text
+source_observation_id fixes physical source-row identity in the derived serving layer
+doc_id remains useful legacy/diagnostic metadata but is not globally unique
+canonical_documents.jsonl remains paper truth
+reconciliation behavior and canonical IDs are unchanged
+Postgres remains rebuildable and derived
+```
+
+The next architectural slice is **Field-Level Canonical Provenance Contract v0.1**.
+It should remain file-first and derived, document how canonical field values map
+to contributing observations, and must not create a second canonical truth.

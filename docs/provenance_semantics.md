@@ -8,6 +8,7 @@ It exists to prevent confusion between:
 - identifier linkage,
 - source provenance,
 - contributing normalized rows,
+- operational source-observation identity,
 - canonical merge counts.
 
 This is especially important during refresh validation, reconcile debugging, and future source onboarding.
@@ -128,6 +129,58 @@ Examples:
 
 ---
 
+### `source_observation_id`
+
+`source_observation_id` is the deterministic identity of one selected source
+observation in the Postgres materialization layer.
+
+It is derived from the source observation mapping through the shared source
+identity helper. It is the authoritative physical key used by:
+
+```text
+source_documents.source_observation_id
+canonical_source_links.source_observation_id
+```
+
+Operational rules:
+
+- it is globally unique for materialized source observations;
+- it is the primary key of `source_documents`;
+- canonical links reference it directly;
+- it does not replace `canonical_id`;
+- it does not change reconciliation or canonical paper identity;
+- a valid selected observation may remain unlinked when it did not contribute to
+  canonical provenance.
+
+Current accepted counts:
+
+```text
+selected source observations = 88,178
+canonical provenance pairs = 88,037
+valid non-contributing observations = 141
+```
+
+---
+
+### `doc_id`
+
+`doc_id` remains a normalized-document identifier and legacy diagnostic field.
+It is **not globally unique across all source observations** and must not be used
+as the physical primary key of the operational source materialization.
+
+Current Postgres semantics:
+
+```text
+source_documents.doc_id = NOT NULL, non-unique
+canonical_source_links.doc_id = nullable legacy diagnostic
+```
+
+The same legacy `doc_id` may occur in observations from different source
+families. That is not a canonical collision and must not cause one observation
+to overwrite another.
+
+---
+
 ### `doc_ids`
 
 `doc_ids` is the **deduplicated** list of contributing normalized `doc_id` values.
@@ -169,12 +222,15 @@ This should be treated as a warning-level situation only when provenance interpr
 
 ## What counts as a real structural error
 
-The following should be treated as genuine canonical provenance errors:
+The following should be treated as genuine canonical provenance or materialization errors:
 
 1. `source_count != len(sources)`
 2. `unique_source_count != number of unique source families in sources`
 3. provenance source entries missing required `source` name
 4. exact duplicate provenance row entries with the same `(source, source_record_id)`
+5. duplicate `source_observation_id` values in `source_documents`
+6. NULL or dangling authoritative `canonical_source_links.source_observation_id`
+7. selected source observations missing from the operational materialization
 
 These indicate broken provenance assembly or broken reconcile output.
 
@@ -210,6 +266,8 @@ As of the current refresh cycle design:
 - `sources` = contributing provenance rows
 - `source_count` = number of contributing normalized rows
 - `unique_source_count` = number of unique source families
+- `source_observation_id` = deterministic operational identity of one source observation
+- `doc_id` = legacy normalized-document identifier, not a global materialization key
 
 This interpretation is consistent with current reconcile behavior and current validation results.
 
@@ -224,6 +282,9 @@ When auditing canonical provenance:
 - `unique_source_count` mismatch
 - malformed provenance entries
 - exact duplicate provenance rows
+- duplicate source-observation identities
+- NULL/dangling authoritative source-observation links
+- selected observations missing from materialization
 
 ### treat as warnings
 - identifier/provenance family mismatch
@@ -245,6 +306,21 @@ This can be a valid outcome of merged external linkage.
 
 Refresh validation should fail only on **true structural inconsistencies**.
 
+Operational source materialization validation must additionally enforce:
+
+```text
+source_documents rows = all selected observations
+canonical_source_links rows = contributing canonical provenance pairs
+resolved authoritative links = canonical_source_links rows
+NULL authoritative links = 0
+dangling authoritative links = 0
+missing selected observations = 0
+```
+
+The difference between selected observations and canonical provenance pairs is
+not automatically an error. In the accepted operational baseline, 141 selected
+observations are valid but non-contributing.
+
 ---
 
 ## What this means for the current project state
@@ -253,8 +329,12 @@ The current project state can now be interpreted like this:
 
 - the safe reconcile stage is functioning correctly,
 - the candidate refresh path is functioning correctly,
+- the corrected source-observation materialization is now operational under `ml_radar`,
+- all 88,178 selected observations are preserved physically,
+- all 88,037 canonical provenance links resolve through `source_observation_id`,
+- 141 valid non-contributing observations remain unlinked by design,
 - the canonical layer does not currently show mass structural provenance corruption,
-- most of the earlier “anomalies” came from mixing together identifier semantics and provenance semantics.
+- most earlier anomalies came from mixing identifier, provenance, and physical materialization semantics.
 
 That means future work should focus on:
 - keeping refresh safe,
@@ -273,3 +353,7 @@ This document should stay aligned with:
 - refresh validation rules
 - source onboarding rules
 - future refresh contract updates
+- `radar_core/utils/source_observation_identity.py`
+- `scripts/export/export_postgres_v1.py`
+- source-observation parity and operational-promotion validators
+- future Field-Level Canonical Provenance Contract v0.1

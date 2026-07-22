@@ -37,3 +37,8 @@ collect_latest_reports.sh
 notebooks/
 
 /data/graphs/
+
+# Local operational database backups
+/backups/
+*.dump
+*.backup

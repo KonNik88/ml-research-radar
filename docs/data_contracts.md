@@ -17,14 +17,15 @@ The goal is to support:
 - future code/artifact linkage
 - future product features built on canonical paper entities
 
-The project uses a two-level paper model:
+The project uses a two-level semantic paper model plus an operational materialization identity:
 
 1. **Document** — source-level normalized record
 2. **CanonicalDocument** — reconciled merged paper entity
+3. **source_observation_id** — deterministic physical identity for one selected source observation in Postgres
 
 At the current stage, the project expands the **paper metadata layer first**, using arXiv as the current backbone source.
 
-GitHub repositories and other external entities are intentionally postponed and will be added later as separate entity types.
+GitHub repositories and other external artifacts are modeled separately in the artifact evidence plane (`artifact_entities`, `artifact_observations`, `paper_artifact_links`). They are not `Document` or `CanonicalDocument` rows and must not redefine paper identity.
 
 ---
 
@@ -38,6 +39,20 @@ Represents:
 - one normalized source record
 - source-specific metadata after normalization
 - source-level identity and provenance
+
+## 1.1.1 Operational source-observation materialization
+
+The semantic `Document` contract is materialized into Postgres with an explicit
+`source_observation_id`.
+
+```text
+source_observation_id = deterministic physical row identity
+doc_id = legacy normalized-document identifier
+```
+
+`source_observation_id` is not a third paper entity level. It is an operational
+identity used to preserve every selected source observation without changing the
+paper-level canonical model.
 
 ## 1.2 `CanonicalDocument`
 A merged paper entity created by reconciliation.
@@ -60,7 +75,8 @@ Represents:
 | `source_record_id` | original id in source | yes | no | implemented |
 | `source_record_url` | source page / record url | yes | no | implemented |
 | `source_api_url` | API endpoint url | yes | no | implemented |
-| `doc_id` | source-level stable internal id | yes | no | implemented |
+| `source_observation_id` | deterministic operational identity of one selected source observation | materialized | no | implemented operationally |
+| `doc_id` | normalized-document id; legacy diagnostic, not globally unique across sources | yes | no | implemented |
 | `doi` | stable bibliographic paper id | yes | yes | implemented |
 | `arxiv_id` | arXiv identifier | yes | yes | implemented |
 | `openalex_id` | OpenAlex identifier | yes | yes | implemented |
@@ -72,6 +88,26 @@ Represents:
 | `canonical_url` | normalized canonical URL / manifestation URL | yes | no | implemented |
 | `source_ids` | source → source id map | yes | yes | implemented |
 | `external_ids` | richer external identifier map | yes | yes | implemented |
+
+---
+
+## 2.1 Operational identity constraints
+
+Current Postgres materialization contract:
+
+```text
+source_documents.source_observation_id = PRIMARY KEY
+source_documents.doc_id = NOT NULL, non-unique
+canonical_source_links.source_observation_id = NOT NULL
+canonical_source_links.source_observation_id
+  → source_documents(source_observation_id) ON DELETE RESTRICT
+canonical_source_links.doc_id = nullable
+UNIQUE(canonical_id, source_observation_id)
+```
+
+The authoritative canonical-to-source link is `source_observation_id`. `doc_id`
+is retained for backward-compatible diagnostics and must not be used to collapse
+observations across source families.
 
 ---
 
@@ -185,6 +221,22 @@ The canonical JSONL corpus remains the current source of truth.
 ## 10.2 Serving layer
 Postgres currently acts as a materialized serving layer.
 
+Current operational source-observation state:
+
+```text
+operational_db = ml_radar
+source_documents = 88,178
+canonical_source_links = 88,037
+resolved_links = 88,037
+non_contributing_selected_observations = 141
+null_links = 0
+dangling_links = 0
+missing_selected_observations = 0
+```
+
+The previous 70,244-row legacy materialization is retained only as the rollback
+database `ml_radar_pre_source_identity_v01_20260722t101620z`.
+
 ## 10.3 Retrieval layer
 Retrieval artifacts remain file-based:
 
@@ -261,12 +313,14 @@ This is the current transition state and is expected.
 ## Included now
 - paper entities
 - source-level normalized documents
+- deterministic source-observation materialization identity
 - canonical merged paper entities
 - retrieval and serving metadata
+- separate artifact entities, observations, and trusted paper-artifact links
 
 ## Explicitly postponed
-- GitHub repositories as first-class entities
-- repo-to-paper graph as a full entity layer
+- promotion of artifact metadata into canonical paper truth
+- dedicated Paper–Artifact Graph API unless existing Artifact API surfaces prove insufficient
 - chunk-level full-text entities
 - NER/entity extraction layer
 - LLM summaries and RAG-specific chunk contracts
@@ -286,3 +340,20 @@ The data contract prioritizes:
 - future graph/artifact extensibility
 
 over a flat one-record-per-source design.
+
+# 14. Current operational checkpoint
+
+```text
+Source Observation Materialization Operational Promotion v0.1 = completed
+operational database = ml_radar
+source_observation_id primary-key materialization = active
+legacy rollback database retained = true
+canonical corpus changed = false
+retrieval artifacts changed = false
+Qdrant changed = false
+Artifact API contract changed = false
+```
+
+The next contract slice is **Field-Level Canonical Provenance Contract v0.1**.
+That contract should describe field-selection evidence above these identities; it
+must remain derived and must not redefine `CanonicalDocument` truth.
