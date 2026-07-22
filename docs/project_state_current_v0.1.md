@@ -5,8 +5,8 @@
 ```text
 document = consolidated current-state checkpoint
 checkpoint_version = v0.1
-checkpoint_date = 2026-07-08
-scope = documentation / transfer / design-hardening baseline
+checkpoint_date = 2026-07-22
+scope = documentation / transfer / operational-promotion checkpoint
 canonical_truth = false
 may_be_used_as_reconcile_input = false
 mutates_canonical_documents = false
@@ -95,11 +95,12 @@ No derived layer may redefine paper identity or mutate canonical paper truth.
 ### 2.2 Identity separation
 
 ```text
-source_doc_id / doc_id      = source-level observation identity
-canonical_id                = reconciled paper-level identity
-artifact_id                 = normalized external artifact identity
-dense_index / Qdrant point  = retrieval-serving mapping in one build
-graph node id               = typed derived graph identity
+source_observation_id       = deterministic operational source-observation row identity
+doc_id                       = legacy normalized-document id; not globally unique across sources
+canonical_id                  = reconciled paper-level identity
+artifact_id                   = normalized external artifact identity
+dense_index / Qdrant point    = retrieval-serving mapping in one build
+graph node id                 = typed derived graph identity
 ```
 
 Paper identity priority:
@@ -161,7 +162,49 @@ huggingface_found_count ≈ 77
 Older slice-local numbers inside historical docs must not override the latest accepted checkpoint.
 When in doubt, prefer the latest validation/export/read reports over historical narrative docs.
 
-### 3.3 Qdrant baseline
+### 3.3 Source-observation materialization operational baseline
+
+The corrected source-observation materialization is now the default operational
+Postgres state:
+
+```text
+operational_db = ml_radar
+source_documents = 88,178
+canonical_source_links = 88,037
+resolved_links = 88,037
+non_contributing_source_observations = 141
+null_source_observation_links = 0
+dangling_source_observation_links = 0
+selected_observations_missing_from_db = 0
+full_parity_ok = true
+```
+
+Operational identity contract:
+
+```text
+source_documents.source_observation_id = PRIMARY KEY
+source_documents.doc_id = NOT NULL, non-unique legacy diagnostic
+canonical_source_links.source_observation_id = NOT NULL FK
+canonical_source_links.doc_id = nullable legacy diagnostic
+UNIQUE(canonical_id, source_observation_id)
+```
+
+Promotion evidence:
+
+```text
+preflight_without_backups = 24 / 24
+preflight_with_backups = 28 / 28
+post_promotion = 29 / 29
+operational_promotion_validated = true
+legacy_rollback_db = ml_radar_pre_source_identity_v01_20260722t101620z
+legacy_rollback_source_documents = 70,244
+candidate_db_name_after_promotion = absent
+```
+
+The canonical corpus, canonical IDs, retrieval build, Qdrant collection, ranking,
+graph outputs, and Artifact API contract were not changed by this promotion.
+
+### 3.4 Qdrant baseline
 
 ```text
 collection = ml_radar_dense_benchmark_v1
@@ -434,6 +477,22 @@ artifact_observations
 paper_artifact_links
 ```
 
+Current source-observation materialization contract:
+
+```text
+source_documents.source_observation_id = primary key
+source_documents.doc_id = non-unique legacy diagnostic
+canonical_source_links.source_observation_id = authoritative foreign key
+canonical_source_links.doc_id = nullable legacy diagnostic
+```
+
+Current default operational database:
+
+```text
+ml_radar = corrected 88,178-row source-observation materialization
+ml_radar_pre_source_identity_v01_20260722t101620z = retained rollback database
+```
+
 Operational note:
 
 ```text
@@ -696,7 +755,10 @@ Artifact API filters are correctly modeled as an opt-in DB-backed regression gat
 The next work should remain narrow and sequential:
 
 ```text
-one graph API endpoint at a time
+completed operational source-observation promotion
+→ Field-Level Canonical Provenance Contract v0.1
+→ only then consider further source-policy or product slices
+
 no broad runtime / GraphRAG / graph DB / Qdrant promotion without separate accepted design
 ```
 
@@ -841,15 +903,29 @@ Recently completed safe slices after this checkpoint baseline:
    - adds live HTTP evidence and documents accepted limitations without changing API/runtime behavior.
 
 31. **Citation Graph Manual-Review Evidence Preparation v0.1**
-   - current read-only review-support slice;
+   - completed read-only review-support slice;
    - assembles evidence for all 18 existing pending categories without changing approval or publication state.
+
+32. **Source Observation Materialization Identity v0.1**
+   - implemented deterministic physical source-observation identity;
+   - preserved all selected source observations without changing canonical truth.
+
+33. **Source Observation Materialization Operational Promotion v0.1**
+   - promoted the validated candidate to the default `ml_radar` database;
+   - retained the legacy database and two checked dumps for rollback;
+   - completed DB, parity, artifact, and Artifact API gates.
 
 Recommended next slices:
 
-1. **Manual Citation Graph Review Execution v0.1**
-   - human-only follow-up using the prepared evidence; record explicit rationale for any status or approval change.
+1. **Field-Level Canonical Provenance Contract v0.1**
+   - file-first derived contract over canonical field selection evidence;
+   - no canonical ID, reconcile, runtime, DB, retrieval, Qdrant, graph, ranking, or publication changes.
 
-2. **Paper–Artifact Graph API Design v0.1, only if needed**
+2. **Semantic Scholar Public Release Boundary Remediation v0.1**
+   - separate publication-governance track only;
+   - must not be mixed into field-level provenance or source materialization work.
+
+3. **Paper–Artifact Graph API Design v0.1, only if needed**
    - start only after proving that existing Artifact API surfaces cannot cover a concrete product requirement.
 
 ---
@@ -1549,3 +1625,89 @@ remediation = written permission or validated S2-exclusion rebuild
 
 This is a governance/publication result only. It does not mutate the reviewed
 package, canonical truth, or any runtime/serving layer.
+
+## Source Observation Materialization Operational Promotion v0.1
+
+Status: **completed / operationally promoted / rollback retained**
+
+Purpose:
+
+```text
+Promote the fully validated source-observation materialization candidate to the
+default operational Postgres database without changing canonical paper truth.
+```
+
+Completed database-name transition:
+
+```text
+ml_radar
+→ ml_radar_pre_source_identity_v01_20260722t101620z
+
+ml_radar_source_identity_candidate_v01
+→ ml_radar
+```
+
+Current operational schema:
+
+```text
+source_documents.source_observation_id = PRIMARY KEY
+source_documents.doc_id = NOT NULL, non-unique legacy diagnostic
+canonical_source_links.source_observation_id = NOT NULL
+canonical_source_links.source_observation_id
+  → source_documents(source_observation_id) ON DELETE RESTRICT
+canonical_source_links.doc_id = nullable legacy diagnostic
+UNIQUE(canonical_id, source_observation_id)
+```
+
+Accepted operational counters:
+
+```text
+canonical_documents = 60,954
+source_documents = 88,178
+canonical_source_links = 88,037
+document_references = 709,662
+artifact_entities = 7,333
+artifact_observations = 38,246
+paper_artifact_links = 7,430
+non_contributing_source_observations = 141
+null_links = 0
+dangling_links = 0
+missing_selected_observations = 0
+```
+
+Accepted validation evidence:
+
+```text
+promotion validator smoke tests = 10 passed
+preflight = 24 / 24
+backup-required preflight = 28 / 28
+post-promotion = 29 / 29
+DB smoke = green
+artifact DB smoke = green
+full source-observation parity = green
+Artifact API strict filter gate = green
+```
+
+Backup and rollback evidence:
+
+```text
+operational dump SHA-256 = af40c266cf12f284b20ccad6f1877ff85c3c3b05d4ccc4a36fcd114a92e71303
+candidate dump SHA-256 = 8f9e4ee2765a7eeb6f368adec263787402b0a030ff305bfcfcb634509e684b4f
+rollback DB retained = true
+rollback DB source_documents = 70,244
+rollback DB deletion = not performed
+```
+
+Architectural interpretation:
+
+```text
+source_observation_id fixes physical source-row identity in the derived serving layer
+doc_id remains useful legacy/diagnostic metadata but is not globally unique
+canonical_documents.jsonl remains paper truth
+reconciliation behavior and canonical IDs are unchanged
+Postgres remains rebuildable and derived
+```
+
+The next architectural slice is **Field-Level Canonical Provenance Contract v0.1**.
+It should remain file-first and derived, document how canonical field values map
+to contributing observations, and must not create a second canonical truth.
