@@ -6,7 +6,7 @@
 document = consolidated current-state checkpoint
 checkpoint_version = v0.1
 checkpoint_date = 2026-07-24
-scope = documentation / transfer / operational-promotion / field-level-provenance-contract checkpoint
+scope = documentation / transfer / operational-promotion / field-level-provenance-contract-and-evidence checkpoint
 canonical_truth = false
 may_be_used_as_reconcile_input = false
 mutates_canonical_documents = false
@@ -88,6 +88,7 @@ Everything below is derived and rebuildable:
 - Streamlit UI state;
 - graph outputs;
 - graph packages;
+- bounded field-level canonical provenance evidence;
 - validation reports.
 
 No derived layer may redefine paper identity or mutate canonical paper truth.
@@ -235,7 +236,41 @@ unmatched source links = 0
 required reports missing = 0
 ```
 
-### 3.5 Qdrant baseline
+### 3.5 Field-level canonical provenance evidence baseline
+
+The bounded explanatory evidence builder and independent validator are now
+implemented.
+
+```text
+evidence_contract = docs/field_level_canonical_provenance_evidence_v0.1.md
+status = bounded_derived_explanatory_evidence
+canonical_truth = false
+may_be_used_as_reconcile_input = false
+
+canonical_papers = 12
+contributing_source_observations = 33
+canonical_source_links = 33
+unmatched_source_links = 0
+canonical_fields_per_paper = 61
+field_evidence_records = 732
+source_reconstructable_matches = 708
+runtime_default_records = 24
+required_value_mismatches = 0
+
+evidence_validator_checks = 34 / 34
+evidence_smoke_tests = 16 passed
+related_reconciliation_regression = 45 passed
+```
+
+The builder accepts either the audit staging directory or its ZIP, reconstructs
+the sampled canonical values from already-established contributing
+observations, and emits one deterministic record per
+`canonical_id + field_name`.
+
+The evidence does not repair mismatches, alter canonical data, change selectors,
+or create a serving/runtime dependency.
+
+### 3.6 Qdrant baseline
 
 ```text
 collection = ml_radar_dense_benchmark_v1
@@ -270,7 +305,9 @@ Completed:
 - canonical contract validation;
 - controlled candidate promotion;
 - static Field-Level Canonical Provenance Contract v0.1 over all 61 canonical fields;
-- read-only 99-check contract validator and deterministic smoke fixtures.
+- read-only 99-check contract validator and deterministic contract smoke fixtures;
+- bounded Field-Level Canonical Provenance Evidence v0.1 over 12 audit papers;
+- independent 34-check evidence validator and deterministic evidence smoke fixtures.
 
 Important boundary:
 
@@ -776,7 +813,8 @@ Refresh DoD can aggregate:
 - Streamlit UI;
 - golden queries;
 - Citation Graph API regression report;
-- Field-Level Canonical Provenance Contract validation report.
+- Field-Level Canonical Provenance Contract validation report;
+- Field-Level Canonical Provenance Evidence validation report.
 
 Optional gates remain opt-in unless the active slice requires them. The Citation Graph API regression gate is optional by default and becomes required only with `--require-citation-graph-api-regression`.
 
@@ -791,10 +829,12 @@ The next work should remain narrow and sequential:
 ```text
 completed operational source-observation promotion
 → completed Field-Level Canonical Provenance Contract v0.1
-→ next: bounded Field-Level Canonical Provenance Evidence Builder v0.1
+→ completed bounded Field-Level Canonical Provenance Evidence Builder v0.1
+→ next: evidence review / regression / design hardening
 → only then consider full-corpus provenance materialization or product surfaces
 
-no broad runtime / GraphRAG / graph DB / Qdrant promotion without separate accepted design
+no full-corpus provenance, broad runtime, GraphRAG, graph DB, or Qdrant promotion
+without a separate accepted design
 ```
 
 Recently completed safe slices after this checkpoint baseline:
@@ -956,11 +996,18 @@ Recently completed safe slices after this checkpoint baseline:
    - added eight deterministic smoke tests;
    - preserved canonical truth and reconciliation behavior.
 
+35. **Field-Level Canonical Provenance Evidence Builder v0.1**
+   - generated bounded explanatory evidence for 12 canonical papers and 33 contributing observations;
+   - produced 732 deterministic field records with 708 matches, 24 runtime defaults, and zero required mismatches;
+   - added an independent 34-check validator and 16 smoke tests;
+   - preserved canonical truth, reconciliation, Postgres, retrieval, Qdrant, graph, API, UI, and publication state.
+
 Recommended next slices:
 
-1. **Field-Level Canonical Provenance Evidence Builder v0.1**
-   - bounded, file-first, read-only evidence over synthetic fixtures and selected audit samples;
-   - no full-corpus generation, Postgres schema, API, UI, or canonical mutation.
+1. **Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1**
+   - inspect strategy/caveat distribution and deterministic evidence samples;
+   - decide whether any selector ambiguity needs documentation or test hardening;
+   - do not authorize full-corpus generation or product/runtime surfaces.
 
 2. **Semantic Scholar Public Release Boundary Remediation v0.1**
    - separate publication-governance track only;
@@ -1749,13 +1796,14 @@ reconciliation behavior and canonical IDs are unchanged
 Postgres remains rebuildable and derived
 ```
 
-The **Field-Level Canonical Provenance Contract v0.1** is now complete on this
-checkpoint branch and green against the current repository.
+The **Field-Level Canonical Provenance Contract v0.1** and bounded
+**Field-Level Canonical Provenance Evidence Builder v0.1** are complete and
+green against the current repository and audit sample.
 
-The next architectural slice is **Field-Level Canonical Provenance Evidence
-Builder v0.1**. It should emit bounded derived evidence only, preserve
-source-observation and canonical identity boundaries, and must not create a
-second canonical truth.
+The next safe direction is evidence review/regression/design hardening. A
+full-corpus provenance build, Postgres schema, API/UI surface, or reconcile-input
+role requires a separate explicit design decision.
+
 ## Field-Level Canonical Provenance Contract v0.1
 
 Status: **implemented / green static contract package**
@@ -1796,9 +1844,58 @@ no retrieval/Qdrant/ranking/graph/API/UI change
 no publication action
 ```
 
-Next:
+## Field-Level Canonical Provenance Evidence Builder v0.1
+
+Status: **implemented / green bounded derived evidence package**
+
+Tracked files:
 
 ```text
-Field-Level Canonical Provenance Evidence Builder v0.1
-= bounded sample evidence only
+docs/field_level_canonical_provenance_evidence_v0.1.md
+scripts/validation/build_field_level_canonical_provenance_evidence.py
+scripts/validation/check_field_level_canonical_provenance_evidence.py
+tests/smoke/test_build_field_level_canonical_provenance_evidence.py
+tests/smoke/test_field_level_canonical_provenance_evidence.py
+```
+
+Accepted evidence:
+
+```text
+canonical papers = 12
+contributing source observations = 33
+canonical source links = 33
+unmatched source links = 0
+canonical fields per paper = 61
+field evidence records = 732
+source-reconstructable matches = 708
+runtime-default records = 24
+required value mismatches = 0
+independent validator = 34 / 34
+new smoke tests = 16 passed
+related regression = 45 passed
+```
+
+The builder accepts the bounded reconciliation audit directory or ZIP and emits
+one deterministic explanatory record per `canonical_id + field_name`.
+Runtime-default timestamps are marked not source-reconstructable. Any mismatch
+is reported and never used to repair canonical data.
+
+Boundary:
+
+```text
+bounded / file-first / read-only
+canonical_truth = false
+may_be_used_as_reconcile_input = false
+no reconcile selector or CanonicalDocument change
+no canonical corpus rewrite
+no Postgres, retrieval, Qdrant, graph, API, or UI change
+no publication action
+no full-corpus generation authorization
+```
+
+Next safe direction:
+
+```text
+Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1
+= review and design hardening before any materialization/product expansion
 ```
