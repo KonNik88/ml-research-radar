@@ -9,7 +9,8 @@ It exists to prevent confusion between:
 - source provenance,
 - contributing normalized rows,
 - operational source-observation identity,
-- canonical merge counts.
+- canonical merge counts,
+- field-level selection and element-level contribution evidence.
 
 This is especially important during refresh validation, reconcile debugging, and future source onboarding.
 
@@ -17,15 +18,24 @@ This is especially important during refresh validation, reconcile debugging, and
 
 ## Big picture
 
-The project has two different data layers:
+The project has two semantic data layers and one derived provenance-contract layer:
 
-- **source-level normalized documents**  
-  Individual normalized records from arXiv, OpenAlex, Semantic Scholar, Crossref, and future sources.
+- **source-level normalized documents**
+  Individual normalized records from arXiv, OpenAlex, Semantic Scholar, Crossref, ACL Anthology, and future sources.
 
-- **paper-level canonical documents**  
+- **paper-level canonical documents**
   Merged paper entities created by reconcile.
 
-Because of this, not every canonical field has a strict one-to-one relationship with a single source row.
+- **field-level canonical provenance contract**
+  A read-only description of how each canonical field is selected, merged,
+  normalized, aggregated, or derived from contributing observations.
+
+The field-level contract is not a third truth layer and does not add fields to
+`CanonicalDocument`. It documents current reconciliation behavior and defines
+the shape of future derived evidence.
+
+Because of this, not every canonical field has a strict one-to-one relationship
+with a single source row.
 
 ---
 
@@ -121,10 +131,10 @@ len(set(source_name for source_name in sources))
 ```
 
 Examples:
-- arXiv + OpenAlex + Semantic Scholar + Crossref  
+- arXiv + OpenAlex + Semantic Scholar + Crossref
   → `source_count = 4`, `unique_source_count = 4`
 
-- two arXiv rows + OpenAlex + Semantic Scholar + Crossref  
+- two arXiv rows + OpenAlex + Semantic Scholar + Crossref
   → `source_count = 5`, `unique_source_count = 4`
 
 ---
@@ -217,6 +227,153 @@ Therefore:
 is possible and not necessarily a bug.
 
 This should be treated as a warning-level situation only when provenance interpretation matters.
+
+---
+
+
+## Provenance levels
+
+The project distinguishes three provenance resolutions.
+
+### Row-level provenance
+
+```text
+CanonicalDocument.sources
+= ordered contributing normalized observations for one canonical paper
+```
+
+Row-level provenance answers which observations participated in the canonical
+merge. It does not by itself explain which observation supplied every field.
+
+### Field-selection provenance
+
+Field-selection provenance answers:
+
+```text
+which contributing observations were eligible for one field
+which observation or observations supplied the result
+which selector, aggregate, or normalization rule was applied
+whether ordering or a tie-break affected the result
+```
+
+A source observation may be:
+
+```text
+selected normalized observation
+materialized observation
+contributing observation
+field candidate observation
+field selected observation
+field contributing observation
+```
+
+These states are not interchangeable. In particular, the 141 valid
+non-contributing observations are materialized but are not field candidates for
+the promoted canonical corpus.
+
+### Element-level provenance
+
+Union and merged-map fields may contain elements from several observations.
+
+Examples:
+
+```text
+authors
+categories
+concepts
+keywords
+tags
+referenced_ids
+referenced_dois
+referenced_arxiv_ids
+code_links
+dataset_links
+model_links
+source_ids
+external_ids
+doc_ids
+```
+
+For these fields, a single scalar winner would be misleading. Future evidence
+must map each retained element or identifier key to one or more contributing
+`source_observation_id` values.
+
+---
+
+## Field-level strategy semantics
+
+The accepted Field-Level Canonical Provenance Contract v0.1 classifies all 61
+`CanonicalDocument` fields using these strategy families:
+
+```text
+identity_derived
+winner
+winner_with_normalization
+winner_with_quality_rank
+ordered_first
+ordered_union
+aggregate_min
+aggregate_max
+boolean_evidence
+derived_flag
+derived_score
+row_level_provenance
+merged_identifier_map
+runtime_default
+```
+
+Important examples:
+
+```text
+title / abstract
+= longest non-empty value; OpenAlex wins equal-length ties
+
+doi
+= first direct DOI in contributing order; otherwise first external DOI
+
+published_at / publication_date / year
+= minimum eligible value
+
+updated_at / cited_by_count / references_count
+= maximum eligible value
+
+authors and taxonomy/reference/link lists
+= deterministic ordered union with deduplication
+
+venue / journal / conference / publication_type
+= source selection followed by possible semantic normalization
+
+metadata_completeness_score
+= recomputed from merged canonical fields, not copied from one observation
+
+created_at / updated_record_at
+= canonical-object runtime defaults, not source-derived values
+```
+
+Ordering caveat:
+
+```text
+ordered_first and ordered_union are deterministic only relative to the ordered
+contributing observation list used by reconciliation
+```
+
+Equal minima/maxima may have multiple co-winning observations. Normalized or
+derived fields may have no single verbatim source winner. Evidence must preserve
+that ambiguity rather than inventing a unique source.
+
+Current contract validation:
+
+```text
+canonical fields classified = 61 / 61
+static validator = 99 / 99
+contract smoke tests = 8 passed
+related reconciliation regression = 38 passed
+contract_matches_current_reconciliation = true
+```
+
+The contract package is static and read-only. The next separate slice may build
+bounded derived JSONL evidence, but no full-corpus evidence output, Postgres
+table, API, or UI is authorized by the contract alone.
 
 ---
 
@@ -334,7 +491,9 @@ The current project state can now be interpreted like this:
 - all 88,037 canonical provenance links resolve through `source_observation_id`,
 - 141 valid non-contributing observations remain unlinked by design,
 - the canonical layer does not currently show mass structural provenance corruption,
-- most earlier anomalies came from mixing identifier, provenance, and physical materialization semantics.
+- all 61 canonical fields now have an explicit field-selection strategy classification,
+- the field-level contract validator is green at 99/99 and the related regression set is 38/38,
+- most earlier anomalies came from mixing identifier, row-level provenance, field-level provenance, and physical materialization semantics.
 
 That means future work should focus on:
 - keeping refresh safe,
@@ -356,4 +515,6 @@ This document should stay aligned with:
 - `radar_core/utils/source_observation_identity.py`
 - `scripts/export/export_postgres_v1.py`
 - source-observation parity and operational-promotion validators
-- future Field-Level Canonical Provenance Contract v0.1
+- `docs/field_level_canonical_provenance_contract_v0.1.md`
+- `scripts/validation/check_field_level_canonical_provenance_contract.py`
+- future Field-Level Canonical Provenance Evidence Builder v0.1

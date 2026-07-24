@@ -16,7 +16,7 @@ overlapping source-level observations.
 ## Current checkpoint
 
 ```text
-checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1 / Citation Graph Diagnostics UI v0.1 / Citation Graph External Reference Lookup UI v0.1 / Citation Graph UI Productization Checkpoint v0.1 / Citation Graph Store Cache & Reload Regression v0.1 / Citation Graph Failure Isolation & Error Recovery v0.1 / Citation Graph Live Smoke & Known-Issues Hardening v0.1 / Citation Graph Manual-Review Evidence Preparation v0.1 / Manual Citation Graph Review Execution v0.1 / Public Metadata Release Policy & Kaggle Packaging v0.1 / Public Metadata Release Manual-Review Evidence Preparation v0.1 / Manual Public Metadata Release Review Execution v0.1 / Source Observation Materialization Operational Promotion v0.1
+checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1 / Citation Graph Diagnostics UI v0.1 / Citation Graph External Reference Lookup UI v0.1 / Citation Graph UI Productization Checkpoint v0.1 / Citation Graph Store Cache & Reload Regression v0.1 / Citation Graph Failure Isolation & Error Recovery v0.1 / Citation Graph Live Smoke & Known-Issues Hardening v0.1 / Citation Graph Manual-Review Evidence Preparation v0.1 / Manual Citation Graph Review Execution v0.1 / Public Metadata Release Policy & Kaggle Packaging v0.1 / Public Metadata Release Manual-Review Evidence Preparation v0.1 / Manual Public Metadata Release Review Execution v0.1 / Source Observation Materialization Operational Promotion v0.1 / Field-Level Canonical Provenance Contract v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
@@ -39,6 +39,12 @@ non_contributing_source_observations = 141
 null_source_observation_links = 0
 dangling_source_observation_links = 0
 rollback_db = ml_radar_pre_source_identity_v01_20260722t101620z
+
+field_level_provenance_contract_fields = 61
+field_level_provenance_contract_classified = 61
+field_level_provenance_validator_checks = 99 / 99
+field_level_provenance_smoke_tests = 8 passed
+field_level_provenance_related_regression = 38 passed
 
 retrieval_build_id = 20260504T164021Z
 embedding_model = sentence-transformers/all-MiniLM-L6-v2
@@ -72,6 +78,7 @@ sources
 → alignment / enrichment
 → reconcile / identity resolution
 → canonical paper corpus
+→ Field-Level Canonical Provenance Contract / static validator
 → retrieval artifacts
 → deterministic source-observation identity materialization
 → Postgres materialized serving layer
@@ -112,6 +119,8 @@ Discovery API = product/discovery API over derived layers
 Streamlit UI = thin API client
 Citation Graph API = read-only local-inspection evidence surface
 Paper–Artifact evidence = Artifact API first, dedicated graph API only after separate design
+Field-Level Canonical Provenance Contract = static derived governance over current reconcile semantics
+future field-level evidence = derived/rebuildable evidence, not canonical truth
 Qdrant = optional derived vector-serving implementation
 ```
 
@@ -199,6 +208,67 @@ data/analytics/reconciled/canonical_documents.jsonl
 ```
 
 A canonical URL is useful metadata but is not the sole identity rule.
+
+
+### 2.1 Field-Level Canonical Provenance Contract v0.1
+
+The project now has an explicit static contract over the current field-selection
+behavior of `radar_core/normalize/reconcile.py`.
+
+The contract classifies all 61 `CanonicalDocument` fields into:
+
+```text
+identity_derived
+winner
+winner_with_normalization
+winner_with_quality_rank
+ordered_first
+ordered_union
+aggregate_min
+aggregate_max
+boolean_evidence
+derived_flag
+derived_score
+row_level_provenance
+merged_identifier_map
+runtime_default
+```
+
+It distinguishes:
+
+```text
+selected normalized observation
+materialized observation
+contributing observation
+field candidate observation
+field selected observation
+field contributing observation
+```
+
+Accepted validation:
+
+```text
+canonical fields classified = 61 / 61
+static validator = 99 / 99
+contract smoke tests = 8 passed
+related reconciliation regression = 38 passed
+contract_matches_current_reconciliation = true
+```
+
+Architecture boundary:
+
+```text
+contract is documentation plus static validation
+contract does not execute reconcile
+contract does not mutate canonical_documents.jsonl
+contract does not change CanonicalDocument
+contract does not change Postgres, retrieval, Qdrant, ranking, graph, API, or UI
+contract does not authorize a full-corpus evidence build
+```
+
+The next separate slice may implement a bounded read-only evidence builder for
+synthetic fixtures and selected audit samples. Any full-corpus materialization,
+Postgres schema, API, or UI surface requires another explicit design decision.
 
 ---
 
@@ -870,6 +940,7 @@ Definition-of-Done checks
 retrieval-serving checkpoint gate
 source-observation materialization parity validator
 source-observation operational-promotion validator
+field-level canonical provenance contract validator
 ```
 
 Lightweight retrieval-serving checkpoint:
@@ -1317,6 +1388,10 @@ reconciliation behavior and canonical IDs are unchanged
 Postgres remains rebuildable and derived
 ```
 
-The next architectural slice is **Field-Level Canonical Provenance Contract v0.1**.
-It should remain file-first and derived, document how canonical field values map
-to contributing observations, and must not create a second canonical truth.
+The **Field-Level Canonical Provenance Contract v0.1** is now implemented and
+validated against the current reconciliation code.
+
+The next architectural slice is **Field-Level Canonical Provenance Evidence
+Builder v0.1**. It must remain bounded, file-first, read-only, derived, and
+sample-oriented. It must not create a second canonical truth or introduce
+Postgres/API/UI/runtime provenance surfaces in the same slice.
