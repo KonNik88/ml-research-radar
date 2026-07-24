@@ -65,6 +65,26 @@ Represents:
 - paper-level flags and quality signals
 - current serving/retrieval corpus unit
 
+## 1.3 Field-level canonical provenance contract
+
+The project now has an explicit static contract for the selection semantics of
+all 61 `CanonicalDocument` fields.
+
+It describes:
+
+```text
+field candidates
+selected scalar winners or co-winners
+element-level union contributors
+aggregate and boolean evidence
+post-selection normalization
+derived scores and flags
+runtime-default fields
+```
+
+This contract is derived governance metadata. It is not a new entity level, does
+not modify `CanonicalDocument`, and is not a reconcile input.
+
 ---
 
 # 2. Identity fields
@@ -256,55 +276,236 @@ This is the current transition state and is expected.
 
 # 11. Reconciliation principles
 
-## Identity priority
+## 11.1 Identity and grouping
 
-1. DOI
-2. external DOI
-3. arXiv id
-4. external arXiv id
-5. title + year fallback
+Current grouping remains conservative:
 
-## Merge rules
+```text
+compatible DOI
+→ arXiv base identity
+→ normalized title + year fallback
+```
 
-### Prefer trusted non-empty values for:
-- `title`
-- `abstract`
-- `publication_date`
-- `pdf_url`
-- `landing_page_url`
-- `publisher`
-- `publication_type`
-- `venue`
-- `journal`
-- `conference`
-- `license`
+Input identity preference is:
 
-### Union + deduplicate for:
-- `authors`
-- `categories`
-- `concepts`
-- `keywords`
-- `tags`
-- `referenced_ids`
-- `referenced_dois`
-- `referenced_arxiv_ids`
-- `code_links`
-- `dataset_links`
-- `model_links`
-- provenance/source identifiers
+```text
+direct DOI
+→ external DOI
+→ direct arXiv ID
+→ external arXiv ID
+→ normalized title + year
+```
 
-### Prefer max value for:
-- `cited_by_count`
-- `references_count`
-- `source_count`
-- `unique_source_count`
-- `metadata_completeness_score`
+DOI conflict protection:
 
-### Preserve provenance always:
-- `sources`
-- `source_ids`
-- `external_ids`
-- `doc_ids`
+```text
+one DOI associated with multiple explicit arXiv base IDs
+→ split by arXiv base
+→ isolate DOI-only rows as doi_conflict::<doi>
+```
+
+`canonical_id` remains the stable hash of `reconciliation_key`.
+
+## 11.2 Scalar winner and ordered-first fields
+
+Current executable rules include:
+
+```text
+title
+= longest non-empty title; OpenAlex wins equal-length ties
+
+abstract
+= longest non-empty abstract; OpenAlex wins equal-length ties
+
+doi
+= first direct DOI in contributing observation order;
+  otherwise first external DOI
+
+arxiv_id
+= arXiv-source direct ID;
+  otherwise first direct arXiv ID;
+  otherwise first external arXiv ID
+
+openalex_id
+= first direct OpenAlex ID;
+  otherwise first external OpenAlex ID
+
+pmid / pmcid / semantic_scholar_id / dblp_id / mag_id
+= first non-empty value in contributing observation order
+
+landing_page_url / pdf_url / primary_category
+= first eligible value in contributing observation order
+
+repo_url
+= artifact-source priority followed by URL-length tie-break
+
+license
+= normalized license quality rank followed by source priority
+```
+
+`ordered_first` fields are deterministic relative to the ordered contributing
+observation list. They must not be documented as universally source-priority
+selected when the implementation uses input order.
+
+## 11.3 Dates and numeric aggregates
+
+```text
+published_at
+= minimum eligible timestamp
+
+publication_date
+= minimum eligible date
+
+year
+= minimum accepted year
+
+updated_at
+= maximum source updated_source_at value;
+  naive timestamps are coerced to UTC
+
+cited_by_count
+= maximum eligible integer
+
+references_count
+= maximum eligible integer
+```
+
+When equal minima or maxima exist, field-level provenance may contain multiple
+co-winning observations.
+
+## 11.4 Ordered unions and merged maps
+
+Deterministic ordered union with deduplication is used for:
+
+```text
+authors
+categories
+concepts
+keywords
+tags
+referenced_ids
+referenced_dois
+referenced_arxiv_ids
+code_links
+dataset_links
+model_links
+doc_ids
+```
+
+Reference unions first apply the accepted bibliographic source ordering.
+
+Merged identifier maps:
+
+```text
+source_ids
+external_ids
+```
+
+preserve the first non-empty value for each identifier key. Their provenance is
+therefore key-level, not one scalar winner for the whole map.
+
+## 11.5 Publication metadata and normalization
+
+```text
+comment / journal_ref
+= preferred string using comment source priority, length, and final value tie-break
+
+venue / journal / conference
+= preferred string selection followed by normalize_venue_fields
+
+publisher
+= preferred string using bibliographic source priority
+
+publication_type
+= preferred source value with non-preprint semantic override
+
+language
+= preferred string using default source priority
+```
+
+The final canonical value may differ from the selected source string when
+normalization clears, copies, or derives a venue/journal/conference field.
+
+## 11.6 Boolean evidence and derived fields
+
+```text
+open_access
+= explicit true evidence;
+  otherwise explicit false evidence;
+  otherwise null
+
+is_open_access
+= non-arXiv bibliographic true/false evidence only
+
+citation_graph_available / is_review / is_survey / is_withdrawn
+= any positive evidence
+
+is_preprint
+= published/non-preprint override;
+  otherwise explicit flags;
+  otherwise publication-type inference
+
+has_code_link
+= explicit flag OR merged code_links OR repo_url
+
+has_dataset_link
+= explicit flag OR merged dataset_links
+
+has_model_link
+= explicit flag OR merged model_links
+```
+
+## 11.7 Row-level provenance, scores, and defaults
+
+```text
+sources
+= one SourceLink per contributing normalized observation, preserving order
+
+source_count
+= len(contributing observations)
+
+unique_source_count
+= number of distinct non-empty source families
+
+metadata_completeness_score
+= recomputed heuristic over twelve merged canonical-field checks
+
+created_at / updated_record_at
+= CanonicalDocument construction-time defaults
+```
+
+`metadata_completeness_score` is not selected by maximum source value.
+`created_at` and `updated_record_at` have no source observation winner.
+
+## 11.8 Field-level evidence boundary
+
+The accepted contract is:
+
+```text
+docs/field_level_canonical_provenance_contract_v0.1.md
+```
+
+Validation checkpoint:
+
+```text
+CanonicalDocument fields = 61
+classified fields = 61
+contract validator = 99 / 99
+contract smoke tests = 8 passed
+related reconciliation regression = 38 passed
+contract_matches_current_reconciliation = true
+```
+
+The contract does not:
+
+```text
+change reconcile selectors
+add provenance fields to CanonicalDocument
+mutate canonical_documents.jsonl
+add Postgres provenance tables
+add API or Streamlit provenance surfaces
+authorize full-corpus provenance generation
+```
 
 ---
 
@@ -315,6 +516,7 @@ This is the current transition state and is expected.
 - source-level normalized documents
 - deterministic source-observation materialization identity
 - canonical merged paper entities
+- static Field-Level Canonical Provenance Contract v0.1
 - retrieval and serving metadata
 - separate artifact entities, observations, and trusted paper-artifact links
 
@@ -354,6 +556,17 @@ Qdrant changed = false
 Artifact API contract changed = false
 ```
 
-The next contract slice is **Field-Level Canonical Provenance Contract v0.1**.
-That contract should describe field-selection evidence above these identities; it
-must remain derived and must not redefine `CanonicalDocument` truth.
+The **Field-Level Canonical Provenance Contract v0.1** is now implemented and
+green:
+
+```text
+canonical fields classified = 61 / 61
+validator = 99 / 99
+smoke tests = 8 passed
+related regression = 38 passed
+```
+
+The next separate slice is **Field-Level Canonical Provenance Evidence Builder
+v0.1**. It may emit bounded derived evidence for synthetic fixtures and selected
+audit samples, but it must not redefine `CanonicalDocument`, modify reconcile,
+or add a new serving truth.

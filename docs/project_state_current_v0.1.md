@@ -5,8 +5,8 @@
 ```text
 document = consolidated current-state checkpoint
 checkpoint_version = v0.1
-checkpoint_date = 2026-07-22
-scope = documentation / transfer / operational-promotion checkpoint
+checkpoint_date = 2026-07-24
+scope = documentation / transfer / operational-promotion / field-level-provenance-contract checkpoint
 canonical_truth = false
 may_be_used_as_reconcile_input = false
 mutates_canonical_documents = false
@@ -204,7 +204,38 @@ candidate_db_name_after_promotion = absent
 The canonical corpus, canonical IDs, retrieval build, Qdrant collection, ranking,
 graph outputs, and Artifact API contract were not changed by this promotion.
 
-### 3.4 Qdrant baseline
+
+### 3.4 Field-level canonical provenance contract baseline
+
+The current reconciliation implementation is now covered by an explicit static
+field-level provenance contract.
+
+```text
+contract = docs/field_level_canonical_provenance_contract_v0.1.md
+canonical_document_fields = 61
+classified_fields = 61
+validator_checks = 99 / 99
+contract_smoke_tests = 8 passed
+related_reconciliation_regression = 38 passed
+contract_matches_current_reconciliation = true
+reconcile_executed_by_validator = false
+canonical_truth_mutated = false
+postgres_mutated = false
+```
+
+The contract distinguishes materialized, contributing, candidate, selected, and
+element-contributing observations. It does not create evidence rows itself.
+
+Bounded audit-package evidence used during design:
+
+```text
+selected canonical papers = 12
+matched source documents = 33
+unmatched source links = 0
+required reports missing = 0
+```
+
+### 3.5 Qdrant baseline
 
 ```text
 collection = ml_radar_dense_benchmark_v1
@@ -237,7 +268,9 @@ Completed:
 - arXiv backbone;
 - OpenAlex, Semantic Scholar, Crossref, ACL alignment;
 - canonical contract validation;
-- controlled candidate promotion.
+- controlled candidate promotion;
+- static Field-Level Canonical Provenance Contract v0.1 over all 61 canonical fields;
+- read-only 99-check contract validator and deterministic smoke fixtures.
 
 Important boundary:
 
@@ -742,7 +775,8 @@ Refresh DoD can aggregate:
 - topic clusters/projection;
 - Streamlit UI;
 - golden queries;
-- Citation Graph API regression report.
+- Citation Graph API regression report;
+- Field-Level Canonical Provenance Contract validation report.
 
 Optional gates remain opt-in unless the active slice requires them. The Citation Graph API regression gate is optional by default and becomes required only with `--require-citation-graph-api-regression`.
 
@@ -756,8 +790,9 @@ The next work should remain narrow and sequential:
 
 ```text
 completed operational source-observation promotion
-→ Field-Level Canonical Provenance Contract v0.1
-→ only then consider further source-policy or product slices
+→ completed Field-Level Canonical Provenance Contract v0.1
+→ next: bounded Field-Level Canonical Provenance Evidence Builder v0.1
+→ only then consider full-corpus provenance materialization or product surfaces
 
 no broad runtime / GraphRAG / graph DB / Qdrant promotion without separate accepted design
 ```
@@ -915,11 +950,17 @@ Recently completed safe slices after this checkpoint baseline:
    - retained the legacy database and two checked dumps for rollback;
    - completed DB, parity, artifact, and Artifact API gates.
 
+34. **Field-Level Canonical Provenance Contract v0.1**
+   - classified all 61 `CanonicalDocument` fields by current selection semantics;
+   - added a read-only static validator with 99/99 green checks;
+   - added eight deterministic smoke tests;
+   - preserved canonical truth and reconciliation behavior.
+
 Recommended next slices:
 
-1. **Field-Level Canonical Provenance Contract v0.1**
-   - file-first derived contract over canonical field selection evidence;
-   - no canonical ID, reconcile, runtime, DB, retrieval, Qdrant, graph, ranking, or publication changes.
+1. **Field-Level Canonical Provenance Evidence Builder v0.1**
+   - bounded, file-first, read-only evidence over synthetic fixtures and selected audit samples;
+   - no full-corpus generation, Postgres schema, API, UI, or canonical mutation.
 
 2. **Semantic Scholar Public Release Boundary Remediation v0.1**
    - separate publication-governance track only;
@@ -1708,6 +1749,56 @@ reconciliation behavior and canonical IDs are unchanged
 Postgres remains rebuildable and derived
 ```
 
-The next architectural slice is **Field-Level Canonical Provenance Contract v0.1**.
-It should remain file-first and derived, document how canonical field values map
-to contributing observations, and must not create a second canonical truth.
+The **Field-Level Canonical Provenance Contract v0.1** is now complete on this
+checkpoint branch and green against the current repository.
+
+The next architectural slice is **Field-Level Canonical Provenance Evidence
+Builder v0.1**. It should emit bounded derived evidence only, preserve
+source-observation and canonical identity boundaries, and must not create a
+second canonical truth.
+## Field-Level Canonical Provenance Contract v0.1
+
+Status: **implemented / green static contract package**
+
+Tracked files:
+
+```text
+docs/field_level_canonical_provenance_contract_v0.1.md
+scripts/validation/check_field_level_canonical_provenance_contract.py
+tests/smoke/test_field_level_canonical_provenance_contract.py
+```
+
+Accepted evidence:
+
+```text
+CanonicalDocument fields = 61
+classified fields = 61
+validator checks = 99 / 99
+smoke tests = 8 passed
+related reconciliation regression = 38 passed
+contract_matches_current_reconciliation = true
+```
+
+The contract records winner, normalized-winner, ordered-first, ordered-union,
+min/max aggregate, boolean, derived, row-level, identifier-map, and
+runtime-default semantics. It explicitly rejects fabricated single-source
+winners for union fields, equal aggregate co-winners, normalized values, derived
+scores, and runtime timestamps.
+
+Boundary:
+
+```text
+no reconcile behavior change
+no CanonicalDocument schema change
+no canonical corpus rewrite
+no Postgres change
+no retrieval/Qdrant/ranking/graph/API/UI change
+no publication action
+```
+
+Next:
+
+```text
+Field-Level Canonical Provenance Evidence Builder v0.1
+= bounded sample evidence only
+```

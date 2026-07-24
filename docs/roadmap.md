@@ -6,13 +6,13 @@
 document = primary living roadmap
 accepted checkpoint = Current State Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
-current active direction = operational source identity complete / field-level provenance design next
-current active slice = Source Observation Materialization Operational Promotion v0.1 completed / living-docs sync
+current active direction = field-level provenance contract complete / bounded evidence builder next
+current active slice = Field-Level Canonical Provenance Contract v0.1 completed / living-docs sync
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = record the completed promotion of the validated 88,178-row source-observation materialization to the default ml_radar database; retain the 70,244-row legacy database and checked dumps for rollback; synchronize living docs; perform no canonical, reconciliation, retrieval, Qdrant, graph, ranking, API, UI, or publication behavior change
+scope of current branch = document and statically validate current field-selection semantics for all 61 CanonicalDocument fields; synchronize living docs; preserve the completed source-observation promotion and rollback evidence; perform no canonical, reconciliation, Postgres, retrieval, Qdrant, graph, ranking, API, UI, or publication behavior change
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -20,10 +20,11 @@ architectural invariants that must remain stable, and the recommended order of
 future work.
 
 The project prefers complete, validated vertical slices over broad feature
-expansion. After the completed source-observation operational promotion, the
-next safe architecture direction is a file-first Field-Level Canonical
-Provenance Contract before any new runtime, public API, GraphRAG, graph DB, or
-Qdrant-promotion work.
+expansion. The Field-Level Canonical Provenance Contract is now complete and
+green. The next safe architecture direction is a bounded, file-first, read-only
+Field-Level Canonical Provenance Evidence Builder before any full-corpus
+materialization, runtime/API/UI surface, GraphRAG, graph DB, or Qdrant-promotion
+work.
 
 ---
 
@@ -57,7 +58,8 @@ Accepted current direction:
 
 ```text
 operational source-observation identity = completed
-next = Field-Level Canonical Provenance Contract v0.1
+Field-Level Canonical Provenance Contract v0.1 = completed
+next = Field-Level Canonical Provenance Evidence Builder v0.1
 runtime / public API / GraphRAG / Qdrant promotion only after a separate accepted design slice
 ```
 
@@ -101,10 +103,11 @@ Recently completed safe slices:
 36. **Manual Citation Graph Review Execution v0.1** — completed human-governance slice; 18/18 categories passed, checklist approved, publication remains separate.
 37. **Source Observation Materialization Identity v0.1** — completed deterministic physical identity for all selected source observations.
 38. **Source Observation Materialization Operational Promotion v0.1** — completed default-DB promotion with checked backups, retained rollback DB, and green product gates.
+39. **Field-Level Canonical Provenance Contract v0.1** — classified all 61 canonical fields, added a read-only 99-check validator and eight deterministic smoke tests, and preserved current reconcile behavior.
 
 Recommended next safe slices:
 
-1. **Field-Level Canonical Provenance Contract v0.1** — file-first derived provenance evidence over canonical field selection; no new truth or runtime behavior.
+1. **Field-Level Canonical Provenance Evidence Builder v0.1** — bounded derived JSONL evidence over synthetic fixtures and selected audit samples; no full-corpus generation or runtime surface.
 2. **Semantic Scholar Public Release Boundary Remediation v0.1** — separate publication-governance track after the rejected release review.
 3. **Paper–Artifact Graph API Design v0.1** — only if existing Artifact API surfaces prove insufficient for a concrete product requirement.
 
@@ -2058,25 +2061,38 @@ no publication action
 
 ## 5. Current active direction
 
-### 5.0 Current immediate direction after operational promotion
+### 5.0 Current immediate direction after field-level contract completion
+
+Completed:
 
 ```text
 Field-Level Canonical Provenance Contract v0.1
+canonical fields classified = 61 / 61
+static validator = 99 / 99
+contract smoke tests = 8 passed
+related reconciliation regression = 38 passed
 ```
 
-The next slice should specify, file-first and read-only, how selected canonical
-field values relate to contributing source observations. It must reuse the
-accepted identities:
+Current next slice:
+
+```text
+Field-Level Canonical Provenance Evidence Builder v0.1
+```
+
+The builder should generate bounded, read-only evidence over deterministic
+fixtures and selected audit samples. It must reuse the accepted identities:
 
 ```text
 source_observation_id = physical source observation identity
 canonical_id = paper identity
 doc_id = legacy diagnostic only
+field evidence record id = derived evidence identity only
 ```
 
-It must not mutate canonical documents, run reconciliation, add a new serving
-truth, alter Postgres, rebuild retrieval, promote Qdrant, change ranking, expand
-graph runtime, or publish data.
+It must not mutate canonical documents, run a stable-corpus reconcile, add a new
+serving truth, alter Postgres, rebuild retrieval, promote Qdrant, change ranking,
+expand graph runtime, or publish data. Full-corpus evidence generation is not
+authorized in the bounded builder slice.
 
 The rejected public metadata release remains a separate governance track. A
 Semantic Scholar exclusion/permission remediation must not be mixed into this
@@ -4241,10 +4257,16 @@ The human review rejects publication because the current candidate cannot prove 
 sufficiently clear redistribution boundary for Semantic Scholar-derived data in
 a downloadable Kaggle dataset.
 
-Primary next architecture slice:
+Completed architecture slice:
 
 ```text
 Field-Level Canonical Provenance Contract v0.1
+```
+
+Primary next architecture slice:
+
+```text
+Field-Level Canonical Provenance Evidence Builder v0.1
 ```
 
 Separate publication-governance slice:
@@ -4346,6 +4368,95 @@ reconciliation behavior and canonical IDs are unchanged
 Postgres remains rebuildable and derived
 ```
 
-The next architectural slice is **Field-Level Canonical Provenance Contract v0.1**.
-It should remain file-first and derived, document how canonical field values map
-to contributing observations, and must not create a second canonical truth.
+The **Field-Level Canonical Provenance Contract v0.1** is now completed and
+green against the current implementation.
+
+The next architectural slice is **Field-Level Canonical Provenance Evidence
+Builder v0.1**. It must remain bounded, file-first, read-only, and derived; it
+must not create a second canonical truth or add a Postgres/API/UI provenance
+surface in the same slice.
+## Field-Level Canonical Provenance Contract v0.1
+
+Status: **done / green static contract and validation slice**
+
+Tracked package:
+
+```text
+docs/field_level_canonical_provenance_contract_v0.1.md
+scripts/validation/check_field_level_canonical_provenance_contract.py
+tests/smoke/test_field_level_canonical_provenance_contract.py
+```
+
+Accepted evidence:
+
+```text
+CanonicalDocument fields = 61
+classified fields = 61
+contract validator = 99 / 99
+contract smoke tests = 8 passed
+related reconciliation regression = 38 passed
+contract_matches_current_reconciliation = true
+bounded audit sample selected papers = 12
+bounded audit sample matched source documents = 33
+bounded audit sample unmatched links = 0
+```
+
+The contract freezes the current executable semantics without changing them:
+
+```text
+identity-derived fields
+scalar winners and ordered-first values
+ordered unions and merged identifier maps
+min/max aggregates and co-winners
+boolean evidence and derived flags
+post-selection normalization
+recomputed scores
+row-level provenance
+runtime-default timestamps
+```
+
+Boundary:
+
+```text
+documentation plus static validation only
+no stable-corpus reconcile execution
+no canonical corpus mutation
+no CanonicalDocument schema change
+no Postgres provenance table
+no API or Streamlit provenance surface
+no retrieval/Qdrant/ranking/graph change
+no publication action
+```
+
+## Field-Level Canonical Provenance Evidence Builder v0.1
+
+Status: **recommended next bounded implementation slice**
+
+Initial allowed scope:
+
+```text
+synthetic deterministic fixtures
+selected bounded reconciliation audit samples
+one derived evidence record per canonical field/sample
+result fingerprints and bounded previews
+selected/co-winning observation IDs
+element-level contributors for union/map fields
+transformations and caveats
+read-only local JSON/JSONL output
+```
+
+Initial non-goals:
+
+```text
+no full 60,954-paper corpus generation
+no canonical truth mutation
+no reconcile selector changes
+no Postgres schema/materialization
+no API/UI product surface
+no public dataset/package publication
+no GraphRAG, graph DB, or Qdrant promotion
+```
+
+Acceptance should require a separate builder validator, deterministic smoke
+fixtures, and explicit proof that generated evidence cannot be used as a
+reconcile input.
