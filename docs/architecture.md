@@ -16,7 +16,7 @@ overlapping source-level observations.
 ## Current checkpoint
 
 ```text
-checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1 / Citation Graph Diagnostics UI v0.1 / Citation Graph External Reference Lookup UI v0.1 / Citation Graph UI Productization Checkpoint v0.1 / Citation Graph Store Cache & Reload Regression v0.1 / Citation Graph Failure Isolation & Error Recovery v0.1 / Citation Graph Live Smoke & Known-Issues Hardening v0.1 / Citation Graph Manual-Review Evidence Preparation v0.1 / Manual Citation Graph Review Execution v0.1 / Public Metadata Release Policy & Kaggle Packaging v0.1 / Public Metadata Release Manual-Review Evidence Preparation v0.1 / Manual Public Metadata Release Review Execution v0.1 / Source Observation Materialization Operational Promotion v0.1 / Field-Level Canonical Provenance Contract v0.1
+checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1 / Citation Graph Diagnostics UI v0.1 / Citation Graph External Reference Lookup UI v0.1 / Citation Graph UI Productization Checkpoint v0.1 / Citation Graph Store Cache & Reload Regression v0.1 / Citation Graph Failure Isolation & Error Recovery v0.1 / Citation Graph Live Smoke & Known-Issues Hardening v0.1 / Citation Graph Manual-Review Evidence Preparation v0.1 / Manual Citation Graph Review Execution v0.1 / Public Metadata Release Policy & Kaggle Packaging v0.1 / Public Metadata Release Manual-Review Evidence Preparation v0.1 / Manual Public Metadata Release Review Execution v0.1 / Source Observation Materialization Operational Promotion v0.1 / Field-Level Canonical Provenance Contract v0.1 / Field-Level Canonical Provenance Evidence Builder v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
@@ -42,9 +42,19 @@ rollback_db = ml_radar_pre_source_identity_v01_20260722t101620z
 
 field_level_provenance_contract_fields = 61
 field_level_provenance_contract_classified = 61
-field_level_provenance_validator_checks = 99 / 99
-field_level_provenance_smoke_tests = 8 passed
-field_level_provenance_related_regression = 38 passed
+field_level_provenance_contract_validator_checks = 99 / 99
+field_level_provenance_contract_smoke_tests = 8 passed
+
+field_level_provenance_evidence_status = bounded_derived_explanatory_evidence
+field_level_provenance_evidence_papers = 12
+field_level_provenance_evidence_source_observations = 33
+field_level_provenance_evidence_records = 732
+field_level_provenance_evidence_matches = 708
+field_level_provenance_evidence_runtime_defaults = 24
+field_level_provenance_evidence_mismatches = 0
+field_level_provenance_evidence_validator_checks = 34 / 34
+field_level_provenance_evidence_smoke_tests = 16 passed
+field_level_provenance_related_regression = 45 passed
 
 retrieval_build_id = 20260504T164021Z
 embedding_model = sentence-transformers/all-MiniLM-L6-v2
@@ -79,6 +89,7 @@ sources
 → reconcile / identity resolution
 → canonical paper corpus
 → Field-Level Canonical Provenance Contract / static validator
+→ bounded Field-Level Canonical Provenance Evidence / independent validator
 → retrieval artifacts
 → deterministic source-observation identity materialization
 → Postgres materialized serving layer
@@ -120,7 +131,7 @@ Streamlit UI = thin API client
 Citation Graph API = read-only local-inspection evidence surface
 Paper–Artifact evidence = Artifact API first, dedicated graph API only after separate design
 Field-Level Canonical Provenance Contract = static derived governance over current reconcile semantics
-future field-level evidence = derived/rebuildable evidence, not canonical truth
+Field-Level Canonical Provenance Evidence = bounded derived explanatory evidence, not canonical truth
 Qdrant = optional derived vector-serving implementation
 ```
 
@@ -266,9 +277,70 @@ contract does not change Postgres, retrieval, Qdrant, ranking, graph, API, or UI
 contract does not authorize a full-corpus evidence build
 ```
 
-The next separate slice may implement a bounded read-only evidence builder for
-synthetic fixtures and selected audit samples. Any full-corpus materialization,
-Postgres schema, API, or UI surface requires another explicit design decision.
+### 2.2 Field-Level Canonical Provenance Evidence Builder v0.1
+
+The bounded evidence layer is now implemented over deterministic fixtures and
+the selected reconciliation audit sample.
+
+Tracked package:
+
+```text
+docs/field_level_canonical_provenance_evidence_v0.1.md
+scripts/validation/build_field_level_canonical_provenance_evidence.py
+scripts/validation/check_field_level_canonical_provenance_evidence.py
+tests/smoke/test_build_field_level_canonical_provenance_evidence.py
+tests/smoke/test_field_level_canonical_provenance_evidence.py
+```
+
+The builder consumes either the bounded audit staging directory or its ZIP and
+emits one deterministic evidence record for every:
+
+```text
+canonical_id + field_name
+```
+
+Accepted bounded baseline:
+
+```text
+canonical papers = 12
+contributing source observations = 33
+canonical source links = 33
+unmatched source links = 0
+canonical fields per paper = 61
+field evidence records = 732
+source-reconstructable matches = 708
+runtime-default records = 24
+required mismatches = 0
+independent validator = 34 / 34
+new smoke tests = 16 passed
+related regression = 45 passed
+```
+
+Architectural role:
+
+```text
+field evidence explains current executable reconciliation semantics
+field evidence does not become a selector or merge policy
+field evidence record_id is derived evidence identity, not paper identity
+canonical/recomputed mismatch is reported and never repaired
+runtime-default fields are explicitly not source-reconstructable
+```
+
+Hard boundary:
+
+```text
+bounded and file-first
+read-only and derived
+canonical_truth = false
+may_be_used_as_reconcile_input = false
+no full-corpus materialization
+no Postgres schema or serving table
+no API or Streamlit provenance surface
+no reconciliation, retrieval, Qdrant, ranking, graph, or publication change
+```
+
+Any full-corpus generation or product/runtime surface requires a separate
+accepted design and review-hardening slice.
 
 ---
 
@@ -941,6 +1013,7 @@ retrieval-serving checkpoint gate
 source-observation materialization parity validator
 source-observation operational-promotion validator
 field-level canonical provenance contract validator
+field-level canonical provenance evidence builder/validator
 ```
 
 Lightweight retrieval-serving checkpoint:
@@ -1388,10 +1461,11 @@ reconciliation behavior and canonical IDs are unchanged
 Postgres remains rebuildable and derived
 ```
 
-The **Field-Level Canonical Provenance Contract v0.1** is now implemented and
-validated against the current reconciliation code.
+The **Field-Level Canonical Provenance Contract v0.1** and the bounded
+**Field-Level Canonical Provenance Evidence Builder v0.1** are now implemented
+and green against the current reconciliation code and audit sample.
 
-The next architectural slice is **Field-Level Canonical Provenance Evidence
-Builder v0.1**. It must remain bounded, file-first, read-only, derived, and
-sample-oriented. It must not create a second canonical truth or introduce
-Postgres/API/UI/runtime provenance surfaces in the same slice.
+The next safe direction is review/regression/design hardening of this evidence
+layer. Full-corpus generation, Postgres materialization, API/UI exposure, or any
+use as reconciliation input remains unauthorized without a separate accepted
+design slice.

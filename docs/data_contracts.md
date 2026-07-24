@@ -85,6 +85,51 @@ runtime-default fields
 This contract is derived governance metadata. It is not a new entity level, does
 not modify `CanonicalDocument`, and is not a reconcile input.
 
+## 1.4 Field-level canonical provenance evidence
+
+The bounded evidence layer materializes explanatory records for selected audit
+samples without adding fields to `Document` or `CanonicalDocument`.
+
+One evidence record represents:
+
+```text
+canonical_id + field_name
+```
+
+Key evidence identities and references:
+
+```text
+record_id
+= deterministic derived evidence identity
+
+canonical_id
+= existing paper identity
+
+source_observation_id
+= contributing source-observation identity referenced by candidates,
+  selected/co-winning observations, and element-level contributors
+```
+
+The evidence record may contain:
+
+```text
+canonical_value
+recomputed_value
+comparison_status
+strategy_kind
+candidate_count
+selected_source_observation_ids
+contributing_source_observation_ids
+candidates
+elements
+transformations
+selection_reason
+caveats
+```
+
+This is not another semantic paper entity level. It is bounded, derived,
+read-only explanatory output and must not be used as a reconciliation input.
+
 ---
 
 # 2. Identity fields
@@ -477,12 +522,20 @@ created_at / updated_record_at
 `metadata_completeness_score` is not selected by maximum source value.
 `created_at` and `updated_record_at` have no source observation winner.
 
-## 11.8 Field-level evidence boundary
+## 11.8 Field-level contract and bounded evidence boundary
 
-The accepted contract is:
+Accepted contract:
 
 ```text
 docs/field_level_canonical_provenance_contract_v0.1.md
+```
+
+Implemented bounded evidence package:
+
+```text
+docs/field_level_canonical_provenance_evidence_v0.1.md
+scripts/validation/build_field_level_canonical_provenance_evidence.py
+scripts/validation/check_field_level_canonical_provenance_evidence.py
 ```
 
 Validation checkpoint:
@@ -492,11 +545,35 @@ CanonicalDocument fields = 61
 classified fields = 61
 contract validator = 99 / 99
 contract smoke tests = 8 passed
-related reconciliation regression = 38 passed
-contract_matches_current_reconciliation = true
+
+bounded canonical papers = 12
+contributing source observations = 33
+canonical source links = 33
+unmatched source links = 0
+field evidence records = 732
+source-reconstructable matches = 708
+runtime-default records = 24
+required value mismatches = 0
+evidence validator = 34 / 34
+evidence smoke tests = 16 passed
+related regression = 45 passed
 ```
 
-The contract does not:
+Evidence semantics:
+
+```text
+61 records are emitted per sampled canonical paper
+record_id is deterministic derived evidence identity
+canonical_id remains paper identity
+source_observation_id remains source-row identity
+selected IDs must belong to the contributing observation set
+union/map evidence is element/key level
+equal minima/maxima may preserve multiple co-winners
+created_at and updated_record_at are runtime-default records
+canonical/recomputed mismatch is diagnostic and never repairs canonical truth
+```
+
+The contract and bounded evidence layer do not:
 
 ```text
 change reconcile selectors
@@ -505,6 +582,7 @@ mutate canonical_documents.jsonl
 add Postgres provenance tables
 add API or Streamlit provenance surfaces
 authorize full-corpus provenance generation
+become reconcile inputs or serving truth
 ```
 
 ---
@@ -517,6 +595,7 @@ authorize full-corpus provenance generation
 - deterministic source-observation materialization identity
 - canonical merged paper entities
 - static Field-Level Canonical Provenance Contract v0.1
+- bounded Field-Level Canonical Provenance Evidence v0.1
 - retrieval and serving metadata
 - separate artifact entities, observations, and trusted paper-artifact links
 
@@ -556,17 +635,26 @@ Qdrant changed = false
 Artifact API contract changed = false
 ```
 
-The **Field-Level Canonical Provenance Contract v0.1** is now implemented and
-green:
+The **Field-Level Canonical Provenance Contract v0.1** and bounded
+**Field-Level Canonical Provenance Evidence v0.1** are now implemented and green:
 
 ```text
 canonical fields classified = 61 / 61
-validator = 99 / 99
-smoke tests = 8 passed
-related regression = 38 passed
+contract validator = 99 / 99
+contract smoke tests = 8 passed
+
+bounded papers = 12
+contributing source observations = 33
+field records = 732
+source-reconstructable matches = 708
+runtime-default records = 24
+value mismatches = 0
+evidence validator = 34 / 34
+evidence smoke tests = 16 passed
+related regression = 45 passed
 ```
 
-The next separate slice is **Field-Level Canonical Provenance Evidence Builder
-v0.1**. It may emit bounded derived evidence for synthetic fixtures and selected
-audit samples, but it must not redefine `CanonicalDocument`, modify reconcile,
-or add a new serving truth.
+The bounded evidence output explains the current merge but does not redefine
+`CanonicalDocument`, modify reconcile, or add a serving truth. The next safe
+direction is review/regression/design hardening before any full-corpus,
+Postgres, API, or UI provenance materialization.

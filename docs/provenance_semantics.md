@@ -18,7 +18,8 @@ This is especially important during refresh validation, reconcile debugging, and
 
 ## Big picture
 
-The project has two semantic data layers and one derived provenance-contract layer:
+The project has two semantic data layers plus a derived provenance
+governance/evidence family:
 
 - **source-level normalized documents**
   Individual normalized records from arXiv, OpenAlex, Semantic Scholar, Crossref, ACL Anthology, and future sources.
@@ -30,9 +31,12 @@ The project has two semantic data layers and one derived provenance-contract lay
   A read-only description of how each canonical field is selected, merged,
   normalized, aggregated, or derived from contributing observations.
 
-The field-level contract is not a third truth layer and does not add fields to
-`CanonicalDocument`. It documents current reconciliation behavior and defines
-the shape of future derived evidence.
+- **bounded field-level canonical provenance evidence**
+  Deterministic explanatory records for synthetic fixtures and selected audit
+  samples, one record per `canonical_id + field_name`.
+
+The contract and evidence are not a third truth layer and do not add fields to
+`CanonicalDocument`. They document and explain current reconciliation behavior.
 
 Because of this, not every canonical field has a strict one-to-one relationship
 with a single source row.
@@ -294,9 +298,10 @@ external_ids
 doc_ids
 ```
 
-For these fields, a single scalar winner would be misleading. Future evidence
-must map each retained element or identifier key to one or more contributing
-`source_observation_id` values.
+For these fields, a single scalar winner would be misleading. The implemented
+bounded evidence maps each retained element or identifier key to contributing
+`source_observation_id` values and preserves first-contributor and duplicate
+evidence where applicable.
 
 ---
 
@@ -367,13 +372,39 @@ Current contract validation:
 canonical fields classified = 61 / 61
 static validator = 99 / 99
 contract smoke tests = 8 passed
-related reconciliation regression = 38 passed
 contract_matches_current_reconciliation = true
 ```
 
-The contract package is static and read-only. The next separate slice may build
-bounded derived JSONL evidence, but no full-corpus evidence output, Postgres
-table, API, or UI is authorized by the contract alone.
+Current bounded evidence validation:
+
+```text
+canonical papers = 12
+contributing source observations = 33
+canonical source links = 33
+unmatched source links = 0
+field records = 732
+source-reconstructable matches = 708
+runtime-default records = 24
+required value mismatches = 0
+independent validator = 34 / 34
+new smoke tests = 16 passed
+related regression = 45 passed
+```
+
+Evidence-record semantics:
+
+```text
+record_id = deterministic evidence identity
+canonical_id = unchanged paper identity
+selected/co-winning IDs = subset of contributing source_observation_id values
+comparison_status = match | mismatch | not_applicable
+runtime-default fields = not source-reconstructable
+mismatch = report only; never repair canonical data
+```
+
+The contract and evidence packages are static/read-only or bounded/read-only
+derived layers. No full-corpus output, Postgres table, API, or UI is authorized
+by the bounded implementation.
 
 ---
 
@@ -491,8 +522,12 @@ The current project state can now be interpreted like this:
 - all 88,037 canonical provenance links resolve through `source_observation_id`,
 - 141 valid non-contributing observations remain unlinked by design,
 - the canonical layer does not currently show mass structural provenance corruption,
-- all 61 canonical fields now have an explicit field-selection strategy classification,
-- the field-level contract validator is green at 99/99 and the related regression set is 38/38,
+- all 61 canonical fields have an explicit field-selection strategy classification,
+- the field-level contract validator is green at 99/99,
+- the bounded evidence layer explains 732 field records across 12 papers using 33 contributing observations,
+- 708 source-reconstructable records match and 24 runtime-default records are correctly not applicable,
+- the independent evidence validator is green at 34/34 with zero required mismatches,
+- the related regression set is green at 45/45,
 - most earlier anomalies came from mixing identifier, row-level provenance, field-level provenance, and physical materialization semantics.
 
 That means future work should focus on:
@@ -517,4 +552,6 @@ This document should stay aligned with:
 - source-observation parity and operational-promotion validators
 - `docs/field_level_canonical_provenance_contract_v0.1.md`
 - `scripts/validation/check_field_level_canonical_provenance_contract.py`
-- future Field-Level Canonical Provenance Evidence Builder v0.1
+- `docs/field_level_canonical_provenance_evidence_v0.1.md`
+- `scripts/validation/build_field_level_canonical_provenance_evidence.py`
+- `scripts/validation/check_field_level_canonical_provenance_evidence.py`
