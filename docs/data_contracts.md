@@ -154,6 +154,41 @@ canonical document, or source observation.
 
 ---
 
+
+## 1.6 Field-level canonical provenance evidence checkpoint
+
+The checkpoint is not another entity, data contract, or materialized record
+type. It is a fail-closed read-only validation report over the accepted:
+
+```text
+field-level contract
+bounded evidence package validation
+semantic review
+```
+
+Accepted checkpoint state:
+
+```text
+checkpoint validator = 35 / 35
+checkpoint smoke tests = 9 passed
+required_failed_count = 0
+field_level_provenance_line_complete = true
+bounded_evidence_checkpoint_ready = true
+```
+
+The checkpoint preserves all existing identity domains:
+
+```text
+canonical_id = paper identity
+source_observation_id = source-row identity
+record_id = derived field-evidence identity
+```
+
+It adds no field to `Document` or `CanonicalDocument`, creates no Postgres
+entity, and cannot be used as a reconcile input or serving truth.
+
+---
+
 # 2. Identity fields
 
 | Field | Purpose | Document | CanonicalDocument | Current Status |
@@ -588,6 +623,12 @@ strategy families = 14
 semantic file differences = 0
 record-key differences = 0
 record-content differences = 0
+
+checkpoint validator = 35 / 35
+checkpoint smoke tests = 9 passed
+checkpoint required_failed_count = 0
+field_level_provenance_line_complete = true
+bounded_evidence_checkpoint_ready = true
 ```
 
 Review baseline:
@@ -617,7 +658,7 @@ created_at and updated_record_at are runtime-default records
 canonical/recomputed mismatch is diagnostic and never repairs canonical truth
 ```
 
-The contract and bounded evidence layer do not:
+The contract, bounded evidence, semantic review, and final checkpoint do not:
 
 ```text
 change reconcile selectors
@@ -642,6 +683,7 @@ allow package checksums to substitute for semantic-drift comparison
 - static Field-Level Canonical Provenance Contract v0.1
 - bounded Field-Level Canonical Provenance Evidence v0.1
 - Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1
+- Field-Level Canonical Provenance Evidence Checkpoint v0.1
 - retrieval and serving metadata
 - separate artifact entities, observations, and trusted paper-artifact links
 
@@ -682,9 +724,10 @@ Artifact API contract changed = false
 ```
 
 The **Field-Level Canonical Provenance Contract v0.1**, bounded
-**Field-Level Canonical Provenance Evidence v0.1**, and
-**Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1**
-are implemented and green:
+**Field-Level Canonical Provenance Evidence v0.1**,
+**Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1**,
+and **Field-Level Canonical Provenance Evidence Checkpoint v0.1** are
+implemented and green:
 
 ```text
 canonical fields classified = 61 / 61
@@ -708,10 +751,17 @@ strategy families = 14
 semantic file differences = 0
 record-key differences = 0
 record-content differences = 0
+
+checkpoint validator = 35 / 35
+checkpoint smoke tests = 9 passed
+required_failed_count = 0
+field_level_provenance_line_complete = true
+bounded_evidence_checkpoint_ready = true
 ```
 
 The bounded evidence output explains the current merge but does not redefine
 `CanonicalDocument`, modify reconcile, or add a serving truth. The review layer
-pins semantic parity between accepted directory- and ZIP-driven runs. The next
-safe direction is **Field-Level Canonical Provenance Evidence Checkpoint v0.1**
-before any later full-corpus, Postgres, API, or UI provenance design.
+pins semantic parity between accepted directory- and ZIP-driven runs, and the
+final checkpoint closes the bounded line. Any later full-corpus, Postgres,
+API/UI, publication, or reconcile-input provenance design requires a separate
+accepted architecture slice.

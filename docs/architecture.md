@@ -16,7 +16,7 @@ overlapping source-level observations.
 ## Current checkpoint
 
 ```text
-checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1 / Citation Graph Diagnostics UI v0.1 / Citation Graph External Reference Lookup UI v0.1 / Citation Graph UI Productization Checkpoint v0.1 / Citation Graph Store Cache & Reload Regression v0.1 / Citation Graph Failure Isolation & Error Recovery v0.1 / Citation Graph Live Smoke & Known-Issues Hardening v0.1 / Citation Graph Manual-Review Evidence Preparation v0.1 / Manual Citation Graph Review Execution v0.1 / Public Metadata Release Policy & Kaggle Packaging v0.1 / Public Metadata Release Manual-Review Evidence Preparation v0.1 / Manual Public Metadata Release Review Execution v0.1 / Source Observation Materialization Operational Promotion v0.1 / Field-Level Canonical Provenance Contract v0.1 / Field-Level Canonical Provenance Evidence Builder v0.1 / Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1
+checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1 / Citation Graph Diagnostics UI v0.1 / Citation Graph External Reference Lookup UI v0.1 / Citation Graph UI Productization Checkpoint v0.1 / Citation Graph Store Cache & Reload Regression v0.1 / Citation Graph Failure Isolation & Error Recovery v0.1 / Citation Graph Live Smoke & Known-Issues Hardening v0.1 / Citation Graph Manual-Review Evidence Preparation v0.1 / Manual Citation Graph Review Execution v0.1 / Public Metadata Release Policy & Kaggle Packaging v0.1 / Public Metadata Release Manual-Review Evidence Preparation v0.1 / Manual Public Metadata Release Review Execution v0.1 / Source Observation Materialization Operational Promotion v0.1 / Field-Level Canonical Provenance Contract v0.1 / Field-Level Canonical Provenance Evidence Builder v0.1 / Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1 / Field-Level Canonical Provenance Evidence Checkpoint v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
@@ -66,6 +66,13 @@ field_level_provenance_review_semantic_file_differences = 0
 field_level_provenance_review_record_key_differences = 0
 field_level_provenance_review_record_content_differences = 0
 
+field_level_provenance_checkpoint_status = completed_read_only_final_checkpoint
+field_level_provenance_checkpoint_validator_checks = 35 / 35
+field_level_provenance_checkpoint_smoke_tests = 9 passed
+field_level_provenance_checkpoint_required_failed_count = 0
+field_level_provenance_line_complete = true
+bounded_evidence_checkpoint_ready = true
+
 retrieval_build_id = 20260504T164021Z
 embedding_model = sentence-transformers/all-MiniLM-L6-v2
 embedding_shape = [60954, 384]
@@ -101,6 +108,7 @@ sources
 → Field-Level Canonical Provenance Contract / static validator
 → bounded Field-Level Canonical Provenance Evidence / independent validator
 → Field-Level Canonical Provenance Evidence semantic review / accepted-baseline pinning
+→ Field-Level Canonical Provenance Evidence final bounded checkpoint
 → retrieval artifacts
 → deterministic source-observation identity materialization
 → Postgres materialized serving layer
@@ -144,6 +152,7 @@ Paper–Artifact evidence = Artifact API first, dedicated graph API only after s
 Field-Level Canonical Provenance Contract = static derived governance over current reconcile semantics
 Field-Level Canonical Provenance Evidence = bounded derived explanatory evidence, not canonical truth
 Field-Level Canonical Provenance Evidence Review = read-only semantic determinism and drift-detection gate
+Field-Level Canonical Provenance Evidence Checkpoint = final read-only fail-closed closure gate over the bounded provenance line
 Qdrant = optional derived vector-serving implementation
 ```
 
@@ -423,9 +432,50 @@ review does not change Postgres, retrieval, Qdrant, ranking, graph, API, or UI
 review does not authorize full-corpus generation or publication
 ```
 
-The next safe slice is a small
-**Field-Level Canonical Provenance Evidence Checkpoint v0.1** that closes the
-bounded contract/builder/validator/review line without expanding runtime scope.
+### 2.4 Field-Level Canonical Provenance Evidence Checkpoint v0.1
+
+The final bounded checkpoint is implemented over the accepted contract,
+evidence-validation, and semantic-review reports.
+
+Tracked package:
+
+```text
+docs/field_level_canonical_provenance_evidence_checkpoint_v0.1.md
+scripts/validation/check_field_level_canonical_provenance_evidence_checkpoint.py
+tests/smoke/test_field_level_canonical_provenance_evidence_checkpoint.py
+```
+
+Accepted validation:
+
+```text
+contract = 99 / 99
+evidence package validator = 34 / 34
+semantic review = 58 / 58
+final checkpoint = 35 / 35
+checkpoint smoke tests = 9 passed
+required_failed_count = 0
+field_level_provenance_line_complete = true
+bounded_evidence_checkpoint_ready = true
+```
+
+The checkpoint aggregates existing reports only. It fails closed on missing
+reports, report/schema/status drift, field/count/hash drift, semantic
+differences, mismatches, unmatched links, or changed safety flags.
+
+Boundary:
+
+```text
+read-only and bounded
+no evidence or review rebuild
+no reconcile execution
+no canonical/source-observation mutation
+no full-corpus provenance materialization
+no Postgres/retrieval/Qdrant/ranking/graph/API/UI change
+no publication
+```
+
+The bounded field-level provenance line is closed. Any later full-corpus,
+Postgres, API/UI, or publication expansion requires a separate accepted design.
 
 ---
 
@@ -1100,6 +1150,7 @@ source-observation operational-promotion validator
 field-level canonical provenance contract validator
 field-level canonical provenance evidence builder/validator
 field-level canonical provenance evidence review validator
+field-level canonical provenance evidence checkpoint validator
 ```
 
 Lightweight retrieval-serving checkpoint:
@@ -1555,8 +1606,8 @@ audit sample.
 
 The review confirms semantic parity between directory- and ZIP-driven evidence
 runs and detects drift even when an altered package has internally consistent
-checksums. The next safe direction is
-**Field-Level Canonical Provenance Evidence Checkpoint v0.1**. Full-corpus
-generation, Postgres materialization, API/UI exposure, or any use as
+checksums. The final checkpoint is green at 35/35 with nine smoke tests, and
+the bounded field-level provenance line is closed. Full-corpus generation,
+Postgres materialization, API/UI exposure, publication, or any use as
 reconciliation input remains unauthorized without a later separate accepted
 design slice.
