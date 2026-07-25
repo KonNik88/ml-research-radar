@@ -5,8 +5,8 @@
 ```text
 document = consolidated current-state checkpoint
 checkpoint_version = v0.1
-checkpoint_date = 2026-07-24
-scope = documentation / transfer / operational-promotion / field-level-provenance-contract-and-evidence checkpoint
+checkpoint_date = 2026-07-25
+scope = documentation / transfer / operational-promotion / field-level-provenance-contract-evidence-and-review checkpoint
 canonical_truth = false
 may_be_used_as_reconcile_input = false
 mutates_canonical_documents = false
@@ -270,7 +270,51 @@ observations, and emits one deterministic record per
 The evidence does not repair mismatches, alter canonical data, change selectors,
 or create a serving/runtime dependency.
 
-### 3.6 Qdrant baseline
+### 3.6 Field-level canonical provenance evidence review baseline
+
+The review and regression-hardening layer is implemented over two accepted
+evidence runs and the original bounded audit package.
+
+```text
+review_contract = docs/field_level_canonical_provenance_evidence_review_v0.1.md
+review_validator = scripts/validation/check_field_level_canonical_provenance_evidence_review.py
+status = completed_read_only_hardening
+
+review_validator_checks = 58 / 58
+review_smoke_tests = 7 passed
+field_level_evidence_block_tests = 23 passed
+related_regression = 52 passed
+
+canonical_papers = 12
+contributing_source_observations = 33
+field_evidence_records = 732
+strategy_families = 14
+semantic_files_compared = 3
+semantic_file_differences = 0
+record_key_differences = 0
+record_content_differences = 0
+value_mismatches = 0
+unmatched_source_links = 0
+```
+
+Accepted semantic hashes:
+
+```text
+field_evidence.jsonl
+= d3a42644e51854226343e98f048856a16b2f9cd52289bb3dd6e5676f751077b0
+
+paper_summary.jsonl
+= dc3d3ab43d4bc3bf82c14593f0b274f8989efbd7bd79694c5a397f7b58d7356d
+
+data_quality_summary.json
+= 825d49a0f5b1b95be39a6bff77a000adc03842c8290c758716a202b04bb52236
+```
+
+The review confirms semantic equivalence between directory- and ZIP-driven
+builder runs. It also detects altered evidence content even when a modified
+package has recalculated internally valid checksums.
+
+### 3.7 Qdrant baseline
 
 ```text
 collection = ml_radar_dense_benchmark_v1
@@ -307,7 +351,9 @@ Completed:
 - static Field-Level Canonical Provenance Contract v0.1 over all 61 canonical fields;
 - read-only 99-check contract validator and deterministic contract smoke fixtures;
 - bounded Field-Level Canonical Provenance Evidence v0.1 over 12 audit papers;
-- independent 34-check evidence validator and deterministic evidence smoke fixtures.
+- independent 34-check evidence validator and deterministic evidence smoke fixtures;
+- Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1;
+- independent 58-check semantic parity/drift validator and seven hardening fixtures.
 
 Important boundary:
 
@@ -814,7 +860,8 @@ Refresh DoD can aggregate:
 - golden queries;
 - Citation Graph API regression report;
 - Field-Level Canonical Provenance Contract validation report;
-- Field-Level Canonical Provenance Evidence validation report.
+- Field-Level Canonical Provenance Evidence validation report;
+- Field-Level Canonical Provenance Evidence Review validation report.
 
 Optional gates remain opt-in unless the active slice requires them. The Citation Graph API regression gate is optional by default and becomes required only with `--require-citation-graph-api-regression`.
 
@@ -830,8 +877,9 @@ The next work should remain narrow and sequential:
 completed operational source-observation promotion
 → completed Field-Level Canonical Provenance Contract v0.1
 → completed bounded Field-Level Canonical Provenance Evidence Builder v0.1
-→ next: evidence review / regression / design hardening
-→ only then consider full-corpus provenance materialization or product surfaces
+→ completed Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1
+→ next: Field-Level Canonical Provenance Evidence Checkpoint v0.1
+→ only then consider a separate design for any full-corpus or product surface
 
 no full-corpus provenance, broad runtime, GraphRAG, graph DB, or Qdrant promotion
 without a separate accepted design
@@ -1002,12 +1050,18 @@ Recently completed safe slices after this checkpoint baseline:
    - added an independent 34-check validator and 16 smoke tests;
    - preserved canonical truth, reconciliation, Postgres, retrieval, Qdrant, graph, API, UI, and publication state.
 
+36. **Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1**
+   - compared accepted directory- and ZIP-driven evidence runs;
+   - pinned three semantic SHA-256 values and all 14 strategy families;
+   - added a 58-check review validator and seven semantic-drift fixtures;
+   - completed the related regression set at 52 passed with zero semantic differences.
+
 Recommended next slices:
 
-1. **Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1**
-   - inspect strategy/caveat distribution and deterministic evidence samples;
-   - decide whether any selector ambiguity needs documentation or test hardening;
-   - do not authorize full-corpus generation or product/runtime surfaces.
+1. **Field-Level Canonical Provenance Evidence Checkpoint v0.1**
+   - close the bounded contract/builder/validator/review line;
+   - consolidate accepted inputs, hashes, counters, caveats, and safety flags;
+   - add no full-corpus generation, product surface, or runtime dependency.
 
 2. **Semantic Scholar Public Release Boundary Remediation v0.1**
    - separate publication-governance track only;
@@ -1796,13 +1850,15 @@ reconciliation behavior and canonical IDs are unchanged
 Postgres remains rebuildable and derived
 ```
 
-The **Field-Level Canonical Provenance Contract v0.1** and bounded
-**Field-Level Canonical Provenance Evidence Builder v0.1** are complete and
-green against the current repository and audit sample.
+The **Field-Level Canonical Provenance Contract v0.1**, bounded
+**Field-Level Canonical Provenance Evidence Builder v0.1**, and
+**Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1**
+are complete and green against the current repository and accepted audit sample.
 
-The next safe direction is evidence review/regression/design hardening. A
-full-corpus provenance build, Postgres schema, API/UI surface, or reconcile-input
-role requires a separate explicit design decision.
+The next safe direction is a small
+**Field-Level Canonical Provenance Evidence Checkpoint v0.1**. A full-corpus
+provenance build, Postgres schema, API/UI surface, or reconcile-input role still
+requires a later separate explicit design decision.
 
 ## Field-Level Canonical Provenance Contract v0.1
 
@@ -1872,7 +1928,7 @@ runtime-default records = 24
 required value mismatches = 0
 independent validator = 34 / 34
 new smoke tests = 16 passed
-related regression = 45 passed
+builder-slice related regression = 45 passed
 ```
 
 The builder accepts the bounded reconciliation audit directory or ZIP and emits
@@ -1893,9 +1949,58 @@ no publication action
 no full-corpus generation authorization
 ```
 
+## Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1
+
+Status: **implemented / green read-only semantic review package**
+
+Tracked files:
+
+```text
+docs/field_level_canonical_provenance_evidence_review_v0.1.md
+scripts/validation/check_field_level_canonical_provenance_evidence_review.py
+tests/smoke/test_field_level_canonical_provenance_evidence_review.py
+```
+
+Accepted evidence:
+
+```text
+review validator = 58 / 58
+review smoke tests = 7 passed
+field-level evidence block = 23 passed
+related regression = 52 passed
+
+canonical papers = 12
+contributing source observations = 33
+field evidence records = 732
+strategy families = 14
+semantic files compared = 3
+semantic file differences = 0
+record-key differences = 0
+record-content differences = 0
+value mismatches = 0
+unmatched source links = 0
+```
+
+The review binds the accepted evidence pair to the bounded audit package and
+pins the semantic hashes for `field_evidence.jsonl`, `paper_summary.jsonl`, and
+`data_quality_summary.json`. It distinguishes package integrity from semantic
+equivalence and catches changed content after checksums are recomputed.
+
+Boundary:
+
+```text
+read-only comparison and reporting
+no evidence-package rebuild
+no stable-corpus reconcile
+no canonical or source-observation mutation
+no Postgres/retrieval/Qdrant/graph/ranking/API/UI change
+no publication action
+no full-corpus generation authorization
+```
+
 Next safe direction:
 
 ```text
-Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1
-= review and design hardening before any materialization/product expansion
+Field-Level Canonical Provenance Evidence Checkpoint v0.1
+= close the bounded evidence line before any later materialization/product design
 ```

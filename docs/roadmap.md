@@ -6,13 +6,13 @@
 document = primary living roadmap
 accepted checkpoint = Current State Checkpoint v0.1
 base checkpoint = Discovery Regression Runner Summary Report v1
-current active direction = bounded field-level provenance evidence complete / review-regression-design hardening next
-current active slice = Field-Level Canonical Provenance Evidence Builder v0.1 completed / living-docs sync
+current active direction = field-level provenance review hardening complete / bounded evidence checkpoint next
+current active slice = Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1 completed / living-docs sync
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = implement and validate bounded field-level canonical provenance evidence for synthetic fixtures and the selected reconciliation audit sample; synchronize living docs; preserve canonical, reconciliation, source-observation, Postgres, retrieval, Qdrant, graph, ranking, API, UI, and publication boundaries
+scope of current branch = validate semantic determinism across accepted directory- and ZIP-driven evidence runs, pin the bounded audit baseline, harden drift detection, synchronize living docs, and preserve canonical, reconciliation, source-observation, Postgres, retrieval, Qdrant, graph, ranking, API, UI, and publication boundaries
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -20,11 +20,11 @@ architectural invariants that must remain stable, and the recommended order of
 future work.
 
 The project prefers complete, validated vertical slices over broad feature
-expansion. The Field-Level Canonical Provenance Contract and bounded
-Field-Level Canonical Provenance Evidence Builder are now complete and green.
-The next safe architecture direction is review/regression/design hardening
-before any full-corpus provenance materialization, runtime/API/UI surface,
-GraphRAG, graph DB, or Qdrant-promotion work.
+expansion. The Field-Level Canonical Provenance Contract, bounded Evidence
+Builder, and Evidence Review & Regression Hardening slices are complete and
+green. The next safe architecture direction is a small bounded evidence
+checkpoint before any full-corpus provenance materialization, runtime/API/UI
+surface, GraphRAG, graph DB, or Qdrant-promotion work.
 
 ---
 
@@ -60,7 +60,8 @@ Accepted current direction:
 operational source-observation identity = completed
 Field-Level Canonical Provenance Contract v0.1 = completed
 Field-Level Canonical Provenance Evidence Builder v0.1 = completed
-next = field-level evidence review / regression / design hardening
+Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1 = completed
+next = Field-Level Canonical Provenance Evidence Checkpoint v0.1
 full-corpus provenance / runtime / public API / GraphRAG / Qdrant promotion only after a separate accepted design slice
 ```
 
@@ -106,10 +107,11 @@ Recently completed safe slices:
 38. **Source Observation Materialization Operational Promotion v0.1** — completed default-DB promotion with checked backups, retained rollback DB, and green product gates.
 39. **Field-Level Canonical Provenance Contract v0.1** — classified all 61 canonical fields, added a read-only 99-check validator and eight deterministic smoke tests, and preserved current reconcile behavior.
 40. **Field-Level Canonical Provenance Evidence Builder v0.1** — produced 732 bounded deterministic field records across 12 papers and 33 contributing observations, added a 34-check independent validator and 16 smoke tests, and preserved all canonical/runtime boundaries.
+41. **Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1** — compared accepted directory/ZIP runs, pinned three semantic hashes, covered all 14 strategy families, added a 58-check review validator and seven drift-detection tests, and completed the related regression set at 52 passed.
 
 Recommended next safe slices:
 
-1. **Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1** — inspect strategy/caveat distribution, review deterministic evidence samples, and harden documentation/tests before any materialization or product surface.
+1. **Field-Level Canonical Provenance Evidence Checkpoint v0.1** — close the bounded contract/builder/validator/review line without authorizing full-corpus generation or a product/runtime surface.
 2. **Semantic Scholar Public Release Boundary Remediation v0.1** — separate publication-governance track after the rejected release review.
 3. **Paper–Artifact Graph API Design v0.1** — only if existing Artifact API surfaces prove insufficient for a concrete product requirement.
 
@@ -2063,7 +2065,7 @@ no publication action
 
 ## 5. Current active direction
 
-### 5.0 Current immediate direction after bounded field-level evidence completion
+### 5.0 Current immediate direction after evidence review hardening
 
 Completed:
 
@@ -2082,18 +2084,28 @@ runtime-default records = 24
 required mismatches = 0
 independent validator = 34 / 34
 evidence smoke tests = 16 passed
-related regression = 45 passed
+builder-slice regression = 45 passed
+
+Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1
+review validator = 58 / 58
+review smoke tests = 7 passed
+field-level evidence block = 23 passed
+related regression = 52 passed
+strategy families = 14
+semantic file differences = 0
+record-key differences = 0
+record-content differences = 0
 ```
 
 Current next safe direction:
 
 ```text
-Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1
+Field-Level Canonical Provenance Evidence Checkpoint v0.1
 ```
 
-The next slice should inspect the bounded evidence, strategy/caveat
-distribution, co-winner/union examples, determinism, and validator coverage. It
-must preserve the accepted identities:
+The checkpoint should freeze the accepted bounded audit input, the two
+semantically identical evidence runs, their semantic hashes, current caveats,
+and all safety flags. It must preserve the accepted identities:
 
 ```text
 source_observation_id = physical source observation identity
@@ -4275,12 +4287,13 @@ Completed architecture slices:
 ```text
 Field-Level Canonical Provenance Contract v0.1
 Field-Level Canonical Provenance Evidence Builder v0.1
+Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1
 ```
 
 Primary next architecture direction:
 
 ```text
-Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1
+Field-Level Canonical Provenance Evidence Checkpoint v0.1
 ```
 
 Separate publication-governance slice:
@@ -4382,13 +4395,16 @@ reconciliation behavior and canonical IDs are unchanged
 Postgres remains rebuildable and derived
 ```
 
-The **Field-Level Canonical Provenance Contract v0.1** and bounded
-**Field-Level Canonical Provenance Evidence Builder v0.1** are completed and
-green against the current implementation and audit sample.
+The **Field-Level Canonical Provenance Contract v0.1**, bounded
+**Field-Level Canonical Provenance Evidence Builder v0.1**, and
+**Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1**
+are completed and green against the current implementation and accepted audit
+sample.
 
-The next architectural direction is evidence review/regression/design hardening.
-It must not create a second canonical truth, authorize full-corpus generation,
-or add a Postgres/API/UI provenance surface without a separate accepted design.
+The next architectural direction is
+**Field-Level Canonical Provenance Evidence Checkpoint v0.1**. It must not
+create a second canonical truth, authorize full-corpus generation, or add a
+Postgres/API/UI provenance surface without a separate accepted design.
 
 ## Field-Level Canonical Provenance Contract v0.1
 
@@ -4484,7 +4500,7 @@ runtime-default records = 24
 required value mismatches = 0
 independent validator = 34 / 34
 new smoke tests = 16 passed
-related regression = 45 passed
+builder-slice related regression = 45 passed
 ```
 
 Boundary:
@@ -4501,11 +4517,77 @@ no public dataset/package publication
 no GraphRAG, graph DB, or Qdrant promotion
 ```
 
+## Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1
+
+Status: **done / green read-only semantic review and drift-detection slice**
+
+Tracked package:
+
+```text
+docs/field_level_canonical_provenance_evidence_review_v0.1.md
+scripts/validation/check_field_level_canonical_provenance_evidence_review.py
+tests/smoke/test_field_level_canonical_provenance_evidence_review.py
+```
+
+Accepted validation:
+
+```text
+review validator = 58 / 58
+review smoke tests = 7 passed
+field-level evidence block = 23 passed
+related regression = 52 passed
+
+canonical papers = 12
+contributing source observations = 33
+field evidence records = 732
+strategy families = 14
+semantic files compared = 3
+semantic file differences = 0
+record-key differences = 0
+record-content differences = 0
+value mismatches = 0
+unmatched source links = 0
+```
+
+Pinned semantic hashes:
+
+```text
+field_evidence.jsonl
+= d3a42644e51854226343e98f048856a16b2f9cd52289bb3dd6e5676f751077b0
+
+paper_summary.jsonl
+= dc3d3ab43d4bc3bf82c14593f0b274f8989efbd7bd79694c5a397f7b58d7356d
+
+data_quality_summary.json
+= 825d49a0f5b1b95be39a6bff77a000adc03842c8290c758716a202b04bb52236
+```
+
+Hardening semantics:
+
+```text
+directory and ZIP audit inputs produce identical semantic evidence
+ordinary package validity and semantic equivalence are separate checks
+changed evidence is rejected even after internal checksums are recomputed
+accepted-baseline review is bounded to the selected audit package
+```
+
+Boundary:
+
+```text
+read-only review/report layer
+no evidence rebuild
+no full-corpus generation
+no canonical truth or reconcile changes
+no Postgres/retrieval/Qdrant/ranking/graph/API/UI changes
+no publication action
+```
+
 Recommended next step:
 
 ```text
-Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1
+Field-Level Canonical Provenance Evidence Checkpoint v0.1
 ```
 
-That review must precede any full-corpus generation, materialized serving layer,
-or product/runtime provenance surface.
+That checkpoint must close the bounded evidence line before any later
+full-corpus generation, materialized serving layer, or product/runtime
+provenance design.

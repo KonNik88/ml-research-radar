@@ -35,7 +35,11 @@ governance/evidence family:
   Deterministic explanatory records for synthetic fixtures and selected audit
   samples, one record per `canonical_id + field_name`.
 
-The contract and evidence are not a third truth layer and do not add fields to
+- **field-level evidence review and regression hardening**
+  A read-only comparison of accepted evidence runs and the bounded audit package
+  that detects semantic drift and pins the accepted baseline.
+
+The contract, evidence, and review are not a third truth layer and do not add fields to
 `CanonicalDocument`. They document and explain current reconciliation behavior.
 
 Because of this, not every canonical field has a strict one-to-one relationship
@@ -388,7 +392,46 @@ runtime-default records = 24
 required value mismatches = 0
 independent validator = 34 / 34
 new smoke tests = 16 passed
-related regression = 45 passed
+builder-slice related regression = 45 passed
+```
+
+Current review/hardening validation:
+
+```text
+review validator = 58 / 58
+review smoke tests = 7 passed
+field-level evidence block = 23 passed
+related regression = 52 passed
+
+strategy families = 14
+semantic files compared = 3
+semantic file differences = 0
+record-key differences = 0
+record-content differences = 0
+value mismatches = 0
+unmatched source links = 0
+```
+
+Accepted semantic hashes:
+
+```text
+field_evidence.jsonl
+= d3a42644e51854226343e98f048856a16b2f9cd52289bb3dd6e5676f751077b0
+
+paper_summary.jsonl
+= dc3d3ab43d4bc3bf82c14593f0b274f8989efbd7bd79694c5a397f7b58d7356d
+
+data_quality_summary.json
+= 825d49a0f5b1b95be39a6bff77a000adc03842c8290c758716a202b04bb52236
+```
+
+Review semantics:
+
+```text
+directory-driven evidence and ZIP-driven evidence must be semantically identical
+package integrity checks and semantic-drift checks are separate protections
+recomputed checksums do not make changed evidence an accepted baseline
+audit package identity and bounded counts remain part of the review contract
 ```
 
 Evidence-record semantics:
@@ -527,7 +570,9 @@ The current project state can now be interpreted like this:
 - the bounded evidence layer explains 732 field records across 12 papers using 33 contributing observations,
 - 708 source-reconstructable records match and 24 runtime-default records are correctly not applicable,
 - the independent evidence validator is green at 34/34 with zero required mismatches,
-- the related regression set is green at 45/45,
+- the semantic review validator is green at 58/58 across all 14 strategy families,
+- directory- and ZIP-driven runs have zero semantic, record-key, or record-content differences,
+- the full related regression set is green at 52/52,
 - most earlier anomalies came from mixing identifier, row-level provenance, field-level provenance, and physical materialization semantics.
 
 That means future work should focus on:
@@ -555,3 +600,7 @@ This document should stay aligned with:
 - `docs/field_level_canonical_provenance_evidence_v0.1.md`
 - `scripts/validation/build_field_level_canonical_provenance_evidence.py`
 - `scripts/validation/check_field_level_canonical_provenance_evidence.py`
+- `docs/field_level_canonical_provenance_evidence_review_v0.1.md`
+- `scripts/validation/check_field_level_canonical_provenance_evidence_review.py`
+- `tests/smoke/test_field_level_canonical_provenance_evidence_review.py`
+- future Field-Level Canonical Provenance Evidence Checkpoint v0.1
