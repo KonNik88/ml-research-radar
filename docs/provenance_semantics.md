@@ -39,8 +39,13 @@ governance/evidence family:
   A read-only comparison of accepted evidence runs and the bounded audit package
   that detects semantic drift and pins the accepted baseline.
 
-The contract, evidence, and review are not a third truth layer and do not add fields to
-`CanonicalDocument`. They document and explain current reconciliation behavior.
+- **Field-Level Canonical Provenance Evidence Checkpoint v0.1**
+  A final fail-closed read-only report that aggregates the accepted contract,
+  evidence-validation, and semantic-review reports and closes the bounded line.
+
+The contract, evidence, review, and checkpoint are not a third truth layer and do
+not add fields to `CanonicalDocument`. They document, explain, and validate current
+reconciliation behavior.
 
 Because of this, not every canonical field has a strict one-to-one relationship
 with a single source row.
@@ -445,8 +450,36 @@ runtime-default fields = not source-reconstructable
 mismatch = report only; never repair canonical data
 ```
 
-The contract and evidence packages are static/read-only or bounded/read-only
-derived layers. No full-corpus output, Postgres table, API, or UI is authorized
+Current final checkpoint validation:
+
+```text
+checkpoint validator = 35 / 35
+checkpoint smoke tests = 9 passed
+required_failed_count = 0
+
+contract = 99 / 99
+evidence package validator = 34 / 34
+semantic review = 58 / 58
+
+field_level_provenance_line_complete = true
+bounded_evidence_checkpoint_ready = true
+```
+
+Checkpoint semantics:
+
+```text
+the checkpoint consumes existing reports only
+missing/unreadable reports fail closed
+report identity/schema/status drift fails closed
+field/count/hash/strategy drift fails closed
+semantic differences, mismatches, or unmatched links fail closed
+mutation/publication safety-flag drift fails closed
+the checkpoint never repairs or rebuilds evidence
+```
+
+The contract, evidence packages, semantic review, and final checkpoint are
+static/read-only or bounded/read-only derived layers. No full-corpus output,
+Postgres table, API, UI, publication path, or reconcile-input role is authorized
 by the bounded implementation.
 
 ---
@@ -573,6 +606,9 @@ The current project state can now be interpreted like this:
 - the semantic review validator is green at 58/58 across all 14 strategy families,
 - directory- and ZIP-driven runs have zero semantic, record-key, or record-content differences,
 - the full related regression set is green at 52/52,
+- the final checkpoint validator is green at 35/35 with nine smoke tests,
+- `field_level_provenance_line_complete=true` and `bounded_evidence_checkpoint_ready=true`,
+- the bounded field-level provenance line is closed,
 - most earlier anomalies came from mixing identifier, row-level provenance, field-level provenance, and physical materialization semantics.
 
 That means future work should focus on:
@@ -603,4 +639,6 @@ This document should stay aligned with:
 - `docs/field_level_canonical_provenance_evidence_review_v0.1.md`
 - `scripts/validation/check_field_level_canonical_provenance_evidence_review.py`
 - `tests/smoke/test_field_level_canonical_provenance_evidence_review.py`
-- future Field-Level Canonical Provenance Evidence Checkpoint v0.1
+- `docs/field_level_canonical_provenance_evidence_checkpoint_v0.1.md`
+- `scripts/validation/check_field_level_canonical_provenance_evidence_checkpoint.py`
+- `tests/smoke/test_field_level_canonical_provenance_evidence_checkpoint.py`
