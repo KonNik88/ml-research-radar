@@ -130,6 +130,28 @@ caveats
 This is not another semantic paper entity level. It is bounded, derived,
 read-only explanatory output and must not be used as a reconciliation input.
 
+## 1.5 Field-level canonical provenance evidence review
+
+The review layer is not another data entity. It is a read-only validation
+contract over two bounded evidence packages plus the accepted reconciliation
+audit package.
+
+It compares:
+
+```text
+semantic file hashes
+paper and field key sets
+record content
+strategy-family coverage
+accepted counts
+audit package identity
+package safety flags
+```
+
+The review report may identify semantic drift even when a modified package has
+fresh internally consistent checksums. It never changes an evidence record,
+canonical document, or source observation.
+
 ---
 
 # 2. Identity fields
@@ -522,7 +544,7 @@ created_at / updated_record_at
 `metadata_completeness_score` is not selected by maximum source value.
 `created_at` and `updated_record_at` have no source observation winner.
 
-## 11.8 Field-level contract and bounded evidence boundary
+## 11.8 Field-level contract, bounded evidence, and review boundary
 
 Accepted contract:
 
@@ -556,7 +578,29 @@ runtime-default records = 24
 required value mismatches = 0
 evidence validator = 34 / 34
 evidence smoke tests = 16 passed
-related regression = 45 passed
+builder-slice related regression = 45 passed
+
+review validator = 58 / 58
+review smoke tests = 7 passed
+field-level evidence block = 23 passed
+current related regression = 52 passed
+strategy families = 14
+semantic file differences = 0
+record-key differences = 0
+record-content differences = 0
+```
+
+Review baseline:
+
+```text
+field_evidence.jsonl sha256
+= d3a42644e51854226343e98f048856a16b2f9cd52289bb3dd6e5676f751077b0
+
+paper_summary.jsonl sha256
+= dc3d3ab43d4bc3bf82c14593f0b274f8989efbd7bd79694c5a397f7b58d7356d
+
+data_quality_summary.json sha256
+= 825d49a0f5b1b95be39a6bff77a000adc03842c8290c758716a202b04bb52236
 ```
 
 Evidence semantics:
@@ -583,6 +627,7 @@ add Postgres provenance tables
 add API or Streamlit provenance surfaces
 authorize full-corpus provenance generation
 become reconcile inputs or serving truth
+allow package checksums to substitute for semantic-drift comparison
 ```
 
 ---
@@ -596,6 +641,7 @@ become reconcile inputs or serving truth
 - canonical merged paper entities
 - static Field-Level Canonical Provenance Contract v0.1
 - bounded Field-Level Canonical Provenance Evidence v0.1
+- Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1
 - retrieval and serving metadata
 - separate artifact entities, observations, and trusted paper-artifact links
 
@@ -635,8 +681,10 @@ Qdrant changed = false
 Artifact API contract changed = false
 ```
 
-The **Field-Level Canonical Provenance Contract v0.1** and bounded
-**Field-Level Canonical Provenance Evidence v0.1** are now implemented and green:
+The **Field-Level Canonical Provenance Contract v0.1**, bounded
+**Field-Level Canonical Provenance Evidence v0.1**, and
+**Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1**
+are implemented and green:
 
 ```text
 canonical fields classified = 61 / 61
@@ -651,10 +699,19 @@ runtime-default records = 24
 value mismatches = 0
 evidence validator = 34 / 34
 evidence smoke tests = 16 passed
-related regression = 45 passed
+
+review validator = 58 / 58
+review smoke tests = 7 passed
+field-level evidence block = 23 passed
+related regression = 52 passed
+strategy families = 14
+semantic file differences = 0
+record-key differences = 0
+record-content differences = 0
 ```
 
 The bounded evidence output explains the current merge but does not redefine
-`CanonicalDocument`, modify reconcile, or add a serving truth. The next safe
-direction is review/regression/design hardening before any full-corpus,
-Postgres, API, or UI provenance materialization.
+`CanonicalDocument`, modify reconcile, or add a serving truth. The review layer
+pins semantic parity between accepted directory- and ZIP-driven runs. The next
+safe direction is **Field-Level Canonical Provenance Evidence Checkpoint v0.1**
+before any later full-corpus, Postgres, API, or UI provenance design.

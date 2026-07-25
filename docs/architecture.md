@@ -16,7 +16,7 @@ overlapping source-level observations.
 ## Current checkpoint
 
 ```text
-checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1 / Citation Graph Diagnostics UI v0.1 / Citation Graph External Reference Lookup UI v0.1 / Citation Graph UI Productization Checkpoint v0.1 / Citation Graph Store Cache & Reload Regression v0.1 / Citation Graph Failure Isolation & Error Recovery v0.1 / Citation Graph Live Smoke & Known-Issues Hardening v0.1 / Citation Graph Manual-Review Evidence Preparation v0.1 / Manual Citation Graph Review Execution v0.1 / Public Metadata Release Policy & Kaggle Packaging v0.1 / Public Metadata Release Manual-Review Evidence Preparation v0.1 / Manual Public Metadata Release Review Execution v0.1 / Source Observation Materialization Operational Promotion v0.1 / Field-Level Canonical Provenance Contract v0.1 / Field-Level Canonical Provenance Evidence Builder v0.1
+checkpoint = Retrieval Serving Checkpoint v1 / Search API Semantics Cleanup v1 / Citation Graph Traversal API Checkpoint v0.3 / Graph API Streamlit Productization Design v0.1 / Citation Graph Streamlit Status Panel v0.1 / Citation Graph Paper Workspace Panel v0.1 / Citation Graph Diagnostics UI v0.1 / Citation Graph External Reference Lookup UI v0.1 / Citation Graph UI Productization Checkpoint v0.1 / Citation Graph Store Cache & Reload Regression v0.1 / Citation Graph Failure Isolation & Error Recovery v0.1 / Citation Graph Live Smoke & Known-Issues Hardening v0.1 / Citation Graph Manual-Review Evidence Preparation v0.1 / Manual Citation Graph Review Execution v0.1 / Public Metadata Release Policy & Kaggle Packaging v0.1 / Public Metadata Release Manual-Review Evidence Preparation v0.1 / Manual Public Metadata Release Review Execution v0.1 / Source Observation Materialization Operational Promotion v0.1 / Field-Level Canonical Provenance Contract v0.1 / Field-Level Canonical Provenance Evidence Builder v0.1 / Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
@@ -54,7 +54,17 @@ field_level_provenance_evidence_runtime_defaults = 24
 field_level_provenance_evidence_mismatches = 0
 field_level_provenance_evidence_validator_checks = 34 / 34
 field_level_provenance_evidence_smoke_tests = 16 passed
-field_level_provenance_related_regression = 45 passed
+field_level_provenance_builder_regression = 45 passed
+
+field_level_provenance_review_status = completed_read_only_hardening
+field_level_provenance_review_validator_checks = 58 / 58
+field_level_provenance_review_smoke_tests = 7 passed
+field_level_provenance_evidence_block_tests = 23 passed
+field_level_provenance_related_regression = 52 passed
+field_level_provenance_review_strategy_families = 14
+field_level_provenance_review_semantic_file_differences = 0
+field_level_provenance_review_record_key_differences = 0
+field_level_provenance_review_record_content_differences = 0
 
 retrieval_build_id = 20260504T164021Z
 embedding_model = sentence-transformers/all-MiniLM-L6-v2
@@ -90,6 +100,7 @@ sources
 → canonical paper corpus
 → Field-Level Canonical Provenance Contract / static validator
 → bounded Field-Level Canonical Provenance Evidence / independent validator
+→ Field-Level Canonical Provenance Evidence semantic review / accepted-baseline pinning
 → retrieval artifacts
 → deterministic source-observation identity materialization
 → Postgres materialized serving layer
@@ -132,6 +143,7 @@ Citation Graph API = read-only local-inspection evidence surface
 Paper–Artifact evidence = Artifact API first, dedicated graph API only after separate design
 Field-Level Canonical Provenance Contract = static derived governance over current reconcile semantics
 Field-Level Canonical Provenance Evidence = bounded derived explanatory evidence, not canonical truth
+Field-Level Canonical Provenance Evidence Review = read-only semantic determinism and drift-detection gate
 Qdrant = optional derived vector-serving implementation
 ```
 
@@ -313,7 +325,7 @@ runtime-default records = 24
 required mismatches = 0
 independent validator = 34 / 34
 new smoke tests = 16 passed
-related regression = 45 passed
+builder-slice related regression = 45 passed
 ```
 
 Architectural role:
@@ -340,7 +352,80 @@ no reconciliation, retrieval, Qdrant, ranking, graph, or publication change
 ```
 
 Any full-corpus generation or product/runtime surface requires a separate
-accepted design and review-hardening slice.
+accepted design after the bounded evidence line checkpoint.
+
+### 2.3 Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1
+
+The bounded evidence line now has an independent semantic-review layer over two
+accepted runs produced from different input forms:
+
+```text
+audit staging directory
+→ evidence run 20260724T120609Z
+
+the same audit ZIP
+→ evidence run 20260724T120621Z
+```
+
+The review validator compares both runs, verifies their relationship to the
+accepted audit package, and pins the accepted bounded baseline.
+
+Accepted validation:
+
+```text
+review validator = 58 / 58
+review smoke tests = 7 passed
+field-level evidence block = 23 passed
+related regression = 52 passed
+
+canonical papers = 12
+contributing source observations = 33
+field evidence records = 732
+strategy families = 14
+semantic files compared = 3
+semantic file differences = 0
+record-key differences = 0
+record-content differences = 0
+value mismatches = 0
+unmatched source links = 0
+```
+
+Accepted semantic SHA-256 values:
+
+```text
+field_evidence.jsonl
+= d3a42644e51854226343e98f048856a16b2f9cd52289bb3dd6e5676f751077b0
+
+paper_summary.jsonl
+= dc3d3ab43d4bc3bf82c14593f0b274f8989efbd7bd79694c5a397f7b58d7356d
+
+data_quality_summary.json
+= 825d49a0f5b1b95be39a6bff77a000adc03842c8290c758716a202b04bb52236
+```
+
+Architectural interpretation:
+
+```text
+directory input and ZIP input are semantically identical
+ordinary package integrity validation does not replace semantic-drift review
+recomputed checksums cannot hide changed evidence content from the review gate
+the accepted baseline remains bounded and audit-package-specific
+```
+
+Boundary:
+
+```text
+review is read-only
+review does not rebuild evidence packages
+review does not execute stable-corpus reconciliation
+review does not mutate canonical truth or source observations
+review does not change Postgres, retrieval, Qdrant, ranking, graph, API, or UI
+review does not authorize full-corpus generation or publication
+```
+
+The next safe slice is a small
+**Field-Level Canonical Provenance Evidence Checkpoint v0.1** that closes the
+bounded contract/builder/validator/review line without expanding runtime scope.
 
 ---
 
@@ -1014,6 +1099,7 @@ source-observation materialization parity validator
 source-observation operational-promotion validator
 field-level canonical provenance contract validator
 field-level canonical provenance evidence builder/validator
+field-level canonical provenance evidence review validator
 ```
 
 Lightweight retrieval-serving checkpoint:
@@ -1461,11 +1547,16 @@ reconciliation behavior and canonical IDs are unchanged
 Postgres remains rebuildable and derived
 ```
 
-The **Field-Level Canonical Provenance Contract v0.1** and the bounded
-**Field-Level Canonical Provenance Evidence Builder v0.1** are now implemented
-and green against the current reconciliation code and audit sample.
+The **Field-Level Canonical Provenance Contract v0.1**, bounded
+**Field-Level Canonical Provenance Evidence Builder v0.1**, and
+**Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1**
+are implemented and green against the current reconciliation code and accepted
+audit sample.
 
-The next safe direction is review/regression/design hardening of this evidence
-layer. Full-corpus generation, Postgres materialization, API/UI exposure, or any
-use as reconciliation input remains unauthorized without a separate accepted
+The review confirms semantic parity between directory- and ZIP-driven evidence
+runs and detects drift even when an altered package has internally consistent
+checksums. The next safe direction is
+**Field-Level Canonical Provenance Evidence Checkpoint v0.1**. Full-corpus
+generation, Postgres materialization, API/UI exposure, or any use as
+reconciliation input remains unauthorized without a later separate accepted
 design slice.
