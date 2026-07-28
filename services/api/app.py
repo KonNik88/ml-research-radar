@@ -6,6 +6,7 @@ from functools import lru_cache
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
@@ -54,6 +55,8 @@ from services.api.search_service import (
     run_search,
 )
 from services.api.settings import get_settings
+from services.api.workspace.errors import WorkspaceError
+from services.api.workspace.router import router as workspace_router
 
 DiscoveryRankingSortBy = Literal[
     "radar_score",
@@ -108,6 +111,29 @@ app = FastAPI(
     version=settings.api_version,
     lifespan=lifespan,
 )
+app.include_router(workspace_router)
+
+
+@app.exception_handler(WorkspaceError)
+async def handle_workspace_error(
+    _: Request,
+    exc: WorkspaceError,
+):
+    log_method = logger.error if exc.status_code >= 500 else logger.warning
+    log_method(
+        "Workspace request failed: error_code=%s message=%s",
+        exc.error_code,
+        exc.message,
+    )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=ErrorResponse(
+            error_code=exc.error_code,
+            message=exc.message,
+            details=exc.details,
+        ).model_dump(),
+    )
+
 
 @app.exception_handler(DenseBackendRequestError)
 async def handle_dense_backend_request_error(
@@ -187,6 +213,7 @@ async def handle_dense_backend_result_error(
         ).model_dump(),
     )
 
+
 @app.exception_handler(ValueError)
 async def handle_value_error(_: Request, exc: ValueError):
     return JSONResponse(
@@ -230,7 +257,7 @@ async def handle_validation_error(_: Request, exc: RequestValidationError):
         content=ErrorResponse(
             error_code="validation_error",
             message="Request validation failed",
-            details={"errors": exc.errors()},
+            details={"errors": jsonable_encoder(exc.errors())},
         ).model_dump(),
     )
 
@@ -259,9 +286,15 @@ def health() -> HealthResponse:
     checks = {
         "manifest_loaded": snapshot["loaded_components"].get("manifest", False),
         "documents_loaded": snapshot["loaded_components"].get("documents", False),
-        "lexical_artifacts_loaded": snapshot["loaded_components"].get("lexical_artifacts", False),
-        "dense_artifacts_loaded": snapshot["loaded_components"].get("dense_artifacts", False),
-        "embedding_model_loaded": snapshot["loaded_components"].get("embedding_model", False),
+        "lexical_artifacts_loaded": snapshot["loaded_components"].get(
+            "lexical_artifacts", False
+        ),
+        "dense_artifacts_loaded": snapshot["loaded_components"].get(
+            "dense_artifacts", False
+        ),
+        "embedding_model_loaded": snapshot["loaded_components"].get(
+            "embedding_model", False
+        ),
         "db_store_loaded": snapshot["loaded_components"].get("db_store", False),
         "db_connected": snapshot.get("db_connected", False),
     }
@@ -382,9 +415,7 @@ def citation_graph_paper_references(
     offset: int = Query(0, ge=0),
 ) -> CitationGraphTraversalResponse | JSONResponse:
     resolved_limit = (
-        limit
-        if limit is not None
-        else settings.citation_graph_default_limit
+        limit if limit is not None else settings.citation_graph_default_limit
     )
 
     if resolved_limit > settings.citation_graph_max_limit:
@@ -456,9 +487,7 @@ def citation_graph_paper_citations(
     offset: int = Query(0, ge=0),
 ) -> CitationGraphTraversalResponse | JSONResponse:
     resolved_limit = (
-        limit
-        if limit is not None
-        else settings.citation_graph_default_limit
+        limit if limit is not None else settings.citation_graph_default_limit
     )
 
     if resolved_limit > settings.citation_graph_max_limit:
@@ -530,9 +559,7 @@ def citation_graph_external_reference_papers(
     offset: int = Query(0, ge=0),
 ) -> CitationGraphTraversalResponse | JSONResponse:
     resolved_limit = (
-        limit
-        if limit is not None
-        else settings.citation_graph_default_limit
+        limit if limit is not None else settings.citation_graph_default_limit
     )
 
     if resolved_limit > settings.citation_graph_max_limit:
@@ -604,9 +631,7 @@ def citation_graph_source_families(
     offset: int = Query(0, ge=0),
 ) -> CitationGraphTraversalResponse | JSONResponse:
     resolved_limit = (
-        limit
-        if limit is not None
-        else settings.citation_graph_default_limit
+        limit if limit is not None else settings.citation_graph_default_limit
     )
 
     if resolved_limit > settings.citation_graph_max_limit:
@@ -673,9 +698,7 @@ def citation_graph_top_referenced_papers(
     offset: int = Query(0, ge=0),
 ) -> CitationGraphTraversalResponse | JSONResponse:
     resolved_limit = (
-        limit
-        if limit is not None
-        else settings.citation_graph_default_limit
+        limit if limit is not None else settings.citation_graph_default_limit
     )
 
     if resolved_limit > settings.citation_graph_max_limit:
@@ -743,9 +766,7 @@ def citation_graph_top_external_references(
     offset: int = Query(0, ge=0),
 ) -> CitationGraphTraversalResponse | JSONResponse:
     resolved_limit = (
-        limit
-        if limit is not None
-        else settings.citation_graph_default_limit
+        limit if limit is not None else settings.citation_graph_default_limit
     )
 
     if resolved_limit > settings.citation_graph_max_limit:
@@ -805,7 +826,6 @@ def citation_graph_top_external_references(
     )
 
 
-
 @app.post("/reload", response_model=ReloadResponse)
 def reload_runtime() -> ReloadResponse:
     if not settings.enable_reload_endpoint:
@@ -846,12 +866,20 @@ def search(
     rank: bool = Query(False),
     year_from: int | None = Query(None, ge=1900, le=2100),
     year_to: int | None = Query(None, ge=1900, le=2100),
-    category: str | None = Query(None, description="Category, concept, keyword or tag filter"),
+    category: str | None = Query(
+        None, description="Category, concept, keyword or tag filter"
+    ),
     source: str | None = Query(None, description="Source filter, e.g. arxiv/openalex"),
-    publication_type: str | None = Query(None, description="Publication type filter, e.g. article/preprint"),
-    venue: str | None = Query(None, description="Venue/journal/conference/publisher filter"),
+    publication_type: str | None = Query(
+        None, description="Publication type filter, e.g. article/preprint"
+    ),
+    venue: str | None = Query(
+        None, description="Venue/journal/conference/publisher filter"
+    ),
     open_access: bool | None = Query(None, description="Open access filter"),
-    has_code_link: bool | None = Query(None, description="Filter by presence of legacy canonical code link"),
+    has_code_link: bool | None = Query(
+        None, description="Filter by presence of legacy canonical code link"
+    ),
     offset: int = Query(0, ge=0),
     sort_by: Literal["relevance", "year_desc", "year_asc"] = Query("relevance"),
 ) -> SearchResponse:
@@ -886,6 +914,7 @@ def search(
         sort_by=sort_by,
     )
 
+
 @app.get("/experimental/search/qdrant", response_model=QdrantSearchResponse)
 def experimental_qdrant_search(
     query: str = Query(..., min_length=1, description="Search query"),
@@ -910,9 +939,12 @@ def experimental_qdrant_search(
         top_k=resolved_top_k,
     )
 
+
 @app.get("/documents", response_model=DocumentListResponse)
 def list_documents(
-    query: str | None = Query(None, description="Simple text query over title/abstract/venue/publisher"),
+    query: str | None = Query(
+        None, description="Simple text query over title/abstract/venue/publisher"
+    ),
     limit: int = Query(10, ge=1, le=100),
     offset: int = Query(0, ge=0),
     year_from: int | None = Query(None, ge=1900, le=2100),
@@ -1018,16 +1050,39 @@ def list_documents(
 
 @app.get("/artifacts", response_model=ArtifactListResponse)
 def list_artifacts(
-    provider: str | None = Query(None, description="Artifact provider, e.g. github/figshare/zenodo"),
-    artifact_type: str | None = Query(None, description="Artifact type, e.g. github_repository"),
-    relation_type: str | None = Query(None, description="Trusted paper-artifact relation, e.g. code/dataset/model/demo"),
-    owner: str | None = Query(None, description="Artifact owner/namespace when available"),
+    provider: str | None = Query(
+        None, description="Artifact provider, e.g. github/figshare/zenodo"
+    ),
+    artifact_type: str | None = Query(
+        None, description="Artifact type, e.g. github_repository"
+    ),
+    relation_type: str | None = Query(
+        None,
+        description="Trusted paper-artifact relation, e.g. code/dataset/model/demo",
+    ),
+    owner: str | None = Query(
+        None, description="Artifact owner/namespace when available"
+    ),
     min_confidence: float | None = Query(None, ge=0.0, le=1.0),
-    has_paper_links: bool | None = Query(None, description="Filter artifacts by trusted paper links presence"),
-    min_stars: int | None = Query(None, ge=0, description="Minimum GitHub stars. Rows with NULL stars do not match."),
-    max_stars: int | None = Query(None, ge=0, description="Maximum GitHub stars. Rows with NULL stars do not match."),
-    language: str | None = Query(None, description="GitHub repository language, case-insensitive, e.g. Python"),
-    license: str | None = Query(None, description="Artifact/GitHub license, case-insensitive, e.g. mit/gpl-3.0"),
+    has_paper_links: bool | None = Query(
+        None, description="Filter artifacts by trusted paper links presence"
+    ),
+    min_stars: int | None = Query(
+        None,
+        ge=0,
+        description="Minimum GitHub stars. Rows with NULL stars do not match.",
+    ),
+    max_stars: int | None = Query(
+        None,
+        ge=0,
+        description="Maximum GitHub stars. Rows with NULL stars do not match.",
+    ),
+    language: str | None = Query(
+        None, description="GitHub repository language, case-insensitive, e.g. Python"
+    ),
+    license: str | None = Query(
+        None, description="Artifact/GitHub license, case-insensitive, e.g. mit/gpl-3.0"
+    ),
     archived: bool | None = Query(
         None,
         description="GitHub archived flag. Only rows with explicit metadata.github.archived match.",
@@ -1039,7 +1094,8 @@ def list_artifacts(
         "rate_limited",
         "error",
         "skipped_invalid_external_id",
-    ] | None = Query(None, description="GitHub enrichment status filter"),
+    ]
+    | None = Query(None, description="GitHub enrichment status filter"),
     has_github_metadata: bool | None = Query(
         None,
         description="Filter by presence of metadata.github. Use with provider=github for diagnostics.",
@@ -1084,10 +1140,18 @@ def list_artifacts(
     if min_stars is not None and max_stars is not None and min_stars > max_stars:
         raise ValueError("min_stars must be less than or equal to max_stars")
 
-    if pushed_after is not None and pushed_before is not None and pushed_after > pushed_before:
+    if (
+        pushed_after is not None
+        and pushed_before is not None
+        and pushed_after > pushed_before
+    ):
         raise ValueError("pushed_after must be less than or equal to pushed_before")
 
-    if updated_after is not None and updated_before is not None and updated_after > updated_before:
+    if (
+        updated_after is not None
+        and updated_before is not None
+        and updated_after > updated_before
+    ):
         raise ValueError("updated_after must be less than or equal to updated_before")
 
     rows = runtime.db_store.list_artifacts(
@@ -1141,6 +1205,7 @@ def list_artifacts(
         results=rows,
     )
 
+
 @app.get("/artifacts/{artifact_id}", response_model=ArtifactDetailResponse)
 def get_artifact_detail(
     artifact_id: str,
@@ -1154,7 +1219,9 @@ def get_artifact_detail(
 
     artifact = runtime.db_store.get_artifact_by_id(artifact_id)
     if artifact is None:
-        raise HTTPException(status_code=404, detail=f"Artifact not found: {artifact_id}")
+        raise HTTPException(
+            status_code=404, detail=f"Artifact not found: {artifact_id}"
+        )
 
     return ArtifactDetailResponse(
         artifact_id=artifact_id,
@@ -1162,14 +1229,19 @@ def get_artifact_detail(
         artifact=artifact,
     )
 
+
 @app.get("/artifacts/{artifact_id}/papers", response_model=ArtifactLinkedPapersResponse)
 def get_artifact_papers(
     artifact_id: str,
-    relation_type: str | None = Query(None, description="Trusted relation filter, e.g. code/dataset/model/demo"),
+    relation_type: str | None = Query(
+        None, description="Trusted relation filter, e.g. code/dataset/model/demo"
+    ),
     min_confidence: float | None = Query(None, ge=0.0, le=1.0),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    sort_by: Literal["confidence_desc", "year_desc", "title_asc"] = Query("confidence_desc"),
+    sort_by: Literal["confidence_desc", "year_desc", "title_asc"] = Query(
+        "confidence_desc"
+    ),
 ) -> ArtifactLinkedPapersResponse:
     runtime = get_runtime()
     if not runtime.is_ready():
@@ -1180,7 +1252,9 @@ def get_artifact_papers(
 
     artifact = runtime.db_store.get_artifact_by_id(artifact_id)
     if artifact is None:
-        raise HTTPException(status_code=404, detail=f"Artifact not found: {artifact_id}")
+        raise HTTPException(
+            status_code=404, detail=f"Artifact not found: {artifact_id}"
+        )
 
     rows = runtime.db_store.list_artifact_papers(
         artifact_id=artifact_id,
@@ -1212,10 +1286,15 @@ def get_artifact_papers(
         ],
     )
 
-@app.get("/documents/{canonical_id}/artifacts", response_model=DocumentArtifactsResponse)
+
+@app.get(
+    "/documents/{canonical_id}/artifacts", response_model=DocumentArtifactsResponse
+)
 def get_document_artifacts(
     canonical_id: str,
-    relation_type: str | None = Query(None, description="Trusted relation filter, e.g. code/dataset/model/demo"),
+    relation_type: str | None = Query(
+        None, description="Trusted relation filter, e.g. code/dataset/model/demo"
+    ),
     provider: str | None = Query(None, description="Artifact provider filter"),
     artifact_type: str | None = Query(None, description="Artifact type filter"),
     min_confidence: float | None = Query(None, ge=0.0, le=1.0),
@@ -1231,7 +1310,9 @@ def get_document_artifacts(
 
     document = runtime.db_store.get_document_by_id(canonical_id)
     if document is None:
-        raise HTTPException(status_code=404, detail=f"Document not found: {canonical_id}")
+        raise HTTPException(
+            status_code=404, detail=f"Document not found: {canonical_id}"
+        )
 
     rows = runtime.db_store.get_document_artifacts(
         canonical_id=canonical_id,
@@ -1268,7 +1349,9 @@ def discovery_profiles() -> DiscoveryProfilesResponse:
 def discovery_ranking(
     profile_name: str,
     top_k: int | None = Query(None, ge=1, le=settings.max_top_k),
-    query_title: str | None = Query(None, min_length=1, max_length=settings.max_query_length),
+    query_title: str | None = Query(
+        None, min_length=1, max_length=settings.max_query_length
+    ),
     source_family: str | None = Query(None, min_length=1, max_length=100),
     min_year: int | None = Query(None, ge=1900, le=2100),
     max_year: int | None = Query(None, ge=1900, le=2100),
@@ -1331,6 +1414,7 @@ def discovery_topic_clusters(
     )
     return DiscoveryTopicClustersResponse(**payload)
 
+
 @app.get("/discovery/clusters/map", response_model=DiscoveryTopicClusterMapResponse)
 def discovery_topic_cluster_map(
     include_papers: bool = Query(False),
@@ -1343,7 +1427,11 @@ def discovery_topic_cluster_map(
     )
     return DiscoveryTopicClusterMapResponse(**payload)
 
-@app.get("/discovery/clusters/{cluster_id}", response_model=DiscoveryTopicClusterDetailResponse)
+
+@app.get(
+    "/discovery/clusters/{cluster_id}",
+    response_model=DiscoveryTopicClusterDetailResponse,
+)
 def discovery_topic_cluster_detail(
     cluster_id: int,
     top_k: int = Query(20, ge=1, le=settings.max_top_k),
@@ -1385,12 +1473,16 @@ def discovery_topic_cluster_detail(
     )
 
     if not payload["found"]:
-        raise HTTPException(status_code=404, detail=f"Topic cluster not found: {cluster_id}")
+        raise HTTPException(
+            status_code=404, detail=f"Topic cluster not found: {cluster_id}"
+        )
 
     return DiscoveryTopicClusterDetailResponse(**payload)
 
 
-@app.get("/discovery/papers/{canonical_id}", response_model=DiscoveryPaperDetailResponse)
+@app.get(
+    "/discovery/papers/{canonical_id}", response_model=DiscoveryPaperDetailResponse
+)
 def discovery_paper_detail(
     canonical_id: str,
     view: Literal["full"] = Query("full"),

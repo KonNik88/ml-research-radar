@@ -5,7 +5,7 @@
 ```text
 contract_version = v0.1
 decision_status = accepted
-implementation_status = migration foundation in progress
+implementation_status = store and API implemented; UI pending
 product_mode = local single-user
 canonical_truth = false
 mutates_canonical_documents = false
@@ -287,8 +287,76 @@ The workspace API is available with both search backends. File-backed search
 does not imply file-backed user state: Collections still require the workspace
 PostgreSQL connection.
 
-API schemas, status codes, pagination, and response payloads will be fixed in
-the Store + API implementation party before those routes are exposed.
+The Store + API implementation fixes the schemas, status codes, pagination,
+and response payloads below.
+
+### 6.1 Request and response semantics
+
+Collection requests:
+
+```json
+{"name": "RAG evaluation", "description": "Optional description"}
+```
+
+`PATCH /collections/{collection_id}` accepts either `name`, `description`, or
+both. Supplying `description: null` clears the description. An empty patch and
+`name: null` are validation errors.
+
+Item PUT/PATCH requests accept:
+
+```json
+{"note": "Read section 4", "reading_status": "reading"}
+```
+
+For PUT, an empty body or `{}` is valid. It creates a new item with
+`reading_status=to_read` or returns an existing item unchanged. For PATCH, at
+least one field is required. Supplying `note: null` clears the note;
+`reading_status: null` is invalid.
+
+Collection list responses use:
+
+```text
+total
+offset
+limit
+results[]
+```
+
+Each collection summary contains its UUID, name, optional description,
+timestamps, and `item_count`. A collection detail contains the same fields plus
+`items[]`.
+
+Each item response contains:
+
+```text
+collection_id
+canonical_id
+note
+reading_status
+added_at
+updated_at
+orphaned
+paper
+```
+
+`paper` is a current-corpus summary when hydration succeeds. If the
+`canonical_id` is absent from the active corpus, `orphaned=true` and
+`paper=null`; the durable item fields remain available.
+
+### 6.2 HTTP status semantics
+
+```text
+POST collection                           201
+GET/list/PATCH/PUT success                200
+DELETE success                            204
+missing collection/item/paper             404
+normalized collection-name conflict       409
+request validation failure                422
+workspace PostgreSQL unavailable          503
+```
+
+The PUT item route returns `200` for both creation and repeat/update so its
+idempotent client contract is stable.
 
 ---
 
