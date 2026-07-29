@@ -69,6 +69,12 @@ class ApiSettings(BaseSettings):
     postgres_user: str = Field(default="ml_radar")
     postgres_password: str = Field(default="ml_radar_dev")
 
+    # Durable user workspace. When no explicit URL is supplied, the workspace
+    # uses the same PostgreSQL database as the paper-serving store while
+    # retaining independent schema and lifecycle ownership.
+    workspace_database_url: str | None = Field(default=None)
+    workspace_connect_timeout_sec: int = Field(default=5, ge=1, le=60)
+
     # Citation / Reference Graph API settings.
     # This feature is intentionally disabled by default. The accepted surface
     # contains a status/compatibility probe plus narrow read-only local-inspection

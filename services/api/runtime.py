@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from threading import Lock
@@ -72,6 +73,10 @@ class ApiRuntime:
     dense_artifacts: DenseArtifacts | None = None
     embedding_model: SentenceTransformer | None = None
     db_store: PostgresDocumentStore | None = None
+    document_index: dict[str, CanonicalDocument] = field(
+        default_factory=dict,
+        repr=False,
+    )
     qdrant_dense_backend: QdrantDenseBackend | None = None
     qdrant_operational_state: QdrantOperationalState = field(
         default_factory=QdrantOperationalState,
@@ -148,6 +153,7 @@ class ApiRuntime:
         total_docs = db_store.count_documents()
 
         self.db_store = db_store
+        self.document_index = {}
         self.qdrant_dense_backend = None
         self.manifest = None
         self.documents = []
@@ -207,6 +213,9 @@ class ApiRuntime:
 
         self.manifest = manifest
         self.documents = documents
+        self.document_index = {
+            document.canonical_id: document for document in documents
+        }
         self.lexical_artifacts = lexical_artifacts
         self.dense_artifacts = dense_artifacts
         self.embedding_model = embedding_model
@@ -221,6 +230,25 @@ class ApiRuntime:
             requested_model_name,
             self.last_model_reused,
         )
+
+    def get_documents_by_ids(
+        self,
+        canonical_ids: Iterable[str],
+    ) -> dict[str, CanonicalDocument | dict[str, Any]]:
+        ordered_ids = list(dict.fromkeys(canonical_ids))
+        if not ordered_ids:
+            return {}
+
+        if self.backend_mode == "db":
+            if self.db_store is None:
+                raise RuntimeError("Postgres DB store is not loaded")
+            return self.db_store.get_documents_by_ids(ordered_ids)
+
+        return {
+            canonical_id: self.document_index[canonical_id]
+            for canonical_id in ordered_ids
+            if canonical_id in self.document_index
+        }
 
     def reload(self) -> None:
         logger.info("Reloading API runtime for backend=%s", self.backend_mode)

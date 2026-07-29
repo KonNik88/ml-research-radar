@@ -8,6 +8,11 @@ import pandas as pd
 import requests
 import streamlit as st
 
+from services.ui.collections_ui import (
+    render_collection_membership_controls,
+    render_collections_tab,
+)
+
 DEFAULT_API_BASE_URL = os.getenv("ML_RADAR_API_BASE_URL", "http://127.0.0.1:8000")
 REQUEST_TIMEOUT_SECONDS = 30
 API_STATUS_CACHE_TTL_SECONDS = 30
@@ -666,9 +671,11 @@ def render_open_paper_workspace_button(
         if selected:
             st.success("Selected paper updated. Open the Paper workspace tab.")
 
+
 def clear_selected_paper() -> None:
     st.session_state["selected_paper_canonical_id"] = None
     reset_selected_paper_payloads()
+
 
 def build_ranking_params() -> dict[str, Any]:
     params: dict[str, Any] = {"top_k": int(st.session_state["top_k"])}
@@ -1928,7 +1935,7 @@ def render_search_tab(base_url: str) -> None:
         )
         return
 
-    render_search_results(payload)
+    render_search_results(base_url, payload)
 
 def profile_by_name(profiles_payload: dict[str, Any], name: str | None) -> dict[str, Any] | None:
     for profile in profiles_payload.get("profiles") or []:
@@ -2019,7 +2026,7 @@ def result_to_table_row(row: dict[str, Any], rank: int) -> dict[str, Any]:
     }
 
 
-def render_result_card(row: dict[str, Any], rank: int) -> None:
+def render_result_card(base_url: str, row: dict[str, Any], rank: int) -> None:
     title = row.get("title") or "Untitled"
     canonical_id = row.get("canonical_id")
     year = row.get("year")
@@ -2048,6 +2055,11 @@ def render_result_card(row: dict[str, Any], rank: int) -> None:
                 label="Open in Paper workspace",
                 key=f"open_ranking_paper_workspace_{rank}_{canonical_id}",
             )
+            render_collection_membership_controls(
+                base_url,
+                canonical_id,
+                key_prefix=f"ranking_collection_{rank}_{canonical_id}",
+            )
 
         abstract = row.get("abstract") or row.get("abstract_preview")
         if abstract:
@@ -2067,7 +2079,10 @@ def render_empty_results(payload: dict[str, Any]) -> None:
     with st.expander("Effective filters for empty result", expanded=True):
         st.json(payload.get("filters") or {})
 
-def render_search_results(payload: dict[str, Any]) -> list[dict[str, Any]]:
+def render_search_results(
+    base_url: str,
+    payload: dict[str, Any],
+) -> list[dict[str, Any]]:
     st.markdown("---")
     st.subheader("Search results")
 
@@ -2148,6 +2163,11 @@ def render_search_results(payload: dict[str, Any]) -> list[dict[str, Any]]:
                 label="Open search result in Paper workspace",
                 key=f"open_search_result_workspace_{idx}_{canonical_id}",
             )
+            render_collection_membership_controls(
+                base_url,
+                canonical_id,
+                key_prefix=f"search_collection_{idx}_{canonical_id}",
+            )
 
             abstract = document.get("abstract")
             if abstract:
@@ -2162,7 +2182,10 @@ def render_search_results(payload: dict[str, Any]) -> list[dict[str, Any]]:
 
     return results
 
-def render_ranking(payload: dict[str, Any]) -> list[dict[str, Any]]:
+def render_ranking(
+    base_url: str,
+    payload: dict[str, Any],
+) -> list[dict[str, Any]]:
     st.markdown("---")
     st.subheader("Discovery ranking")
 
@@ -2186,7 +2209,7 @@ def render_ranking(payload: dict[str, Any]) -> list[dict[str, Any]]:
 
     st.markdown("#### Result cards")
     for idx, row in enumerate(results, start=1):
-        render_result_card(row, idx)
+        render_result_card(base_url, row, idx)
 
     return results
 
@@ -3878,6 +3901,11 @@ def render_paper_workspace(base_url: str) -> None:
 
     st.markdown("### Selected paper")
     render_kv("Canonical ID", selected_paper_id)
+    render_collection_membership_controls(
+        base_url,
+        selected_paper_id,
+        key_prefix=f"paper_workspace_collection_{selected_paper_id}",
+    )
 
     similar_cols = st.columns([1, 1])
     with similar_cols[0]:
@@ -4015,6 +4043,7 @@ def main() -> None:
         ranking_tab,
         search_tab,
         paper_workspace_tab,
+        collections_tab,
         citation_graph_diagnostics_tab,
         citation_graph_external_lookup_tab,
         clusters_tab,
@@ -4025,6 +4054,7 @@ def main() -> None:
             "Discovery ranking",
             "Search",
             "Paper workspace",
+            "Collections",
             "Citation graph diagnostics",
             "External reference lookup",
             "Topic clusters",
@@ -4058,7 +4088,7 @@ def main() -> None:
                 "Recommended first smoke: `recent_artifact_ready` + `min_year=2025` + `Code artifact=True`."
             )
         else:
-            results = render_ranking(payload)
+            results = render_ranking(api_base_url, payload)
 
             if results:
                 st.markdown("---")
@@ -4118,6 +4148,12 @@ def main() -> None:
 
     with paper_workspace_tab:
         render_paper_workspace(api_base_url)
+
+    with collections_tab:
+        render_collections_tab(
+            api_base_url,
+            open_paper_button=render_open_paper_workspace_button,
+        )
 
     with citation_graph_diagnostics_tab:
         render_citation_graph_diagnostics_panel(api_base_url)

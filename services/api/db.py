@@ -57,6 +57,26 @@ class PostgresDocumentStore:
                 return None
             return self._normalize_row(row)
 
+    def get_documents_by_ids(
+        self,
+        canonical_ids: list[str],
+    ) -> dict[str, dict[str, Any]]:
+        ordered_ids = list(dict.fromkeys(canonical_ids))
+        if not ordered_ids:
+            return {}
+
+        query = """
+        SELECT *
+        FROM canonical_documents
+        WHERE canonical_id = ANY(%s)
+        """
+        with self.connection() as conn, conn.cursor() as cur:
+            cur.execute(query, (ordered_ids,))
+            rows = cur.fetchall()
+
+        normalized = [self._normalize_row(row) for row in rows]
+        return {str(row["canonical_id"]): row for row in normalized}
+
     def list_documents(
         self,
         *,
