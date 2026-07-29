@@ -5,7 +5,7 @@
 ```text
 contract_version = v0.1
 decision_status = accepted
-implementation_status = store and API implemented; UI pending
+implementation_status = store, API, and Streamlit UI implemented; operational rehearsal pending
 product_mode = local single-user
 canonical_truth = false
 mutates_canonical_documents = false
@@ -358,6 +358,37 @@ workspace PostgreSQL unavailable          503
 The PUT item route returns `200` for both creation and repeat/update so its
 idempotent client contract is stable.
 
+### 6.3 Streamlit ownership and interaction semantics
+
+The Streamlit implementation remains a thin API client. The isolated
+`services.ui.collections_ui` module uses
+`services.ui.workspace_client.WorkspaceClient`; neither it nor the main app
+imports workspace store, service, SQL, or migration modules.
+
+The UI adds:
+
+- a dedicated `Collections` tab;
+- lazy `Load collections` / `Refresh collections` actions;
+- collection create, edit, and explicitly confirmed delete controls;
+- collection detail and client-side reading-status filtering;
+- per-item note and reading-status editing;
+- explicit item removal with a note-loss confirmation;
+- orphan visibility without hiding or deleting the durable item;
+- navigation from a hydrated saved item to `Paper workspace`;
+- reusable `Save / remove` controls in Discovery ranking, Search results, and
+  Paper workspace.
+
+Workspace reads are intentionally user-triggered. Rendering the main
+application does not automatically call `/collections`, so unavailable
+workspace storage cannot prevent Search, Discovery, artifacts, graphs, or
+Paper workspace from rendering. A workspace failure is shown locally and does
+not call `st.stop()`.
+
+The reusable paper action can save or update the selected item's reading status
+through idempotent PUT, or explicitly remove it from the selected collection.
+Notes remain edited in the collection detail surface, where the current value
+and deletion consequence are visible.
+
 ---
 
 ## 7. Migration ownership and operation
@@ -456,13 +487,28 @@ find paper
 → inspect orphan reporting if the paper was absent
 ```
 
+### 8.4 Streamlit contract checks
+
+The no-database UI checks must verify:
+
+- the Collections tab and durable-workspace wording are present;
+- all three reading statuses are exposed;
+- collection CRUD and item note/status/remove controls are wired;
+- reusable membership controls are present in Discovery, Search, and Paper
+  workspace;
+- the UI uses `WorkspaceClient` rather than direct database/store access;
+- the client preserves stable API error codes and details;
+- path identifiers are URL-encoded;
+- empty PUT item payloads, PATCH payloads, and `204` responses follow the API
+  contract.
+
 ---
 
 ## 9. Implementation sequence
 
 1. Contract and Alembic migration foundation.
 2. Separate workspace store, service, schemas, errors, and API router.
-3. Collections UI and reusable save/remove actions.
+3. Collections UI and reusable save/remove actions. **Implemented.**
 4. Orphan validator, refresh-survival rehearsal, regression checks, and
    documentation/current-state update.
 

@@ -6,6 +6,7 @@ import scripts.validation.check_streamlit_discovery_ui as ui_validator
 
 
 APP_PATH = Path("services/ui/app.py")
+COLLECTIONS_UI_PATH = Path("services/ui/collections_ui.py")
 
 
 def _build_static_report(monkeypatch, app_path: Path) -> dict:
@@ -24,8 +25,17 @@ def test_streamlit_discovery_ui_current_repo_is_green(monkeypatch):
     assert report["ok"] is True
     assert report["required_failed_count"] == 0
     assert report["checks"]["citation_graph_status_ui_snippets_present"] is True
+    assert report["checks"]["collections_ui_snippets_present"] is True
+    assert report["checks"]["collections_ui_module_snippets_present"] is True
+    assert report["checks"]["workspace_client_module_snippets_present"] is True
+    assert report["checks"]["collections_ui_uses_api_only"] is True
     assert report["extracted_values"][
         "missing_citation_graph_status_ui_snippets"
+    ] == []
+    assert report["extracted_values"]["missing_collections_ui_snippets"] == []
+    assert report["extracted_values"]["missing_collections_module_snippets"] == []
+    assert report["extracted_values"][
+        "missing_workspace_client_module_snippets"
     ] == []
 
 
@@ -51,6 +61,61 @@ def test_streamlit_discovery_ui_detects_missing_lifecycle_marker(
     assert "file_backed_store_loader_implemented" in report["extracted_values"][
         "missing_citation_graph_status_ui_snippets"
     ]
+
+
+def test_streamlit_discovery_ui_detects_missing_collections_marker(
+    tmp_path,
+    monkeypatch,
+):
+    app_text = APP_PATH.read_text(encoding="utf-8")
+    mutated_text = app_text.replace(
+        "from services.ui.collections_ui import",
+        "from services.ui.collections_removed import",
+        1,
+    )
+    assert mutated_text != app_text
+
+    mutated_app_path = tmp_path / "app.py"
+    mutated_app_path.write_text(mutated_text, encoding="utf-8")
+
+    report = _build_static_report(monkeypatch, mutated_app_path)
+
+    assert report["ok"] is False
+    assert report["checks"]["collections_ui_snippets_present"] is False
+    assert "from services.ui.collections_ui import" in report["extracted_values"][
+        "missing_collections_ui_snippets"
+    ]
+
+
+def test_streamlit_collections_ui_is_thin_and_reuses_membership_control():
+    app_text = APP_PATH.read_text(encoding="utf-8")
+    collections_text = COLLECTIONS_UI_PATH.read_text(encoding="utf-8")
+    compile(collections_text, str(COLLECTIONS_UI_PATH), "exec")
+
+    assert "from services.ui.collections_ui import" in app_text
+    assert "from services.ui.workspace_client import" in collections_text
+    assert "from services.api.workspace" not in app_text
+    assert "from services.api.workspace" not in collections_text
+    assert "WorkspaceStore" not in app_text + collections_text
+    assert "WorkspaceService" not in app_text + collections_text
+    assert '"Collections"' in app_text
+    assert "with collections_tab:" in app_text
+    assert app_text.count("render_collection_membership_controls(") == 3
+    for marker in [
+        "Saved research collections",
+        "READING_STATUS_OPTIONS",
+        '"to_read"',
+        '"reading"',
+        '"read"',
+        "Create collection",
+        "Save / update",
+        "Remove from collection",
+        "Open saved paper in Paper workspace",
+        "workspace_unavailable",
+        "collections_pending_selected_id",
+        "disabled=not confirm_remove",
+    ]:
+        assert marker in collections_text
 
 
 def test_citation_graph_status_live_contract_checks():

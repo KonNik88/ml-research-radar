@@ -245,6 +245,50 @@ PAPER_WORKSPACE_UI_SNIPPETS = [
     "Open in Paper workspace",
 ]
 
+COLLECTIONS_UI_SNIPPETS = [
+    "from services.ui.collections_ui import",
+    "render_collections_tab",
+    "render_collection_membership_controls",
+    "ranking_collection_",
+    "search_collection_",
+    "paper_workspace_collection_",
+    "open_paper_button=render_open_paper_workspace_button",
+    '"Collections"',
+    "with collections_tab:",
+]
+
+COLLECTIONS_MODULE_SNIPPETS = [
+    "WorkspaceClient",
+    "WorkspaceClientError",
+    "READING_STATUS_OPTIONS",
+    "to_read",
+    "reading",
+    "read",
+    "render_collections_tab",
+    "render_collection_membership_controls",
+    "Create collection",
+    "Load collections",
+    "Save / update",
+    "Remove from collection",
+    "Open saved paper in Paper workspace",
+    "workspace_unavailable",
+    "collections_pending_selected_id",
+]
+
+WORKSPACE_CLIENT_SNIPPETS = [
+    "class WorkspaceClientError",
+    "class WorkspaceClient",
+    "list_collections",
+    "get_collection",
+    "create_collection",
+    "update_collection",
+    "delete_collection",
+    "upsert_item",
+    "update_item",
+    "delete_item",
+    "quote(normalized, safe=\"\")",
+]
+
 PAPER_NAVIGATION_POLISH_UI_SNIPPETS = [
     "select_paper_from_ui",
     "render_open_paper_workspace_button",
@@ -1168,6 +1212,48 @@ def build_report(
     if read_error:
         errors["app_read_error"] = read_error
 
+    collections_ui_path = app_path.with_name("collections_ui.py")
+    workspace_client_path = app_path.with_name("workspace_client.py")
+    extracted_values["collections_ui_path"] = str(collections_ui_path)
+    extracted_values["workspace_client_path"] = str(workspace_client_path)
+
+    checks["collections_ui_module_exists"] = collections_ui_path.exists()
+    checks["workspace_client_module_exists"] = workspace_client_path.exists()
+
+    collections_compile_ok, collections_compile_error = (
+        py_compile_file(collections_ui_path)
+        if collections_ui_path.exists()
+        else (False, "Collections UI module does not exist")
+    )
+    client_compile_ok, client_compile_error = (
+        py_compile_file(workspace_client_path)
+        if workspace_client_path.exists()
+        else (False, "Workspace client module does not exist")
+    )
+    checks["collections_ui_module_py_compile_ok"] = collections_compile_ok
+    checks["workspace_client_module_py_compile_ok"] = client_compile_ok
+    if collections_compile_error:
+        errors["collections_ui_compile_error"] = collections_compile_error
+    if client_compile_error:
+        errors["workspace_client_compile_error"] = client_compile_error
+
+    collections_read_ok, collections_text, collections_read_error = (
+        read_text(collections_ui_path)
+        if collections_ui_path.exists()
+        else (False, "", "Collections UI module does not exist")
+    )
+    client_read_ok, client_text, client_read_error = (
+        read_text(workspace_client_path)
+        if workspace_client_path.exists()
+        else (False, "", "Workspace client module does not exist")
+    )
+    checks["collections_ui_module_read_ok"] = collections_read_ok
+    checks["workspace_client_module_read_ok"] = client_read_ok
+    if collections_read_error:
+        errors["collections_ui_read_error"] = collections_read_error
+    if client_read_error:
+        errors["workspace_client_read_error"] = client_read_error
+
     checks["streamlit_import_ok"] = module_import_available("streamlit")
     checks["requests_import_ok"] = module_import_available("requests")
 
@@ -1205,6 +1291,19 @@ def build_report(
     missing_paper_workspace = missing_snippets(
         app_text,
         PAPER_WORKSPACE_UI_SNIPPETS,
+    )
+
+    missing_collections = missing_snippets(
+        app_text,
+        COLLECTIONS_UI_SNIPPETS,
+    )
+    missing_collections_module = missing_snippets(
+        collections_text,
+        COLLECTIONS_MODULE_SNIPPETS,
+    )
+    missing_workspace_client = missing_snippets(
+        client_text,
+        WORKSPACE_CLIENT_SNIPPETS,
     )
 
     missing_paper_navigation_polish = missing_snippets(
@@ -1264,6 +1363,18 @@ def build_report(
         not missing_artifact_linked_paper_navigation
     )
     checks["paper_workspace_ui_snippets_present"] = not missing_paper_workspace
+    checks["collections_ui_snippets_present"] = not missing_collections
+    checks["collections_ui_module_snippets_present"] = (
+        not missing_collections_module
+    )
+    checks["workspace_client_module_snippets_present"] = (
+        not missing_workspace_client
+    )
+    checks["collections_ui_uses_api_only"] = (
+        "from services.api.workspace" not in collections_text
+        and "WorkspaceStore" not in collections_text
+        and "WorkspaceService" not in collections_text
+    )
     checks["paper_navigation_polish_ui_snippets_present"] = (
         not missing_paper_navigation_polish
     )
@@ -1305,6 +1416,13 @@ def build_report(
         missing_artifact_linked_paper_navigation
     )
     extracted_values["missing_paper_workspace_ui_snippets"] = missing_paper_workspace
+    extracted_values["missing_collections_ui_snippets"] = missing_collections
+    extracted_values["missing_collections_module_snippets"] = (
+        missing_collections_module
+    )
+    extracted_values["missing_workspace_client_module_snippets"] = (
+        missing_workspace_client
+    )
     extracted_values["missing_paper_navigation_polish_ui_snippets"] = (
         missing_paper_navigation_polish
     )
@@ -1338,6 +1456,12 @@ def build_report(
         "app_non_empty",
         "py_compile_ok",
         "app_read_ok",
+        "collections_ui_module_exists",
+        "workspace_client_module_exists",
+        "collections_ui_module_py_compile_ok",
+        "workspace_client_module_py_compile_ok",
+        "collections_ui_module_read_ok",
+        "workspace_client_module_read_ok",
         "streamlit_import_ok",
         "requests_import_ok",
         "required_ui_snippets_present",
@@ -1355,6 +1479,10 @@ def build_report(
         "artifact_explorer_ui_snippets_present",
         "artifact_linked_paper_navigation_snippets_present",
         "paper_workspace_ui_snippets_present",
+        "collections_ui_snippets_present",
+        "collections_ui_module_snippets_present",
+        "workspace_client_module_snippets_present",
+        "collections_ui_uses_api_only",
         "paper_navigation_polish_ui_snippets_present",
         "paper_workspace_artifact_ui_snippets_present",
         "paper_workspace_citation_graph_ui_snippets_present",
