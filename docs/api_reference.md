@@ -2258,6 +2258,7 @@ GET /discovery/profiles
 GET /discovery/ranking/{profile_name}
 GET /discovery/papers/{canonical_id}
 GET /discovery/papers/{canonical_id}/similar
+POST /discovery/papers/compare
 GET /discovery/papers/{canonical_id}/cluster
 GET /discovery/clusters
 GET /discovery/clusters/{cluster_id}
@@ -2425,6 +2426,62 @@ min_similarity
 
 This contract starts from a paper embedding and is intentionally separate from
 text-query `/search`.
+
+---
+
+## `POST /discovery/papers/compare`
+
+Returns one deterministic batch comparison for two to five unique canonical
+papers.
+
+Request:
+
+```json
+{
+  "canonical_ids": [
+    "paper-id-a",
+    "paper-id-b"
+  ]
+}
+```
+
+The response preserves request order and composes:
+
+```text
+canonical metadata and identifiers
+categories / concepts / keywords
+source and provenance evidence
+Radar scores
+trusted artifacts
+GitHub / Hugging Face signals
+canonical and feature-level citation evidence
+optional read-only citation graph evidence
+topic-cluster context
+exact pairwise semantic similarity from the active dense build
+shared / left-only / right-only comparison dimensions
+```
+
+Validation:
+
+```text
+fewer than 2 IDs -> 422
+more than 5 IDs -> 422
+duplicate or blank IDs -> 422
+unknown canonical ID -> 404 with missing_canonical_ids
+```
+
+Optional derived layers are failure-isolated. Missing dense, cluster, artifact
+detail or citation graph artifacts are reported through `capabilities` and
+`warnings`; canonical metadata comparison remains available.
+
+This endpoint does not use Qdrant, workspace PostgreSQL, a graph database, an
+LLM or RAG. It does not persist comparison state or mutate any source layer.
+
+Full contract:
+
+```text
+docs/paper_comparison_workspace_v0.1.md
+```
 
 ---
 

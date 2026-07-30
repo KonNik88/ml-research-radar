@@ -7,8 +7,12 @@ from typing import Any
 
 from radar_core.details.paper_detail import (
     DEFAULT_PAPER_FEATURES_CONFIG_PATH,
+    build_artifact_detail_rows,
     build_paper_detail_from_config,
+    load_jsonl_by_key,
+    load_paper_features_config_paths,
 )
+from radar_core.details.paper_comparison import build_paper_comparison
 from radar_core.ranking.feature_ranking import (
     DEFAULT_FEATURES_PATH,
     RankingFilters,
@@ -27,12 +31,20 @@ from radar_core.retrieval.similar import (
     DenseBundle,
     find_similar_papers_from_loaded,
     load_dense_bundle,
+    load_latest_retrieval_manifest,
     load_jsonl_by_canonical_id,
     normalize_embeddings,
     normalize_path,
 )
 
 DEFAULT_TOPIC_CLUSTERS_LATEST_PATH = Path("artifacts/clusters/topic/latest.json")
+
+
+class PaperComparisonPaperNotFoundError(ValueError):
+    def __init__(self, missing_canonical_ids: list[str]) -> None:
+        self.missing_canonical_ids = missing_canonical_ids
+        joined = ", ".join(missing_canonical_ids)
+        super().__init__(f"Paper(s) not found: {joined}")
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -483,6 +495,24 @@ class DiscoveryService:
     _normalized_embeddings: Any | None = field(default=None, init=False)
     _dense_id_to_index: dict[str, int] | None = field(default=None, init=False)
 
+    _paper_detail_paths: dict[str, Path] | None = field(default=None, init=False)
+    _artifact_links_by_canonical_id: dict[str, list[dict[str, Any]]] | None = field(
+        default=None,
+        init=False,
+    )
+    _artifact_entities_by_id: dict[str, dict[str, Any]] | None = field(
+        default=None,
+        init=False,
+    )
+    _github_metadata_by_artifact_id: dict[str, dict[str, Any]] | None = field(
+        default=None,
+        init=False,
+    )
+    _huggingface_metadata_by_artifact_id: dict[str, dict[str, Any]] | None = field(
+        default=None,
+        init=False,
+    )
+
     _topic_clusters_payload: dict[str, Any] | None = field(default=None, init=False)
     _topic_assignments_by_id: dict[str, dict[str, Any]] | None = field(default=None, init=False)
     _topic_assignments_by_cluster: dict[int, list[dict[str, Any]]] | None = field(
@@ -500,6 +530,12 @@ class DiscoveryService:
         self._dense_bundle = None
         self._normalized_embeddings = None
         self._dense_id_to_index = None
+
+        self._paper_detail_paths = None
+        self._artifact_links_by_canonical_id = None
+        self._artifact_entities_by_id = None
+        self._github_metadata_by_artifact_id = None
+        self._huggingface_metadata_by_artifact_id = None
 
         self._topic_clusters_payload = None
         self._topic_assignments_by_id = None
@@ -647,6 +683,185 @@ class DiscoveryService:
             top_k=top_k,
             rank_by=rank_by,
             min_similarity=min_similarity,
+        )
+
+    def compare_papers(
+        self,
+        *,
+        canonical_ids: list[str],
+        citation_graph_by_canonical_id: dict[str, dict[str, Any]] | None = None,
+        citation_graph_capability: dict[str, Any] | None = None,
+        initial_warnings: list[str] | None = None,
+    ) -> dict[str, Any]:
+        normalized_ids = [
+            str(canonical_id).strip()
+            for canonical_id in canonical_ids
+        ]
+        if not 2 <= len(normalized_ids) <= 5:
+            raise ValueError("Paper comparison requires 2 to 5 canonical_ids")
+        if any(not canonical_id for canonical_id in normalized_ids):
+            raise ValueError("canonical_ids must be non-empty")
+        if len(set(normalized_ids)) != len(normalized_ids):
+            raise ValueError("canonical_ids must be unique")
+
+        canonical_by_id = self._load_canonical_by_id()
+        missing_ids = [
+            canonical_id
+            for canonical_id in normalized_ids
+            if canonical_id not in canonical_by_id
+        ]
+        if missing_ids:
+            raise PaperComparisonPaperNotFoundError(missing_ids)
+
+        features_by_id = self._load_features_by_id()
+        warnings = list(initial_warnings or [])
+        capabilities: dict[str, Any] = {
+            "citation_graph": citation_graph_capability
+            or {
+                "available": False,
+                "reason": "citation_graph_context_not_provided",
+            },
+        }
+
+        artifacts_by_canonical_id: dict[str, list[dict[str, Any]]] = {}
+        try:
+            (
+                detail_paths,
+                artifact_links_by_canonical_id,
+                entities_by_id,
+                github_by_artifact_id,
+                huggingface_by_artifact_id,
+            ) = self._load_comparison_artifact_indexes()
+
+            artifacts_by_canonical_id = {
+                canonical_id: build_artifact_detail_rows(
+                    artifact_links=artifact_links_by_canonical_id.get(
+                        canonical_id,
+                        [],
+                    ),
+                    entities_by_id=entities_by_id,
+                    github_metadata_by_artifact_id=github_by_artifact_id,
+                    huggingface_metadata_by_artifact_id=huggingface_by_artifact_id,
+                )
+                for canonical_id in normalized_ids
+            }
+            capabilities["artifact_details"] = {
+                "available": detail_paths["artifact_links_path"].is_file(),
+                "artifact_entities_available": detail_paths[
+                    "artifact_entities_path"
+                ].is_file(),
+                "github_metadata_available": detail_paths[
+                    "github_metadata_path"
+                ].is_file(),
+                "huggingface_metadata_available": detail_paths[
+                    "huggingface_metadata_path"
+                ].is_file(),
+                "inputs": {
+                    key: normalize_path(path)
+                    for key, path in detail_paths.items()
+                },
+            }
+        except (FileNotFoundError, OSError, TypeError, ValueError) as exc:
+            capabilities["artifact_details"] = {
+                "available": False,
+                "reason": f"{type(exc).__name__}: {exc}",
+            }
+            warnings.append(
+                "artifact_detail_rows_unavailable; feature-level artifact "
+                "signals remain available"
+            )
+
+        normalized_embeddings = None
+        dense_id_to_index = None
+        try:
+            bundle, normalized_embeddings, dense_id_to_index = (
+                self._load_dense_runtime()
+            )
+            retrieval_manifest = load_latest_retrieval_manifest(
+                self.retrieval_manifest_path
+            )
+            capabilities["semantic_similarity"] = {
+                "available": True,
+                "reason": None,
+                "retrieval_build_id": (
+                    retrieval_manifest.get("build_id")
+                    or retrieval_manifest.get("retrieval_build_id")
+                ),
+                "embedding_model": (
+                    retrieval_manifest.get("embedding_model_name")
+                    or retrieval_manifest.get("model_name")
+                ),
+                "embedding_path": normalize_path(bundle.embedding_path),
+                "embedding_shape": list(bundle.embeddings.shape),
+                "ids_count": len(bundle.ids),
+            }
+        except (FileNotFoundError, OSError, TypeError, ValueError) as exc:
+            capabilities["semantic_similarity"] = {
+                "available": False,
+                "reason": f"{type(exc).__name__}: {exc}",
+                "retrieval_build_id": None,
+            }
+            warnings.append(
+                "semantic_similarity_unavailable; metadata comparison remains valid"
+            )
+
+        clusters_by_canonical_id: dict[str, dict[str, Any]] = {}
+        try:
+            cluster_payload = self._load_topic_clusters_payload()
+            assignments_by_id = self._load_topic_assignments_by_id()
+            clusters_by_id = cluster_payload["clusters_by_id"]
+
+            for canonical_id in normalized_ids:
+                assignment = assignments_by_id.get(canonical_id)
+                if assignment is None:
+                    clusters_by_canonical_id[canonical_id] = {"found": False}
+                    continue
+
+                cluster_id = _cluster_id_of(assignment)
+                cluster_summary = clusters_by_id.get(cluster_id) or {}
+                clusters_by_canonical_id[canonical_id] = {
+                    **assignment,
+                    "found": True,
+                    "cluster_id": cluster_id,
+                    "label_candidates": cluster_summary.get(
+                        "label_candidates"
+                    )
+                    or [],
+                }
+
+            capabilities["topic_clusters"] = {
+                "available": True,
+                "reason": None,
+                "cluster_build_id": cluster_payload.get("cluster_build_id"),
+                "retrieval_build_id": cluster_payload.get(
+                    "retrieval_build_id"
+                ),
+                "cluster_config_hash": cluster_payload.get(
+                    "cluster_config_hash"
+                ),
+            }
+        except (FileNotFoundError, OSError, TypeError, ValueError) as exc:
+            capabilities["topic_clusters"] = {
+                "available": False,
+                "reason": f"{type(exc).__name__}: {exc}",
+                "cluster_build_id": None,
+                "retrieval_build_id": None,
+            }
+            warnings.append(
+                "topic_cluster_context_unavailable; comparison remains valid"
+            )
+
+        return build_paper_comparison(
+            canonical_ids=normalized_ids,
+            canonical_by_id=canonical_by_id,
+            features_by_id=features_by_id,
+            artifacts_by_canonical_id=artifacts_by_canonical_id,
+            clusters_by_canonical_id=clusters_by_canonical_id,
+            citation_graph_by_canonical_id=citation_graph_by_canonical_id,
+            normalized_embeddings=normalized_embeddings,
+            dense_id_to_index=dense_id_to_index,
+            capabilities=capabilities,
+            warnings=warnings,
         )
 
     def get_topic_clusters(
@@ -920,6 +1135,64 @@ class DiscoveryService:
                 optional=True,
             )
         return self._canonical_by_id
+
+    def _load_comparison_artifact_indexes(
+        self,
+    ) -> tuple[
+        dict[str, Path],
+        dict[str, list[dict[str, Any]]],
+        dict[str, dict[str, Any]],
+        dict[str, dict[str, Any]],
+        dict[str, dict[str, Any]],
+    ]:
+        if self._paper_detail_paths is None:
+            self._paper_detail_paths = load_paper_features_config_paths(
+                self.paper_features_config_path
+            )
+
+        paths = self._paper_detail_paths
+
+        if self._artifact_links_by_canonical_id is None:
+            by_canonical_id: dict[str, list[dict[str, Any]]] = {}
+            artifact_links_path = paths["artifact_links_path"]
+            if artifact_links_path.is_file():
+                for row in _read_jsonl(artifact_links_path):
+                    canonical_id = str(row.get("canonical_id") or "").strip()
+                    if canonical_id:
+                        by_canonical_id.setdefault(canonical_id, []).append(row)
+            self._artifact_links_by_canonical_id = by_canonical_id
+
+        if self._artifact_entities_by_id is None:
+            path = paths["artifact_entities_path"]
+            self._artifact_entities_by_id = (
+                load_jsonl_by_key(path, key="artifact_id")
+                if path.is_file()
+                else {}
+            )
+
+        if self._github_metadata_by_artifact_id is None:
+            path = paths["github_metadata_path"]
+            self._github_metadata_by_artifact_id = (
+                load_jsonl_by_key(path, key="artifact_id")
+                if path.is_file()
+                else {}
+            )
+
+        if self._huggingface_metadata_by_artifact_id is None:
+            path = paths["huggingface_metadata_path"]
+            self._huggingface_metadata_by_artifact_id = (
+                load_jsonl_by_key(path, key="artifact_id")
+                if path.is_file()
+                else {}
+            )
+
+        return (
+            paths,
+            self._artifact_links_by_canonical_id,
+            self._artifact_entities_by_id,
+            self._github_metadata_by_artifact_id,
+            self._huggingface_metadata_by_artifact_id,
+        )
 
     def _load_dense_runtime(self) -> tuple[DenseBundle, Any, dict[str, int]]:
         if (

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class HealthResponse(BaseModel):
@@ -375,6 +375,35 @@ class DiscoverySimilarPapersResponse(BaseModel):
     dense_artifacts: dict[str, Any] = Field(default_factory=dict)
     inputs: dict[str, Any] = Field(default_factory=dict)
     results: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class DiscoveryPaperComparisonRequest(BaseModel):
+    canonical_ids: list[str] = Field(min_length=2, max_length=5)
+
+    @field_validator("canonical_ids")
+    @classmethod
+    def validate_canonical_ids(cls, values: list[str]) -> list[str]:
+        normalized = [str(value).strip() for value in values]
+        if any(not value for value in normalized):
+            raise ValueError("canonical_ids must be non-empty")
+        if any(len(value) > 256 for value in normalized):
+            raise ValueError("canonical_ids must be at most 256 characters")
+        if len(set(normalized)) != len(normalized):
+            raise ValueError("canonical_ids must be unique")
+        return normalized
+
+
+class DiscoveryPaperComparisonResponse(BaseModel):
+    schema_version: Literal["paper_comparison_v0.1"]
+    mode: Literal["paper_comparison"]
+    canonical_ids: list[str]
+    paper_count: int
+    input_order_preserved: bool
+    papers: list[dict[str, Any]] = Field(default_factory=list)
+    pairwise: list[dict[str, Any]] = Field(default_factory=list)
+    summary: dict[str, Any] = Field(default_factory=dict)
+    capabilities: dict[str, Any] = Field(default_factory=dict)
+    warnings: list[str] = Field(default_factory=list)
 
 
 class DiscoveryTopicClusterSummary(BaseModel):

@@ -22,7 +22,10 @@ from services.api.citation_graph_service import (
     build_citation_graph_status,
 )
 from services.api.citation_graph_store import CitationGraphStore
-from services.api.discovery_service import get_discovery_service
+from services.api.discovery_service import (
+    PaperComparisonPaperNotFoundError,
+    get_discovery_service,
+)
 from services.api.logging import get_logger
 from services.api.runtime import get_runtime
 from services.api.schemas import (
@@ -31,6 +34,8 @@ from services.api.schemas import (
     CitationGraphStatusResponse,
     CitationGraphTraversalResponse,
     DiscoveryPaperDetailResponse,
+    DiscoveryPaperComparisonRequest,
+    DiscoveryPaperComparisonResponse,
     DiscoveryPaperTopicClusterResponse,
     DiscoveryProfilesResponse,
     DiscoveryRankingResponse,
@@ -403,6 +408,68 @@ def _load_citation_graph_store_cached(graph_root: str) -> CitationGraphStore:
 
 def _load_citation_graph_store() -> CitationGraphStore:
     return _load_citation_graph_store_cached(str(settings.citation_graph_root))
+
+
+def _paper_comparison_citation_graph_context(
+    canonical_ids: list[str],
+) -> tuple[dict[str, dict], dict, list[str]]:
+    status = build_citation_graph_status(settings=settings)
+    availability = status.availability or {}
+    caveats = list(status.caveats or [])
+
+    if (
+        availability.get("available") is not True
+        or status.error_code is not None
+    ):
+        capability = {
+            "available": False,
+            "runtime_enabled": availability.get("runtime_enabled"),
+            "reason": status.error_code or "citation_graph_unavailable",
+            "message": status.message,
+            "caveats": caveats,
+            "graph": status.graph.model_dump(),
+        }
+        return (
+            {},
+            capability,
+            [
+                "citation_graph_unavailable; canonical and feature-level "
+                "citation signals remain available"
+            ],
+        )
+
+    try:
+        store = _load_citation_graph_store()
+        evidence = store.paper_comparison_evidence(canonical_ids)
+    except (FileNotFoundError, OSError, TypeError, ValueError) as exc:
+        capability = {
+            "available": False,
+            "runtime_enabled": availability.get("runtime_enabled"),
+            "reason": f"{type(exc).__name__}: {exc}",
+            "message": "Citation graph comparison evidence could not be loaded.",
+            "caveats": caveats,
+            "graph": status.graph.model_dump(),
+        }
+        return (
+            {},
+            capability,
+            [
+                "citation_graph_unavailable; canonical and feature-level "
+                "citation signals remain available"
+            ],
+        )
+
+    capability = {
+        "available": True,
+        "runtime_enabled": availability.get("runtime_enabled"),
+        "reason": None,
+        "message": None,
+        "caveats": _citation_graph_caveats(
+            "comparison_uses_selected_paper_relationships_only",
+        ),
+        "graph": store.graph_summary(),
+    }
+    return evidence, capability, []
 
 
 @app.get(
@@ -1478,6 +1545,40 @@ def discovery_topic_cluster_detail(
         )
 
     return DiscoveryTopicClusterDetailResponse(**payload)
+
+
+@app.post(
+    "/discovery/papers/compare",
+    response_model=DiscoveryPaperComparisonResponse,
+)
+def discovery_paper_comparison(
+    request: DiscoveryPaperComparisonRequest,
+) -> DiscoveryPaperComparisonResponse:
+    (
+        citation_graph_by_canonical_id,
+        citation_graph_capability,
+        warnings,
+    ) = _paper_comparison_citation_graph_context(request.canonical_ids)
+
+    service = get_discovery_service()
+    try:
+        payload = service.compare_papers(
+            canonical_ids=request.canonical_ids,
+            citation_graph_by_canonical_id=citation_graph_by_canonical_id,
+            citation_graph_capability=citation_graph_capability,
+            initial_warnings=warnings,
+        )
+    except PaperComparisonPaperNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "message": "One or more papers were not found in the current "
+                "canonical corpus.",
+                "missing_canonical_ids": exc.missing_canonical_ids,
+            },
+        ) from exc
+
+    return DiscoveryPaperComparisonResponse(**payload)
 
 
 @app.get(

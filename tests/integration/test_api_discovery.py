@@ -25,6 +25,22 @@ def _first_cluster_id(client: TestClient) -> int:
     return cluster_id
 
 
+def _comparison_ids(client: TestClient, count: int) -> list[str]:
+    response = client.get(
+        "/discovery/ranking/recent_artifact_ready",
+        params={"top_k": count},
+    )
+    assert response.status_code == 200
+    ids = [
+        str(row["canonical_id"])
+        for row in response.json()["results"]
+        if row.get("canonical_id")
+    ]
+    if len(ids) < count:
+        pytest.skip(f"Comparison smoke requires {count} ranking papers")
+    return ids[:count]
+
+
 def test_discovery_profiles_smoke(client: TestClient) -> None:
     response = client.get("/discovery/profiles")
 
@@ -130,6 +146,102 @@ def test_discovery_similar_radar_adjusted_smoke(client: TestClient) -> None:
 
     scores = [row["radar_adjusted_similarity"] for row in payload["results"]]
     assert scores == sorted(scores, reverse=True)
+
+
+def test_discovery_paper_comparison_two_papers_preserves_order(
+    client: TestClient,
+) -> None:
+    canonical_ids = _comparison_ids(client, 2)
+
+    response = client.post(
+        "/discovery/papers/compare",
+        json={"canonical_ids": canonical_ids},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["schema_version"] == "paper_comparison_v0.1"
+    assert payload["mode"] == "paper_comparison"
+    assert payload["canonical_ids"] == canonical_ids
+    assert payload["paper_count"] == 2
+    assert payload["input_order_preserved"] is True
+    assert [row["canonical_id"] for row in payload["papers"]] == canonical_ids
+    assert len(payload["pairwise"]) == 1
+    assert payload["pairwise"][0]["left_canonical_id"] == canonical_ids[0]
+    assert payload["pairwise"][0]["right_canonical_id"] == canonical_ids[1]
+    assert set(payload["capabilities"]) == {
+        "artifact_details",
+        "citation_graph",
+        "semantic_similarity",
+        "topic_clusters",
+    }
+    assert payload["capabilities"]["semantic_similarity"]["available"] is True
+    assert payload["pairwise"][0]["semantic"]["available"] is True
+    assert isinstance(
+        payload["pairwise"][0]["semantic"]["similarity"],
+        float,
+    )
+
+
+def test_discovery_paper_comparison_five_papers_has_all_pairs(
+    client: TestClient,
+) -> None:
+    canonical_ids = _comparison_ids(client, 5)
+
+    response = client.post(
+        "/discovery/papers/compare",
+        json={"canonical_ids": canonical_ids},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["canonical_ids"] == canonical_ids
+    assert payload["paper_count"] == 5
+    assert len(payload["pairwise"]) == 10
+    assert set(payload["summary"]["shared_by_all"]) == {
+        "categories",
+        "concepts",
+        "keywords",
+        "source_families",
+        "artifact_types",
+    }
+
+
+@pytest.mark.parametrize(
+    "canonical_ids",
+    [
+        ["paper:a"],
+        ["paper:a", "paper:a"],
+        ["paper:a", "paper:b", "paper:c", "paper:d", "paper:e", "paper:f"],
+        ["paper:a", " "],
+    ],
+)
+def test_discovery_paper_comparison_rejects_invalid_id_sets(
+    client: TestClient,
+    canonical_ids: list[str],
+) -> None:
+    response = client.post(
+        "/discovery/papers/compare",
+        json={"canonical_ids": canonical_ids},
+    )
+
+    assert response.status_code == 422
+
+
+def test_discovery_paper_comparison_unknown_paper_returns_404(
+    client: TestClient,
+) -> None:
+    known_id = _comparison_ids(client, 1)[0]
+    missing_id = "not-a-real-comparison-canonical-id"
+
+    response = client.post(
+        "/discovery/papers/compare",
+        json={"canonical_ids": [known_id, missing_id]},
+    )
+
+    assert response.status_code == 404
+    detail = response.json()["detail"]
+    assert detail["missing_canonical_ids"] == [missing_id]
 
 
 def test_discovery_ranking_combined_overrides(client: TestClient) -> None:
