@@ -5,7 +5,7 @@
 ```text
 contract_version = v0.1
 decision_status = accepted
-implementation_status = core/API candidate implemented; Streamlit UI pending
+implementation_status = core/API and Streamlit UI candidates implemented; regression/live-smoke hardening pending
 product_mode = local single-user
 canonical_truth = false
 mutates_canonical_documents = false
@@ -427,7 +427,7 @@ No comparison request writes data or produces `latest` pointers.
 
 ## 10. Streamlit UI contract
 
-The pending UI layer will add a top-level `Comparison` tab.
+The Streamlit UI adds a top-level `Comparison` tab.
 
 Required basket behavior:
 

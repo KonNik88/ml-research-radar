@@ -19,6 +19,7 @@ READING_STATUS_LABELS = {
 }
 
 OpenPaperButton = Callable[..., None]
+AddComparisonButton = Callable[..., None]
 
 
 def init_collections_ui_state() -> None:
@@ -293,6 +294,7 @@ def _render_item_editor(
     *,
     rank: int,
     open_paper_button: OpenPaperButton,
+    add_to_comparison_button: AddComparisonButton,
 ) -> None:
     canonical_id = str(item.get("canonical_id") or "").strip()
     if not canonical_id:
@@ -334,6 +336,11 @@ def _render_item_editor(
                 canonical_id,
                 label="Open saved paper in Paper workspace",
                 key=f"open_collection_item_{collection_id}_{canonical_id}",
+            )
+            add_to_comparison_button(
+                canonical_id,
+                label="Add saved paper to comparison",
+                key=f"compare_collection_item_{collection_id}_{canonical_id}",
             )
 
         with st.form(f"collection_item_update_{collection_id}_{canonical_id}"):
@@ -400,6 +407,7 @@ def render_collections_tab(
     base_url: str,
     *,
     open_paper_button: OpenPaperButton,
+    add_to_comparison_button: AddComparisonButton,
 ) -> None:
     """Render the dedicated Saved Research Collections workspace."""
 
@@ -647,4 +655,5 @@ def render_collections_tab(
             item,
             rank=rank,
             open_paper_button=open_paper_button,
+            add_to_comparison_button=add_to_comparison_button,
         )
