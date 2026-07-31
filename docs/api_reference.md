@@ -2483,6 +2483,36 @@ Full contract:
 docs/paper_comparison_workspace_v0.1.md
 ```
 
+Final bounded regression:
+
+```bat
+set ML_RADAR_SEARCH_BACKEND=file
+python -m scripts.validation.run_paper_comparison_regression
+```
+
+Live HTTP merge gate, with the API already running on
+`http://127.0.0.1:8000`:
+
+```bat
+python -m scripts.validation.check_paper_comparison_live_smoke --strict
+```
+
+The live validator resolves five real sample papers from
+`GET /discovery/ranking/recent_artifact_ready`, checks deterministic two- and
+five-paper responses, validates `422`/`404` boundaries, and confirms general
+runtime health before and after comparison calls. It does not require
+workspace PostgreSQL or Qdrant.
+
+Generated regression/live-smoke reports are local operational evidence under:
+
+```text
+artifacts/reports/validation/paper_comparison_regression_latest.json
+artifacts/reports/validation/paper_comparison_live_smoke_latest.json
+```
+
+They are not committed and do not become canonical, retrieval, DB, graph or
+publication state.
+
 ---
 
 ## `GET /discovery/papers/{canonical_id}/cluster`

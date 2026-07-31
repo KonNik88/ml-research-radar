@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import pandas as pd
+import pytest
+
 from services.ui.comparison_ui import (
     COMPARISON_BASKET_KEY,
     COMPARISON_PAYLOAD_IDS_KEY,
@@ -162,24 +165,48 @@ def test_comparison_table_rows_keep_zero_false_and_unknown_distinct() -> None:
 
     metadata = metadata_score_rows(payload)
     assert metadata[0]["implementation"] == "0.000"
-    assert metadata[0]["sources"] == 0
+    assert metadata[0]["sources"] == "0"
     assert metadata[1]["year"] == "—"
 
     artifacts = artifact_rows(payload)
     assert artifacts[0]["code"] == "no"
     assert artifacts[0]["dataset"] == "yes"
     assert artifacts[0]["model"] == "unknown"
-    assert artifacts[0]["trusted links"] == 0
-    assert artifacts[0]["GitHub repos"] == 0
+    assert artifacts[0]["trusted links"] == "0"
+    assert artifacts[0]["GitHub repos"] == "0"
 
     citations = citation_rows(payload)
-    assert citations[0]["canonical cited by"] == 0
+    assert citations[0]["canonical cited by"] == "0"
     assert citations[0]["canonical references"] == "—"
-    assert citations[0]["outgoing"] == 0
+    assert citations[0]["outgoing"] == "0"
 
     clusters = cluster_rows(payload)
-    assert clusters[0]["cluster"] == 0
+    assert clusters[0]["cluster"] == "0"
     assert clusters[1]["cluster"] == "—"
+
+
+def test_citation_rows_keep_unknown_and_zero_arrow_safe() -> None:
+    payload = _payload()
+    rows = citation_rows(payload)
+
+    assert rows[0]["canonical cited by"] == "0"
+    assert rows[1]["canonical cited by"] == "—"
+    assert all(isinstance(row["canonical cited by"], str) for row in rows)
+
+    frame = pd.DataFrame(rows)
+    assert frame["canonical cited by"].tolist() == ["0", "—"]
+
+    pyarrow = pytest.importorskip("pyarrow")
+    for display_rows in [
+        metadata_score_rows(payload),
+        artifact_rows(payload),
+        citation_rows(payload),
+        cluster_rows(payload),
+    ]:
+        pyarrow.Table.from_pandas(
+            pd.DataFrame(display_rows),
+            preserve_index=False,
+        )
 
 
 def test_pairwise_rows_label_unavailable_and_unknown_evidence() -> None:

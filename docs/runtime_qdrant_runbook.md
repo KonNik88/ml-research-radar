@@ -587,7 +587,7 @@ Open another Anaconda Prompt:
 conda activate ml_radar
 cd /d D:\ML\ML_Research_Radar
 set ML_RADAR_API_BASE_URL=http://127.0.0.1:8000
-streamlit run services/ui/app.py
+python -m streamlit run services/ui/app.py
 ```
 
 Expected URL:

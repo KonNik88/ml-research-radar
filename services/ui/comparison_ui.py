@@ -168,8 +168,16 @@ def render_add_to_comparison_button(
             st.warning("Canonical ID is empty.")
 
 
-def _dash(value: Any) -> Any:
-    return "—" if value in (None, "", [], {}) else value
+def _dash(value: Any) -> str:
+    """Return a homogeneous display scalar for Streamlit dataframes.
+
+    Comparison tables are display projections, not API/domain payloads. Keeping
+    missing values and numeric values as strings prevents pandas/PyArrow from
+    inferring an object column with incompatible values such as ``"—"`` and
+    ``0`` while preserving the important distinction between unknown and zero.
+    """
+
+    return "—" if value in (None, "", [], {}) else str(value)
 
 
 def _flag(value: Any) -> str:

@@ -5,7 +5,8 @@
 ```text
 contract_version = v0.1
 decision_status = accepted
-implementation_status = core/API and Streamlit UI candidates implemented; regression/live-smoke hardening pending
+implementation_status = core/API, Streamlit UI, bounded regression runner, and operator live-smoke validator implemented
+merge_gate = targeted regression + strict Streamlit validator + live HTTP smoke
 product_mode = local single-user
 canonical_truth = false
 mutates_canonical_documents = false
@@ -522,8 +523,104 @@ The implementation is intentionally split into reviewable commits:
 
 3. `test(comparison): harden comparison regression and live smoke`
    - complete regression matrix;
+   - bounded file-backed regression runner;
+   - operator-facing live HTTP validator;
    - docs/API reference updates;
-   - live-smoke evidence.
+   - ignored local live-smoke evidence reports.
 
 No later slice may silently expand v0.1 into LLM/RAG, persistence or a promoted
 graph runtime.
+
+---
+
+## 13. Final regression and live-smoke gate
+
+The final v0.1 gate is intentionally bounded to the existing comparison
+workflow. It does not rebuild retrieval, query or promote Qdrant, require
+workspace PostgreSQL, create a migration, or mutate canonical data.
+
+### 13.1 Targeted regression
+
+With the project environment active:
+
+```bat
+set ML_RADAR_SEARCH_BACKEND=file
+python -m scripts.validation.run_paper_comparison_regression
+```
+
+The runner executes the accepted core/API/UI matrix, including:
+
+- pure comparison builder and DiscoveryService cache/reload behavior;
+- two-paper and five-paper API contracts;
+- validation and missing-paper errors;
+- citation graph evidence and failure isolation;
+- temporary basket and thin API client behavior;
+- Search, Discovery, Paper workspace and Collections add surfaces;
+- Streamlit static ownership checks;
+- the live-smoke validator's own fail-closed unit tests.
+
+It then runs:
+
+```bat
+python -m scripts.validation.check_streamlit_discovery_ui --strict
+```
+
+The runner writes ignored local evidence to:
+
+```text
+artifacts/reports/validation/paper_comparison_regression_latest.json
+artifacts/reports/validation/paper_comparison_regression_latest.md
+artifacts/reports/validation/history/paper_comparison_regression_<timestamp>.json
+artifacts/reports/validation/history/paper_comparison_regression_<timestamp>.md
+```
+
+### 13.2 Live HTTP smoke
+
+Start the API in a separate terminal with the normal file-first Discovery
+runtime:
+
+```bat
+set ML_RADAR_SEARCH_BACKEND=file
+python -m uvicorn services.api.app:app --host 127.0.0.1 --port 8000
+```
+
+Then run either the live validator directly:
+
+```bat
+python -m scripts.validation.check_paper_comparison_live_smoke --strict
+```
+
+or the complete merge gate in one command:
+
+```bat
+python -m scripts.validation.run_paper_comparison_regression --include-live-smoke
+```
+
+The live validator:
+
+1. confirms `/health`, `/info`, and `/runtime`;
+2. selects five unique real papers from
+   `recent_artifact_ready` Discovery ranking;
+3. validates deterministic two-paper comparison and repeat equality;
+4. validates five-paper comparison with ten pairwise rows;
+5. requires semantic similarity from the active file-first dense build;
+6. validates one-ID, duplicate, six-ID, blank-ID and missing-ID errors;
+7. confirms general runtime health remains ready after comparison calls.
+
+Citation Graph availability is recorded but is not required: its accepted
+failure-isolation contract permits comparison to remain valid while graph
+evidence is unavailable.
+
+Live reports:
+
+```text
+artifacts/reports/validation/paper_comparison_live_smoke_latest.json
+artifacts/reports/validation/paper_comparison_live_smoke_latest.md
+artifacts/reports/validation/history/paper_comparison_live_smoke_<timestamp>.json
+artifacts/reports/validation/history/paper_comparison_live_smoke_<timestamp>.md
+```
+
+These reports are operational evidence and are not committed. A green gate
+means the deterministic comparison slice is ready for PR review; it does not
+authorize LLM/RAG, comparison persistence, graph-runtime promotion, Qdrant
+promotion, or changes to canonical truth.
