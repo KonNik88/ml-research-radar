@@ -12,6 +12,10 @@ from services.ui.collections_ui import (
     render_collection_membership_controls,
     render_collections_tab,
 )
+from services.ui.comparison_ui import (
+    render_add_to_comparison_button,
+    render_comparison_tab,
+)
 
 DEFAULT_API_BASE_URL = os.getenv("ML_RADAR_API_BASE_URL", "http://127.0.0.1:8000")
 REQUEST_TIMEOUT_SECONDS = 30
@@ -2060,6 +2064,10 @@ def render_result_card(base_url: str, row: dict[str, Any], rank: int) -> None:
                 canonical_id,
                 key_prefix=f"ranking_collection_{rank}_{canonical_id}",
             )
+            render_add_to_comparison_button(
+                canonical_id,
+                key=f"compare_ranking_paper_{rank}_{canonical_id}",
+            )
 
         abstract = row.get("abstract") or row.get("abstract_preview")
         if abstract:
@@ -2167,6 +2175,10 @@ def render_search_results(
                 base_url,
                 canonical_id,
                 key_prefix=f"search_collection_{idx}_{canonical_id}",
+            )
+            render_add_to_comparison_button(
+                canonical_id,
+                key=f"compare_search_paper_{idx}_{canonical_id}",
             )
 
             abstract = document.get("abstract")
@@ -3906,6 +3918,10 @@ def render_paper_workspace(base_url: str) -> None:
         selected_paper_id,
         key_prefix=f"paper_workspace_collection_{selected_paper_id}",
     )
+    render_add_to_comparison_button(
+        selected_paper_id,
+        key=f"compare_paper_workspace_{selected_paper_id}",
+    )
 
     similar_cols = st.columns([1, 1])
     with similar_cols[0]:
@@ -4044,6 +4060,7 @@ def main() -> None:
         search_tab,
         paper_workspace_tab,
         collections_tab,
+        comparison_tab,
         citation_graph_diagnostics_tab,
         citation_graph_external_lookup_tab,
         clusters_tab,
@@ -4055,6 +4072,7 @@ def main() -> None:
             "Search",
             "Paper workspace",
             "Collections",
+            "Comparison",
             "Citation graph diagnostics",
             "External reference lookup",
             "Topic clusters",
@@ -4153,6 +4171,14 @@ def main() -> None:
         render_collections_tab(
             api_base_url,
             open_paper_button=render_open_paper_workspace_button,
+            add_to_comparison_button=render_add_to_comparison_button,
+        )
+
+    with comparison_tab:
+        render_comparison_tab(
+            api_base_url,
+            open_paper_button=render_open_paper_workspace_button,
+            collection_controls=render_collection_membership_controls,
         )
 
     with citation_graph_diagnostics_tab:

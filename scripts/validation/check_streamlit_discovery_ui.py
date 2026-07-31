@@ -289,6 +289,71 @@ WORKSPACE_CLIENT_SNIPPETS = [
     "quote(normalized, safe=\"\")",
 ]
 
+COMPARISON_UI_SNIPPETS = [
+    "from services.ui.comparison_ui import",
+    "render_add_to_comparison_button",
+    "render_comparison_tab",
+    "compare_ranking_paper_",
+    "compare_search_paper_",
+    "compare_paper_workspace_",
+    "add_to_comparison_button=render_add_to_comparison_button",
+    "collection_controls=render_collection_membership_controls",
+    '"Comparison"',
+    "with comparison_tab:",
+]
+
+COMPARISON_MODULE_SNIPPETS = [
+    "ComparisonClient",
+    "ComparisonClientError",
+    "MIN_COMPARISON_PAPERS",
+    "MAX_COMPARISON_PAPERS",
+    "COMPARISON_BASKET_KEY",
+    "COMPARISON_PAYLOAD_KEY",
+    "init_comparison_ui_state",
+    "comparison_basket",
+    "add_to_comparison_basket",
+    "remove_from_comparison_basket",
+    "clear_comparison_basket",
+    "render_add_to_comparison_button",
+    "render_comparison_payload",
+    "render_comparison_tab",
+    "Paper comparison workspace",
+    "Add canonical ID manually",
+    "Clear all",
+    "Compare selected papers",
+    "Select at least two papers to enable Compare.",
+    "Metadata and Radar scores",
+    "Pairwise semantic and graph evidence",
+    "Taxonomy, sources, and artifact differences",
+    "Artifact and implementation evidence",
+    "Citation and reference evidence",
+    "Topic-cluster context",
+    "Open compared paper in Paper workspace",
+    "Raw comparison response",
+]
+
+COMPARISON_CLIENT_SNIPPETS = [
+    "class ComparisonClientError",
+    "class ComparisonClient",
+    "compare_papers",
+    "/discovery/papers/compare",
+    '"canonical_ids": normalized_ids',
+    "comparison_request_failed",
+    "comparison_invalid_response",
+]
+
+COMPARISON_FORBIDDEN_DIRECT_ACCESS_SNIPPETS = [
+    "from services.api.",
+    "import services.api.",
+    "canonical_documents.jsonl",
+    "paper_features_latest.jsonl",
+    "data/graphs/",
+    "np.load(",
+    "numpy",
+    "psycopg",
+    "sqlalchemy",
+]
+
 PAPER_NAVIGATION_POLISH_UI_SNIPPETS = [
     "select_paper_from_ui",
     "render_open_paper_workspace_button",
@@ -1214,11 +1279,17 @@ def build_report(
 
     collections_ui_path = app_path.with_name("collections_ui.py")
     workspace_client_path = app_path.with_name("workspace_client.py")
+    comparison_ui_path = app_path.with_name("comparison_ui.py")
+    comparison_client_path = app_path.with_name("comparison_client.py")
     extracted_values["collections_ui_path"] = str(collections_ui_path)
     extracted_values["workspace_client_path"] = str(workspace_client_path)
+    extracted_values["comparison_ui_path"] = str(comparison_ui_path)
+    extracted_values["comparison_client_path"] = str(comparison_client_path)
 
     checks["collections_ui_module_exists"] = collections_ui_path.exists()
     checks["workspace_client_module_exists"] = workspace_client_path.exists()
+    checks["comparison_ui_module_exists"] = comparison_ui_path.exists()
+    checks["comparison_client_module_exists"] = comparison_client_path.exists()
 
     collections_compile_ok, collections_compile_error = (
         py_compile_file(collections_ui_path)
@@ -1230,12 +1301,32 @@ def build_report(
         if workspace_client_path.exists()
         else (False, "Workspace client module does not exist")
     )
+    comparison_compile_ok, comparison_compile_error = (
+        py_compile_file(comparison_ui_path)
+        if comparison_ui_path.exists()
+        else (False, "Comparison UI module does not exist")
+    )
+    comparison_client_compile_ok, comparison_client_compile_error = (
+        py_compile_file(comparison_client_path)
+        if comparison_client_path.exists()
+        else (False, "Comparison client module does not exist")
+    )
     checks["collections_ui_module_py_compile_ok"] = collections_compile_ok
     checks["workspace_client_module_py_compile_ok"] = client_compile_ok
+    checks["comparison_ui_module_py_compile_ok"] = comparison_compile_ok
+    checks["comparison_client_module_py_compile_ok"] = (
+        comparison_client_compile_ok
+    )
     if collections_compile_error:
         errors["collections_ui_compile_error"] = collections_compile_error
     if client_compile_error:
         errors["workspace_client_compile_error"] = client_compile_error
+    if comparison_compile_error:
+        errors["comparison_ui_compile_error"] = comparison_compile_error
+    if comparison_client_compile_error:
+        errors["comparison_client_compile_error"] = (
+            comparison_client_compile_error
+        )
 
     collections_read_ok, collections_text, collections_read_error = (
         read_text(collections_ui_path)
@@ -1247,12 +1338,28 @@ def build_report(
         if workspace_client_path.exists()
         else (False, "", "Workspace client module does not exist")
     )
+    comparison_read_ok, comparison_text, comparison_read_error = (
+        read_text(comparison_ui_path)
+        if comparison_ui_path.exists()
+        else (False, "", "Comparison UI module does not exist")
+    )
+    comparison_client_read_ok, comparison_client_text, comparison_client_read_error = (
+        read_text(comparison_client_path)
+        if comparison_client_path.exists()
+        else (False, "", "Comparison client module does not exist")
+    )
     checks["collections_ui_module_read_ok"] = collections_read_ok
     checks["workspace_client_module_read_ok"] = client_read_ok
+    checks["comparison_ui_module_read_ok"] = comparison_read_ok
+    checks["comparison_client_module_read_ok"] = comparison_client_read_ok
     if collections_read_error:
         errors["collections_ui_read_error"] = collections_read_error
     if client_read_error:
         errors["workspace_client_read_error"] = client_read_error
+    if comparison_read_error:
+        errors["comparison_ui_read_error"] = comparison_read_error
+    if comparison_client_read_error:
+        errors["comparison_client_read_error"] = comparison_client_read_error
 
     checks["streamlit_import_ok"] = module_import_available("streamlit")
     checks["requests_import_ok"] = module_import_available("requests")
@@ -1305,6 +1412,23 @@ def build_report(
         client_text,
         WORKSPACE_CLIENT_SNIPPETS,
     )
+    missing_comparison_ui = missing_snippets(
+        app_text,
+        COMPARISON_UI_SNIPPETS,
+    )
+    missing_comparison_module = missing_snippets(
+        comparison_text,
+        COMPARISON_MODULE_SNIPPETS,
+    )
+    missing_comparison_client = missing_snippets(
+        comparison_client_text,
+        COMPARISON_CLIENT_SNIPPETS,
+    )
+    forbidden_comparison_direct_access = [
+        snippet
+        for snippet in COMPARISON_FORBIDDEN_DIRECT_ACCESS_SNIPPETS
+        if snippet in comparison_text
+    ]
 
     missing_paper_navigation_polish = missing_snippets(
         app_text,
@@ -1370,6 +1494,16 @@ def build_report(
     checks["workspace_client_module_snippets_present"] = (
         not missing_workspace_client
     )
+    checks["comparison_ui_snippets_present"] = not missing_comparison_ui
+    checks["comparison_ui_module_snippets_present"] = (
+        not missing_comparison_module
+    )
+    checks["comparison_client_module_snippets_present"] = (
+        not missing_comparison_client
+    )
+    checks["comparison_ui_uses_api_only"] = (
+        not forbidden_comparison_direct_access
+    )
     checks["collections_ui_uses_api_only"] = (
         "from services.api.workspace" not in collections_text
         and "WorkspaceStore" not in collections_text
@@ -1423,6 +1557,16 @@ def build_report(
     extracted_values["missing_workspace_client_module_snippets"] = (
         missing_workspace_client
     )
+    extracted_values["missing_comparison_ui_snippets"] = missing_comparison_ui
+    extracted_values["missing_comparison_module_snippets"] = (
+        missing_comparison_module
+    )
+    extracted_values["missing_comparison_client_module_snippets"] = (
+        missing_comparison_client
+    )
+    extracted_values["forbidden_comparison_direct_access_snippets"] = (
+        forbidden_comparison_direct_access
+    )
     extracted_values["missing_paper_navigation_polish_ui_snippets"] = (
         missing_paper_navigation_polish
     )
@@ -1458,10 +1602,16 @@ def build_report(
         "app_read_ok",
         "collections_ui_module_exists",
         "workspace_client_module_exists",
+        "comparison_ui_module_exists",
+        "comparison_client_module_exists",
         "collections_ui_module_py_compile_ok",
         "workspace_client_module_py_compile_ok",
+        "comparison_ui_module_py_compile_ok",
+        "comparison_client_module_py_compile_ok",
         "collections_ui_module_read_ok",
         "workspace_client_module_read_ok",
+        "comparison_ui_module_read_ok",
+        "comparison_client_module_read_ok",
         "streamlit_import_ok",
         "requests_import_ok",
         "required_ui_snippets_present",
@@ -1483,6 +1633,10 @@ def build_report(
         "collections_ui_module_snippets_present",
         "workspace_client_module_snippets_present",
         "collections_ui_uses_api_only",
+        "comparison_ui_snippets_present",
+        "comparison_ui_module_snippets_present",
+        "comparison_client_module_snippets_present",
+        "comparison_ui_uses_api_only",
         "paper_navigation_polish_ui_snippets_present",
         "paper_workspace_artifact_ui_snippets_present",
         "paper_workspace_citation_graph_ui_snippets_present",

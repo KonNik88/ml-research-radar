@@ -312,6 +312,90 @@ class CitationGraphStore:
         page_items, page = _page_items(items, limit=limit, offset=offset)
         return CitationGraphQueryResult(found=True, query=query, items=page_items, page=page)
 
+    def paper_comparison_evidence(
+        self,
+        canonical_ids: Iterable[str],
+    ) -> dict[str, dict[str, Any]]:
+        """Return bounded comparison evidence for selected canonical papers.
+
+        The method uses the store's existing in-memory indexes. It does not
+        create a graph runtime, expose a new graph traversal endpoint, or
+        mutate graph artifacts.
+        """
+
+        ordered_ids = list(dict.fromkeys(
+            str(canonical_id).strip()
+            for canonical_id in canonical_ids
+            if str(canonical_id).strip()
+        ))
+        selected_ids = set(ordered_ids)
+        evidence: dict[str, dict[str, Any]] = {}
+
+        for canonical_id in ordered_ids:
+            node_id = self._resolve_paper_node_id(canonical_id)
+            if node_id is None:
+                evidence[canonical_id] = {
+                    "found": False,
+                    "outgoing_reference_count": None,
+                    "outgoing_resolved_reference_count": None,
+                    "outgoing_external_reference_count": None,
+                    "incoming_citation_count": None,
+                    "source_families": [],
+                    "references_selected_canonical_ids": [],
+                    "referenced_by_selected_canonical_ids": [],
+                }
+                continue
+
+            resolved_edges = self.outgoing_by_type.get(
+                PAPER_REFERENCES_PAPER,
+                {},
+            ).get(node_id, [])
+            external_edges = self.outgoing_by_type.get(
+                PAPER_REFERENCES_EXTERNAL,
+                {},
+            ).get(node_id, [])
+            incoming_edges = self.incoming_by_type.get(
+                PAPER_REFERENCES_PAPER,
+                {},
+            ).get(node_id, [])
+
+            referenced_selected_ids = {
+                _paper_canonical_id(
+                    self.nodes_by_id.get(str(edge.get("target_node_id")), {}),
+                    str(edge.get("target_node_id")),
+                )
+                for edge in resolved_edges
+            } & selected_ids
+
+            referenced_by_selected_ids = {
+                _paper_canonical_id(
+                    self.nodes_by_id.get(str(edge.get("source_node_id")), {}),
+                    str(edge.get("source_node_id")),
+                )
+                for edge in incoming_edges
+            } & selected_ids
+
+            source_families: set[str] = set()
+            for edge in [*resolved_edges, *external_edges, *incoming_edges]:
+                source_families.update(_edge_source_families(edge))
+
+            evidence[canonical_id] = {
+                "found": True,
+                "outgoing_reference_count": len(resolved_edges) + len(external_edges),
+                "outgoing_resolved_reference_count": len(resolved_edges),
+                "outgoing_external_reference_count": len(external_edges),
+                "incoming_citation_count": len(incoming_edges),
+                "source_families": sorted(source_families),
+                "references_selected_canonical_ids": sorted(
+                    referenced_selected_ids
+                ),
+                "referenced_by_selected_canonical_ids": sorted(
+                    referenced_by_selected_ids
+                ),
+            }
+
+        return evidence
+
     def external_reference_papers(
         self,
         reference_id: str,

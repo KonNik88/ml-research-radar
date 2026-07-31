@@ -7,6 +7,8 @@ import scripts.validation.check_streamlit_discovery_ui as ui_validator
 
 APP_PATH = Path("services/ui/app.py")
 COLLECTIONS_UI_PATH = Path("services/ui/collections_ui.py")
+COMPARISON_UI_PATH = Path("services/ui/comparison_ui.py")
+COMPARISON_CLIENT_PATH = Path("services/ui/comparison_client.py")
 
 
 def _build_static_report(monkeypatch, app_path: Path) -> dict:
@@ -29,6 +31,10 @@ def test_streamlit_discovery_ui_current_repo_is_green(monkeypatch):
     assert report["checks"]["collections_ui_module_snippets_present"] is True
     assert report["checks"]["workspace_client_module_snippets_present"] is True
     assert report["checks"]["collections_ui_uses_api_only"] is True
+    assert report["checks"]["comparison_ui_snippets_present"] is True
+    assert report["checks"]["comparison_ui_module_snippets_present"] is True
+    assert report["checks"]["comparison_client_module_snippets_present"] is True
+    assert report["checks"]["comparison_ui_uses_api_only"] is True
     assert report["extracted_values"][
         "missing_citation_graph_status_ui_snippets"
     ] == []
@@ -36,6 +42,16 @@ def test_streamlit_discovery_ui_current_repo_is_green(monkeypatch):
     assert report["extracted_values"]["missing_collections_module_snippets"] == []
     assert report["extracted_values"][
         "missing_workspace_client_module_snippets"
+    ] == []
+    assert report["extracted_values"]["missing_comparison_ui_snippets"] == []
+    assert report["extracted_values"][
+        "missing_comparison_module_snippets"
+    ] == []
+    assert report["extracted_values"][
+        "missing_comparison_client_module_snippets"
+    ] == []
+    assert report["extracted_values"][
+        "forbidden_comparison_direct_access_snippets"
     ] == []
 
 
@@ -87,6 +103,51 @@ def test_streamlit_discovery_ui_detects_missing_collections_marker(
     ]
 
 
+def test_streamlit_discovery_ui_detects_missing_comparison_marker(
+    tmp_path,
+    monkeypatch,
+):
+    app_text = APP_PATH.read_text(encoding="utf-8")
+    mutated_text = app_text.replace(
+        "from services.ui.comparison_ui import",
+        "from services.ui.comparison_removed import",
+        1,
+    )
+    assert mutated_text != app_text
+
+    mutated_app_path = tmp_path / "app.py"
+    mutated_app_path.write_text(mutated_text, encoding="utf-8")
+
+    comparison_ui_path = tmp_path / "comparison_ui.py"
+    comparison_ui_path.write_text(
+        COMPARISON_UI_PATH.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    comparison_client_path = tmp_path / "comparison_client.py"
+    comparison_client_path.write_text(
+        COMPARISON_CLIENT_PATH.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    collections_ui_path = tmp_path / "collections_ui.py"
+    collections_ui_path.write_text(
+        COLLECTIONS_UI_PATH.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    workspace_client_path = tmp_path / "workspace_client.py"
+    workspace_client_path.write_text(
+        Path("services/ui/workspace_client.py").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+
+    report = _build_static_report(monkeypatch, mutated_app_path)
+
+    assert report["ok"] is False
+    assert report["checks"]["comparison_ui_snippets_present"] is False
+    assert "from services.ui.comparison_ui import" in report["extracted_values"][
+        "missing_comparison_ui_snippets"
+    ]
+
+
 def test_streamlit_collections_ui_is_thin_and_reuses_membership_control():
     app_text = APP_PATH.read_text(encoding="utf-8")
     collections_text = COLLECTIONS_UI_PATH.read_text(encoding="utf-8")
@@ -114,8 +175,52 @@ def test_streamlit_collections_ui_is_thin_and_reuses_membership_control():
         "workspace_unavailable",
         "collections_pending_selected_id",
         "disabled=not confirm_remove",
+        "Add saved paper to comparison",
     ]:
         assert marker in collections_text
+
+
+def test_streamlit_comparison_ui_is_thin_batch_client():
+    app_text = APP_PATH.read_text(encoding="utf-8")
+    collections_text = COLLECTIONS_UI_PATH.read_text(encoding="utf-8")
+    comparison_text = COMPARISON_UI_PATH.read_text(encoding="utf-8")
+    comparison_client_text = COMPARISON_CLIENT_PATH.read_text(encoding="utf-8")
+
+    compile(comparison_text, str(COMPARISON_UI_PATH), "exec")
+    compile(comparison_client_text, str(COMPARISON_CLIENT_PATH), "exec")
+
+    assert "from services.ui.comparison_ui import" in app_text
+    assert "from services.ui.comparison_client import" in comparison_text
+    assert "/discovery/papers/compare" in comparison_client_text
+    assert "requests.get(" not in comparison_text
+    assert "requests.post(" not in comparison_text
+    assert "from services.api." not in comparison_text
+    assert "canonical_documents.jsonl" not in comparison_text
+    assert '"Comparison"' in app_text
+    assert "with comparison_tab:" in app_text
+    assert app_text.count("render_add_to_comparison_button(") == 3
+    assert "add_to_comparison_button=render_add_to_comparison_button" in app_text
+    assert "Add saved paper to comparison" in collections_text
+    for marker in [
+        "MIN_COMPARISON_PAPERS",
+        "MAX_COMPARISON_PAPERS",
+        "comparison_canonical_ids",
+        "comparison_payload",
+        "add_to_comparison_basket",
+        "remove_from_comparison_basket",
+        "clear_comparison_basket",
+        "Compare selected papers",
+        "disabled=compare_disabled",
+        "Metadata and Radar scores",
+        "Pairwise semantic and graph evidence",
+        "Taxonomy, sources, and artifact differences",
+        "Artifact and implementation evidence",
+        "Citation and reference evidence",
+        "Topic-cluster context",
+        "Open compared paper in Paper workspace",
+        "Raw comparison response",
+    ]:
+        assert marker in comparison_text
 
 
 def test_citation_graph_status_live_contract_checks():

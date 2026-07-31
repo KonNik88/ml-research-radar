@@ -144,6 +144,35 @@ def test_unknown_ids_return_found_false_without_throwing():
     assert external["items"] == []
 
 
+def test_paper_comparison_evidence_uses_existing_read_only_indexes():
+    store = load_store()
+
+    evidence = store.paper_comparison_evidence(
+        ["paper:a", "paper:b", "paper:missing"]
+    )
+
+    assert list(evidence) == ["paper:a", "paper:b", "paper:missing"]
+    assert evidence["paper:a"] == {
+        "found": True,
+        "outgoing_reference_count": 2,
+        "outgoing_resolved_reference_count": 1,
+        "outgoing_external_reference_count": 1,
+        "incoming_citation_count": 0,
+        "source_families": ["openalex"],
+        "references_selected_canonical_ids": ["paper:b"],
+        "referenced_by_selected_canonical_ids": [],
+    }
+    assert evidence["paper:b"]["found"] is True
+    assert evidence["paper:b"]["incoming_citation_count"] == 2
+    assert evidence["paper:b"]["references_selected_canonical_ids"] == []
+    assert evidence["paper:b"]["referenced_by_selected_canonical_ids"] == [
+        "paper:a"
+    ]
+    assert evidence["paper:missing"]["found"] is False
+    assert evidence["paper:missing"]["outgoing_reference_count"] is None
+    assert evidence["paper:missing"]["incoming_citation_count"] is None
+
+
 def test_pagination_and_limit_validation():
     store = load_store()
 
