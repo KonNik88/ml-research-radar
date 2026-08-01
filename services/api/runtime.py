@@ -26,6 +26,7 @@ from radar_core.retrieval.dense_backend import (
 from radar_core.retrieval.qdrant_store import QdrantRetrievalStore
 from services.api.db import PostgresConfig, PostgresDocumentStore
 from services.api.logging import get_logger
+from services.api.runtime_services import build_runtime_service_status
 from services.api.settings import get_settings
 
 
@@ -656,6 +657,11 @@ class ApiRuntime:
                 expected_corpus_doc_count=corpus_doc_count,
                 force_refresh=refresh_qdrant,
             )
+
+        snapshot["service_status"] = build_runtime_service_status(
+            snapshot=snapshot,
+            settings=settings,
+        )
 
         return snapshot
 

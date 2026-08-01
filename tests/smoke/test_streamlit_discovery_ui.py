@@ -223,6 +223,22 @@ def test_streamlit_comparison_ui_is_thin_batch_client():
         assert marker in comparison_text
 
 
+def test_streamlit_runtime_service_status_is_rendered_from_runtime_snapshot():
+    app_text = APP_PATH.read_text(encoding="utf-8")
+
+    for marker in [
+        "render_runtime_service_status",
+        "Runtime services",
+        "Service status details",
+        "runtime_services_v0.1",
+        "service_status",
+        "Required services: ready",
+        "Optional unavailable",
+        "GET /runtime",
+    ]:
+        assert marker in app_text
+
+
 def test_citation_graph_status_live_contract_checks():
     checks: dict[str, bool] = {}
     extracted_values: dict = {}

@@ -31,6 +31,7 @@ canonical JSONL truth
 → Citation Graph Diagnostics UI panel
 → Citation Graph External Reference Lookup UI panel
 → Streamlit Discovery UI
+→ Runtime Service Contract v0.1
 ```
 
 Main invariant:
@@ -44,6 +45,7 @@ artifact DB = derived evidence/materialization layer
 paper_features / ranking / detail / similar / topic clusters = derived discovery layer
 Discovery API = product/discovery API over derived layers
 Streamlit UI = thin API client
+runtime_services_v0.1 = unified service/capability status over current backend mode
 Citation / Reference Graph status API = disabled-by-default status/compatibility safety surface
 Citation / Reference Graph outgoing references API = first narrow read-only traversal endpoint
 Citation / Reference Graph fixture store = internal read-only query core for fixture-backed semantics
@@ -78,6 +80,7 @@ Citation Graph UI Productization Checkpoint v0.1
 Citation Graph Store Cache & Reload Regression v0.1
 Citation Graph Failure Isolation & Error Recovery v0.1
 Citation Graph Live Smoke & Known-Issues Hardening v0.1
+Runtime Service Contract v0.1
 ```
 
 Current canonical baseline:
@@ -437,12 +440,61 @@ artifacts_root
 loaded_components
 db_connected
 qdrant
+service_status
 last_load_error
 last_loaded_at
 last_reload_at
 model_reused
 current_model_name
 ```
+
+### Service status
+
+`/runtime` includes a machine-readable `service_status` block using
+`runtime_services_v0.1`.
+
+The block summarizes required and optional runtime services for the active
+backend mode without probing additional resources beyond the runtime snapshot.
+
+Top-level fields:
+
+```text
+schema_version
+overall_status
+backend_mode
+services
+counts
+caveats
+```
+
+Expected service keys:
+
+```text
+api_runtime
+file_retrieval_runtime
+postgres_document_runtime
+search_lexical
+search_dense
+search_hybrid
+artifact_api
+workspace_collections
+qdrant_experimental
+citation_graph
+```
+
+Semantics:
+
+- `overall_status=ready` means health-blocking services for the selected backend
+  mode are available.
+- Optional services may be `unavailable`, `not_configured`, `unsupported`, or
+  `unknown` without making `/health` fail.
+- Qdrant remains optional and experimental.
+- Citation graph remains optional, disabled by default, and caveated as derived
+  local-inspection evidence.
+- Workspace availability remains endpoint-local unless DB runtime has already
+  proven shared PostgreSQL connectivity.
+
+See `docs/runtime_service_contract_v0.1.md`.
 
 ### Qdrant diagnostics
 

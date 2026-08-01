@@ -706,6 +706,65 @@ def run_api_checks(
     if health_error:
         errors["api_health_error"] = health_error
 
+    runtime_ok, runtime_payload, runtime_error = request_json(
+        base_url=base_url,
+        path="/runtime",
+        timeout_seconds=timeout_seconds,
+    )
+    service_status = (
+        runtime_payload.get("service_status")
+        if isinstance(runtime_payload.get("service_status"), dict)
+        else {}
+    )
+    runtime_services = (
+        service_status.get("services")
+        if isinstance(service_status.get("services"), dict)
+        else {}
+    )
+    runtime_service_counts = (
+        service_status.get("counts")
+        if isinstance(service_status.get("counts"), dict)
+        else {}
+    )
+    expected_runtime_services = {
+        "api_runtime",
+        "search_lexical",
+        "search_dense",
+        "search_hybrid",
+        "artifact_api",
+        "workspace_collections",
+        "qdrant_experimental",
+        "citation_graph",
+    }
+    required_count = runtime_service_counts.get("required_count")
+    required_available_count = runtime_service_counts.get("required_available_count")
+
+    checks["api_runtime_endpoint_ok"] = runtime_ok
+    checks["api_runtime_service_status_present"] = (
+        service_status.get("schema_version") == "runtime_services_v0.1"
+        and service_status.get("overall_status") == "ready"
+        and isinstance(runtime_services, dict)
+        and bool(runtime_services)
+    )
+    checks["api_runtime_service_status_services_present"] = (
+        expected_runtime_services <= set(runtime_services)
+    )
+    checks["api_runtime_service_status_required_ready"] = (
+        required_count is not None
+        and required_available_count is not None
+        and required_available_count == required_count
+    )
+    extracted_values["api_runtime_service_status_schema_version"] = (
+        service_status.get("schema_version")
+    )
+    extracted_values["api_runtime_service_status_overall"] = (
+        service_status.get("overall_status")
+    )
+    extracted_values["api_runtime_service_names"] = sorted(runtime_services)
+    extracted_values["api_runtime_service_counts"] = runtime_service_counts
+    if runtime_error:
+        errors["api_runtime_error"] = runtime_error
+
     (
         citation_graph_status_ok,
         citation_graph_status_payload,
@@ -1650,6 +1709,10 @@ def build_report(
             [
                 "api_health_endpoint_ok",
                 "api_health_ready",
+                "api_runtime_endpoint_ok",
+                "api_runtime_service_status_present",
+                "api_runtime_service_status_services_present",
+                "api_runtime_service_status_required_ready",
                 "api_citation_graph_status_endpoint_ok",
                 "api_citation_graph_status_capabilities_match",
                 "api_citation_graph_status_legacy_caveat_absent",
