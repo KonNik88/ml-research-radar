@@ -216,6 +216,7 @@ class RuntimeSnapshotResponse(BaseModel):
     last_reload_at: str | None = None
     model_reused: bool = False
     current_model_name: str | None = None
+    service_status: dict[str, Any] = Field(default_factory=dict)
 
 
 class DocumentListResponse(BaseModel):

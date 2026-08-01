@@ -1467,6 +1467,62 @@ def render_qdrant_runtime_status(runtime: dict[str, Any]) -> None:
         render_kv("Optimizer status", qdrant.get("optimizer_status"))
 
 
+def render_runtime_service_status(runtime: dict[str, Any]) -> None:
+    service_status = runtime.get("service_status")
+    if not isinstance(service_status, dict):
+        return
+
+    services = service_status.get("services")
+    if not isinstance(services, dict):
+        return
+
+    overall_status = service_status.get("overall_status")
+    counts = (
+        service_status.get("counts")
+        if isinstance(service_status.get("counts"), dict)
+        else {}
+    )
+
+    st.sidebar.markdown("### Runtime services")
+    if overall_status == "ready":
+        st.sidebar.success("Required services: ready")
+    else:
+        st.sidebar.warning(f"Required services: {dash(overall_status)}")
+
+    st.sidebar.caption(
+        "Unified runtime/service status from `GET /runtime` "
+        "using `runtime_services_v0.1`."
+    )
+
+    with st.sidebar.expander("Service status details", expanded=False):
+        render_kv("Contract", service_status.get("schema_version"))
+        render_kv("Backend", service_status.get("backend_mode"))
+        render_kv("Required available", counts.get("required_available_count"))
+        render_kv("Optional unavailable", counts.get("optional_unavailable_count"))
+
+        rows: list[dict[str, Any]] = []
+        for name, service in services.items():
+            if not isinstance(service, dict):
+                continue
+            rows.append(
+                {
+                    "service": name,
+                    "status": service.get("status"),
+                    "available": service.get("available"),
+                    "required": service.get("required"),
+                    "health_blocking": service.get("health_blocking"),
+                    "reason": service.get("reason"),
+                }
+            )
+
+        if rows:
+            st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+
+        caveats = service_status.get("caveats")
+        if isinstance(caveats, list) and caveats:
+            st.caption("Caveats: " + " · ".join(f"`{item}`" for item in caveats))
+
+
 def render_citation_graph_status_panel(base_url: str) -> None:
     st.sidebar.markdown("### Citation graph status")
     st.sidebar.caption(
@@ -1585,6 +1641,7 @@ def render_status_sidebar(base_url: str) -> None:
         render_kv("Embedding model", health.get("embedding_model_name"))
         render_kv("API version", info.get("api_version"))
 
+        render_runtime_service_status(runtime)
         render_qdrant_runtime_status(runtime)
         render_citation_graph_status_panel(base_url)
 
