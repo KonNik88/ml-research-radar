@@ -118,6 +118,17 @@ Streamlit renders the service contract in the sidebar:
 Feature tabs may still show endpoint-specific diagnostics. The sidebar contract
 is the high-level service map.
 
+Feature-level actions should use `service_status.services[*]` as the capability
+decision source before calling optional or mode-specific endpoints. In v0.2
+hardening, the UI gates:
+
+- dense/hybrid search mode actions through `search_dense` and `search_hybrid`;
+- experimental Qdrant search through `qdrant_experimental`;
+- citation graph traversal and diagnostics through `citation_graph`.
+
+Endpoint-specific diagnostics may still be rendered after a service is available,
+but UI availability should not be inferred by triggering endpoint errors.
+
 ## Validation
 
 Smoke coverage:
@@ -134,4 +145,8 @@ The validator checks:
 - `service_status.schema_version == runtime_services_v0.1`;
 - `overall_status == ready`;
 - required service count equals required available count;
-- expected service rows are present.
+- expected service rows are present;
+- Qdrant service availability matches `/runtime.qdrant`;
+- citation graph service availability matches `/citation-graph/status`;
+- Streamlit feature actions include `GET /runtime.service_status` capability
+  gating markers.

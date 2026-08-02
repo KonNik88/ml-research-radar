@@ -423,6 +423,94 @@ def first_non_empty(*values: Any) -> Any:
     return None
 
 
+def runtime_service(
+    runtime: dict[str, Any] | None,
+    service_name: str,
+) -> dict[str, Any] | None:
+    if not isinstance(runtime, dict):
+        return None
+
+    service_status = runtime.get("service_status")
+    if not isinstance(service_status, dict):
+        return None
+
+    services = service_status.get("services")
+    if not isinstance(services, dict):
+        return None
+
+    service = services.get(service_name)
+    return service if isinstance(service, dict) else None
+
+
+def current_runtime_service(service_name: str) -> dict[str, Any] | None:
+    runtime = st.session_state.get("runtime_snapshot")
+    return runtime_service(runtime, service_name)
+
+
+def service_available_from_contract(service: dict[str, Any] | None) -> bool | None:
+    if not isinstance(service, dict):
+        return None
+
+    available = service.get("available")
+    return available if isinstance(available, bool) else None
+
+
+def service_status_text(service: dict[str, Any] | None) -> str:
+    if not isinstance(service, dict):
+        return "unknown"
+
+    status = service.get("status")
+    return str(status) if status else "unknown"
+
+
+def service_reason_text(service: dict[str, Any] | None) -> str | None:
+    if not isinstance(service, dict):
+        return None
+
+    reason = service.get("reason")
+    return str(reason) if non_empty(reason) else None
+
+
+def service_capability_message(
+    *,
+    feature_label: str,
+    service: dict[str, Any] | None,
+) -> str:
+    status = service_status_text(service)
+    reason = service_reason_text(service)
+    suffix = f": {reason}" if reason else ""
+    return (
+        f"{feature_label} service status is `{status}`{suffix}. "
+        "Capability decision source: `GET /runtime.service_status`."
+    )
+
+
+def render_service_capability_hint(
+    *,
+    feature_label: str,
+    service: dict[str, Any] | None,
+) -> bool:
+    available = service_available_from_contract(service)
+
+    if available is True:
+        st.caption(
+            f"{feature_label} service is available. "
+            "Capability decision source: `GET /runtime.service_status`."
+        )
+        return True
+
+    message = service_capability_message(
+        feature_label=feature_label,
+        service=service,
+    )
+    if available is False:
+        st.warning(message)
+        return False
+
+    st.info(message)
+    return False
+
+
 def normalize_authors(value: Any, *, limit: int = 8) -> str:
     if not value:
         return "—"
@@ -464,6 +552,7 @@ def maybe_markdown_link(label: str, url: Any) -> str:
 def init_ui_state() -> None:
     defaults = {
         "api_base_url": DEFAULT_API_BASE_URL,
+        "runtime_snapshot": None,
         "profile_name": None,
         "top_k": 10,
         "query_title": "",
@@ -1426,10 +1515,17 @@ def get_profiles_or_stop(base_url: str) -> dict[str, Any]:
 # Sidebar
 # --------------------------------------------------------------------------------------
 
-def render_qdrant_runtime_status(runtime: dict[str, Any]) -> None:
+def render_qdrant_runtime_status(
+    runtime: dict[str, Any],
+    service: dict[str, Any] | None = None,
+) -> None:
     qdrant = runtime.get("qdrant")
 
     st.sidebar.markdown("### Qdrant runtime")
+    render_kv("Service status", service_status_text(service))
+    reason = service_reason_text(service)
+    if reason:
+        st.sidebar.caption(reason)
 
     if not isinstance(qdrant, dict):
         st.sidebar.info("Qdrant diagnostics are unavailable in the runtime snapshot.")
@@ -1523,11 +1619,16 @@ def render_runtime_service_status(runtime: dict[str, Any]) -> None:
             st.caption("Caveats: " + " · ".join(f"`{item}`" for item in caveats))
 
 
-def render_citation_graph_status_panel(base_url: str) -> None:
+def render_citation_graph_status_panel(
+    base_url: str,
+    service: dict[str, Any] | None = None,
+) -> None:
     st.sidebar.markdown("### Citation graph status")
+    render_kv("Service status", service_status_text(service))
     st.sidebar.caption(
         "Local citation/reference graph status from `GET /citation-graph/status`. "
-        "Read-only, compatibility-gated, and not publication-ready."
+        "Read-only, compatibility-gated, and not publication-ready. "
+        "Capability decision source: `GET /runtime.service_status`."
     )
 
     if st.sidebar.button(
@@ -1632,6 +1733,7 @@ def render_status_sidebar(base_url: str) -> None:
         health = fetch_health(base_url)
         info = fetch_info(base_url)
         runtime = fetch_runtime(base_url)
+        st.session_state["runtime_snapshot"] = runtime
 
         st.sidebar.success("API is reachable")
         render_kv("Status", health.get("status"))
@@ -1642,8 +1744,14 @@ def render_status_sidebar(base_url: str) -> None:
         render_kv("API version", info.get("api_version"))
 
         render_runtime_service_status(runtime)
-        render_qdrant_runtime_status(runtime)
-        render_citation_graph_status_panel(base_url)
+        render_qdrant_runtime_status(
+            runtime,
+            runtime_service(runtime, "qdrant_experimental"),
+        )
+        render_citation_graph_status_panel(
+            base_url,
+            runtime_service(runtime, "citation_graph"),
+        )
 
         selected_paper_id = st.session_state.get("selected_paper_canonical_id")
         if selected_paper_id:
@@ -1660,6 +1768,7 @@ def render_status_sidebar(base_url: str) -> None:
         if runtime.get("last_load_error"):
             st.sidebar.error(runtime["last_load_error"])
     except Exception as exc:
+        st.session_state["runtime_snapshot"] = None
         st.sidebar.error(f"API unavailable: {exc}")
 
 
@@ -1851,7 +1960,10 @@ def render_qdrant_search_results(payload: dict[str, Any]) -> list[dict[str, Any]
     return results
 
 
-def render_qdrant_experimental_search_block(base_url: str) -> None:
+def render_qdrant_experimental_search_block(
+    base_url: str,
+    service: dict[str, Any] | None = None,
+) -> None:
     st.markdown("---")
     with st.expander("Experimental Qdrant dense search", expanded=False):
         st.caption(
@@ -1859,6 +1971,10 @@ def render_qdrant_experimental_search_block(base_url: str) -> None:
             "Expected response mode: `dense_qdrant`. "
             "This does not change the main `/search` tab, `/search` defaults, "
             "or `ML_RADAR_SEARCH_BACKEND`."
+        )
+        qdrant_enabled = render_service_capability_hint(
+            feature_label="Experimental Qdrant search",
+            service=service,
         )
 
         qdrant_cols = st.columns([3, 1])
@@ -1881,6 +1997,7 @@ def render_qdrant_experimental_search_block(base_url: str) -> None:
             "Run experimental Qdrant search",
             type="secondary",
             width="stretch",
+            disabled=not qdrant_enabled,
         ):
             try:
                 params = build_qdrant_experimental_search_params()
@@ -1939,6 +2056,13 @@ def render_search_tab(base_url: str) -> None:
     with control_cols[3]:
         st.selectbox("Search sort by", SEARCH_SORT_OPTIONS, key="search_sort_by")
 
+    selected_search_mode = str(st.session_state.get("search_mode") or "lexical")
+    search_service = current_runtime_service(f"search_{selected_search_mode}")
+    search_mode_enabled = render_service_capability_hint(
+        feature_label=f"Search mode `{selected_search_mode}`",
+        service=search_service,
+    )
+
     offset_cols = st.columns([1, 1, 2])
     with offset_cols[0]:
         st.number_input(
@@ -1968,7 +2092,12 @@ def render_search_tab(base_url: str) -> None:
         )
         filter_cols[3].text_input("Search venue", key="search_venue", placeholder="NeurIPS")
 
-    if st.button("Run search", type="primary", width="stretch"):
+    if st.button(
+        "Run search",
+        type="primary",
+        width="stretch",
+        disabled=not search_mode_enabled,
+    ):
         try:
             params = build_search_params()
             with st.spinner("Running search..."):
@@ -1985,7 +2114,10 @@ def render_search_tab(base_url: str) -> None:
             )
             return
 
-    render_qdrant_experimental_search_block(base_url)
+    render_qdrant_experimental_search_block(
+        base_url,
+        current_runtime_service("qdrant_experimental"),
+    )
 
     payload = st.session_state.get("search_payload")
     if not payload:
@@ -3472,12 +3604,19 @@ def render_citation_graph_diagnostics_payload(
         st.json(payload)
 
 
-def render_citation_graph_diagnostics_panel(base_url: str) -> None:
+def render_citation_graph_diagnostics_panel(
+    base_url: str,
+    service: dict[str, Any] | None = None,
+) -> None:
     st.subheader("Citation graph diagnostics")
     st.caption(
         "Local citation/reference graph diagnostics from the Citation Graph API. "
         "These tables are metadata-derived, read-only, not a complete citation index, "
         "not global citation metrics, and not publication-grade rankings."
+    )
+    citation_graph_enabled = render_service_capability_hint(
+        feature_label="Citation graph diagnostics",
+        service=service,
     )
 
     control_cols = st.columns([1, 1])
@@ -3506,6 +3645,7 @@ def render_citation_graph_diagnostics_panel(base_url: str) -> None:
             "Load citation graph source families",
             key="load_citation_graph_source_families",
             width="stretch",
+            disabled=not citation_graph_enabled,
         ):
             try:
                 with st.spinner("Loading citation graph source-family diagnostics..."):
@@ -3520,6 +3660,7 @@ def render_citation_graph_diagnostics_panel(base_url: str) -> None:
             "Load citation graph top referenced papers",
             key="load_citation_graph_top_referenced_papers",
             width="stretch",
+            disabled=not citation_graph_enabled,
         ):
             try:
                 with st.spinner("Loading top referenced paper diagnostics..."):
@@ -3534,6 +3675,7 @@ def render_citation_graph_diagnostics_panel(base_url: str) -> None:
             "Load citation graph top external references",
             key="load_citation_graph_top_external_references",
             width="stretch",
+            disabled=not citation_graph_enabled,
         ):
             try:
                 with st.spinner("Loading top external reference diagnostics..."):
@@ -3546,7 +3688,8 @@ def render_citation_graph_diagnostics_panel(base_url: str) -> None:
     st.caption(
         "Requires `ML_RADAR_CITATION_GRAPH_API_ENABLED=true`. "
         "Diagnostics are local-inspection evidence only: not global citation metrics, "
-        "not publication-grade rankings, and not publication-ready."
+        "not publication-grade rankings, and not publication-ready. "
+        "The UI gates these calls through `GET /runtime.service_status`."
     )
 
     source_families_payload = st.session_state.get(
@@ -3595,12 +3738,19 @@ def render_citation_graph_diagnostics_panel(base_url: str) -> None:
 
 
 
-def render_citation_graph_external_reference_lookup_panel(base_url: str) -> None:
+def render_citation_graph_external_reference_lookup_panel(
+    base_url: str,
+    service: dict[str, Any] | None = None,
+) -> None:
     st.subheader("Citation graph external reference lookup")
     st.caption(
         "Look up papers that reference one unresolved external_reference node. "
         "This is metadata-derived local-inspection evidence, not a complete citation index, "
         "not a publication-grade reference entity, and not publication-ready."
+    )
+    citation_graph_enabled = render_service_capability_hint(
+        feature_label="Citation graph external reference lookup",
+        service=service,
     )
 
     reference_id = st.text_input(
@@ -3638,6 +3788,7 @@ def render_citation_graph_external_reference_lookup_panel(base_url: str) -> None
         "Load citation graph external reference papers",
         key="load_citation_graph_external_reference_papers",
         width="stretch",
+        disabled=not citation_graph_enabled,
     ):
         if not reference_id:
             st.warning("External reference ID is empty.")
@@ -3659,7 +3810,8 @@ def render_citation_graph_external_reference_lookup_panel(base_url: str) -> None
         "Requires `ML_RADAR_CITATION_GRAPH_API_ENABLED=true`. "
         "The external reference identifier may contain `/` or `:`; the UI uses URL quoting "
         "before calling the API path. Expected caveats include "
-        "`external_reference_is_unresolved` and `not_publication_grade_reference_entity`."
+        "`external_reference_is_unresolved` and `not_publication_grade_reference_entity`. "
+        "The UI gates this call through `GET /runtime.service_status`."
     )
 
     payload = st.session_state.get("citation_graph_external_reference_lookup_payload")
@@ -3681,12 +3833,20 @@ def render_citation_graph_external_reference_lookup_panel(base_url: str) -> None
     )
 
 
-def render_selected_paper_citation_graph_panel(base_url: str, canonical_id: str) -> None:
+def render_selected_paper_citation_graph_panel(
+    base_url: str,
+    canonical_id: str,
+    service: dict[str, Any] | None = None,
+) -> None:
     st.subheader("Selected paper citation graph evidence")
     st.caption(
         "Local citation/reference evidence from the Citation Graph API. "
         "This is metadata-derived, read-only, not a complete citation index, "
         "and not publication-ready."
+    )
+    citation_graph_enabled = render_service_capability_hint(
+        feature_label="Selected paper citation graph evidence",
+        service=service,
     )
 
     control_cols = st.columns([1, 1])
@@ -3713,6 +3873,7 @@ def render_selected_paper_citation_graph_panel(base_url: str, canonical_id: str)
             "Load selected paper outgoing references",
             key="load_selected_paper_citation_references",
             width="stretch",
+            disabled=not citation_graph_enabled,
         ):
             try:
                 with st.spinner("Loading outgoing citation graph references..."):
@@ -3732,6 +3893,7 @@ def render_selected_paper_citation_graph_panel(base_url: str, canonical_id: str)
             "Load selected paper incoming citations",
             key="load_selected_paper_citation_citations",
             width="stretch",
+            disabled=not citation_graph_enabled,
         ):
             try:
                 with st.spinner("Loading incoming citation graph citations..."):
@@ -3748,7 +3910,8 @@ def render_selected_paper_citation_graph_panel(base_url: str, canonical_id: str)
 
     st.caption(
         "Requires `ML_RADAR_CITATION_GRAPH_API_ENABLED=true`. "
-        "If disabled or incompatible, the API fails closed and the UI shows the error."
+        "The UI gates these calls through `GET /runtime.service_status`; "
+        "if the contract is unavailable, keep the API fail-closed behavior."
     )
 
     references_payload = st.session_state.get(
@@ -4096,7 +4259,11 @@ def render_paper_workspace(base_url: str) -> None:
         render_selected_paper_artifacts(base_url, detail_payload)
 
     with workspace_tabs[4]:
-        render_selected_paper_citation_graph_panel(base_url, selected_paper_id)
+        render_selected_paper_citation_graph_panel(
+            base_url,
+            selected_paper_id,
+            current_runtime_service("citation_graph"),
+        )
 
 # --------------------------------------------------------------------------------------
 # Main app
@@ -4239,10 +4406,16 @@ def main() -> None:
         )
 
     with citation_graph_diagnostics_tab:
-        render_citation_graph_diagnostics_panel(api_base_url)
+        render_citation_graph_diagnostics_panel(
+            api_base_url,
+            current_runtime_service("citation_graph"),
+        )
 
     with citation_graph_external_lookup_tab:
-        render_citation_graph_external_reference_lookup_panel(api_base_url)
+        render_citation_graph_external_reference_lookup_panel(
+            api_base_url,
+            current_runtime_service("citation_graph"),
+        )
 
     with clusters_tab:
         render_topic_clusters(api_base_url)
