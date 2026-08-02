@@ -35,6 +35,7 @@ def test_streamlit_discovery_ui_current_repo_is_green(monkeypatch):
     assert report["checks"]["comparison_ui_module_snippets_present"] is True
     assert report["checks"]["comparison_client_module_snippets_present"] is True
     assert report["checks"]["comparison_ui_uses_api_only"] is True
+    assert report["checks"]["runtime_service_decision_ui_snippets_present"] is True
     assert report["extracted_values"][
         "missing_citation_graph_status_ui_snippets"
     ] == []
@@ -52,6 +53,9 @@ def test_streamlit_discovery_ui_current_repo_is_green(monkeypatch):
     ] == []
     assert report["extracted_values"][
         "forbidden_comparison_direct_access_snippets"
+    ] == []
+    assert report["extracted_values"][
+        "missing_runtime_service_decision_ui_snippets"
     ] == []
 
 
@@ -227,6 +231,11 @@ def test_streamlit_runtime_service_status_is_rendered_from_runtime_snapshot():
     app_text = APP_PATH.read_text(encoding="utf-8")
 
     for marker in [
+        "runtime_snapshot",
+        "runtime_service",
+        "current_runtime_service",
+        "service_available_from_contract",
+        "render_service_capability_hint",
         "render_runtime_service_status",
         "Runtime services",
         "Service status details",
@@ -235,6 +244,10 @@ def test_streamlit_runtime_service_status_is_rendered_from_runtime_snapshot():
         "Required services: ready",
         "Optional unavailable",
         "GET /runtime",
+        "Capability decision source: `GET /runtime.service_status`",
+        "disabled=not search_mode_enabled",
+        "disabled=not qdrant_enabled",
+        "disabled=not citation_graph_enabled",
     ]:
         assert marker in app_text
 

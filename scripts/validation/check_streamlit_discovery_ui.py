@@ -465,6 +465,23 @@ CITATION_GRAPH_EXTERNAL_REFERENCE_LOOKUP_UI_SNIPPETS = [
     "not_publication_grade_reference_entity",
 ]
 
+RUNTIME_SERVICE_DECISION_UI_SNIPPETS = [
+    "runtime_snapshot",
+    "runtime_service",
+    "current_runtime_service",
+    "service_available_from_contract",
+    "render_service_capability_hint",
+    "Capability decision source: `GET /runtime.service_status`",
+    "Search mode `",
+    "disabled=not search_mode_enabled",
+    "Experimental Qdrant search",
+    "disabled=not qdrant_enabled",
+    "Citation graph diagnostics",
+    "disabled=not citation_graph_enabled",
+    'current_runtime_service("citation_graph")',
+    'current_runtime_service("qdrant_experimental")',
+]
+
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -679,6 +696,14 @@ def record_citation_graph_status_checks(
         errors["api_citation_graph_status_error"] = endpoint_error
 
 
+def _service_row(
+    services: dict[str, Any],
+    service_name: str,
+) -> dict[str, Any]:
+    service = services.get(service_name)
+    return service if isinstance(service, dict) else {}
+
+
 def run_api_checks(
     *,
     base_url: str,
@@ -728,6 +753,8 @@ def run_api_checks(
     )
     expected_runtime_services = {
         "api_runtime",
+        "file_retrieval_runtime",
+        "postgres_document_runtime",
         "search_lexical",
         "search_dense",
         "search_hybrid",
@@ -754,6 +781,30 @@ def run_api_checks(
         and required_available_count is not None
         and required_available_count == required_count
     )
+
+    qdrant_service = _service_row(runtime_services, "qdrant_experimental")
+    qdrant_snapshot = (
+        runtime_payload.get("qdrant")
+        if isinstance(runtime_payload.get("qdrant"), dict)
+        else {}
+    )
+    runtime_backend_mode = str(
+        service_status.get("backend_mode")
+        or runtime_payload.get("backend_mode")
+        or ""
+    )
+    if runtime_backend_mode == "file":
+        checks["api_runtime_qdrant_service_matches_snapshot"] = (
+            isinstance(qdrant_service, dict)
+            and bool(qdrant_snapshot)
+            and qdrant_service.get("available") is bool(qdrant_snapshot.get("ok"))
+        )
+    else:
+        checks["api_runtime_qdrant_service_matches_snapshot"] = (
+            qdrant_service.get("status") == "unsupported"
+            and qdrant_service.get("available") is False
+        )
+
     extracted_values["api_runtime_service_status_schema_version"] = (
         service_status.get("schema_version")
     )
@@ -781,6 +832,16 @@ def run_api_checks(
         checks=checks,
         extracted_values=extracted_values,
         errors=errors,
+    )
+    citation_service = _service_row(runtime_services, "citation_graph")
+    citation_availability = (
+        citation_graph_status_payload.get("availability")
+        if isinstance(citation_graph_status_payload.get("availability"), dict)
+        else {}
+    )
+    checks["api_runtime_citation_graph_service_matches_status"] = (
+        bool(citation_service)
+        and citation_service.get("available") is citation_availability.get("available")
     )
 
     profiles_ok, profiles_payload, profiles_error = request_json(
@@ -1512,6 +1573,10 @@ def build_report(
         app_text,
         CITATION_GRAPH_EXTERNAL_REFERENCE_LOOKUP_UI_SNIPPETS,
     )
+    missing_runtime_service_decision = missing_snippets(
+        app_text,
+        RUNTIME_SERVICE_DECISION_UI_SNIPPETS,
+    )
     forbidden_citation_graph_direct_access = [
         snippet
         for snippet in CITATION_GRAPH_FORBIDDEN_DIRECT_ACCESS_SNIPPETS
@@ -1586,6 +1651,9 @@ def build_report(
     checks["citation_graph_ui_uses_api_only"] = (
         not forbidden_citation_graph_direct_access
     )
+    checks["runtime_service_decision_ui_snippets_present"] = (
+        not missing_runtime_service_decision
+    )
 
     extracted_values["missing_required_ui_snippets"] = missing_required
     extracted_values["missing_discovery_endpoint_strings"] = missing_discovery
@@ -1643,6 +1711,9 @@ def build_report(
     )
     extracted_values["forbidden_citation_graph_direct_access_snippets"] = (
         forbidden_citation_graph_direct_access
+    )
+    extracted_values["missing_runtime_service_decision_ui_snippets"] = (
+        missing_runtime_service_decision
     )
 
     if check_api:
@@ -1702,6 +1773,7 @@ def build_report(
         "citation_graph_diagnostics_ui_snippets_present",
         "citation_graph_external_reference_lookup_ui_snippets_present",
         "citation_graph_ui_uses_api_only",
+        "runtime_service_decision_ui_snippets_present",
     ]
 
     if check_api:
@@ -1713,10 +1785,12 @@ def build_report(
                 "api_runtime_service_status_present",
                 "api_runtime_service_status_services_present",
                 "api_runtime_service_status_required_ready",
+                "api_runtime_qdrant_service_matches_snapshot",
                 "api_citation_graph_status_endpoint_ok",
                 "api_citation_graph_status_capabilities_match",
                 "api_citation_graph_status_legacy_caveat_absent",
                 "api_citation_graph_status_available_caveats_match",
+                "api_runtime_citation_graph_service_matches_status",
                 "api_profiles_endpoint_ok",
                 "api_profiles_non_empty",
                 "api_ranking_override_endpoint_ok",

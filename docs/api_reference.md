@@ -493,6 +493,9 @@ Semantics:
   local-inspection evidence.
 - Workspace availability remains endpoint-local unless DB runtime has already
   proven shared PostgreSQL connectivity.
+- Streamlit feature actions use `service_status.services[*]` as the capability
+  decision source for mode-specific and optional endpoints instead of inferring
+  availability from endpoint errors.
 
 See `docs/runtime_service_contract_v0.1.md`.
 
