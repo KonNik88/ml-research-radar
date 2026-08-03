@@ -150,3 +150,41 @@ The validator checks:
 - citation graph service availability matches `/citation-graph/status`;
 - Streamlit feature actions include `GET /runtime.service_status` capability
   gating markers.
+
+## Regression Matrix
+
+`scripts.validation.check_runtime_service_contract` is the narrow regression
+validator for this contract. It validates the service matrix independently from
+the Streamlit UI validator.
+
+Static fixture matrix:
+
+```bash
+python -m scripts.validation.check_runtime_service_contract --strict
+```
+
+Live API matrix:
+
+```bash
+python -m scripts.validation.check_runtime_service_contract --strict --check-api
+```
+
+The static matrix covers:
+
+- ready file backend with dense/hybrid file search available and Qdrant
+  unavailable;
+- ready file backend with dense/hybrid file search unavailable;
+- ready DB backend with dense/hybrid and Qdrant explicitly unsupported;
+- unavailable DB backend where required runtime services block health;
+- enabled-but-missing citation graph root as optional unavailable;
+- unsupported backend mode as health-blocking unavailable.
+
+The matrix intentionally checks service boundaries rather than endpoint business
+logic. It protects the contract invariants:
+
+- expected service rows are present;
+- service row schema is stable;
+- service status values stay within the contract enum;
+- generated `counts` match the actual service rows;
+- optional Qdrant and citation graph services remain non-health-blocking;
+- `overall_status` follows the health-blocking service boundary.
