@@ -181,6 +181,10 @@ def _create_sample_project(tmp_path: Path) -> dict[str, Path]:
         pipeline_path,
         "\n".join(
             [
+                "refresh_preflight",
+                "scripts.validation.check_refresh_preflight_contract",
+                "--skip-refresh-preflight",
+                "--require-refresh-cycle-report",
                 "scripts.update.run_incremental_reconcile_stage",
                 "scripts.update.promote_canonical_candidate",
                 "scripts.export.export_postgres_v1",

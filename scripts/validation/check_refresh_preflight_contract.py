@@ -528,6 +528,10 @@ def build_static_summaries(args: argparse.Namespace) -> dict[str, Any]:
         "refresh_preflight_contract_v0.1",
     ]
     required_pipeline_snippets = [
+        "refresh_preflight",
+        "scripts.validation.check_refresh_preflight_contract",
+        "--skip-refresh-preflight",
+        "--require-refresh-cycle-report",
         "scripts.update.run_incremental_reconcile_stage",
         "scripts.update.promote_canonical_candidate",
         "scripts.export.export_postgres_v1",

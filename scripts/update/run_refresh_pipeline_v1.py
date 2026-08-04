@@ -16,6 +16,7 @@ DEFAULT_VALIDATION_DIR = Path("artifacts/reports/validation")
 
 
 STEP_ORDER = [
+    "refresh_preflight",
     "reconcile_candidate",
     "candidate_provenance_audit",
     "promote_candidate",
@@ -68,6 +69,8 @@ TOPIC_PROJECTION_STEPS = {
 STREAMLIT_UI_STEPS = {
     "streamlit_discovery_ui_check",
 }
+
+PREFLIGHT_STEP = "refresh_preflight"
 
 GITHUB_ENRICHMENT_STEPS = {
     "github_artifact_enrichment",
@@ -280,6 +283,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Last step to include in this pipeline run.",
     )
     parser.add_argument(
+        "--skip-refresh-preflight",
+        action="store_true",
+        help=(
+            "Skip the read-only refresh preflight gate. Intended only for local "
+            "debugging of downstream commands."
+        ),
+    )
+    parser.add_argument(
         "--require-known-issues",
         action="store_true",
         help="Forward --require-known-issues to DoD check.",
@@ -402,9 +413,45 @@ def paper_feature_stages_enabled(args: argparse.Namespace) -> bool:
     return bool(args.require_paper_features)
 
 
+def refresh_preflight_check_db_enabled(args: argparse.Namespace) -> bool:
+    return step_before_or_at_stop("export_postgres", args.stop_after)
+
+
+def build_refresh_preflight_cmd(
+    args: argparse.Namespace,
+    candidate_path: Path,
+) -> list[str]:
+    cmd = [
+        sys.executable,
+        "-m",
+        "scripts.validation.check_refresh_preflight_contract",
+        "--strict",
+        "--require-known-issues",
+        "--require-merged-inputs",
+        "--require-refresh-cycle-report",
+        "--candidate-path",
+        str(candidate_path),
+    ]
+
+    if args.arxiv_input is not None:
+        cmd.extend(["--arxiv-input", str(args.arxiv_input)])
+
+    if args.merge_report:
+        for item in args.merge_report:
+            cmd.extend(["--merge-report", item])
+
+    if refresh_preflight_check_db_enabled(args):
+        cmd.append("--check-db")
+
+    return cmd
+
+
 def step_enabled(step_name: str, args: argparse.Namespace) -> tuple[bool, str]:
     if not step_before_or_at_stop(step_name, args.stop_after):
         return False, f"Excluded because stop-after={args.stop_after}"
+
+    if step_name == PREFLIGHT_STEP and args.skip_refresh_preflight:
+        return False, "Refresh preflight skipped by --skip-refresh-preflight"
 
     if step_name in GITHUB_ENRICHMENT_STEPS and not args.include_github_enrichment:
         return False, "GitHub enrichment stages require --include-github-enrichment"
@@ -473,6 +520,8 @@ def main() -> None:
     ]
     if args.execute:
         promote_cmd.append("--execute")
+
+    refresh_preflight_cmd = build_refresh_preflight_cmd(args, candidate_path)
 
     canonical_contract_cmd = [
         sys.executable,
@@ -602,6 +651,7 @@ def main() -> None:
         dod_cmd.append("--require-streamlit-discovery-ui")
 
     step_cmds = {
+        "refresh_preflight": refresh_preflight_cmd,
         "reconcile_candidate": reconcile_cmd,
         "candidate_provenance_audit": candidate_provenance_cmd,
         "promote_candidate": promote_cmd,
@@ -706,6 +756,8 @@ def main() -> None:
             "require_streamlit_discovery_ui": bool(args.require_streamlit_discovery_ui),
             "topic_cluster_stages_enabled": topic_cluster_stages_enabled(args),
             "streamlit_ui_stages_enabled": streamlit_ui_stages_enabled(args),
+            "skip_refresh_preflight": bool(args.skip_refresh_preflight),
+            "refresh_preflight_check_db": refresh_preflight_check_db_enabled(args),
         },
         "candidate": {
             "path": normalize_path(candidate_path),
