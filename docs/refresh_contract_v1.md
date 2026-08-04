@@ -975,6 +975,29 @@ For the full refresh-start gate, use:
 python -m scripts.validation.check_refresh_preflight_contract --strict --require-known-issues --require-merged-inputs --require-refresh-cycle-report --check-db
 ```
 
+`run_refresh_pipeline_v1` wires this validator as its first planned step:
+
+```text
+refresh_preflight
+→ reconcile candidate
+→ candidate provenance audit
+→ promote candidate
+→ export / rebuild / validate derived layers
+```
+
+In `--execute` mode the wrapper runs the full strict preflight gate before any
+canonical candidate, promotion, export, retrieval, topic, API/UI, or DoD step.
+When the selected `--stop-after` reaches `export_postgres` or a later step, the
+wrapper also forwards `--check-db` to the preflight. To run only the preflight
+through the wrapper:
+
+```bat
+python -m scripts.update.run_refresh_pipeline_v1 --stop-after refresh_preflight --execute
+```
+
+`--skip-refresh-preflight` exists only as an explicit local-debug escape hatch.
+It must not be used for a real refresh / controlled corpus expansion run.
+
 This validator is intentionally earlier than `check_refresh_definition_of_done`.
 It answers whether the current operational state is safe enough to begin a
 refresh; DoD answers whether the post-refresh state is complete enough to accept.
@@ -998,6 +1021,7 @@ Boundary:
 
 ```text
 check_refresh_preflight_contract is read-only
+run_refresh_pipeline_v1 executes it before mutating refresh steps by default
 no canonical candidate is built
 no canonical latest is promoted
 no Postgres export is run
