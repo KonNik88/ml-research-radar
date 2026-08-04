@@ -35,72 +35,73 @@ What is considered a green checkpoint?
 Current working checkpoint:
 
 ```text
-Discovery Green Checkpoint вЂ” 2026-05
-Qdrant runtime visibility sync вЂ” 2026-06
-Artifact API filters validation + DoD gate вЂ” 2026-06
-Regression runner DB preflight вЂ” 2026-06
-Discovery regression runner summary report вЂ” 2026-06
-Dataset release track checkpoint вЂ” 2026-06
-PaperвЂ“Artifact Graph Line Checkpoint v0.1 вЂ” 2026-07 completed read-only graph-line checkpoint
-PaperвЂ“Artifact Graph Manual Review Checklist v0.1 вЂ” 2026-07 completed read-only manual-review governance slice
-PaperвЂ“Artifact Graph Analytics v0.1 вЂ” 2026-07 completed read-only graph analytics/report slice
-Citation / Reference Graph Contract v0.1 вЂ” 2026-07 completed contract-only derived citation/reference graph slice
-Citation / Reference Graph Builder v0.1 вЂ” 2026-07 completed file-first derived citation/reference graph builder slice
-Citation / Reference Graph Inspection v0.1 вЂ” 2026-07 completed read-only citation/reference graph inspection/report slice
-Citation / Reference Graph Reference Normalization Fix v0.1.1 вЂ” 2026-07 completed OpenAlex/reference-id normalization fix
-Citation / Reference Graph Query CLI v0.1 вЂ” 2026-07 completed read-only offline citation/reference graph query slice
-Citation / Reference Graph Docs Counter Refresh v0.1 вЂ” 2026-07 completed docs-only counter/status refresh
-Citation / Reference Graph Release Candidate v0.1 вЂ” 2026-07 completed read-only release-candidate readiness gate
-Citation / Reference Graph Package v0.1 вЂ” 2026-07 completed local package candidate layer
-Citation / Reference Graph Line Checkpoint v0.1 вЂ” 2026-07 completed read-only line checkpoint
-Citation / Reference Graph Manual Review Checklist v0.1 вЂ” 2026-07 completed read-only manual-review governance gate
-Citation / Reference Graph Analytics v0.1 вЂ” 2026-07 completed read-only analytics/report layer
-Graph Review Evidence Pack v0.1 вЂ” 2026-07 completed local read-only graph review evidence pack
-Citation / Reference Graph API Design v0.1 вЂ” 2026-07 completed design-only API contract
-Graph API Response Fixture Design v0.1 вЂ” 2026-07 completed design-only response/caveat fixture contract
-Graph Runtime Stale-Version Compatibility Design v0.1 вЂ” 2026-07 completed design-only compatibility contract
-Citation / Reference Graph API Implementation Plan v0.1 вЂ” 2026-07 completed implementation-plan-only checkpoint
-Citation Graph API Disabled Status Endpoint v0.1 вЂ” 2026-07 completed status-only disabled-by-default API slice
-Citation Graph API Docs Sync v0.1 вЂ” 2026-07 completed docs synchronization slice after disabled status endpoint
-Citation Graph Status Compatibility Probe v0.1 вЂ” 2026-07 completed read-only status compatibility probe slice
-Citation Graph Status Compatibility Docs Sync v0.1 вЂ” 2026-07 completed docs synchronization slice
-Citation Graph Fixture Store v0.1 вЂ” 2026-07 completed internal read-only fixture-backed query-core slice
-Citation Graph Fixture Store Docs Sync v0.1 вЂ” 2026-07 completed docs synchronization slice
-Citation Graph Outgoing References Endpoint v0.1 вЂ” 2026-07 completed first narrow traversal endpoint slice
-Citation Graph Outgoing References Endpoint Docs Sync v0.1 вЂ” 2026-07 completed docs synchronization slice
-Citation Graph Incoming Citations Endpoint v0.1 вЂ” 2026-07 completed second narrow traversal endpoint slice
-Citation Graph Incoming Citations Endpoint Docs Sync v0.1 вЂ” 2026-07 completed docs synchronization slice
-Citation Graph Traversal API Checkpoint v0.1 вЂ” 2026-07 completed docs-only regression-hardening checkpoint
-Citation Graph External Reference Papers Endpoint v0.1 вЂ” 2026-07 completed third narrow traversal endpoint slice
-Citation Graph External Reference Papers Endpoint Docs Sync v0.1 вЂ” 2026-07 completed docs synchronization slice
-Citation Graph Source Families Endpoint v0.1 вЂ” 2026-07 completed fourth narrow diagnostics endpoint slice
-Citation Graph Source Families Endpoint Docs Sync v0.1 вЂ” 2026-07 completed docs synchronization slice
-Citation Graph Traversal API Checkpoint v0.2 вЂ” 2026-07 completed docs-only regression-hardening checkpoint
-Citation Graph Top Referenced Papers Endpoint v0.1 вЂ” 2026-07 completed fifth narrow diagnostics endpoint slice
-Citation Graph Top Referenced Papers Endpoint Docs Sync v0.1 вЂ” 2026-07 completed docs synchronization slice
-Citation Graph Top External References Endpoint v0.1 вЂ” 2026-07 completed sixth narrow diagnostics endpoint slice
-Citation Graph Top External References Endpoint Docs Sync v0.1 вЂ” 2026-07 completed docs synchronization slice
-Citation Graph Traversal API Checkpoint v0.3 вЂ” 2026-07 completed docs-only regression-hardening checkpoint
-Citation Graph API Regression Check v0.1 вЂ” 2026-07 completed static graph API regression validator
-Citation Graph API Regression DoD Wiring v0.1 вЂ” 2026-07 completed optional DoD gate wiring
-Graph API / Streamlit Productization Design v0.1 вЂ” 2026-07 completed design-only productization checkpoint
-Citation Graph Streamlit Status Panel v0.1 вЂ” 2026-07 completed first UI status-panel slice
-Citation Graph Paper Workspace Panel v0.1 вЂ” 2026-07 completed selected-paper citation/reference evidence UI slice
-Citation Graph Diagnostics UI v0.1 вЂ” 2026-07 completed graph diagnostics table UI slice
-Citation Graph External Reference Lookup UI v0.1 вЂ” 2026-07 completed external-reference lookup UI slice
-Citation Graph UI Productization Checkpoint v0.1 вЂ” 2026-07 completed validator-light docs/validation checkpoint
-Citation Graph Store Cache & Reload Regression v0.1 вЂ” 2026-07 completed regression-hardening slice over bounded store-cache invalidation and graph-artifact no-mutation semantics
-Citation Graph Failure Isolation & Error Recovery v0.1 вЂ” 2026-07 completed regression-hardening slice over graph-scoped file errors, health independence, cache non-poisoning, and repair/retry recovery
-Citation Graph Live Smoke & Known-Issues Hardening v0.1 вЂ” 2026-07 completed operator-facing live-validation and limitations-documentation slice
-Citation Graph Manual-Review Evidence Preparation v0.1 вЂ” 2026-07 completed read-only evidence-preparation slice over the existing 18-category checklist
-Manual Citation Graph Review Execution v0.1 вЂ” 2026-07 completed explicit human-review closure slice; 18/18 categories passed, approval recorded, publication remains out of scope
-Public Metadata Release Policy & Kaggle Packaging v0.1 вЂ” 2026-07 completed source-aware metadata policy and local Kaggle-ready packaging slice
-Public Metadata Release Manual-Review Evidence Preparation v0.1 вЂ” 2026-07 completed read-only 20-category checklist/evidence slice; no automated approval or publication
-Manual Public Metadata Release Review Execution v0.1 вЂ” 2026-07 completed explicit human-review closure slice; review completed with 15 passed / 5 failed, approval_state=rejected, publication remains blocked and out of scope
-Citation Graph Lifecycle Consistency v0.1 вЂ” 2026-07 completed API/docs/tests lifecycle-semantics hardening for the implemented file-backed traversal surface versus the unimplemented promoted full graph runtime
-Citation Graph UI Lifecycle Status Sync v0.1 вЂ” 2026-07 completed Streamlit status-panel, validator, live-API, and smoke-test synchronization
-Source Observation Materialization Identity v0.1 вЂ” 2026-07 completed deterministic source-observation materialization identity
-Source Observation Materialization Operational Promotion v0.1 вЂ” 2026-07 completed default-DB promotion with checked backups and retained rollback DB
+Discovery Green Checkpoint — 2026-05
+Qdrant runtime visibility sync — 2026-06
+Artifact API filters validation + DoD gate — 2026-06
+Regression runner DB preflight — 2026-06
+Discovery regression runner summary report — 2026-06
+Dataset release track checkpoint — 2026-06
+Paper–Artifact Graph Line Checkpoint v0.1 — 2026-07 completed read-only graph-line checkpoint
+Paper–Artifact Graph Manual Review Checklist v0.1 — 2026-07 completed read-only manual-review governance slice
+Paper–Artifact Graph Analytics v0.1 — 2026-07 completed read-only graph analytics/report slice
+Citation / Reference Graph Contract v0.1 — 2026-07 completed contract-only derived citation/reference graph slice
+Citation / Reference Graph Builder v0.1 — 2026-07 completed file-first derived citation/reference graph builder slice
+Citation / Reference Graph Inspection v0.1 — 2026-07 completed read-only citation/reference graph inspection/report slice
+Citation / Reference Graph Reference Normalization Fix v0.1.1 — 2026-07 completed OpenAlex/reference-id normalization fix
+Citation / Reference Graph Query CLI v0.1 — 2026-07 completed read-only offline citation/reference graph query slice
+Citation / Reference Graph Docs Counter Refresh v0.1 — 2026-07 completed docs-only counter/status refresh
+Citation / Reference Graph Release Candidate v0.1 — 2026-07 completed read-only release-candidate readiness gate
+Citation / Reference Graph Package v0.1 — 2026-07 completed local package candidate layer
+Citation / Reference Graph Line Checkpoint v0.1 — 2026-07 completed read-only line checkpoint
+Citation / Reference Graph Manual Review Checklist v0.1 — 2026-07 completed read-only manual-review governance gate
+Citation / Reference Graph Analytics v0.1 — 2026-07 completed read-only analytics/report layer
+Graph Review Evidence Pack v0.1 — 2026-07 completed local read-only graph review evidence pack
+Citation / Reference Graph API Design v0.1 — 2026-07 completed design-only API contract
+Graph API Response Fixture Design v0.1 — 2026-07 completed design-only response/caveat fixture contract
+Graph Runtime Stale-Version Compatibility Design v0.1 — 2026-07 completed design-only compatibility contract
+Citation / Reference Graph API Implementation Plan v0.1 — 2026-07 completed implementation-plan-only checkpoint
+Citation Graph API Disabled Status Endpoint v0.1 — 2026-07 completed status-only disabled-by-default API slice
+Citation Graph API Docs Sync v0.1 — 2026-07 completed docs synchronization slice after disabled status endpoint
+Citation Graph Status Compatibility Probe v0.1 — 2026-07 completed read-only status compatibility probe slice
+Citation Graph Status Compatibility Docs Sync v0.1 — 2026-07 completed docs synchronization slice
+Citation Graph Fixture Store v0.1 — 2026-07 completed internal read-only fixture-backed query-core slice
+Citation Graph Fixture Store Docs Sync v0.1 — 2026-07 completed docs synchronization slice
+Citation Graph Outgoing References Endpoint v0.1 — 2026-07 completed first narrow traversal endpoint slice
+Citation Graph Outgoing References Endpoint Docs Sync v0.1 — 2026-07 completed docs synchronization slice
+Citation Graph Incoming Citations Endpoint v0.1 — 2026-07 completed second narrow traversal endpoint slice
+Citation Graph Incoming Citations Endpoint Docs Sync v0.1 — 2026-07 completed docs synchronization slice
+Citation Graph Traversal API Checkpoint v0.1 — 2026-07 completed docs-only regression-hardening checkpoint
+Citation Graph External Reference Papers Endpoint v0.1 — 2026-07 completed third narrow traversal endpoint slice
+Citation Graph External Reference Papers Endpoint Docs Sync v0.1 — 2026-07 completed docs synchronization slice
+Citation Graph Source Families Endpoint v0.1 — 2026-07 completed fourth narrow diagnostics endpoint slice
+Citation Graph Source Families Endpoint Docs Sync v0.1 — 2026-07 completed docs synchronization slice
+Citation Graph Traversal API Checkpoint v0.2 — 2026-07 completed docs-only regression-hardening checkpoint
+Citation Graph Top Referenced Papers Endpoint v0.1 — 2026-07 completed fifth narrow diagnostics endpoint slice
+Citation Graph Top Referenced Papers Endpoint Docs Sync v0.1 — 2026-07 completed docs synchronization slice
+Citation Graph Top External References Endpoint v0.1 — 2026-07 completed sixth narrow diagnostics endpoint slice
+Citation Graph Top External References Endpoint Docs Sync v0.1 — 2026-07 completed docs synchronization slice
+Citation Graph Traversal API Checkpoint v0.3 — 2026-07 completed docs-only regression-hardening checkpoint
+Citation Graph API Regression Check v0.1 — 2026-07 completed static graph API regression validator
+Citation Graph API Regression DoD Wiring v0.1 — 2026-07 completed optional DoD gate wiring
+Graph API / Streamlit Productization Design v0.1 — 2026-07 completed design-only productization checkpoint
+Citation Graph Streamlit Status Panel v0.1 — 2026-07 completed first UI status-panel slice
+Citation Graph Paper Workspace Panel v0.1 — 2026-07 completed selected-paper citation/reference evidence UI slice
+Citation Graph Diagnostics UI v0.1 — 2026-07 completed graph diagnostics table UI slice
+Citation Graph External Reference Lookup UI v0.1 — 2026-07 completed external-reference lookup UI slice
+Citation Graph UI Productization Checkpoint v0.1 — 2026-07 completed validator-light docs/validation checkpoint
+Citation Graph Store Cache & Reload Regression v0.1 — 2026-07 completed regression-hardening slice over bounded store-cache invalidation and graph-artifact no-mutation semantics
+Citation Graph Failure Isolation & Error Recovery v0.1 — 2026-07 completed regression-hardening slice over graph-scoped file errors, health independence, cache non-poisoning, and repair/retry recovery
+Citation Graph Live Smoke & Known-Issues Hardening v0.1 — 2026-07 completed operator-facing live-validation and limitations-documentation slice
+Citation Graph Manual-Review Evidence Preparation v0.1 — 2026-07 completed read-only evidence-preparation slice over the existing 18-category checklist
+Manual Citation Graph Review Execution v0.1 — 2026-07 completed explicit human-review closure slice; 18/18 categories passed, approval recorded, publication remains out of scope
+Public Metadata Release Policy & Kaggle Packaging v0.1 — 2026-07 completed source-aware metadata policy and local Kaggle-ready packaging slice
+Public Metadata Release Manual-Review Evidence Preparation v0.1 — 2026-07 completed read-only 20-category checklist/evidence slice; no automated approval or publication
+Manual Public Metadata Release Review Execution v0.1 — 2026-07 completed explicit human-review closure slice; review completed with 15 passed / 5 failed, approval_state=rejected, publication remains blocked and out of scope
+Citation Graph Lifecycle Consistency v0.1 — 2026-07 completed API/docs/tests lifecycle-semantics hardening for the implemented file-backed traversal surface versus the unimplemented promoted full graph runtime
+Citation Graph UI Lifecycle Status Sync v0.1 — 2026-07 completed Streamlit status-panel, validator, live-API, and smoke-test synchronization
+Source Observation Materialization Identity v0.1 — 2026-07 completed deterministic source-observation materialization identity
+Source Observation Materialization Operational Promotion v0.1 — 2026-07 completed default-DB promotion with checked backups and retained rollback DB
+Refresh Preflight Contract v0.1 — 2026-08 completed read-only refresh-start validator before controlled corpus expansion
 ```
 
 Current healthy baseline:
@@ -132,12 +133,13 @@ artifact_entities_db_count = 7333
 artifact_observations_db_count = 38246
 paper_artifact_links_db_count = 7430
 
-github_found_count в‰€ 5339
-huggingface_found_count в‰€ 77
+github_found_count ≈ 5339
+huggingface_found_count ≈ 77
 
 artifact_api_filters_check = ok
 artifact_api_filters_required_failed_count = 0
 artifact_api_filters_dod_gate = optional by default / required with --require-artifact-api-filters
+refresh_preflight_contract_v0.1 = read_only_refresh_start_gate
 regression_runner_db_preflight = enabled for DB-backed regression steps
 discovery_api_regression_runner_report = enabled
 dataset_release_track_checkpoint = local_candidate_validation_enabled
@@ -302,13 +304,13 @@ Correct pattern:
 
 ```text
 selective enrichment
-в†’ merge selective batch into full alignment snapshot
-в†’ reconcile using explicit full merged inputs
-в†’ validate candidate
-в†’ promote candidate
-в†’ export/rebuild derived layers
-в†’ validate reports
-в†’ strict DoD
+→ merge selective batch into full alignment snapshot
+→ reconcile using explicit full merged inputs
+→ validate candidate
+→ promote candidate
+→ export/rebuild derived layers
+→ validate reports
+→ strict DoD
 ```
 
 Key rule:
@@ -472,7 +474,7 @@ Citation Graph API = implemented seven-route local-inspection API block
 Citation Graph API regression validator = available
 Citation Graph API regression DoD gate = optional by default / required with --require-citation-graph-api-regression
 Streamlit UI = thin API client
-PaperвЂ“Artifact evidence = served first through existing Artifact API endpoints
+Paper–Artifact evidence = served first through existing Artifact API endpoints
 ```
 
 Completed UI productization steps:
@@ -497,11 +499,11 @@ no publication
 no change to /search, Qdrant, ranking, canonical truth, retrieval, or Postgres materialization
 ```
 
-PaperвЂ“Artifact Graph UI rule:
+Paper–Artifact Graph UI rule:
 
 ```text
 Use /artifacts, /artifacts/{artifact_id}/papers, and /documents/{canonical_id}/artifacts first.
-Design a dedicated PaperвЂ“Artifact Graph API only if those existing surfaces are insufficient for a concrete UI requirement.
+Design a dedicated Paper–Artifact Graph API only if those existing surfaces are insufficient for a concrete UI requirement.
 ```
 
 Suggested design-slice validation:
@@ -869,7 +871,7 @@ In the UI:
 protein language models
 ```
 
-4. Set top K to 5вЂ“10.
+4. Set top K to 5–10.
 5. Click **Run experimental Qdrant search**.
 
 Expected:
@@ -958,7 +960,52 @@ There are two valid styles:
 1. use the thin orchestration wrapper;
 2. run individual steps manually while debugging.
 
-## Option A вЂ” thin orchestration wrapper
+## Refresh preflight contract v0.1
+
+Before running a real refresh or controlled corpus expansion, run the read-only
+preflight validator:
+
+```bat
+python -m scripts.validation.check_refresh_preflight_contract --strict
+```
+
+For the full refresh-start gate, use:
+
+```bat
+python -m scripts.validation.check_refresh_preflight_contract --strict --require-known-issues --require-merged-inputs --require-refresh-cycle-report --check-db
+```
+
+This validator is intentionally earlier than `check_refresh_definition_of_done`.
+It answers whether the current operational state is safe enough to begin a
+refresh; DoD answers whether the post-refresh state is complete enough to accept.
+
+The preflight checks:
+
+```text
+canonical latest exists, is non-empty, and has unique canonical_id values
+candidate output path differs from canonical latest
+latest full arXiv snapshot is available
+retrieval manifest count and build id are synchronized with retrieval checks
+postpass audit and canonical contract match canonical latest
+known issues snapshot matches canonical/retrieval when required
+merged full snapshots are resolved from OpenAlex / Semantic Scholar / Crossref merge reports when required
+latest incremental refresh cycle is ready for reconcile when required
+Postgres read smoke matches canonical latest when --check-db is selected
+run_refresh_pipeline_v1 / run_incremental_reconcile_stage / promote_canonical_candidate still expose the expected safety markers
+```
+
+Boundary:
+
+```text
+check_refresh_preflight_contract is read-only
+no canonical candidate is built
+no canonical latest is promoted
+no Postgres export is run
+no retrieval, Qdrant, topic, graph, ranking, API, or UI artifact is rebuilt
+generated latest/history reports are not committed by default
+```
+
+## Option A — thin orchestration wrapper
 
 Example:
 
@@ -970,19 +1017,19 @@ Intended high-level sequence:
 
 ```text
 reconcile candidate
-в†’ candidate provenance audit
-в†’ promote candidate
-в†’ export canonical to Postgres
-в†’ rebuild retrieval artifacts
-в†’ run retrieval checks
-в†’ run postpass audit
-в†’ build known issues snapshot
-в†’ DoD check
+→ candidate provenance audit
+→ promote candidate
+→ export canonical to Postgres
+→ rebuild retrieval artifacts
+→ run retrieval checks
+→ run postpass audit
+→ build known issues snapshot
+→ DoD check
 ```
 
 After wrapper completion, run downstream product checks if the wrapper does not already cover them.
 
-## Option B вЂ” step-by-step execution
+## Option B — step-by-step execution
 
 ### 1. Build canonical candidate
 
@@ -1187,11 +1234,11 @@ This accepted slice follows the builder/output-validator checkpoint and adds the
 
 ```text
 contract
-в†’ builder
-в†’ output validator
-в†’ reference-id normalization fix
-в†’ inspection
-в†’ query CLI
+→ builder
+→ output validator
+→ reference-id normalization fix
+→ inspection
+→ query CLI
 ```
 
 Inspection script:
@@ -1255,10 +1302,10 @@ reference_resolution_ratio = 0.00869
 Current v0.1 interpretation:
 
 ```text
-reference_resolution_ratio в‰€ 0.87%
+reference_resolution_ratio ≈ 0.87%
 Most explicit references remain unresolved external_reference evidence.
 This is a quality/coverage diagnostic, not a failure of the inspection slice.
-Internal paperв†’paper reference edges remain conservative resolved links only.
+Internal paper→paper reference edges remain conservative resolved links only.
 OpenAlex references from `referenced_ids` are now normalized as `openalex_id`, not DOI-like URL values.
 ```
 
@@ -1277,8 +1324,8 @@ reference field distribution
 source-family distribution
 top referenced canonical papers
 top external references
-sample paperв†’paper edges
-sample paperв†’external_reference edges
+sample paper→paper edges
+sample paper→external_reference edges
 ```
 
 Generated reports:
@@ -1912,8 +1959,8 @@ reference field distribution
 source-family distribution
 top referenced canonical papers
 top external references
-sample paperв†’paper edges
-sample paperв†’external_reference edges
+sample paper→paper edges
+sample paper→external_reference edges
 manual-review caveat summary
 ```
 
@@ -2018,43 +2065,43 @@ Enabled local-inspection behavior:
 ```text
 ML_RADAR_CITATION_GRAPH_API_ENABLED=true
 GET /citation-graph/status
-в†’ read-only probe of configured graph root and validation reports
-в†’ available=true/false depending on compatibility
+→ read-only probe of configured graph root and validation reports
+→ available=true/false depending on compatibility
 
 GET /citation-graph/papers/{canonical_id}/references
-в†’ read-only outgoing reference evidence for one canonical paper
-в†’ may include resolved paper references and unresolved external_reference evidence
-в†’ requires compatible local graph status
+→ read-only outgoing reference evidence for one canonical paper
+→ may include resolved paper references and unresolved external_reference evidence
+→ requires compatible local graph status
 
 GET /citation-graph/papers/{canonical_id}/citations
-в†’ read-only incoming citation evidence for one canonical paper
-в†’ includes only resolved internal paper_references_paper edges
-в†’ unresolved external references are not counted as incoming canonical-paper citations
-в†’ requires compatible local graph status
+→ read-only incoming citation evidence for one canonical paper
+→ includes only resolved internal paper_references_paper edges
+→ unresolved external references are not counted as incoming canonical-paper citations
+→ requires compatible local graph status
 
 GET /citation-graph/external-references/{reference_id}/papers
-в†’ read-only reverse lookup for one unresolved external_reference
-в†’ returns papers with paper_references_external edges to that external_reference
-в†’ accepts external_reference node id, reference_key, or normalized_value
-в†’ DOI-like values with `/` require URL encoding
-в†’ requires compatible local graph status
+→ read-only reverse lookup for one unresolved external_reference
+→ returns papers with paper_references_external edges to that external_reference
+→ accepts external_reference node id, reference_key, or normalized_value
+→ DOI-like values with `/` require URL encoding
+→ requires compatible local graph status
 
 GET /citation-graph/source-families
-в†’ read-only source-family reference-evidence diagnostics
-в†’ not a source coverage metric
-в†’ requires compatible local graph status
+→ read-only source-family reference-evidence diagnostics
+→ not a source coverage metric
+→ requires compatible local graph status
 
 GET /citation-graph/top-referenced-papers
-в†’ read-only top resolved internal reference-count diagnostics
-в†’ counts only paper_references_paper incoming edges
-в†’ not a global citation metric or publication-grade ranking
-в†’ requires compatible local graph status
+→ read-only top resolved internal reference-count diagnostics
+→ counts only paper_references_paper incoming edges
+→ not a global citation metric or publication-grade ranking
+→ requires compatible local graph status
 
 GET /citation-graph/top-external-references
-в†’ read-only top unresolved external-reference diagnostics
-в†’ counts only paper_references_external incoming edges to external_reference nodes
-в†’ not a global citation metric, publication-grade ranking, or bibliographic entity catalog
-в†’ requires compatible local graph status
+→ read-only top unresolved external-reference diagnostics
+→ counts only paper_references_external incoming edges to external_reference nodes
+→ not a global citation metric, publication-grade ranking, or bibliographic entity catalog
+→ requires compatible local graph status
 ```
 
 Common graph API error codes:
@@ -2666,12 +2713,12 @@ Expected generated local candidate layout:
 
 ```text
 data/datasets_release/ml_research_radar_metadata/v0.1/
-в”њв”Ђв”Ђ data.parquet
-в”њв”Ђв”Ђ schema.json
-в”њв”Ђв”Ђ manifest.json
-в”њв”Ђв”Ђ README.md
-в”њв”Ђв”Ђ data_quality_summary.json
-в””в”Ђв”Ђ checksums.txt
+├── data.parquet
+├── schema.json
+├── manifest.json
+├── README.md
+├── data_quality_summary.json
+└── checksums.txt
 ```
 
 Recommended validation sequence:
@@ -3892,7 +3939,7 @@ reference type and field distributions
 source-family distribution
 top referenced canonical papers
 top external references
-sample paperв†’paper and paperв†’external_reference edges
+sample paper→paper and paper→external_reference edges
 ```
 
 Boundary notes:
@@ -4803,7 +4850,7 @@ Primary architecture follow-up:
 Field-Level Canonical Provenance Contract v0.1
 ```
 
-# Source Observation Materialization Operational Promotion v0.1 вЂ” completed procedure
+# Source Observation Materialization Operational Promotion v0.1 — completed procedure
 
 This was a bounded one-time operational promotion, not a canonical refresh.
 
@@ -4811,13 +4858,13 @@ Completed sequence:
 
 ```text
 read-only preflight 24/24
-в†’ operational + candidate custom-format dumps
-в†’ pg_restore --list evidence
-в†’ backup-required preflight 28/28
-в†’ old ml_radar renamed to rollback name
-в†’ candidate renamed to ml_radar
-в†’ post-promotion validation 29/29
-в†’ DB/artifact/parity/Artifact API product gates
+→ operational + candidate custom-format dumps
+→ pg_restore --list evidence
+→ backup-required preflight 28/28
+→ old ml_radar renamed to rollback name
+→ candidate renamed to ml_radar
+→ post-promotion validation 29/29
+→ DB/artifact/parity/Artifact API product gates
 ```
 
 Backup evidence:
