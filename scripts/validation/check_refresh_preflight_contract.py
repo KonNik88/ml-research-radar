@@ -526,10 +526,14 @@ def build_static_summaries(args: argparse.Namespace) -> dict[str, Any]:
         "merged full snapshots",
         "check_refresh_preflight_contract",
         "refresh_preflight_contract_v0.1",
+        "Controlled refresh rehearsal",
     ]
     required_pipeline_snippets = [
         "refresh_preflight",
         "scripts.validation.check_refresh_preflight_contract",
+        "--candidate-rehearsal",
+        "REHEARSAL_STOP_STEP",
+        "canonical_documents.rehearsal_candidate",
         "--skip-refresh-preflight",
         "--require-refresh-cycle-report",
         "scripts.update.run_incremental_reconcile_stage",
