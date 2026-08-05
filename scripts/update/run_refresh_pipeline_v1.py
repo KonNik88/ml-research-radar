@@ -71,6 +71,9 @@ STREAMLIT_UI_STEPS = {
 }
 
 PREFLIGHT_STEP = "refresh_preflight"
+REHEARSAL_STOP_STEP = "candidate_provenance_audit"
+REHEARSAL_CANDIDATE_PREFIX = "canonical_documents.rehearsal_candidate"
+PIPELINE_CANDIDATE_PREFIX = "canonical_documents.pipeline_candidate"
 
 GITHUB_ENRICHMENT_STEPS = {
     "github_artifact_enrichment",
@@ -184,6 +187,7 @@ def build_markdown(report: dict[str, Any]) -> str:
     lines.append(f"- Generated at: {report['generated_at_utc']}")
     lines.append(f"- Run ts: `{report['run_ts']}`")
     lines.append(f"- Mode: `{report['mode']}`")
+    lines.append(f"- Pipeline mode: `{report['pipeline_mode']}`")
     lines.append(f"- Stop after: `{report['stop_after']}`")
     lines.append("")
 
@@ -281,6 +285,15 @@ def build_parser() -> argparse.ArgumentParser:
         choices=STEP_ORDER,
         default="dod_check",
         help="Last step to include in this pipeline run.",
+    )
+    parser.add_argument(
+        "--candidate-rehearsal",
+        action="store_true",
+        help=(
+            "Run the controlled candidate rehearsal path: refresh preflight, "
+            "reconcile candidate, and candidate provenance audit only. Promotion "
+            "and downstream derived-layer stages are intentionally excluded."
+        ),
     )
     parser.add_argument(
         "--skip-refresh-preflight",
@@ -386,6 +399,57 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+REHEARSAL_FORBIDDEN_FLAGS = {
+    "skip_refresh_preflight": "--skip-refresh-preflight",
+    "require_known_issues": "--require-known-issues",
+    "require_artifacts": "--require-artifacts",
+    "include_github_enrichment": "--include-github-enrichment",
+    "require_github_enrichment": "--require-github-enrichment",
+    "include_huggingface_enrichment": "--include-huggingface-enrichment",
+    "require_huggingface_enrichment": "--require-huggingface-enrichment",
+    "require_paper_features": "--require-paper-features",
+    "require_similar_papers": "--require-similar-papers",
+    "require_discovery_api": "--require-discovery-api",
+    "build_topic_clusters": "--build-topic-clusters",
+    "require_topic_clusters": "--require-topic-clusters",
+    "build_topic_projection": "--build-topic-projection",
+    "require_topic_projection": "--require-topic-projection",
+    "require_streamlit_discovery_ui": "--require-streamlit-discovery-ui",
+}
+
+
+def apply_rehearsal_defaults(args: argparse.Namespace) -> None:
+    if not args.candidate_rehearsal:
+        return
+
+    forbidden = [
+        flag for attr, flag in REHEARSAL_FORBIDDEN_FLAGS.items() if getattr(args, attr)
+    ]
+    if forbidden:
+        joined = ", ".join(sorted(forbidden))
+        raise SystemExit(f"--candidate-rehearsal cannot be combined with: {joined}")
+
+    if args.stop_after == "dod_check":
+        args.stop_after = REHEARSAL_STOP_STEP
+    elif STEP_ORDER.index(args.stop_after) > STEP_ORDER.index(REHEARSAL_STOP_STEP):
+        raise SystemExit(
+            "--candidate-rehearsal cannot run past "
+            f"{REHEARSAL_STOP_STEP}; got stop-after={args.stop_after}"
+        )
+
+
+def resolve_candidate_path(args: argparse.Namespace, run_ts: str) -> Path:
+    if args.candidate_path is not None:
+        return args.candidate_path
+
+    prefix = (
+        REHEARSAL_CANDIDATE_PREFIX
+        if args.candidate_rehearsal
+        else PIPELINE_CANDIDATE_PREFIX
+    )
+    return args.canonical_dir / f"{prefix}.{run_ts}.jsonl"
+
+
 def step_before_or_at_stop(step_name: str, stop_after: str) -> bool:
     return STEP_ORDER.index(step_name) <= STEP_ORDER.index(stop_after)
 
@@ -481,13 +545,10 @@ def step_enabled(step_name: str, args: argparse.Namespace) -> tuple[bool, str]:
 
 def main() -> None:
     args = build_parser().parse_args()
+    apply_rehearsal_defaults(args)
     run_ts = utc_now_ts()
 
-    candidate_path = (
-        args.candidate_path
-        if args.candidate_path is not None
-        else args.canonical_dir / f"canonical_documents.pipeline_candidate.{run_ts}.jsonl"
-    )
+    candidate_path = resolve_candidate_path(args, run_ts)
 
     reconcile_cmd = [
         sys.executable,
@@ -730,6 +791,9 @@ def main() -> None:
         "generated_at_utc": utc_now_iso(),
         "run_ts": run_ts,
         "mode": "execute" if args.execute else "dry_run",
+        "pipeline_mode": (
+            "candidate_rehearsal" if args.candidate_rehearsal else "standard"
+        ),
         "stop_after": args.stop_after,
         "inputs": {
             "arxiv_input": normalize_path(args.arxiv_input),
@@ -758,6 +822,14 @@ def main() -> None:
             "streamlit_ui_stages_enabled": streamlit_ui_stages_enabled(args),
             "skip_refresh_preflight": bool(args.skip_refresh_preflight),
             "refresh_preflight_check_db": refresh_preflight_check_db_enabled(args),
+            "candidate_rehearsal": bool(args.candidate_rehearsal),
+        },
+        "rehearsal_boundary": {
+            "enabled": bool(args.candidate_rehearsal),
+            "stop_step": REHEARSAL_STOP_STEP,
+            "candidate_path_prefix": REHEARSAL_CANDIDATE_PREFIX,
+            "promotion_allowed": False,
+            "downstream_derived_layers_allowed": False,
         },
         "candidate": {
             "path": normalize_path(candidate_path),
@@ -780,7 +852,9 @@ def main() -> None:
     dump_text(hist_md, build_markdown(report))
 
     print(f"[OK] mode={report['mode']}")
+    print(f"[OK] pipeline_mode={report['pipeline_mode']}")
     print(f"[OK] stop_after={report['stop_after']}")
+    print(f"[OK] candidate_rehearsal={bool(args.candidate_rehearsal)}")
     print(f"[OK] require_artifacts={bool(args.require_artifacts)}")
     print(f"[OK] include_github_enrichment={bool(args.include_github_enrichment)}")
     print(f"[OK] require_github_enrichment={bool(args.require_github_enrichment)}")

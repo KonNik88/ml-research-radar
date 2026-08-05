@@ -172,6 +172,7 @@ def _create_sample_project(tmp_path: Path) -> dict[str, Path]:
                 "merged full snapshots",
                 "check_refresh_preflight_contract",
                 "refresh_preflight_contract_v0.1",
+                "Controlled refresh rehearsal",
             ]
         ),
     )
@@ -183,6 +184,9 @@ def _create_sample_project(tmp_path: Path) -> dict[str, Path]:
             [
                 "refresh_preflight",
                 "scripts.validation.check_refresh_preflight_contract",
+                "--candidate-rehearsal",
+                "REHEARSAL_STOP_STEP",
+                "canonical_documents.rehearsal_candidate",
                 "--skip-refresh-preflight",
                 "--require-refresh-cycle-report",
                 "scripts.update.run_incremental_reconcile_stage",

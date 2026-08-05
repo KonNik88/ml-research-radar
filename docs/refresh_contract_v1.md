@@ -1029,6 +1029,56 @@ no retrieval, Qdrant, topic, graph, ranking, API, or UI artifact is rebuilt
 generated latest/history reports are not committed by default
 ```
 
+## Controlled refresh rehearsal
+
+Use this as the first executable refresh rehearsal after the strict preflight is
+green and before any promotion/export/retrieval rebuild is considered.
+
+Dry-run:
+
+```bat
+python -m scripts.update.run_refresh_pipeline_v1 --candidate-rehearsal
+```
+
+Execute only the bounded rehearsal:
+
+```bat
+python -m scripts.update.run_refresh_pipeline_v1 --candidate-rehearsal --execute
+```
+
+`--candidate-rehearsal` expands to:
+
+```text
+refresh_preflight
+→ reconcile candidate
+→ candidate provenance audit
+```
+
+Boundary:
+
+```text
+stop_after = candidate_provenance_audit
+candidate output defaults to data\analytics\reconciled\canonical_documents.rehearsal_candidate.<run_ts>.jsonl
+promotion is not planned or executed
+canonical latest is not overwritten
+Postgres export is not run
+retrieval, Qdrant, topic, graph, ranking, API, UI, and DoD stages are not run
+downstream flags such as --require-artifacts / --require-paper-features / --require-streamlit-discovery-ui are rejected
+generated reports and candidate outputs are local evidence artifacts, not committed by default
+```
+
+After a green rehearsal, inspect:
+
+```text
+artifacts\reports\update\run_refresh_pipeline_v1_latest.json
+artifacts\reports\update\run_incremental_reconcile_stage_latest.json
+artifacts\reports\validation\canonical_provenance_consistency_latest.json
+data\analytics\reconciled\canonical_documents.rehearsal_candidate.<run_ts>.jsonl
+```
+
+Only if the candidate summary and provenance audit are acceptable should the next
+branch discuss explicit promotion and downstream rebuild/export steps.
+
 ## Option A — thin orchestration wrapper
 
 Example:
@@ -1040,7 +1090,8 @@ python -m scripts.update.run_refresh_pipeline_v1 --arxiv-input data\normalized\a
 Intended high-level sequence:
 
 ```text
-reconcile candidate
+refresh_preflight
+→ reconcile candidate
 → candidate provenance audit
 → promote candidate
 → export canonical to Postgres
