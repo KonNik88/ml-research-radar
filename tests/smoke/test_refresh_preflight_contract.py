@@ -173,6 +173,7 @@ def _create_sample_project(tmp_path: Path) -> dict[str, Path]:
                 "check_refresh_preflight_contract",
                 "refresh_preflight_contract_v0.1",
                 "Controlled refresh rehearsal",
+                "Refresh candidate delta review",
             ]
         ),
     )
@@ -187,6 +188,8 @@ def _create_sample_project(tmp_path: Path) -> dict[str, Path]:
                 "--candidate-rehearsal",
                 "REHEARSAL_STOP_STEP",
                 "canonical_documents.rehearsal_candidate",
+                "candidate_delta_review",
+                "scripts.validation.check_refresh_candidate_delta",
                 "--skip-refresh-preflight",
                 "--require-refresh-cycle-report",
                 "scripts.update.run_incremental_reconcile_stage",

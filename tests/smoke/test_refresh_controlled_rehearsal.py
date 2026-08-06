@@ -13,10 +13,10 @@ def _args(*items: str):
     return args
 
 
-def test_candidate_rehearsal_defaults_to_candidate_audit_stop() -> None:
+def test_candidate_rehearsal_defaults_to_candidate_delta_review_stop() -> None:
     args = _args("--candidate-rehearsal")
 
-    assert args.stop_after == "candidate_provenance_audit"
+    assert args.stop_after == "candidate_delta_review"
 
 
 def test_candidate_rehearsal_uses_rehearsal_candidate_prefix() -> None:
@@ -43,6 +43,7 @@ def test_candidate_rehearsal_execute_plan_stops_before_promotion() -> None:
         "refresh_preflight",
         "reconcile_candidate",
         "candidate_provenance_audit",
+        "candidate_delta_review",
     ]
     assert "promote_candidate" not in enabled_steps
     assert "export_postgres" not in enabled_steps
@@ -66,3 +67,19 @@ def test_candidate_rehearsal_rejects_skip_preflight() -> None:
 def test_candidate_rehearsal_rejects_stop_after_promotion() -> None:
     with pytest.raises(SystemExit):
         _args("--candidate-rehearsal", "--stop-after", "promote_candidate")
+
+
+def test_candidate_rehearsal_can_stop_at_provenance_audit_for_debug() -> None:
+    args = _args("--candidate-rehearsal", "--stop-after", "candidate_provenance_audit")
+
+    enabled_steps = [
+        step_name
+        for step_name in pipeline.STEP_ORDER
+        if pipeline.step_enabled(step_name, args)[0]
+    ]
+
+    assert enabled_steps == [
+        "refresh_preflight",
+        "reconcile_candidate",
+        "candidate_provenance_audit",
+    ]

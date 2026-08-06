@@ -14,6 +14,12 @@ def test_refresh_preflight_is_first_pipeline_step() -> None:
     assert pipeline.STEP_ORDER.index("refresh_preflight") < pipeline.STEP_ORDER.index(
         "reconcile_candidate"
     )
+    assert pipeline.STEP_ORDER.index("candidate_provenance_audit") < (
+        pipeline.STEP_ORDER.index("candidate_delta_review")
+    )
+    assert pipeline.STEP_ORDER.index("candidate_delta_review") < pipeline.STEP_ORDER.index(
+        "promote_candidate"
+    )
 
 
 def test_execute_pipeline_preflight_cmd_uses_full_gate_by_default() -> None:
@@ -37,7 +43,7 @@ def test_execute_pipeline_preflight_cmd_uses_full_gate_by_default() -> None:
 
 
 def test_candidate_only_pipeline_preflight_does_not_require_db() -> None:
-    args = _args("--execute", "--stop-after", "candidate_provenance_audit")
+    args = _args("--execute", "--stop-after", "candidate_delta_review")
     cmd = pipeline.build_refresh_preflight_cmd(
         args,
         Path("data/analytics/reconciled/canonical_documents.pipeline_candidate.test.jsonl"),

@@ -981,6 +981,7 @@ python -m scripts.validation.check_refresh_preflight_contract --strict --require
 refresh_preflight
 → reconcile candidate
 → candidate provenance audit
+→ candidate delta review
 → promote candidate
 → export / rebuild / validate derived layers
 ```
@@ -1013,6 +1014,7 @@ postpass audit and canonical contract match canonical latest
 known issues snapshot matches canonical/retrieval when required
 merged full snapshots are resolved from OpenAlex / Semantic Scholar / Crossref merge reports when required
 latest incremental refresh cycle is ready for reconcile when required
+runbook/wrapper expose candidate delta review before promotion
 Postgres read smoke matches canonical latest when --check-db is selected
 run_refresh_pipeline_v1 / run_incremental_reconcile_stage / promote_canonical_candidate still expose the expected safety markers
 ```
@@ -1052,12 +1054,13 @@ python -m scripts.update.run_refresh_pipeline_v1 --candidate-rehearsal --execute
 refresh_preflight
 → reconcile candidate
 → candidate provenance audit
+→ candidate delta review
 ```
 
 Boundary:
 
 ```text
-stop_after = candidate_provenance_audit
+stop_after = candidate_delta_review
 candidate output defaults to data\analytics\reconciled\canonical_documents.rehearsal_candidate.<run_ts>.jsonl
 promotion is not planned or executed
 canonical latest is not overwritten
@@ -1073,11 +1076,69 @@ After a green rehearsal, inspect:
 artifacts\reports\update\run_refresh_pipeline_v1_latest.json
 artifacts\reports\update\run_incremental_reconcile_stage_latest.json
 artifacts\reports\validation\canonical_provenance_consistency_latest.json
+artifacts\reports\validation\refresh_candidate_delta_review_latest.json
 data\analytics\reconciled\canonical_documents.rehearsal_candidate.<run_ts>.jsonl
 ```
 
-Only if the candidate summary and provenance audit are acceptable should the next
-branch discuss explicit promotion and downstream rebuild/export steps.
+Only if the candidate summary, provenance audit, and delta review are acceptable
+should the next branch discuss explicit promotion and downstream rebuild/export
+steps.
+
+## Refresh candidate delta review
+
+Use this pre-promotion gate to compare the current canonical latest corpus with a
+refresh candidate or rehearsal candidate. It is read-only and writes validation
+evidence only.
+
+Standalone command:
+
+```bat
+python -m scripts.validation.check_refresh_candidate_delta --strict --candidate-path data\analytics\reconciled\canonical_documents.rehearsal_candidate.<run_ts>.jsonl
+```
+
+The wrapper runs the same gate automatically before `promote_candidate`:
+
+```text
+candidate_provenance_audit
+→ candidate_delta_review
+→ promote_candidate
+```
+
+The report answers:
+
+```text
+baseline_doc_count
+candidate_doc_count
+doc_count_delta
+added_count
+removed_count
+changed_retained_count
+identifier_churn_count
+source_family_changed_count
+multisource_docs_delta
+source_family_delta
+```
+
+Strict defaults are conservative:
+
+```text
+removed_count must be 0
+identifier_churn_count must be 0
+candidate_doc_count must not be smaller than canonical latest
+canonical and candidate canonical_id values must be present and unique
+candidate path must differ from canonical latest
+```
+
+Boundary:
+
+```text
+check_refresh_candidate_delta is read-only
+canonical latest is not overwritten
+candidate is not promoted
+Postgres export is not run
+retrieval, Qdrant, topic, graph, ranking, API, UI, and DoD stages are not run
+generated latest/history reports are local evidence artifacts, not committed by default
+```
 
 ## Option A — thin orchestration wrapper
 
@@ -1093,6 +1154,7 @@ Intended high-level sequence:
 refresh_preflight
 → reconcile candidate
 → candidate provenance audit
+→ candidate delta review
 → promote candidate
 → export canonical to Postgres
 → rebuild retrieval artifacts
