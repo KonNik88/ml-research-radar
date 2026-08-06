@@ -19,6 +19,7 @@ STEP_ORDER = [
     "refresh_preflight",
     "reconcile_candidate",
     "candidate_provenance_audit",
+    "candidate_delta_review",
     "promote_candidate",
     "canonical_contract_check",
     "export_postgres",
@@ -71,9 +72,10 @@ STREAMLIT_UI_STEPS = {
 }
 
 PREFLIGHT_STEP = "refresh_preflight"
-REHEARSAL_STOP_STEP = "candidate_provenance_audit"
+REHEARSAL_STOP_STEP = "candidate_delta_review"
 REHEARSAL_CANDIDATE_PREFIX = "canonical_documents.rehearsal_candidate"
 PIPELINE_CANDIDATE_PREFIX = "canonical_documents.pipeline_candidate"
+CANDIDATE_DELTA_REPORT_NAME = "refresh_candidate_delta_review"
 
 GITHUB_ENRICHMENT_STEPS = {
     "github_artifact_enrichment",
@@ -207,6 +209,12 @@ def build_markdown(report: dict[str, Any]) -> str:
             lines.append(f"- {k}: `{v}`")
         lines.append("")
 
+    if report.get("candidate_delta_review"):
+        lines.append("## Candidate delta review")
+        for k, v in report["candidate_delta_review"].items():
+            lines.append(f"- {k}: `{v}`")
+        lines.append("")
+
     lines.append("## Planned steps")
     for step in report["planned_steps"]:
         lines.append(
@@ -291,8 +299,9 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help=(
             "Run the controlled candidate rehearsal path: refresh preflight, "
-            "reconcile candidate, and candidate provenance audit only. Promotion "
-            "and downstream derived-layer stages are intentionally excluded."
+            "reconcile candidate, candidate provenance audit, and candidate delta "
+            "review only. Promotion and downstream derived-layer stages are "
+            "intentionally excluded."
         ),
     )
     parser.add_argument(
@@ -572,6 +581,19 @@ def main() -> None:
         str(candidate_path),
     ]
 
+    candidate_delta_cmd = [
+        sys.executable,
+        "-m",
+        "scripts.validation.check_refresh_candidate_delta",
+        "--strict",
+        "--canonical-path",
+        str(args.canonical_dir / "canonical_documents.jsonl"),
+        "--candidate-path",
+        str(candidate_path),
+        "--reports-dir",
+        str(args.validation_dir),
+    ]
+
     promote_cmd = [
         sys.executable,
         "-m",
@@ -715,6 +737,7 @@ def main() -> None:
         "refresh_preflight": refresh_preflight_cmd,
         "reconcile_candidate": reconcile_cmd,
         "candidate_provenance_audit": candidate_provenance_cmd,
+        "candidate_delta_review": candidate_delta_cmd,
         "promote_candidate": promote_cmd,
         "canonical_contract_check": canonical_contract_cmd,
         "export_postgres": export_cmd,
@@ -836,6 +859,18 @@ def main() -> None:
             "exists": candidate_path.exists(),
         },
         "candidate_summary": candidate_summary,
+        "candidate_delta_review": {
+            "step_name": "candidate_delta_review",
+            "latest_json": normalize_path(
+                args.validation_dir / f"{CANDIDATE_DELTA_REPORT_NAME}_latest.json"
+            ),
+            "latest_markdown": normalize_path(
+                args.validation_dir / f"{CANDIDATE_DELTA_REPORT_NAME}_latest.md"
+            ),
+            "strict": True,
+            "promotion_gate": True,
+            "read_only": True,
+        },
         "planned_steps": planned_steps,
         "execution_summary": execution_summary,
         "executed_steps": executed_steps,
@@ -868,6 +903,10 @@ def main() -> None:
     if candidate_summary:
         print(f"[OK] candidate_doc_count={candidate_summary['doc_count']}")
         print(f"[OK] candidate_multisource_docs={candidate_summary['multisource_docs']}")
+    print(
+        "[OK] candidate_delta_review_latest="
+        f"{args.validation_dir / (CANDIDATE_DELTA_REPORT_NAME + '_latest.json')}"
+    )
     print(f"[OK] executed_count={execution_summary['executed_count']}")
     print(f"[OK] failed_count={execution_summary['failed_count']}")
     print(f"[OK] failed_step_names={execution_summary['failed_step_names']}")
