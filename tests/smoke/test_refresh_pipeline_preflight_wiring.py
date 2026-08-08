@@ -52,6 +52,19 @@ def test_candidate_only_pipeline_preflight_does_not_require_db() -> None:
     assert "--check-db" not in cmd
 
 
+def test_pipeline_preflight_forwards_explicit_acl_input() -> None:
+    acl_input = "data/normalized/acl_anthology/documents_latest.jsonl"
+    args = _args("--execute", "--acl-input", acl_input)
+    cmd = pipeline.build_refresh_preflight_cmd(
+        args,
+        Path("data/analytics/reconciled/canonical_documents.pipeline_candidate.test.jsonl"),
+    )
+
+    assert "--acl-input" in cmd
+    acl_arg_index = cmd.index("--acl-input") + 1
+    assert cmd[acl_arg_index].replace("\\", "/") == acl_input
+
+
 def test_stop_after_preflight_excludes_downstream_steps() -> None:
     args = _args("--execute", "--stop-after", "refresh_preflight")
 

@@ -45,6 +45,7 @@ DEFAULT_RECONCILE_STAGE_SCRIPT_PATH = Path(
 DEFAULT_PROMOTE_SCRIPT_PATH = Path("scripts/update/promote_canonical_candidate.py")
 
 PRIMARY_JSONL_RE = re.compile(r"^documents\.\d{8}T\d{6}Z\.jsonl$")
+ACL_SOURCE_NAME = "acl_anthology"
 DEFAULT_MERGE_REPORTS = {
     "openalex_alignment": DEFAULT_UPDATE_DIR / "merge_openalex_alignment_latest.json",
     "semantic_scholar_alignment": (
@@ -176,6 +177,8 @@ def report_ok(report: Mapping[str, Any] | None) -> bool:
 
 def is_full_snapshot_file(path: Path) -> bool:
     name = path.name
+    if name == "documents_latest.jsonl":
+        return True
     if PRIMARY_JSONL_RE.match(name):
         return True
     if not name.startswith("documents") or not name.endswith(".jsonl"):
@@ -373,6 +376,19 @@ def summarize_source_input(normalized_root: Path, arxiv_input: Path | None) -> d
     }
 
 
+def summarize_acl_input(normalized_root: Path, acl_input: Path | None) -> dict[str, Any]:
+    resolved = acl_input if acl_input is not None else find_latest_full_snapshot(
+        normalized_root / ACL_SOURCE_NAME
+    )
+    rows = count_jsonl_rows(resolved)
+    return {
+        **rows,
+        "source_name": ACL_SOURCE_NAME,
+        "resolved_from": "explicit" if acl_input is not None else "latest_full_snapshot",
+        "full_snapshot_shape": bool(resolved and is_full_snapshot_file(resolved)),
+    }
+
+
 def parse_merge_report_arg(raw: str) -> tuple[str, Path]:
     if "=" not in raw:
         raise ValueError(
@@ -528,6 +544,7 @@ def build_static_summaries(args: argparse.Namespace) -> dict[str, Any]:
         "refresh_preflight_contract_v0.1",
         "Controlled refresh rehearsal",
         "Refresh candidate delta review",
+        "acl_anthology",
     ]
     required_pipeline_snippets = [
         "refresh_preflight",
@@ -551,6 +568,8 @@ def build_static_summaries(args: argparse.Namespace) -> dict[str, Any]:
         "latest-only reconcile is intentionally forbidden",
         "merge_reports_resolved_ok",
         "safe_to_execute",
+        "acl_anthology",
+        "--acl-input",
     ]
     required_promote_snippets = [
         "backup_before_promotion",
@@ -627,6 +646,10 @@ def build_required_check_names(args: argparse.Namespace) -> list[str]:
     if args.require_merged_inputs:
         required.extend(
             [
+                "acl_input_exists",
+                "acl_input_non_empty",
+                "acl_input_jsonl_valid",
+                "acl_input_is_full_snapshot",
                 "merge_reports_expected_count",
                 "merge_reports_all_exist",
                 "merge_reports_all_declare_snapshots",
@@ -664,6 +687,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
 
     canonical = summarize_canonical(args.canonical_path)
     arxiv_input = summarize_source_input(args.normalized_root, args.arxiv_input)
+    acl_input = summarize_acl_input(args.normalized_root, args.acl_input)
     manifest = summarize_manifest(args.manifest_path)
 
     retrieval_checks = summarize_report(args.retrieval_checks_path)
@@ -788,6 +812,10 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "arxiv_input_non_empty": safe_int(arxiv_input["rows_count"]) > 0,
         "arxiv_input_jsonl_valid": arxiv_input["bad_json_count"] == 0,
         "arxiv_input_is_full_snapshot": arxiv_input["full_snapshot_shape"],
+        "acl_input_exists": acl_input["exists"],
+        "acl_input_non_empty": safe_int(acl_input["rows_count"]) > 0,
+        "acl_input_jsonl_valid": acl_input["bad_json_count"] == 0,
+        "acl_input_is_full_snapshot": acl_input["full_snapshot_shape"],
         "manifest_exists": manifest["exists"],
         "manifest_build_id_present": bool(manifest_build_id),
         "manifest_doc_count_matches_canonical": (
@@ -896,6 +924,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
             "candidate_path": normalize_path(args.candidate_path),
             "normalized_root": normalize_path(args.normalized_root),
             "arxiv_input": normalize_path(args.arxiv_input),
+            "acl_input": normalize_path(args.acl_input),
             "update_dir": normalize_path(args.update_dir),
             "manifest_path": normalize_path(args.manifest_path),
             "retrieval_checks_path": normalize_path(args.retrieval_checks_path),
@@ -911,6 +940,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         },
         "canonical_summary": canonical,
         "arxiv_input_summary": arxiv_input,
+        "acl_input_summary": acl_input,
         "retrieval_manifest": manifest,
         "report_summaries": {
             "retrieval_checks": {
@@ -1007,6 +1037,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--candidate-path", type=Path, default=DEFAULT_CANDIDATE_PATH)
     parser.add_argument("--normalized-root", type=Path, default=DEFAULT_NORMALIZED_ROOT)
     parser.add_argument("--arxiv-input", type=Path, default=None)
+    parser.add_argument("--acl-input", type=Path, default=None)
     parser.add_argument("--update-dir", type=Path, default=DEFAULT_UPDATE_DIR)
     parser.add_argument("--manifest-path", type=Path, default=DEFAULT_MANIFEST_PATH)
     parser.add_argument(
