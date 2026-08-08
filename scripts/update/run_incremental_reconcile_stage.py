@@ -14,6 +14,7 @@ DEFAULT_REPORTS_DIR = Path("artifacts/reports")
 DEFAULT_UPDATE_DIR = DEFAULT_REPORTS_DIR / "update"
 DEFAULT_CANONICAL_DIR = Path("data/analytics/reconciled")
 DEFAULT_NORMALIZED_DIR = Path("data/normalized")
+ACL_SOURCE_NAME = "acl_anthology"
 
 DEFAULT_MERGE_REPORTS = {
     "openalex_alignment": DEFAULT_UPDATE_DIR / "merge_openalex_alignment_latest.json",
@@ -133,6 +134,9 @@ def summarize_canonical(path: Path) -> dict[str, Any]:
 
 def is_full_snapshot_file(path: Path) -> bool:
     name = path.name
+    if name == "documents_latest.jsonl":
+        return True
+
     if not name.startswith("documents.") or not name.endswith(".jsonl"):
         return False
 
@@ -152,9 +156,20 @@ def discover_latest_full_snapshot(source_dir: Path) -> Path:
         p for p in source_dir.glob("documents.*.jsonl")
         if is_full_snapshot_file(p)
     )
-    if not candidates:
-        raise FileNotFoundError(f"No full snapshot JSONL found in: {source_dir}")
-    return candidates[-1]
+    if candidates:
+        return candidates[-1]
+
+    latest_path = source_dir / "documents_latest.jsonl"
+    if latest_path.exists() and is_full_snapshot_file(latest_path):
+        return latest_path
+
+    raise FileNotFoundError(f"No full snapshot JSONL found in: {source_dir}")
+
+
+def resolve_acl_input(normalized_dir: Path, explicit_path: Path | None) -> Path:
+    if explicit_path is not None:
+        return explicit_path
+    return discover_latest_full_snapshot(normalized_dir / ACL_SOURCE_NAME)
 
 
 def parse_merge_report_arg(raw: str) -> tuple[str, Path]:
@@ -323,6 +338,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Explicit full arXiv snapshot JSONL path. If omitted, latest full arXiv snapshot is discovered automatically.",
     )
     parser.add_argument(
+        "--acl-input",
+        type=Path,
+        default=None,
+        help=(
+            "Explicit full ACL Anthology snapshot JSONL path. If omitted, latest "
+            "full acl_anthology snapshot is discovered automatically."
+        ),
+    )
+    parser.add_argument(
         "--merge-report",
         action="append",
         default=None,
@@ -371,9 +395,14 @@ def main() -> None:
     if not arxiv_input.exists():
         raise FileNotFoundError(f"Resolved arXiv input not found: {arxiv_input}")
 
+    acl_input = resolve_acl_input(normalized_dir, args.acl_input)
+    if not acl_input.exists():
+        raise FileNotFoundError(f"Resolved ACL Anthology input not found: {acl_input}")
+
     merge_report_specs = resolve_merge_report_specs(args.merge_report)
     merge_reports_used: list[dict[str, Any]] = []
     resolved_alignment_inputs: list[Path] = []
+    resolved_stable_source_inputs: dict[str, Path] = {ACL_SOURCE_NAME: acl_input}
 
     missing_merge_reports: list[str] = []
     failed_merge_reports: list[str] = []
@@ -440,10 +469,19 @@ def main() -> None:
         "resolved_alignment_input_count": len(resolved_alignment_inputs),
         "resolved_alignment_inputs_exist": all(p.exists() for p in resolved_alignment_inputs),
         "arxiv_input_exists": arxiv_input.exists(),
+        "acl_input_exists": acl_input.exists(),
+        "acl_input_is_full_snapshot": is_full_snapshot_file(acl_input),
+        "resolved_stable_source_input_count": len(resolved_stable_source_inputs),
+        "resolved_stable_source_inputs_exist": all(
+            p.exists() for p in resolved_stable_source_inputs.values()
+        ),
         "safe_input_set": (
             arxiv_input.exists()
+            and acl_input.exists()
+            and is_full_snapshot_file(acl_input)
             and len(resolved_alignment_inputs) > 0
             and all(p.exists() for p in resolved_alignment_inputs)
+            and all(p.exists() for p in resolved_stable_source_inputs.values())
             and len(missing_merge_reports) == 0
             and len(failed_merge_reports) == 0
         ),
@@ -465,6 +503,7 @@ def main() -> None:
         "--inputs",
         str(arxiv_input),
         *[str(p) for p in resolved_alignment_inputs],
+        *[str(p) for p in resolved_stable_source_inputs.values()],
         "--output",
         str(candidate_output),
     ]
@@ -542,6 +581,7 @@ def main() -> None:
         "inputs": {
             "refresh_cycle_report": normalize_path(refresh_cycle_report_path),
             "arxiv_input_requested": normalize_path(args.arxiv_input),
+            "acl_input_requested": normalize_path(args.acl_input),
             "canonical_dir": normalize_path(canonical_dir),
             "normalized_dir": normalize_path(normalized_dir),
             "output_path_requested": normalize_path(args.output_path),
@@ -549,6 +589,11 @@ def main() -> None:
         "resolved_inputs": {
             "arxiv_full_snapshot": normalize_path(arxiv_input),
             "alignment_merged_snapshots": [normalize_path(p) for p in resolved_alignment_inputs],
+            "stable_source_full_snapshots": {
+                source_name: normalize_path(path)
+                for source_name, path in resolved_stable_source_inputs.items()
+            },
+            "acl_anthology_full_snapshot": normalize_path(acl_input),
         },
         "merge_reports_used": merge_reports_used,
         "merge_report_resolution_errors": {
@@ -580,6 +625,8 @@ def main() -> None:
     print(f"[OK] reconcile_input_mode={report['reconcile_input_mode']}")
     print(f"[OK] ready_for_reconcile_candidate={readiness['ready_for_reconcile_candidate']}")
     print(f"[OK] selective_execution_ok={readiness['selective_execution_ok']}")
+    print(f"[OK] acl_input_exists={readiness['acl_input_exists']}")
+    print(f"[OK] acl_input_is_full_snapshot={readiness['acl_input_is_full_snapshot']}")
     print(f"[OK] safe_input_set={readiness['safe_input_set']}")
     print(f"[OK] safe_to_execute={readiness['safe_to_execute']}")
     print(f"[OK] executed_count={execution_summary['executed_count']}")

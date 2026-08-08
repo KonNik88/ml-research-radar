@@ -305,7 +305,7 @@ Correct pattern:
 ```text
 selective enrichment
 → merge selective batch into full alignment snapshot
-→ reconcile using explicit full merged inputs
+→ reconcile using explicit full merged inputs plus stable source snapshots such as acl_anthology
 → validate candidate
 → promote candidate
 → export/rebuild derived layers
@@ -1009,6 +1009,7 @@ The preflight checks:
 canonical latest exists, is non-empty, and has unique canonical_id values
 candidate output path differs from canonical latest
 latest full arXiv snapshot is available
+latest full ACL Anthology snapshot is available
 retrieval manifest count and build id are synchronized with retrieval checks
 postpass audit and canonical contract match canonical latest
 known issues snapshot matches canonical/retrieval when required
@@ -1171,7 +1172,7 @@ After wrapper completion, run downstream product checks if the wrapper does not 
 ### 1. Build canonical candidate
 
 ```bat
-python -m scripts.update.run_incremental_reconcile_stage --arxiv-input data\normalized\arxiv\documents.20260404T161108Z.jsonl --output-path data\analytics\reconciled\canonical_documents.candidate_refresh_v1.jsonl --execute
+python -m scripts.update.run_incremental_reconcile_stage --arxiv-input data\normalized\arxiv\documents.20260404T161108Z.jsonl --acl-input data\normalized\acl_anthology\documents_latest.jsonl --output-path data\analytics\reconciled\canonical_documents.candidate_refresh_v1.jsonl --execute
 ```
 
 ### 2. Audit candidate provenance

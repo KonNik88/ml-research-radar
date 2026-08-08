@@ -256,6 +256,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Explicit full arXiv snapshot path forwarded to run_incremental_reconcile_stage.py",
     )
     parser.add_argument(
+        "--acl-input",
+        type=Path,
+        default=None,
+        help="Explicit full ACL Anthology snapshot path forwarded to run_incremental_reconcile_stage.py",
+    )
+    parser.add_argument(
         "--candidate-path",
         type=Path,
         default=None,
@@ -508,6 +514,8 @@ def build_refresh_preflight_cmd(
 
     if args.arxiv_input is not None:
         cmd.extend(["--arxiv-input", str(args.arxiv_input)])
+    if args.acl_input is not None:
+        cmd.extend(["--acl-input", str(args.acl_input)])
 
     if args.merge_report:
         for item in args.merge_report:
@@ -566,6 +574,8 @@ def main() -> None:
     ]
     if args.arxiv_input is not None:
         reconcile_cmd.extend(["--arxiv-input", str(args.arxiv_input)])
+    if args.acl_input is not None:
+        reconcile_cmd.extend(["--acl-input", str(args.acl_input)])
     if args.merge_report:
         for item in args.merge_report:
             reconcile_cmd.extend(["--merge-report", item])
@@ -820,6 +830,7 @@ def main() -> None:
         "stop_after": args.stop_after,
         "inputs": {
             "arxiv_input": normalize_path(args.arxiv_input),
+            "acl_input": normalize_path(args.acl_input),
             "canonical_dir": normalize_path(args.canonical_dir),
             "update_dir": normalize_path(args.update_dir),
             "validation_dir": normalize_path(args.validation_dir),

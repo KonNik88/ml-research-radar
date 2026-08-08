@@ -51,12 +51,23 @@ def _create_sample_project(tmp_path: Path) -> dict[str, Path]:
     validation_dir = tmp_path / "artifacts/reports/validation"
 
     arxiv_path = normalized_root / "arxiv/documents.20260404T161108Z.jsonl"
+    acl_path = normalized_root / "acl_anthology/documents_latest.jsonl"
     _write_jsonl(canonical_path, _sample_canonical_rows())
     _write_jsonl(
         arxiv_path,
         [
             {"id": "2501.00001", "title": "arxiv one"},
             {"id": "2501.00002", "title": "arxiv two"},
+        ],
+    )
+    _write_jsonl(
+        acl_path,
+        [
+            {
+                "id": "2024.acl-long.109",
+                "source": "acl_anthology",
+                "title": "acl paper",
+            }
         ],
     )
 
@@ -174,6 +185,7 @@ def _create_sample_project(tmp_path: Path) -> dict[str, Path]:
                 "refresh_preflight_contract_v0.1",
                 "Controlled refresh rehearsal",
                 "Refresh candidate delta review",
+                "acl_anthology",
             ]
         ),
     )
@@ -211,6 +223,8 @@ def _create_sample_project(tmp_path: Path) -> dict[str, Path]:
                 "latest-only reconcile is intentionally forbidden",
                 "merge_reports_resolved_ok",
                 "safe_to_execute",
+                "acl_anthology",
+                "--acl-input",
             ]
         ),
     )
@@ -238,6 +252,7 @@ def _create_sample_project(tmp_path: Path) -> dict[str, Path]:
         "canonical_contract_path": canonical_contract_path,
         "known_issues_path": known_issues_path,
         "refresh_cycle_path": refresh_cycle_path,
+        "acl_path": acl_path,
         "refresh_contract_path": docs_path,
         "pipeline_path": pipeline_path,
         "reconcile_stage_path": reconcile_stage_path,
@@ -296,6 +311,8 @@ def test_refresh_preflight_passes_with_required_refresh_inputs(tmp_path: Path) -
     assert report["schema_version"] == preflight.SCHEMA_VERSION
     assert report["verdict"]["ok"] is True
     assert report["verdict"]["required_failed_count"] == 0
+    assert report["checks"]["acl_input_exists"] is True
+    assert report["checks"]["acl_input_is_full_snapshot"] is True
     assert report["checks"]["merge_reports_all_exist"] is True
     assert report["checks"]["refresh_cycle_ready_for_reconcile_candidate"] is True
 
@@ -345,3 +362,13 @@ def test_refresh_preflight_can_gate_missing_merged_inputs(tmp_path: Path) -> Non
 
     assert report["checks"]["merge_reports_all_exist"] is False
     assert "merge_reports_all_exist" in report["verdict"]["required_failed_checks"]
+
+
+def test_refresh_preflight_can_gate_missing_acl_input(tmp_path: Path) -> None:
+    paths = _create_sample_project(tmp_path)
+    paths["acl_path"].unlink()
+
+    report = preflight.build_report(_args(paths, "--require-merged-inputs"))
+
+    assert report["checks"]["acl_input_exists"] is False
+    assert "acl_input_exists" in report["verdict"]["required_failed_checks"]
