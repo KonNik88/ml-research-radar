@@ -372,3 +372,53 @@ def test_refresh_preflight_can_gate_missing_acl_input(tmp_path: Path) -> None:
 
     assert report["checks"]["acl_input_exists"] is False
     assert "acl_input_exists" in report["verdict"]["required_failed_checks"]
+
+
+def test_refresh_preflight_gates_missing_alignment_baseline_coverage(
+    tmp_path: Path,
+) -> None:
+    paths = _create_sample_project(tmp_path)
+    _write_jsonl(
+        paths["canonical_path"],
+        [
+            {
+                "canonical_id": "paper-openalex",
+                "title": "OpenAlex covered paper",
+                "doi": "10.1000/openalex-covered",
+                "arxiv_id": "2401.00001v1",
+                "source_ids": {
+                    "arxiv": "2401.00001v1",
+                    "openalex": "https://openalex.org/W1",
+                },
+                "sources": [
+                    {"source": "arxiv", "source_record_id": "2401.00001v1"},
+                    {
+                        "source": "openalex_alignment",
+                        "source_record_id": "https://openalex.org/W1",
+                    },
+                ],
+                "unique_source_count": 2,
+            }
+        ],
+    )
+    openalex_snapshot = (
+        paths["normalized_root"]
+        / "openalex_alignment/documents.20260404T161108Z.jsonl"
+    )
+    _write_jsonl(
+        openalex_snapshot,
+        [
+            {
+                "doc_id": "unrelated",
+                "source": "openalex_alignment",
+                "doi": "10.1000/unrelated",
+            }
+        ],
+    )
+
+    report = preflight.build_report(_args(paths, "--require-merged-inputs"))
+
+    assert report["checks"]["merge_snapshots_cover_baseline_alignment_sources"] is False
+    assert "merge_snapshots_cover_baseline_alignment_sources" in report["verdict"][
+        "required_failed_checks"
+    ]
