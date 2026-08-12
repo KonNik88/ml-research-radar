@@ -1014,6 +1014,7 @@ retrieval manifest count and build id are synchronized with retrieval checks
 postpass audit and canonical contract match canonical latest
 known issues snapshot matches canonical/retrieval when required
 merged full snapshots are resolved from OpenAlex / Semantic Scholar / Crossref merge reports when required
+merged alignment snapshots cover baseline OpenAlex / Semantic Scholar / Crossref source coverage when required
 latest incremental refresh cycle is ready for reconcile when required
 runbook/wrapper expose candidate delta review before promotion
 Postgres read smoke matches canonical latest when --check-db is selected
@@ -1115,6 +1116,8 @@ added_count
 removed_count
 changed_retained_count
 identifier_churn_count
+additive_identifier_churn_count
+destructive_identifier_churn_count
 source_family_changed_count
 multisource_docs_delta
 source_family_delta
@@ -1124,10 +1127,31 @@ Strict defaults are conservative:
 
 ```text
 removed_count must be 0
-identifier_churn_count must be 0
+destructive identifier churn must be 0
 candidate_doc_count must not be smaller than canonical latest
 canonical and candidate canonical_id values must be present and unique
 candidate path must differ from canonical latest
+```
+
+Allowed additive enrichment:
+
+```text
+baseline identifier/source_id value is preserved
+candidate adds a previously missing identifier value
+candidate adds a previously missing source_id family
+candidate source families are a strict superset of baseline source families
+unique_source_count does not drop
+```
+
+Blocking destructive churn:
+
+```text
+retained canonical ID disappears
+baseline identifier/source_id value is removed
+baseline identifier/source_id value is replaced with a different value
+source family is lost
+unique_source_count drops
+multi-source retained paper collapses to single-source or arxiv-only
 ```
 
 Boundary:
@@ -1139,6 +1163,82 @@ candidate is not promoted
 Postgres export is not run
 retrieval, Qdrant, topic, graph, ranking, API, UI, and DoD stages are not run
 generated latest/history reports are local evidence artifacts, not committed by default
+```
+
+## Refresh alignment coverage diagnostics
+
+When `check_refresh_source_coverage` shows retained multi-source documents
+collapsing to `arxiv`-only, use this read-only diagnostic before changing
+reconciliation or weakening refresh gates.
+
+Standalone command:
+
+```bat
+python -m scripts.validation.check_refresh_alignment_coverage
+```
+
+The report traces retained alignment-source losses against the merged
+OpenAlex / Semantic Scholar / Crossref snapshots selected by the latest merge
+reports. It distinguishes:
+
+```text
+missing_from_merged_snapshot
+present_without_reconcile_bridge_keys
+present_with_reconcile_bridge_keys
+```
+
+Interpretation:
+
+```text
+missing_from_merged_snapshot means the merge snapshot probably lost baseline coverage
+present_without_reconcile_bridge_keys means the source row exists but cannot join via DOI/arXiv
+present_with_reconcile_bridge_keys means the row appears joinable and reconcile/identifier semantics need review
+```
+
+Boundary:
+
+```text
+check_refresh_alignment_coverage is read-only
+canonical latest is not overwritten
+candidate is not promoted
+Postgres export is not run
+retrieval, Qdrant, topic, graph, ranking, API, UI, and DoD stages are not run
+generated latest/history reports are local evidence artifacts, not committed by default
+```
+
+## Refresh alignment merged snapshots build
+
+When `check_refresh_alignment_coverage` reports only
+`missing_from_merged_snapshot`, the repair belongs to the merged alignment input
+set, not to canonical promotion or reconcile field semantics.
+
+Build coverage-safe merged snapshots before running another rehearsal:
+
+```bat
+python -m scripts.update.build_refresh_alignment_merged_snapshots --strict
+python -m scripts.update.build_refresh_alignment_merged_snapshots --execute --strict
+```
+
+The builder:
+
+```text
+reads current canonical latest as the baseline coverage contract
+finds the best existing full/base snapshot per alignment source
+uses latest selective OpenAlex / Semantic Scholar / Crossref ingest outputs as incremental inputs
+writes new full merged snapshots only when baseline source coverage is preserved
+updates merge_openalex_alignment_latest / merge_semantic_scholar_alignment_latest / merge_crossref_alignment_latest reports only in --execute mode
+does not mutate canonical latest
+does not promote a candidate
+does not export Postgres or rebuild retrieval/Qdrant/topic/API/UI layers
+```
+
+After a successful build, run:
+
+```bat
+python -m scripts.validation.check_refresh_preflight_contract --strict --require-known-issues --require-merged-inputs --require-refresh-cycle-report
+python -m scripts.update.run_refresh_pipeline_v1 --candidate-rehearsal --execute
+python -m scripts.validation.check_refresh_alignment_coverage
+python -m scripts.validation.check_refresh_source_coverage
 ```
 
 ## Option A — thin orchestration wrapper

@@ -9,6 +9,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
+from scripts.validation import check_refresh_alignment_coverage as alignment_coverage
+
 
 SCHEMA_VERSION = "refresh_preflight_contract_v0.1"
 
@@ -422,6 +424,7 @@ def resolve_merge_report_specs(
 
 def summarize_merge_reports(
     *,
+    canonical_path: Path,
     update_dir: Path,
     cli_values: list[str] | None,
 ) -> dict[str, Any]:
@@ -441,6 +444,11 @@ def summarize_merge_reports(
         )
         merged_snapshot = Path(str(merged_snapshot_raw)) if merged_snapshot_raw else None
         merged_rows = count_jsonl_rows(merged_snapshot)
+        baseline_coverage = summarize_merge_snapshot_baseline_coverage(
+            canonical_path=canonical_path,
+            source_name=source_name,
+            snapshot_path=merged_snapshot,
+        )
         rows.append(
             {
                 "source_name": source_name,
@@ -455,6 +463,7 @@ def summarize_merge_reports(
                 "merged_snapshot_full_shape": bool(
                     merged_snapshot and is_full_snapshot_file(merged_snapshot)
                 ),
+                **baseline_coverage,
             }
         )
 
@@ -462,6 +471,50 @@ def summarize_merge_reports(
         "expected_report_count": len(specs),
         "resolved_report_count": len(rows),
         "reports": rows,
+    }
+
+
+def summarize_merge_snapshot_baseline_coverage(
+    *,
+    canonical_path: Path,
+    source_name: str,
+    snapshot_path: Path | None,
+) -> dict[str, Any]:
+    normalized_source = alignment_coverage.normalize_family(source_name) or source_name
+    if normalized_source not in alignment_coverage.ALIGNMENT_SOURCES:
+        return {
+            "baseline_source_docs_count": 0,
+            "baseline_source_docs_covered_count": 0,
+            "baseline_source_docs_missing_count": 0,
+        }
+
+    if not canonical_path.exists():
+        return {
+            "baseline_source_docs_count": 0,
+            "baseline_source_docs_covered_count": 0,
+            "baseline_source_docs_missing_count": 0,
+        }
+
+    baseline = alignment_coverage.candidate_delta.load_canonical_index(canonical_path)
+    snapshot = alignment_coverage.load_snapshot_index(snapshot_path, normalized_source)
+    snapshot_keys = set(alignment_coverage.as_mapping(snapshot.get("key_to_row")).keys())
+
+    baseline_source_docs_count = 0
+    baseline_source_docs_covered_count = 0
+    for row in baseline["rows_by_id"].values():
+        if normalized_source not in alignment_coverage.canonical_families(row):
+            continue
+        baseline_source_docs_count += 1
+        if alignment_coverage.row_match_keys(row, normalized_source) & snapshot_keys:
+            baseline_source_docs_covered_count += 1
+
+    return {
+        "baseline_source_docs_count": baseline_source_docs_count,
+        "baseline_source_docs_covered_count": baseline_source_docs_covered_count,
+        "baseline_source_docs_missing_count": max(
+            baseline_source_docs_count - baseline_source_docs_covered_count,
+            0,
+        ),
     }
 
 
@@ -657,6 +710,7 @@ def build_required_check_names(args: argparse.Namespace) -> list[str]:
                 "merge_snapshots_all_non_empty",
                 "merge_snapshots_jsonl_valid",
                 "merge_snapshots_full_shape",
+                "merge_snapshots_cover_baseline_alignment_sources",
             ]
         )
 
@@ -697,6 +751,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
     refresh_cycle = summarize_report(args.refresh_cycle_report_path)
 
     merge_reports = summarize_merge_reports(
+        canonical_path=args.canonical_path,
         update_dir=args.update_dir,
         cli_values=args.merge_report,
     )
@@ -878,6 +933,10 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         ),
         "merge_snapshots_full_shape": all(
             row["merged_snapshot_full_shape"] for row in merge_rows
+        ),
+        "merge_snapshots_cover_baseline_alignment_sources": all(
+            safe_int(row.get("baseline_source_docs_missing_count")) == 0
+            for row in merge_rows
         ),
         "refresh_cycle_report_exists": refresh_cycle["exists"],
         "refresh_cycle_ready_for_reconcile_candidate": refresh_cycle_values[

@@ -11,7 +11,7 @@ from scripts.validation import check_refresh_candidate_delta as candidate_delta
 
 
 REPORT_NAME = "refresh_source_coverage_diagnostics"
-SCHEMA_VERSION = "refresh_source_coverage_diagnostics_v0.1"
+SCHEMA_VERSION = "refresh_source_coverage_diagnostics_v0.2"
 
 DEFAULT_DELTA_REPORT_PATH = (
     Path("artifacts/reports/validation") / "refresh_candidate_delta_review_latest.json"
@@ -355,13 +355,30 @@ def build_signals(
     multisource_to_arxiv_only_count = safe_int(
         retained.get("multisource_to_arxiv_only_count")
     )
+    unique_source_count_drop_count = safe_int(retained.get("unique_source_count_drop_count"))
+    multisource_to_single_source_count = safe_int(
+        retained.get("multisource_to_single_source_count")
+    )
+    lost_source_family_count = sum(
+        safe_int(value) for value in as_mapping(retained.get("lost_source_family_counts")).values()
+    )
+    gained_source_family_count = sum(
+        safe_int(value)
+        for value in as_mapping(retained.get("gained_source_family_counts")).values()
+    )
+    source_coverage_regression_detected = bool(
+        removed_count
+        or lost_source_family_count
+        or unique_source_count_drop_count
+        or multisource_to_single_source_count
+        or retained_identifier_loss_count
+        or retained_source_id_loss_count
+    )
 
     return {
-        "source_coverage_regression_detected": bool(
-            removed_count
-            or retained.get("source_family_changed_count")
-            or retained_identifier_loss_count
-            or retained_source_id_loss_count
+        "source_coverage_regression_detected": source_coverage_regression_detected,
+        "additive_source_coverage_detected": bool(
+            gained_source_family_count and not source_coverage_regression_detected
         ),
         "likely_missing_acl_input": bool(
             removed_count > 0 and acl_only_removed_count / max(removed_count, 1) >= 0.5
@@ -508,7 +525,7 @@ def build_report(
 
 def build_markdown(report: Mapping[str, Any]) -> str:
     lines: list[str] = [
-        "# Refresh source coverage diagnostics v0.1",
+        "# Refresh source coverage diagnostics v0.2",
         "",
         f"- Generated at: `{report['generated_at_utc']}`",
         f"- Run ts: `{report['run_ts']}`",
@@ -557,12 +574,23 @@ def build_markdown(report: Mapping[str, Any]) -> str:
     )
     lines.append(f"- lost_source_family_counts: `{retained['lost_source_family_counts']}`")
     lines.append(
+        f"- gained_source_family_counts: `{retained['gained_source_family_counts']}`"
+    )
+    lines.append(
         "- identifier_loss_by_field: "
         f"`{retained['identifier_loss']['by_field']}`"
     )
     lines.append(
+        "- identifier_gain_by_field: "
+        f"`{retained['identifier_loss']['gained_by_field']}`"
+    )
+    lines.append(
         "- source_id_loss_by_source_family: "
         f"`{retained['source_id_loss']['by_source_family']}`"
+    )
+    lines.append(
+        "- source_id_gain_by_source_family: "
+        f"`{retained['source_id_loss']['gained_by_source_family']}`"
     )
 
     lines.extend(["", "## Verdict", ""])

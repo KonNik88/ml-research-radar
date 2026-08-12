@@ -10,7 +10,7 @@ from typing import Any, Mapping
 
 
 REPORT_NAME = "refresh_candidate_delta_review"
-SCHEMA_VERSION = "refresh_candidate_delta_review_v0.1"
+SCHEMA_VERSION = "refresh_candidate_delta_review_v0.2"
 
 DEFAULT_CANONICAL_PATH = Path("data/analytics/reconciled/canonical_documents.jsonl")
 DEFAULT_REPORTS_DIR = Path("artifacts/reports/validation")
@@ -243,6 +243,78 @@ def identifier_delta(
     }
 
 
+def has_value(value: Any) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, (list, tuple, set, dict)):
+        return bool(value)
+    return True
+
+
+def classify_identifier_delta(
+    baseline: Mapping[str, Any],
+    candidate: Mapping[str, Any],
+) -> dict[str, Any] | None:
+    changed = identifier_delta(baseline, candidate)
+    if not changed:
+        return None
+
+    gained_fields: list[str] = []
+    lost_fields: list[str] = []
+    replaced_fields: list[str] = []
+
+    for field in IDENTIFIER_FIELDS:
+        baseline_value = baseline.get(field)
+        candidate_value = candidate.get(field)
+        if baseline_value == candidate_value:
+            continue
+        if has_value(candidate_value) and not has_value(baseline_value):
+            gained_fields.append(field)
+        elif has_value(baseline_value) and not has_value(candidate_value):
+            lost_fields.append(field)
+        else:
+            replaced_fields.append(field)
+
+    baseline_source_ids = baseline.get("source_ids")
+    candidate_source_ids = candidate.get("source_ids")
+    source_id_gains: list[str] = []
+    source_id_losses: list[str] = []
+    source_id_replacements: list[str] = []
+    if isinstance(baseline_source_ids, Mapping) or isinstance(candidate_source_ids, Mapping):
+        baseline_ids = baseline_source_ids if isinstance(baseline_source_ids, Mapping) else {}
+        candidate_ids = candidate_source_ids if isinstance(candidate_source_ids, Mapping) else {}
+        for family in sorted(set(baseline_ids) | set(candidate_ids)):
+            baseline_value = baseline_ids.get(family)
+            candidate_value = candidate_ids.get(family)
+            if baseline_value == candidate_value:
+                continue
+            if has_value(candidate_value) and not has_value(baseline_value):
+                source_id_gains.append(str(family))
+            elif has_value(baseline_value) and not has_value(candidate_value):
+                source_id_losses.append(str(family))
+            else:
+                source_id_replacements.append(str(family))
+    elif baseline_source_ids != candidate_source_ids:
+        source_id_replacements.append("source_ids")
+
+    destructive = bool(lost_fields or replaced_fields or source_id_losses or source_id_replacements)
+    return {
+        **changed,
+        "classification": {
+            "additive_only": not destructive,
+            "destructive": destructive,
+            "gained_fields": gained_fields,
+            "lost_fields": lost_fields,
+            "replaced_fields": replaced_fields,
+            "gained_source_id_families": source_id_gains,
+            "lost_source_id_families": source_id_losses,
+            "replaced_source_id_families": source_id_replacements,
+        },
+    }
+
+
 def compare_indexes(
     baseline_index: Mapping[str, Any],
     candidate_index: Mapping[str, Any],
@@ -260,6 +332,8 @@ def compare_indexes(
 
     changed_ids: list[str] = []
     identifier_churn: list[dict[str, Any]] = []
+    additive_identifier_churn: list[dict[str, Any]] = []
+    destructive_identifier_churn: list[dict[str, Any]] = []
     source_family_changed_ids: list[str] = []
     unique_source_count_changed_ids: list[str] = []
     title_changed_ids: list[str] = []
@@ -272,9 +346,13 @@ def compare_indexes(
         if stable_digest(baseline_row) != stable_digest(candidate_row):
             changed_ids.append(canonical_id)
 
-        id_delta = identifier_delta(baseline_row, candidate_row)
+        id_delta = classify_identifier_delta(baseline_row, candidate_row)
         if id_delta:
             identifier_churn.append(id_delta)
+            if id_delta["classification"]["destructive"]:
+                destructive_identifier_churn.append(id_delta)
+            else:
+                additive_identifier_churn.append(id_delta)
 
         if source_families(baseline_row) != source_families(candidate_row):
             source_family_changed_ids.append(canonical_id)
@@ -309,6 +387,8 @@ def compare_indexes(
             "retained_count": len(retained_ids),
             "changed_retained_count": len(changed_ids),
             "identifier_churn_count": len(identifier_churn),
+            "additive_identifier_churn_count": len(additive_identifier_churn),
+            "destructive_identifier_churn_count": len(destructive_identifier_churn),
             "source_family_changed_count": len(source_family_changed_ids),
             "unique_source_count_changed_count": len(unique_source_count_changed_ids),
             "title_changed_count": len(title_changed_ids),
@@ -333,6 +413,8 @@ def compare_indexes(
                 for item in changed_ids[:sample_limit]
             ],
             "identifier_churn": identifier_churn[:sample_limit],
+            "additive_identifier_churn": additive_identifier_churn[:sample_limit],
+            "destructive_identifier_churn": destructive_identifier_churn[:sample_limit],
             "source_family_changed": source_family_changed_ids[:sample_limit],
             "unique_source_count_changed": unique_source_count_changed_ids[:sample_limit],
         },
@@ -367,14 +449,14 @@ def build_checks(
         "candidate_not_smaller_than_canonical": counts["doc_count_delta"] >= 0,
         "removed_count_within_threshold": counts["removed_count"] <= max_removed,
         "identifier_churn_within_threshold": (
-            counts["identifier_churn_count"] <= max_identifier_churn
+            counts["destructive_identifier_churn_count"] <= max_identifier_churn
         ),
     }
 
 
 def build_markdown(report: Mapping[str, Any]) -> str:
     lines: list[str] = [
-        "# Refresh candidate delta review v0.1",
+        "# Refresh candidate delta review v0.2",
         "",
         f"- Generated at: `{report['generated_at_utc']}`",
         f"- Run ts: `{report['run_ts']}`",
@@ -476,6 +558,12 @@ def build_report(
             "added_count": counts["added_count"],
             "removed_count": counts["removed_count"],
             "identifier_churn_count": counts["identifier_churn_count"],
+            "additive_identifier_churn_count": counts[
+                "additive_identifier_churn_count"
+            ],
+            "destructive_identifier_churn_count": counts[
+                "destructive_identifier_churn_count"
+            ],
             "source_family_changed_count": counts["source_family_changed_count"],
             "multisource_docs_delta": counts["multisource_docs_delta"],
         },
@@ -486,8 +574,7 @@ def build_report(
             "promotion_delta_review_ready": not failed,
             "manual_review_required": bool(
                 counts["removed_count"] > 0
-                or counts["identifier_churn_count"] > 0
-                or counts["changed_retained_count"] > 0
+                or counts["destructive_identifier_churn_count"] > 0
             ),
             "canonical_truth_mutation_required": False,
             "derived_layer_mutation_required": False,
@@ -589,6 +676,14 @@ def main() -> None:
     print(f"[{status}] added_count={summary['added_count']}")
     print(f"[{status}] removed_count={summary['removed_count']}")
     print(f"[{status}] identifier_churn_count={summary['identifier_churn_count']}")
+    print(
+        f"[{status}] additive_identifier_churn_count="
+        f"{summary['additive_identifier_churn_count']}"
+    )
+    print(
+        f"[{status}] destructive_identifier_churn_count="
+        f"{summary['destructive_identifier_churn_count']}"
+    )
     print(f"[{status}] promotion_delta_review_ready={verdict['promotion_delta_review_ready']}")
     print(f"[{status}] manual_review_required={verdict['manual_review_required']}")
     print(f"[{status}] required_failed_count={verdict['required_failed_count']}")

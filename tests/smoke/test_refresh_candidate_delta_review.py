@@ -135,7 +135,59 @@ def test_candidate_delta_review_flags_removed_ids_and_identifier_churn(
     ]
     assert report["summary"]["removed_count"] == 1
     assert report["summary"]["identifier_churn_count"] == 1
+    assert report["summary"]["destructive_identifier_churn_count"] == 1
     assert report["verdict"]["manual_review_required"] is True
+
+
+def test_candidate_delta_review_allows_additive_identifier_enrichment(
+    tmp_path: Path,
+) -> None:
+    canonical_path = tmp_path / "data/analytics/reconciled/canonical_documents.jsonl"
+    candidate_path = tmp_path / "data/analytics/reconciled/candidate.jsonl"
+
+    _write_jsonl(
+        canonical_path,
+        [
+            _row(
+                "paper-a",
+                arxiv_id="2501.00001v1",
+                source_ids={"arxiv": "2501.00001v1"},
+            ),
+        ],
+    )
+    _write_jsonl(
+        candidate_path,
+        [
+            _row(
+                "paper-a",
+                arxiv_id="2501.00001v1",
+                semantic_scholar_id="s2-a",
+                source_ids={
+                    "arxiv": "2501.00001v1",
+                    "semantic_scholar": "s2-a",
+                },
+                unique_source_count=2,
+            )
+            | {"dblp_id": "journals/corr/abs-2501-00001", "pmid": "123456"},
+        ],
+    )
+
+    report = delta.build_report(
+        canonical_path=canonical_path,
+        candidate_path=candidate_path,
+        reports_dir=tmp_path / "reports",
+        strict=True,
+        max_removed=0,
+        max_identifier_churn=0,
+        sample_limit=5,
+    )
+
+    assert report["verdict"]["ok"] is True
+    assert report["summary"]["identifier_churn_count"] == 1
+    assert report["summary"]["additive_identifier_churn_count"] == 1
+    assert report["summary"]["destructive_identifier_churn_count"] == 0
+    assert report["checks"]["identifier_churn_within_threshold"] is True
+    assert report["verdict"]["manual_review_required"] is False
 
 
 def test_candidate_delta_review_writes_latest_and_history_reports(

@@ -119,6 +119,79 @@ def test_refresh_source_coverage_diagnoses_acl_removals_and_arxiv_collapse(
     }
 
 
+def test_refresh_source_coverage_treats_additive_semantic_scholar_as_safe(
+    tmp_path: Path,
+) -> None:
+    canonical_path = tmp_path / "canonical.jsonl"
+    candidate_path = tmp_path / "candidate.jsonl"
+
+    _write_jsonl(
+        canonical_path,
+        [
+            _row(
+                "paper-a",
+                arxiv_id="2501.00001v1",
+                source_ids={"arxiv": "2501.00001v1"},
+            ),
+            _row(
+                "paper-b",
+                arxiv_id="2501.00002v1",
+                openalex_id="https://openalex.org/W2",
+                source_ids={
+                    "arxiv": "2501.00002v1",
+                    "openalex": "https://openalex.org/W2",
+                    "crossref": "10.0000/b",
+                },
+            ),
+        ],
+    )
+    _write_jsonl(
+        candidate_path,
+        [
+            _row(
+                "paper-a",
+                arxiv_id="2501.00001v1",
+                semantic_scholar_id="s2-a",
+                source_ids={
+                    "arxiv": "2501.00001v1",
+                    "semantic_scholar": "s2-a",
+                },
+            ),
+            _row(
+                "paper-b",
+                arxiv_id="2501.00002v1",
+                openalex_id="https://openalex.org/W2",
+                semantic_scholar_id="s2-b",
+                source_ids={
+                    "arxiv": "2501.00002v1",
+                    "openalex": "https://openalex.org/W2",
+                    "crossref": "10.0000/b",
+                    "semantic_scholar": "s2-b",
+                },
+            ),
+        ],
+    )
+
+    report = coverage.build_report(
+        canonical_path=canonical_path,
+        candidate_path=candidate_path,
+        reports_dir=tmp_path / "reports",
+        delta_report_path=None,
+        sample_limit=10,
+    )
+
+    assert report["summary"]["retained_source_family_changed_count"] == 2
+    assert report["summary"]["retained_identifier_loss_count"] == 0
+    assert report["summary"]["retained_source_id_loss_count"] == 0
+    assert report["diagnostics"]["retained"]["lost_source_family_counts"] == {}
+    assert report["diagnostics"]["retained"]["gained_source_family_counts"] == {
+        "semantic_scholar": 2
+    }
+    assert report["diagnostics"]["signals"]["source_coverage_regression_detected"] is False
+    assert report["diagnostics"]["signals"]["additive_source_coverage_detected"] is True
+    assert report["verdict"]["promotion_safe"] is True
+
+
 def test_refresh_source_coverage_uses_delta_report_paths_and_writes_reports(
     tmp_path: Path,
 ) -> None:
