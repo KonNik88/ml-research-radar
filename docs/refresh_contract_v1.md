@@ -1241,6 +1241,69 @@ python -m scripts.validation.check_refresh_alignment_coverage
 python -m scripts.validation.check_refresh_source_coverage
 ```
 
+## Refresh promotion readiness
+
+Use this final read-only gate after a green controlled rehearsal and coverage
+diagnostics, before any explicit candidate promotion is discussed.
+
+Standalone command:
+
+```bat
+python -m scripts.validation.check_refresh_promotion_readiness --strict
+```
+
+The report aggregates the latest refresh evidence:
+
+```text
+refresh_preflight_contract_latest.json
+run_refresh_pipeline_v1_latest.json
+refresh_candidate_delta_review_latest.json
+refresh_alignment_coverage_diagnostics_latest.json
+refresh_source_coverage_diagnostics_latest.json
+```
+
+Required readiness semantics:
+
+```text
+preflight required checks passed
+pipeline ran in execute candidate_rehearsal mode and stopped at candidate_delta_review
+candidate path exists, differs from canonical latest, and matches every latest report
+candidate delta review is green
+removed_count is 0
+destructive identifier churn is 0
+alignment coverage regression is absent
+source coverage regression is absent
+retained identifier/source_id loss is 0
+multi-source retained papers do not collapse to arxiv-only
+promote script backup markers remain present
+```
+
+Additive enrichment remains allowed:
+
+```text
+additive_identifier_churn_count may be greater than 0
+retained_source_family_changed_count may be greater than 0 when source coverage regression is false
+additive_source_coverage_detected=True is informational, not blocking
+```
+
+DB smoke is intentionally informational by default for this JSONL/canonical
+readiness gate. To make local Postgres synchronization blocking, run:
+
+```bat
+python -m scripts.validation.check_refresh_promotion_readiness --strict --require-db-smoke
+```
+
+Boundary:
+
+```text
+check_refresh_promotion_readiness is read-only
+canonical latest is not overwritten
+candidate is not promoted
+Postgres export is not run
+retrieval, Qdrant, topic, graph, ranking, API, UI, and DoD stages are not run
+generated latest/history reports are local evidence artifacts, not committed by default
+```
+
 ## Option A — thin orchestration wrapper
 
 Example:
