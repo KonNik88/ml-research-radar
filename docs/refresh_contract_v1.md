@@ -1304,6 +1304,71 @@ retrieval, Qdrant, topic, graph, ranking, API, UI, and DoD stages are not run
 generated latest/history reports are local evidence artifacts, not committed by default
 ```
 
+## Refresh controlled promotion
+
+Use this bounded wrapper only after `check_refresh_promotion_readiness --strict`
+is green. It promotes exactly the candidate referenced by the latest readiness
+report, then runs canonical-layer post-promotion checks.
+
+Dry-run:
+
+```bat
+python -m scripts.update.run_refresh_controlled_promotion --strict
+```
+
+Execute:
+
+```bat
+python -m scripts.update.run_refresh_controlled_promotion --execute --strict
+```
+
+The wrapper sequence is intentionally short:
+
+```text
+promotion_readiness
+→ promote_candidate
+→ canonical_provenance_consistency
+→ canonical_contract_check
+```
+
+Required prechecks:
+
+```text
+latest readiness report exists
+readiness verdict says promotion_ready=True
+candidate path is resolved from readiness or explicit --candidate-path
+candidate path matches readiness
+candidate exists and has valid, unique canonical_id values
+candidate path differs from canonical latest path
+canonical latest exists
+```
+
+Required execute postchecks:
+
+```text
+promote_canonical_candidate report exists
+backup was created
+promotion was performed
+promote postcheck matched candidate summary
+new canonical latest doc count matches candidate doc count
+canonical provenance consistency has no error checks
+canonical contract is green
+canonical contract row count matches candidate doc count
+```
+
+Boundary:
+
+```text
+run_refresh_controlled_promotion does not build a new candidate
+run_refresh_controlled_promotion does not promote unless --execute is explicit
+canonical latest is overwritten only by promote_canonical_candidate after readiness passes
+backup_before_promotion remains owned by promote_canonical_candidate
+Postgres export is not run
+retrieval, Qdrant, topic, graph, ranking, API, UI, and DoD stages are not run
+derived layer rebuild/export checks belong to the next branch after promotion
+generated latest/history reports are local evidence artifacts, not committed by default
+```
+
 ## Option A — thin orchestration wrapper
 
 Example:
