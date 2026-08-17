@@ -1,6 +1,7 @@
 /archive/
 /artifacts/
 /artifacts/reports/
+/artifacts/retrieval/
 
 __pycache__/
 *.pyc
