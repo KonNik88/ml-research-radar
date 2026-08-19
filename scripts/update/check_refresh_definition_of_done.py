@@ -1490,6 +1490,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Treat golden queries quality report as a required DoD condition.",
     )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit non-zero when the required Definition of Done checks fail.",
+    )
 
     return parser
 
@@ -2894,6 +2899,9 @@ def main() -> None:
         f"{verdict['streamlit_discovery_ui_required']}"
     )
     print(f"[OK] golden_queries_required={verdict['golden_queries_required']}")
+
+    if args.strict and not verdict["dod_passed"]:
+        raise SystemExit(1)
 
 if __name__ == "__main__":
     main()
