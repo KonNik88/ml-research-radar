@@ -21,24 +21,31 @@ public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
 fallback = absent
+current extension = Safe Canonical Refresh and Derived Synchronization v1 / Refresh Operational Orchestration v0.1 / Current Project State Checkpoint v0.2
+dataset publication = paused pending redistribution guidance
+next accepted functional direction = Scientific Entity Evidence Layer
 ```
 
-Current stable baseline:
+Current canonical and synchronized core/Discovery baseline:
 
 ```text
-canonical_documents = 60954
-canonical_multisource_docs = 9192
-doi_count = 10183
-arXiv backbone = 60000
-ACL-family docs = 957
+pre_promotion_canonical_documents = 60954
+current_canonical_latest_documents = 61075
+canonical_refresh_delta = +121
+canonical_refresh_removed_count = 0
+canonical_multisource_docs = 9226
+pre_promotion_doi_count = 10183
+pre_promotion_arxiv_backbone = 60000
+pre_promotion_acl_family_docs = 957
 
-source_documents_operational_count = 88178
-canonical_source_links_operational_count = 88037
-resolved_source_observation_links = 88037
-non_contributing_source_observations = 141
-null_source_observation_links = 0
-dangling_source_observation_links = 0
-rollback_db = ml_radar_pre_source_identity_v01_20260722t101620z
+source_identity_checkpoint_selected_observations = 88178
+source_identity_checkpoint_canonical_source_links = 88037
+source_identity_checkpoint_resolved_links = 88037
+source_identity_checkpoint_non_contributing_observations = 141
+source_identity_checkpoint_null_links = 0
+source_identity_checkpoint_dangling_links = 0
+source_identity_checkpoint_rollback_db = ml_radar_pre_source_identity_v01_20260722t101620z
+current_source_documents_count = not reasserted by this documentation checkpoint
 
 field_level_provenance_contract_fields = 61
 field_level_provenance_contract_classified = 61
@@ -73,12 +80,15 @@ field_level_provenance_checkpoint_required_failed_count = 0
 field_level_provenance_line_complete = true
 bounded_evidence_checkpoint_ready = true
 
-retrieval_build_id = 20260504T164021Z
+retrieval_build_id = 20260818T105227Z
+retrieval_corpus_doc_count = 61075
 embedding_model = sentence-transformers/all-MiniLM-L6-v2
-embedding_shape = [60954, 384]
+embedding_shape = [61075, 384]
 
-paper_features_rows_count = 60954
+paper_features_rows_count = 61075
+topic_cluster_build_id = 20260818T110734Z
 topic_clusters_count = 80
+topic_projection_build_id = 20260818T111232Z
 topic_projection_rows_count = 2080
 
 qdrant_collection = ml_radar_dense_benchmark_v1
@@ -86,6 +96,15 @@ qdrant_points_count = 60954
 qdrant_vector_size = 384
 qdrant_distance = Cosine
 qdrant_selected_profile = ef_256
+qdrant_baseline_scope = previous experimental build, not synchronized by the August refresh
+paper_artifact_graph_baseline_scope = previous 60954-paper local build
+citation_reference_graph_baseline_scope = previous 60954-paper local build
+metadata_release_candidate_scope = previous 60954-paper build and not authorized for publication
+
+refresh_operational_entrypoint = python -m scripts.update.run_refresh_operational_flow
+refresh_operational_orchestration = implemented_v0.1
+legacy_candidate_runner = python -m scripts.update.run_refresh_pipeline_v1
+full_execute_policy = fail_closed_v0.1
 
 golden_queries_enabled = 34
 golden_queries_explicit = 34
@@ -508,9 +527,9 @@ artifacts/retrieval/manifests/latest.json
 Active dense artifacts:
 
 ```text
-artifacts/retrieval/dense/embeddings_20260504T164021Z.npy
-artifacts/retrieval/dense/ids_20260504T164021Z.json
-artifacts/retrieval/dense/meta_20260504T164021Z.json
+artifacts/retrieval/dense/embeddings_20260818T105227Z.npy
+artifacts/retrieval/dense/ids_20260818T105227Z.json
+artifacts/retrieval/dense/meta_20260818T105227Z.json
 ```
 
 Exact file dense remains the reference implementation.
@@ -715,8 +734,10 @@ Current baseline:
 
 ```text
 topic_clusters_count = 80
-topic_assignments_count = 60954
+topic_cluster_build_id = 20260818T110734Z
+topic_assignments_count = 61075
 topic_projection_algorithm = umap
+topic_projection_build_id = 20260818T111232Z
 topic_projection_rows_count = 2080
 ```
 
@@ -790,13 +811,13 @@ Unsupported DB modes return structured `400 Bad Request`.
 
 Qdrant is an optional derived vector-serving implementation.
 
-Current collection:
+Previous experimental build-scoped collection:
 
 ```text
 ml_radar_dense_benchmark_v1
 ```
 
-Current healthy state:
+Accepted state for that `60,954`-paper collection:
 
 ```text
 collection_exists = true
@@ -808,6 +829,7 @@ status = green
 optimizer_status = ok
 transport = gRPC for experimental serving
 profile = ef_256
+synchronized_to_current_canonical = false
 ```
 
 Current Qdrant surfaces:
@@ -1186,16 +1208,17 @@ filter pushdown into Qdrant
 new embedding generation
 retrieval rebuild
 larger Golden Set expansion
-dataset release
+public dataset release pending redistribution guidance
 full text / RAG
-orchestration / Airflow
+scheduler orchestration / Airflow (local refresh operational runner v0.1 is implemented)
 distributed execution / Ray
 event processing / Kafka
 deployment / Kubernetes
 observability stack
 ```
 
-These should not be mixed into Search API Semantics Cleanup v1.
+These remain separate from the current Scientific Entity Evidence direction and
+require their own contracts and promotion evidence.
 
 ---
 
@@ -1209,10 +1232,27 @@ Qdrant is experimentally validated but not promoted.
 Unranked hybrid remains the search relevance reference.
 The retrieval-serving checkpoint gate is the lightweight regression guard.
 Future promotion decisions must be explicit, evidence-backed, and reversible.
+The current canonical latest contains 61,075 papers; 60,954 is the
+pre-promotion baseline and remains valid only where an older build explicitly
+uses it.
+Core retrieval, Postgres, paper features, topic analytics, Discovery API, and
+Streamlit Discovery validation are synchronized with the 61,075-paper
+canonical generation.
+The 60,954-point Qdrant collection, paper-artifact graph, citation/reference
+graph, and metadata release candidate remain previous build-scoped outputs;
+they are not alternative paper truth.
+Refresh Operational Orchestration v0.1 is the recommended local operational
+entrypoint. The older refresh pipeline remains a lower-level candidate runner.
+Scheduler orchestration such as Airflow remains deferred.
+The next accepted functional direction is a contract-first Scientific Entity
+Evidence Layer for tasks, methods, datasets, metrics, models, and domains.
 The source-observation promotion follows this rule: two checked dumps and the
 70,244-row legacy database remain available for rollback.
 Citation graph status/references/citations/external-reference-papers/source-families/top-referenced-papers/top-external-references are the checkpointed v0.3 narrow local-inspection API block, not a graph-runtime promotion.
-Graph API / Streamlit productization starts as a design-only thin-client plan, not UI implementation.
+Graph API / Streamlit productization began as a design-only thin-client plan and
+now includes the accepted status, paper-workspace, diagnostics, and external-
+reference lookup panels. It remains bounded local evidence UI, not graph-runtime
+or public-API promotion.
 ```
 
 
@@ -1549,7 +1589,7 @@ canonical_source_links.doc_id = nullable legacy diagnostic
 UNIQUE(canonical_id, source_observation_id)
 ```
 
-Accepted operational counters:
+Accepted counters at that source-identity promotion checkpoint:
 
 ```text
 canonical_documents = 60,954
