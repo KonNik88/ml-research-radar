@@ -9,6 +9,44 @@ Canonical documents remain the source of truth. Retrieval artifacts, reports,
 Postgres tables, paper features, similar papers, topic clusters, topic
 projection, Discovery API checks, and Streamlit UI checks are derived layers.
 
+## Operational Entrypoint Ownership
+
+The recommended executable entrypoint is:
+
+```bat
+python -m scripts.update.run_refresh_operational_flow --phase <phase>
+```
+
+The detailed commands below remain the authoritative manual procedure and are
+also the commands composed by the operational runner.
+
+`scripts.update.run_refresh_pipeline_v1` remains a supported lower-level/legacy
+runner, especially for `--candidate-rehearsal`. Its historical full mode is not
+the recommended production refresh path after merged-alignment and controlled-
+promotion hardening.
+
+The v0.1 operational sequence is intentionally phase-by-phase:
+
+```bat
+python -m scripts.update.run_refresh_operational_flow --phase preflight --execute
+python -m scripts.update.run_refresh_operational_flow --phase candidate --execute
+python -m scripts.update.run_refresh_operational_flow --phase promote
+python -m scripts.update.run_refresh_operational_flow --phase promote --execute
+python -m scripts.update.run_refresh_operational_flow --phase core-derived --execute
+python -m scripts.update.run_refresh_operational_flow --phase postgres --execute
+python -m scripts.update.run_refresh_operational_flow --phase discovery-derived --execute
+```
+
+Review the controlled-promotion dry-run report before the separate promotion
+execute command. `--phase full` is a plan view in v0.1; `full --execute` is
+fail-closed so that one command cannot cross the manual promotion boundary.
+
+The full phase and mutation contract is documented in:
+
+```text
+docs/refresh_operational_orchestration_v0.1.md
+```
+
 ## Safety Rules
 
 - Do not promote a candidate unless promotion readiness passes.
@@ -62,7 +100,7 @@ sync below.
 Run a candidate rehearsal without mutating canonical latest.
 
 ```bat
-python -m scripts.update.run_refresh_pipeline_v1 --candidate-rehearsal --execute
+python -m scripts.update.run_refresh_pipeline_v1 --candidate-rehearsal --execute --strict
 python -m scripts.validation.check_refresh_alignment_coverage
 python -m scripts.validation.check_refresh_source_coverage
 python -m scripts.validation.check_refresh_promotion_readiness --strict
@@ -143,7 +181,7 @@ python -m scripts.retrieval.build_indexes
 python -m scripts.validation.run_retrieval_checks
 python -m scripts.validation.run_postpass_audit
 python -m scripts.validation.build_known_issues_snapshot
-python -m scripts.update.check_refresh_definition_of_done --require-known-issues
+python -m scripts.update.check_refresh_definition_of_done --require-known-issues --strict
 ```
 
 Expected checks:
@@ -183,7 +221,7 @@ normalized files, then verify the DB read layer.
 python -m scripts.export.test_db_read
 python -m scripts.export.export_postgres_v1 --replace
 python -m scripts.export.test_db_read
-python -m scripts.update.check_refresh_definition_of_done --require-known-issues
+python -m scripts.update.check_refresh_definition_of_done --require-known-issues --strict
 ```
 
 Expected checks:
@@ -211,7 +249,7 @@ Build and validate paper features:
 ```bat
 python -m scripts.features.build_paper_features
 python -m scripts.validation.check_paper_features --strict
-python -m scripts.update.check_refresh_definition_of_done --require-known-issues --require-paper-features
+python -m scripts.update.check_refresh_definition_of_done --require-known-issues --require-paper-features --strict
 ```
 
 Expected checks:
@@ -222,13 +260,17 @@ paper_features_quality_canonical_rows_match=True
 required_failed_count=0
 ```
 
-Build and validate detail and similar papers:
+Build a fresh bounded ranking sample, then validate detail and similar papers:
 
 ```bat
-python -m scripts.details.build_paper_detail
+python -m scripts.validation.check_ranking_profiles --strict
+python -m scripts.ranking.demo_radar_ranking --profile huggingface_ready --top-k 5
+python -m scripts.validation.check_ranking_report --strict
+python -m scripts.details.build_paper_detail --from-latest-ranking-rank 1
+python -m scripts.validation.check_paper_detail_report --strict
 python -m scripts.retrieval.find_similar_papers --from-latest-detail --top-k 20
 python -m scripts.validation.check_similar_papers_report --strict
-python -m scripts.update.check_refresh_definition_of_done --require-known-issues --require-paper-features --require-similar-papers
+python -m scripts.update.check_refresh_definition_of_done --require-known-issues --require-paper-features --require-similar-papers --strict
 ```
 
 Expected checks:
@@ -277,7 +319,7 @@ required_failed_count=0
 Final optional derived Definition of Done:
 
 ```bat
-python -m scripts.update.check_refresh_definition_of_done --require-known-issues --require-paper-features --require-similar-papers --require-topic-clusters --require-topic-projection --require-discovery-api --require-streamlit-discovery-ui
+python -m scripts.update.check_refresh_definition_of_done --require-known-issues --require-paper-features --require-similar-papers --require-topic-clusters --require-topic-projection --require-discovery-api --require-streamlit-discovery-ui --strict
 ```
 
 Expected checks:
@@ -294,10 +336,10 @@ regression, and golden query gates are opt-in. Enable them only when the current
 refresh scope includes those layers.
 
 ```bat
-python -m scripts.update.check_refresh_definition_of_done --require-known-issues --require-artifacts --require-artifact-api-filters
-python -m scripts.update.check_refresh_definition_of_done --require-known-issues --require-github-enrichment --require-huggingface-enrichment
-python -m scripts.update.check_refresh_definition_of_done --require-known-issues --require-citation-graph-api-regression
-python -m scripts.update.check_refresh_definition_of_done --require-known-issues --require-golden-queries
+python -m scripts.update.check_refresh_definition_of_done --require-known-issues --require-artifacts --require-artifact-api-filters --strict
+python -m scripts.update.check_refresh_definition_of_done --require-known-issues --require-github-enrichment --require-huggingface-enrichment --strict
+python -m scripts.update.check_refresh_definition_of_done --require-known-issues --require-citation-graph-api-regression --strict
+python -m scripts.update.check_refresh_definition_of_done --require-known-issues --require-golden-queries --strict
 ```
 
 Known non-blocking signals can appear when their corresponding `--require-*`
@@ -368,8 +410,8 @@ Keep these removals separate from feature work when possible.
 The August 2026 refresh path validated this runbook shape with:
 
 ```text
-baseline_doc_count=60954
-candidate_doc_count=61075
+pre_promotion_baseline_doc_count=60954
+current_canonical_latest_doc_count=61075
 doc_count_delta=121
 removed_count=0
 canonical_multisource_docs=9226

@@ -410,6 +410,11 @@ def build_parser() -> argparse.ArgumentParser:
             "--require-streamlit-discovery-ui to DoD check."
         ),
     )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit non-zero when an executed pipeline step fails.",
+    )
 
     return parser
 
@@ -742,6 +747,8 @@ def main() -> None:
         dod_cmd.append("--require-topic-projection")
     if args.require_streamlit_discovery_ui:
         dod_cmd.append("--require-streamlit-discovery-ui")
+    if args.strict:
+        dod_cmd.append("--strict")
 
     step_cmds = {
         "refresh_preflight": refresh_preflight_cmd,
@@ -885,6 +892,13 @@ def main() -> None:
         "planned_steps": planned_steps,
         "execution_summary": execution_summary,
         "executed_steps": executed_steps,
+        "verdict": {
+            "ok": execution_summary["failed_count"] == 0,
+            "required_failed_count": execution_summary["failed_count"],
+            "required_failed_checks": [
+                f"step::{name}" for name in execution_summary["failed_step_names"]
+            ],
+        },
     }
 
     latest_json = args.update_dir / "run_refresh_pipeline_v1_latest.json"
@@ -936,7 +950,11 @@ def main() -> None:
         f"{bool(args.require_streamlit_discovery_ui)}"
     )
     print(f"[OK] topic_cluster_stages_enabled={topic_cluster_stages_enabled(args)}")
+
     print(f"[OK] streamlit_ui_stages_enabled={streamlit_ui_stages_enabled(args)}")
+
+    if args.strict and execution_summary["failed_count"] > 0:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

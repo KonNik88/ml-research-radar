@@ -951,14 +951,26 @@ Points: 60954 / 60954
 
 ---
 
-# D. Manual refresh flow
+# D. Operational and manual refresh flow
 
 Use this only when refreshing canonical or derived artifacts, not for ordinary development startup.
 
 There are two valid styles:
 
-1. use the thin orchestration wrapper;
+1. use the recommended phase-based operational runner;
 2. run individual steps manually while debugging.
+
+Recommended entrypoint:
+
+```bat
+python -m scripts.update.run_refresh_operational_flow --phase <phase>
+```
+
+`run_refresh_pipeline_v1` remains a supported lower-level/legacy runner,
+especially for bounded candidate rehearsal. Its historical full mode is not an
+equal production refresh path and must not bypass the phase ownership or
+controlled-promotion boundary documented in
+`docs/refresh_operational_orchestration_v0.1.md`.
 
 ## Refresh preflight contract v0.1
 
@@ -975,22 +987,22 @@ For the full refresh-start gate, use:
 python -m scripts.validation.check_refresh_preflight_contract --strict --require-known-issues --require-merged-inputs --require-refresh-cycle-report --check-db
 ```
 
-`run_refresh_pipeline_v1` wires this validator as its first planned step:
+The operational preflight phase composes:
 
 ```text
-refresh_preflight
-→ reconcile candidate
-→ candidate provenance audit
-→ candidate delta review
-→ promote candidate
-→ export / rebuild / validate derived layers
+build coverage-safe merged alignment snapshots
+→ strict refresh preflight contract
 ```
 
-In `--execute` mode the wrapper runs the full strict preflight gate before any
-canonical candidate, promotion, export, retrieval, topic, API/UI, or DoD step.
-When the selected `--stop-after` reaches `export_postgres` or a later step, the
-wrapper also forwards `--check-db` to the preflight. To run only the preflight
-through the wrapper:
+Run it as a plan first or execute only that phase:
+
+```bat
+python -m scripts.update.run_refresh_operational_flow --phase preflight
+python -m scripts.update.run_refresh_operational_flow --phase preflight --execute
+```
+
+The lower-level `run_refresh_pipeline_v1` also retains the validator as its
+first candidate-rehearsal step. To run only that legacy/debug preflight path:
 
 ```bat
 python -m scripts.update.run_refresh_pipeline_v1 --stop-after refresh_preflight --execute
@@ -1016,16 +1028,17 @@ known issues snapshot matches canonical/retrieval when required
 merged full snapshots are resolved from OpenAlex / Semantic Scholar / Crossref merge reports when required
 merged alignment snapshots cover baseline OpenAlex / Semantic Scholar / Crossref source coverage when required
 latest incremental refresh cycle is ready for reconcile when required
-runbook/wrapper expose candidate delta review before promotion
+runbook and operational/lower-level runners expose candidate delta review before promotion
 Postgres read smoke matches canonical latest when --check-db is selected
-run_refresh_pipeline_v1 / run_incremental_reconcile_stage / promote_canonical_candidate still expose the expected safety markers
+run_refresh_operational_flow / run_refresh_pipeline_v1 / run_incremental_reconcile_stage / promote_canonical_candidate still expose the expected safety markers
 ```
 
 Boundary:
 
 ```text
 check_refresh_preflight_contract is read-only
-run_refresh_pipeline_v1 executes it before mutating refresh steps by default
+run_refresh_operational_flow executes it only inside the explicit preflight phase
+run_refresh_pipeline_v1 executes it before lower-level candidate-rehearsal mutation by default
 no canonical candidate is built
 no canonical latest is promoted
 no Postgres export is run
@@ -1047,7 +1060,7 @@ python -m scripts.update.run_refresh_pipeline_v1 --candidate-rehearsal
 Execute only the bounded rehearsal:
 
 ```bat
-python -m scripts.update.run_refresh_pipeline_v1 --candidate-rehearsal --execute
+python -m scripts.update.run_refresh_pipeline_v1 --candidate-rehearsal --execute --strict
 ```
 
 `--candidate-rehearsal` expands to:
@@ -1236,7 +1249,7 @@ After a successful build, run:
 
 ```bat
 python -m scripts.validation.check_refresh_preflight_contract --strict --require-known-issues --require-merged-inputs --require-refresh-cycle-report
-python -m scripts.update.run_refresh_pipeline_v1 --candidate-rehearsal --execute
+python -m scripts.update.run_refresh_pipeline_v1 --candidate-rehearsal --execute --strict
 python -m scripts.validation.check_refresh_alignment_coverage
 python -m scripts.validation.check_refresh_source_coverage
 ```
@@ -1369,31 +1382,35 @@ derived layer rebuild/export checks belong to the next branch after promotion
 generated latest/history reports are local evidence artifacts, not committed by default
 ```
 
-## Option A — thin orchestration wrapper
+## Option A — recommended phase-based operational orchestration
 
-Example:
+Inspect the complete plan without executing child commands:
 
 ```bat
-python -m scripts.update.run_refresh_pipeline_v1 --arxiv-input data\normalized\arxiv\documents.20260404T161108Z.jsonl --execute
+python -m scripts.update.run_refresh_operational_flow --phase full
 ```
 
-Intended high-level sequence:
+Execute the accepted refresh flow phase by phase:
 
-```text
-refresh_preflight
-→ reconcile candidate
-→ candidate provenance audit
-→ candidate delta review
-→ promote candidate
-→ export canonical to Postgres
-→ rebuild retrieval artifacts
-→ run retrieval checks
-→ run postpass audit
-→ build known issues snapshot
-→ DoD check
+```bat
+python -m scripts.update.run_refresh_operational_flow --phase preflight --execute
+python -m scripts.update.run_refresh_operational_flow --phase candidate --execute
+python -m scripts.update.run_refresh_operational_flow --phase promote
+python -m scripts.update.run_refresh_operational_flow --phase promote --execute
+python -m scripts.update.run_refresh_operational_flow --phase core-derived --execute
+python -m scripts.update.run_refresh_operational_flow --phase postgres --execute
+python -m scripts.update.run_refresh_operational_flow --phase discovery-derived --execute
 ```
 
-After wrapper completion, run downstream product checks if the wrapper does not already cover them.
+Review the controlled-promotion dry-run report before the separate promotion
+execute command. `--phase full --execute` is intentionally fail-closed in v0.1;
+one command cannot create a candidate, cross the human promotion boundary, and
+continue into destructive derived replacements.
+
+The detailed phase, mutation, reporting, and resume boundaries are defined in
+`docs/refresh_operational_orchestration_v0.1.md`. The legacy full mode of
+`run_refresh_pipeline_v1` remains available for compatibility/debugging but is
+not the recommended operational entrypoint.
 
 ## Option B — step-by-step execution
 
