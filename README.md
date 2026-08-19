@@ -35,44 +35,48 @@ paper-centric research-discovery system.
 ## Current validated checkpoint
 
 ```text
-checkpoint = Dataset Release Track Checkpoint v0.1
-base checkpoint = Discovery Regression Runner Summary Report v1
+checkpoint = Current Project State Checkpoint v0.2 / Refresh Operational Orchestration v0.1
+base checkpoint = safe canonical refresh and synchronized core/Discovery derived layers
 public behavior change = none
 public dense/hybrid backend = file
 experimental Qdrant endpoint = explicit
 fallback = absent
 Qdrant promotion = not performed
 dataset public upload = not performed
+recommended refresh entrypoint = scripts.update.run_refresh_operational_flow
 ```
+
+The transfer-safe current-state record is
+[`docs/project_state_current_v0.2.md`](docs/project_state_current_v0.2.md).
 
 Current corpus and retrieval baseline:
 
 ```text
-canonical documents = 60,954
-multisource documents = 9,192
-documents with DOI = 10,183
+pre-promotion canonical baseline = 60,954
+current canonical latest = 61,075
+canonical delta = +121
+removed documents = 0
+multisource documents = 9,226
 
-arXiv backbone = 60,000
-ACL-family documents = 957
-ACL-only documents = 954
-ACL-enriched existing documents = 3
-
-retrieval build = 20260504T164021Z
+retrieval build = 20260818T105227Z
+retrieval corpus documents = 61,075
 embedding model = sentence-transformers/all-MiniLM-L6-v2
-embedding shape = [60954, 384]
+embedding shape = [61075, 384]
 dense vectors normalized = true
 ```
 
 Current discovery baseline:
 
 ```text
-paper feature rows = 60,954
+paper feature rows = 61,075
 topic clusters = 80
+topic cluster build = 20260818T110734Z
 topic projection rows = 2,080
+topic projection build = 20260818T111232Z
 ranking profiles = 9
 ```
 
-Current Qdrant baseline:
+Previous experimental Qdrant build-scoped baseline:
 
 ```text
 collection = ml_radar_dense_benchmark_v1
@@ -81,7 +85,14 @@ vector size = 384
 distance = Cosine
 experimental transport = gRPC
 selected ANN profile = ef_256
+synchronized to current canonical = false
+publicly promoted = false
 ```
+
+Paper–Artifact Graph, Citation / Reference Graph, Qdrant, and metadata release
+outputs tied to `60,954` remain valid historical/build-scoped candidates. They
+are not silently current against canonical latest `61,075` and require an
+explicit rebuild and validation decision before reuse as current outputs.
 
 Current Golden Set and evaluation baseline:
 
@@ -108,11 +119,12 @@ GET /search?mode=hybrid
 → file lexical + exact file dense hybrid retrieval
 ```
 
-Experimental Qdrant search remains explicit:
+Experimental Qdrant search remains explicit and build-scoped:
 
 ```text
 GET /experimental/search/qdrant
-→ Qdrant dense search over the same retrieval build
+→ configured Qdrant dense collection
+→ recorded local collection currently belongs to the previous 60,954-paper build
 ```
 
 Important boundaries:
@@ -460,8 +472,9 @@ dense weight = 0.45
 GET /experimental/search/qdrant
 ```
 
-This endpoint is explicit and experimental. It uses Qdrant gRPC over the current
-retrieval build and selected profile. It does not change `/search`.
+This endpoint is explicit and experimental. It uses Qdrant gRPC and the selected
+profile, but the recorded collection is not synchronized with the current
+`61,075`-paper retrieval generation. It does not change `/search`.
 
 ### Similar papers
 
@@ -494,7 +507,7 @@ Current topic artifacts:
 
 ```text
 clusters = 80
-assignments = 60,954
+assignments = 61,075
 projection rows = 2,080
 ```
 
@@ -526,7 +539,7 @@ Current families include:
 - retrieval-serving checkpoint gate;
 - strict Definition of Done.
 
-Current provenance evidence:
+Previous `60,954`-paper provenance evidence:
 
 ```text
 documents checked = 60,954
@@ -536,7 +549,9 @@ informational doc_ids_shorter_than_sources = 9,095
 ```
 
 The informational count is expected because `doc_ids` are deduplicated while
-`sources` preserve contributing provenance rows.
+`sources` preserve contributing provenance rows. This older report remains
+build-scoped and is not presented as the current `61,075`-paper provenance
+report.
 
 Recommended lightweight retrieval-serving gate:
 
@@ -661,26 +676,31 @@ requirements.
 
 Recommended order:
 
-1. **Dataset Release Track Checkpoint v0.1**  
-   Synchronize the implemented metadata-only local candidate release pipeline,
-   including `data_quality_summary.json` in the config/validator contract.
+1. **Current Project State Checkpoint v0.2**  
+   Record the post-refresh/post-orchestration state and distinguish current
+   `61,075`-paper layers from previous `60,954` build-scoped outputs.
 
-2. **Graph / NER / RAG Architecture Decision v0.1**  
-   Define boundaries for paper-artifact graph, entity extraction experiments,
-   full-text/chunk provenance, and grounded RAG before implementation.
+2. **Paper Entity Evidence Contract v0.1**  
+   Define mention identity, entity types, provenance, confidence, offsets,
+   build compatibility, and validation without downloading a model.
 
-3. **Paper–Artifact Graph v0.1**  
-   Build the first new functional layer over existing `canonical_id`,
-   `artifact_id`, and trusted paper-artifact links.
+3. **Bounded Entity Extractor Baseline v0.1**  
+   Exercise the contract on synthetic/curated fixtures without full-corpus
+   generation or claims of production NER quality.
 
-4. **Deployment Vector Backend Selector Design v1**  
-   Design `ML_RADAR_VECTOR_BACKEND=file|qdrant` without changing defaults.
+4. **Entity Review and Evaluation v0.1**  
+   Build a manually reviewed sample and compare candidate extraction approaches
+   before selecting or promoting a model.
 
-5. **Public Qdrant Promotion v1**  
-   Only after explicit design, regression gates, rollback policy, and acceptance evidence.
+5. **Accepted Derived Entity Build and Product Integration**  
+   Only after quality gates; entities remain downstream of canonical truth.
 
-6. **Next retrieval generation**  
-   New embeddings, larger Golden Set, and retrieval rebuild only as a separate build-scoped slice.
+6. **Full-text / Chunk Provenance / Grounded RAG**  
+   Separate acquisition and evidence contract after the entity layer is stable.
+
+Dataset publication remains paused pending explicit redistribution guidance.
+Qdrant promotion, new embeddings, Airflow, and GraphRAG remain deferred until a
+measured requirement justifies their separate acceptance slices.
 
 ---
 

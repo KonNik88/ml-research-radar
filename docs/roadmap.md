@@ -4,15 +4,16 @@
 
 ```text
 document = primary living roadmap
-accepted checkpoint = Current State Checkpoint v0.1 / Field-Level Canonical Provenance Evidence Checkpoint v0.1
-base checkpoint = Discovery Regression Runner Summary Report v1
-current active direction = bounded field-level provenance line completed and checkpointed
-current active slice = Field-Level Canonical Provenance Evidence Checkpoint v0.1 completed / living-docs sync
+accepted checkpoint = Current Project State Checkpoint v0.2 / Refresh Operational Orchestration v0.1
+base checkpoint = current canonical latest 61,075 with synchronized core and Discovery derived layers
+current active direction = Scientific Entity Evidence Layer preparation
+current active slice = Current Project State Checkpoint v0.2 post-orchestration living-docs sync
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
-scope of current branch = aggregate the accepted contract, evidence-validation, and semantic-review reports into one fail-closed bounded checkpoint; close the field-level provenance line; synchronize living docs; and preserve canonical, reconciliation, source-observation, Postgres, retrieval, Qdrant, graph, ranking, API, UI, and publication boundaries
+dataset publication = paused pending redistribution guidance
+scope of current branch = record the post-refresh and post-orchestration state; distinguish current 61,075-paper layers from previous 60,954 build-scoped outputs; select Scientific Entity Evidence as the next bounded functional direction; and preserve every canonical/runtime/publication boundary
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -20,24 +21,29 @@ architectural invariants that must remain stable, and the recommended order of
 future work.
 
 The project prefers complete, validated vertical slices over broad feature
-expansion. The Field-Level Canonical Provenance Contract, bounded Evidence
-Builder, Evidence Review & Regression Hardening, and final Evidence Checkpoint
-slices are complete and green. The bounded field-level provenance line is now
-closed. Any full-corpus provenance materialization, Postgres/API/UI surface,
-GraphRAG, graph DB, or Qdrant-promotion work still requires a separate accepted
-design slice.
+expansion. The safe canonical refresh, core/Discovery synchronization,
+operational runbook, and phase-based orchestration entrypoint are complete and
+green. Older Qdrant, graph, and dataset outputs remain separate build-scoped
+candidates rather than silently becoming current against canonical latest.
+Scientific Entity Evidence is the next accepted functional direction, beginning
+with a contract and bounded evaluation harness rather than a model download or
+full-corpus run.
 
 ---
 
-## 0. Current State Checkpoint v0.1
+## 0. Current Project State Checkpoint v0.2
 
 Status: **accepted documentation / transfer / design-hardening baseline**
 
 The current accepted project-state checkpoint is documented in:
 
 ```text
-docs/project_state_current_v0.1.md
+docs/project_state_current_v0.2.md
 ```
+
+`docs/project_state_current_v0.1.md` remains a historical checkpoint for the
+previous accepted graph, dataset-release, source-identity, and bounded
+field-provenance state.
 
 The checkpoint is intentionally documentation-only:
 
@@ -59,12 +65,14 @@ Accepted current direction:
 
 ```text
 operational source-observation identity = completed
-Field-Level Canonical Provenance Contract v0.1 = completed
-Field-Level Canonical Provenance Evidence Builder v0.1 = completed
-Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1 = completed
-Field-Level Canonical Provenance Evidence Checkpoint v0.1 = completed
 bounded field-level provenance line = closed
-full-corpus provenance / runtime / public API / GraphRAG / Qdrant promotion only after a separate accepted design slice
+safe canonical refresh to 61,075 papers = completed
+core retrieval/Postgres/Discovery synchronization = completed
+Refresh Operational Orchestration v0.1 = completed
+dataset publication = paused pending redistribution guidance
+Scientific Entity Evidence Layer = next accepted functional direction
+full-corpus entity generation = not authorized before contract and evaluation
+GraphRAG / Qdrant promotion / scheduler orchestration = deferred
 ```
 
 Recently completed safe slices:
@@ -111,15 +119,23 @@ Recently completed safe slices:
 40. **Field-Level Canonical Provenance Evidence Builder v0.1** — produced 732 bounded deterministic field records across 12 papers and 33 contributing observations, added a 34-check independent validator and 16 smoke tests, and preserved all canonical/runtime boundaries.
 41. **Field-Level Canonical Provenance Evidence Review & Regression Hardening v0.1** — compared accepted directory/ZIP runs, pinned three semantic hashes, covered all 14 strategy families, added a 58-check review validator and seven drift-detection tests, and completed the related regression set at 52 passed.
 42. **Field-Level Canonical Provenance Evidence Checkpoint v0.1** — aggregated the accepted 99/99 contract, 34/34 evidence, and 58/58 review reports into a fail-closed 35/35 final checkpoint; added nine smoke tests; and closed the bounded field-level provenance line without creating a runtime or full-corpus surface.
+43. **Safe Canonical Refresh and Derived Synchronization v1** — promoted a green 61,075-paper candidate after alignment/source-coverage repair and synchronized retrieval, Postgres, paper features, detail/similar, topic, Discovery API, and Streamlit quality layers.
+44. **Refresh Operational Runbook v1** — documented the accepted phase ownership, promotion boundary, generated-artifact policy, and operator checks.
+45. **Refresh Operational Orchestration v0.1** — added the recommended phase-based entrypoint, strict child-process failure semantics, controlled-promotion freshness guard, fail-closed `full --execute`, and latest/history reports.
 
 Recommended next safe slices:
 
-1. **Semantic Scholar Public Release Boundary Remediation v0.1** — separate publication-governance track after the rejected release review.
-2. **Paper–Artifact Graph API Design v0.1** — only if existing Artifact API surfaces prove insufficient for a concrete product requirement.
-3. **Separate Field-Level Provenance Expansion Design** — only if a concrete need later justifies full-corpus materialization, Postgres storage, or an API/UI surface; none is authorized by the checkpoint.
+1. **Current Project State Checkpoint v0.2** — synchronize living state after the accepted refresh and orchestration merge.
+2. **Paper Entity Evidence Contract v0.1** — define mention identity, types, offsets, provenance, confidence, build compatibility, and validation without selecting a model.
+3. **Bounded Entity Extractor Baseline v0.1** — exercise the contract on synthetic/curated fixtures; no full-corpus generation.
+4. **Entity Review and Evaluation v0.1** — compare candidate extraction approaches on manually reviewed evidence before promotion.
+5. **Full-text / Chunk Provenance Contract** — only after the entity line is stable and before any grounded RAG implementation.
 
 Explicit immediate non-goals:
 
+- no full-corpus entity extraction;
+- no entity fields added to canonical documents;
+- no model promotion before an accepted evaluation harness;
 - no GraphRAG implementation;
 - no Neo4j/NetworkX runtime;
 - no additional graph traversal endpoints beyond the implemented outgoing-references, incoming-citations, external-reference-papers, source-families, top-referenced-papers, and top-external-references routes in this checkpoint;
@@ -143,16 +159,25 @@ manual_review summary.ok ≠ publication approval
 Current baseline markers:
 
 ```text
-canonical_doc_count = 60,954
-multisource_doc_count = 9,192
-retrieval_build_id = 20260504T164021Z
+pre_promotion_canonical_doc_count = 60,954
+current_canonical_latest_doc_count = 61,075
+canonical_doc_count_delta = +121
+multisource_doc_count = 9,226
+retrieval_build_id = 20260818T105227Z
+retrieval_corpus_doc_count = 61,075
 embedding_model = sentence-transformers/all-MiniLM-L6-v2
 embedding_dim = 384
 topic_clusters_count = 80
-topic_assignments_count = 60,954
+topic_cluster_build_id = 20260818T110734Z
+topic_projection_build_id = 20260818T111232Z
+topic_projection_points = 2,080
 ```
 
 Graph line markers:
+
+The following graph counters describe the accepted previous `60,954`-paper
+build-scoped graph generation. The graph lines are implemented and reviewable,
+but were not rebuilt by the August core/Discovery refresh flow.
 
 Citation / Reference Graph v0.1:
 
@@ -182,12 +207,12 @@ manual_review_required = true
 Boundary:
 
 ```text
-Current State Checkpoint v0.1 is not a new runtime layer.
+Current Project State Checkpoint v0.2 is not a new runtime layer.
 It is not a graph API.
 It is not a GraphRAG step.
 It is not Qdrant promotion.
 It is not publication.
-It is a transfer-safe architectural checkpoint for future slices.
+It is a transfer-safe planning checkpoint for the Scientific Entity Evidence line.
 ```
 
 ---
@@ -291,7 +316,10 @@ qdrant
 
 ---
 
-## 3. Current green checkpoint
+## 3. Prior retrieval-serving green checkpoint (60,954 build)
+
+This section preserves build-scoped evidence from the pre-promotion baseline.
+Section 0 is authoritative for the current `61,075`-paper state.
 
 ### 3.1 Corpus and retrieval
 
@@ -326,9 +354,10 @@ full_parity_ok = true
 rollback_db = ml_radar_pre_source_identity_v01_20260722t101620z
 ```
 
-Canonical documents remain 60,954 and the active retrieval build remains
-`20260504T164021Z`. This was a derived serving-layer identity correction, not a
-reconciliation or canonical promotion.
+At that historical source-identity checkpoint, canonical documents remained
+60,954 and the active retrieval build remained `20260504T164021Z`. This was a
+derived serving-layer identity correction, not a reconciliation or canonical
+promotion. The current post-refresh baseline is recorded in Section 0.
 
 ### 3.2 Golden Set
 
@@ -2066,9 +2095,9 @@ no graph/ranking/API/UI behavior change
 no publication action
 ```
 
-## 5. Current active direction
+## 5. Historical implementation ledger and former active directions
 
-### 5.0 Current immediate direction after evidence review hardening
+### 5.0 Field-provenance direction before the August refresh
 
 Completed:
 
@@ -2934,7 +2963,7 @@ full-text acquisition policy
 
 RAG must not be introduced as an ungrounded chat layer.
 
-### 6.11 Observability and orchestration
+### 6.11 Observability and scheduler orchestration
 
 Future staged path:
 
@@ -2948,7 +2977,10 @@ Future staged path:
 - Kubernetes;
 - Alembic migrations.
 
-These remain future architecture options, not immediate tasks.
+The local phase-based refresh runner is already implemented as
+`scripts.update.run_refresh_operational_flow`. The items above remain future
+architecture options, not immediate tasks; Airflow or another scheduler should
+only wrap a proven local operational flow.
 
 
 ## 7. Work explicitly deferred
@@ -2957,10 +2989,10 @@ Deferred:
 
 ```text
 public Qdrant promotion
-public graph API
-Citation / Reference Graph DB/API/UI/runtime exposure
+public/external graph API exposure
+Citation / Reference Graph DB or runtime promotion beyond the bounded local API/UI
 Citation / Reference Graph packaging/publication
-Streamlit graph UI
+expanded graph visualization UI
 graph runtime / Neo4j / NetworkX runtime
 GraphRAG over Paper-Artifact Graph
 deployment-level vector backend selector implementation
