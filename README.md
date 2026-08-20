@@ -35,9 +35,10 @@ paper-centric research-discovery system.
 ## Current validated checkpoint
 
 ```text
-checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Extractor Baseline v0.1
+checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Evaluation Harness v0.1
 base checkpoint = safe canonical refresh and synchronized core/Discovery derived layers
-scientific entity status = bounded literal baseline; no model or full-corpus build
+scientific entity status = bounded literal baseline + deterministic evaluation harness
+scientific entity quality status = synthetic descriptive evidence only; no model or full-corpus build
 public behavior change = none
 public dense/hybrid backend = file
 experimental Qdrant endpoint = explicit
@@ -544,6 +545,7 @@ Current families include:
 - Streamlit UI;
 - Scientific Entity Evidence Contract and deterministic fixture;
 - bounded Scientific Entity Extractor Baseline build and output validation;
+- Scientific Entity Evaluation Harness exact/relaxed metrics and independent validation;
 - Qdrant collection, parity, profile sweep, performance, and hybrid evaluation;
 - retrieval-serving checkpoint gate;
 - strict Definition of Done.
@@ -690,19 +692,28 @@ Recommended order:
    exact Unicode spans, extractor provenance, confidence semantics, and
    immutable build compatibility without downloading a model.
 
-2. **Bounded Scientific Entity Extractor Baseline v0.1 — implemented here.**
+2. **Bounded Scientific Entity Extractor Baseline v0.1 — implemented.**
    A deterministic literal adapter, plan/execute builder, immutable six-file
    output, independent validator, and synthetic regression fixtures exercise
    the contract without full-corpus generation or production NER claims.
 
-3. **Scientific Entity Review and Evaluation v0.1 — next.**
-   Build a manually reviewed sample and compare candidate extraction approaches
-   before selecting or promoting a model.
+3. **Scientific Entity Evaluation Harness v0.1 — implemented here.**
+   Exact and relaxed one-to-one matching, per-type/source-field metrics,
+   structural error evidence, immutable output, and independent recomputation
+   are executable on a deterministic synthetic fixture.
 
-4. **Accepted Derived Entity Build and Product Integration**
+4. **Bounded Scientific Entity Manual Review Evidence v0.1 — next.**
+   Build a local, prediction-blind reviewed sample without committing real paper
+   text or treating descriptive metrics as a production acceptance decision.
+
+5. **Candidate Extractor Benchmark and Accepted Derived Entity Build**
+   Compare models only after real bounded review evidence exists; evaluate
+   quality, license, latency, memory, determinism, and provenance.
+
+6. **Product Integration**
    Only after quality gates; entities remain downstream of canonical truth.
 
-5. **Full-text / Chunk Provenance / Grounded RAG**
+7. **Full-text / Chunk Provenance / Grounded RAG**
    Separate acquisition and evidence contract after the entity layer is stable.
 
 Dataset publication remains paused pending explicit redistribution guidance.

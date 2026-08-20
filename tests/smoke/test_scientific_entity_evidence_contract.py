@@ -169,8 +169,11 @@ def test_default_contract_and_fixture_pass() -> None:
     assert report["summary"]["required_failed_count"] == 0
     assert report["summary"]["fixture_document_count"] == 1
     assert report["summary"]["fixture_mention_count"] == 6
-    assert report["verdict"]["next_slice"] == (
+    assert report["verdict"]["authorized_follow_on"] == (
         "bounded_scientific_entity_extractor_baseline_v0.1"
+    )
+    assert report["verdict"]["next_slice"] == (
+        "bounded_scientific_entity_manual_review_evidence_v0.1"
     )
 
 

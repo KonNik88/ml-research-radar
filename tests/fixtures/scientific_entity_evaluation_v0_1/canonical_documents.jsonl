@@ -1,0 +1,4 @@
+{"canonical_id":"synthetic-baseline-001","reconciliation_key":"synthetic:baseline-001","title":"BERT for ImageNet classification with F1 score","abstract":"We apply contrastive learning to medical imaging."}
+{"canonical_id":"synthetic-baseline-002","reconciliation_key":"synthetic:baseline-002","title":"β-VAE enables classification in natural language processing","abstract":"Naive Bayes reaches accuracy on CIFAR-10."}
+{"canonical_id":"synthetic-baseline-003","reconciliation_key":"synthetic:baseline-003","title":"BioBERTology and ImageNetX are boundary controls","abstract":null}
+{"canonical_id":"synthetic-baseline-004","reconciliation_key":"synthetic:baseline-004","title":"BERT-based transfer learning for named entity recognition","abstract":"BERT improves F1 score."}

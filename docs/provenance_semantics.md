@@ -55,6 +55,13 @@ governance/evidence family:
   fingerprints, but remains downstream of canonical truth and cannot become a
   reconcile input.
 
+- **Scientific Entity Evaluation Harness v0.1**
+  A bounded derived comparison between extractor-independent reviewed reference
+  mentions and extractor-specific mention evidence. It pins canonical/review/
+  prediction hashes, reports exact and relaxed one-to-one metrics, and emits
+  structural error evidence. Evaluation provenance does not select a model,
+  authorize full-corpus extraction, or modify paper/source provenance.
+
 The contract, evidence, review, and checkpoint are not a third truth layer and do
 not add fields to `CanonicalDocument`. They document, explain, and validate current
 reconciliation behavior.

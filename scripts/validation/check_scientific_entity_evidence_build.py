@@ -375,8 +375,13 @@ def _build_report(
             "reconcile_input_allowed": False,
             "publication_allowed": False,
             "required_failed_checks": [check.name for check in failed_required],
-            "next_slice": (
+            "authorized_follow_on": (
                 "scientific_entity_review_and_evaluation_v0.1"
+                if not failed_required
+                else None
+            ),
+            "next_slice": (
+                "bounded_scientific_entity_manual_review_evidence_v0.1"
                 if not failed_required
                 else None
             ),

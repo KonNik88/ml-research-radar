@@ -1042,8 +1042,13 @@ def validate_contract(
             "reconcile_input_allowed": safety.get("may_be_used_as_reconcile_input") is True,
             "publication_allowed": safety.get("may_publish_output") is True,
             "required_failed_checks": [check.name for check in failed_required],
-            "next_slice": (
+            "authorized_follow_on": (
                 "bounded_scientific_entity_extractor_baseline_v0.1"
+                if not failed_required
+                else None
+            ),
+            "next_slice": (
+                "bounded_scientific_entity_manual_review_evidence_v0.1"
                 if not failed_required
                 else None
             ),

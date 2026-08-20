@@ -11,7 +11,7 @@ canonical_truth_changed_by_document = false
 runtime_behavior_changed_by_document = false
 generated_layers_rebuilt_by_document = false
 publishes_dataset = false
-current_extension = Bounded Scientific Entity Extractor Baseline v0.1
+current_extension = Scientific Entity Evaluation Harness v0.1
 ```
 
 This checkpoint records the accepted project state after the August 2026 safe
@@ -105,6 +105,7 @@ of file-backed truth. They must remain rebuildable.
 | Field-level provenance evidence | accepted bounded sample | 12 papers / 732 field records | Explanatory evidence, not full-corpus materialization |
 | Scientific Entity Evidence Contract | accepted | v0.1 / six entity types | Exact span, identity, provenance, confidence, and build compatibility |
 | Bounded Scientific Entity Extractor Baseline | implemented reference baseline | fixture/candidate only; max 100 documents | Deterministic derived evidence producer; no production model or full-corpus run |
+| Scientific Entity Evaluation Harness | implemented descriptive evaluation | 4 synthetic documents / 18 references / 17 predictions | Exact/relaxed quality semantics and independent recomputation; no model promotion |
 | Refresh operational orchestration | implemented | v0.1 | Recommended operational refresh entrypoint |
 
 The previous Qdrant, graph, and dataset candidates are not silently redefined as
@@ -320,20 +321,29 @@ Recommended order:
    - explicit plan/execute boundary;
    - no claim of production NER quality.
 
-3. **Scientific Entity Review and Evaluation v0.1 — next**
-   - manually reviewed sample;
-   - exact/relaxed span and per-type quality metrics;
-   - model/license/latency decision only after the harness exists.
+3. **Scientific Entity Evaluation Harness v0.1 — completed**
+   - exact/relaxed one-to-one matching;
+   - micro, per-type, and source-field descriptive metrics;
+   - independently recomputed structural error evidence;
+   - no model promotion or full-corpus authorization.
 
-4. **Accepted Full Derived Entity Build**
+4. **Bounded Scientific Entity Manual Review Evidence v0.1 — next**
+   - reproducible local real-paper sample;
+   - prediction-blind reference annotation;
+   - raw third-party title/abstract text remains outside Git;
+   - uniform and type-enriched strata reported separately.
+
+5. **Candidate Extractor Benchmark and Accepted Full Derived Entity Build**
    - only after quality gates;
-   - build-scoped manifest and current-canonical compatibility checks.
+   - model license, latency, memory, determinism, and provenance evidence;
+   - build-scoped manifest and current-canonical compatibility checks;
+   - explicit human acceptance decision.
 
-5. **Product and Graph Integration**
+6. **Product and Graph Integration**
    - Discovery facets, paper detail/comparison evidence, paper–entity edges;
    - only after the derived entity layer is accepted.
 
-6. **Full-text / Chunk Provenance / Grounded RAG**
+7. **Full-text / Chunk Provenance / Grounded RAG**
    - separate contract and acquisition-policy line;
    - no ungrounded chat layer.
 
@@ -375,7 +385,10 @@ operational refresh entrypoint = run_refresh_operational_flow
 legacy candidate runner = run_refresh_pipeline_v1
 dataset publication = paused pending permission
 next macro-layer = Scientific Entity Evidence
-new model selection = deferred until contract and evaluation harness exist
+scientific entity evaluation harness = implemented descriptive evidence
+scientific entity production model selected = false
+scientific entity full-corpus build authorized = false
+new model selection = deferred until bounded real manual-review evidence exists
 ```
 
 The project is not restarting or replacing completed work. The next entity

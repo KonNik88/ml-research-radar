@@ -4,17 +4,17 @@
 
 ```text
 document = primary living roadmap
-accepted checkpoint = Current Project State Checkpoint v0.2 / Bounded Scientific Entity Extractor Baseline v0.1
+accepted checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Evaluation Harness v0.1
 base checkpoint = current canonical latest 61,075 with synchronized core and Discovery derived layers
 current active direction = Scientific Entity Evidence Layer
-latest completed slice = Bounded Scientific Entity Extractor Baseline v0.1
-next authorized slice = Scientific Entity Review and Evaluation v0.1
+latest completed slice = Scientific Entity Evaluation Harness v0.1
+next authorized slice = Bounded Scientific Entity Manual Review Evidence v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
 dataset publication = paused pending redistribution guidance
-current entity boundary = bounded fixture/candidate evidence only; no model or full-corpus output
+current entity boundary = bounded fixture/candidate evidence and descriptive evaluation only; no model or full-corpus output
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -27,9 +27,9 @@ operational runbook, and phase-based orchestration entrypoint are complete and
 green. Older Qdrant, graph, and dataset outputs remain separate build-scoped
 candidates rather than silently becoming current against canonical latest.
 Scientific Entity Evidence is the active functional direction. Its executable
-mention-evidence contract and bounded deterministic literal baseline are
-complete. The next authorized slice is a review/evaluation harness, not a model
-promotion or full-corpus run.
+mention-evidence contract, bounded deterministic literal baseline, and
+independently validated evaluation harness are complete. The next authorized
+slice is local manual-review evidence, not a model promotion or full-corpus run.
 
 ---
 
@@ -74,7 +74,8 @@ Refresh Operational Orchestration v0.1 = completed
 dataset publication = paused pending redistribution guidance
 Scientific Entity Evidence Contract v0.1 = completed contract-only foundation
 Bounded Scientific Entity Extractor Baseline v0.1 = completed bounded reference implementation
-Scientific Entity Review and Evaluation v0.1 = next authorized slice
+Scientific Entity Evaluation Harness v0.1 = completed deterministic descriptive evaluation
+Bounded Scientific Entity Manual Review Evidence v0.1 = next authorized slice
 full-corpus entity generation = not authorized before contract and evaluation
 GraphRAG / Qdrant promotion / scheduler orchestration = deferred
 ```
@@ -128,13 +129,15 @@ Recently completed safe slices:
 45. **Refresh Operational Orchestration v0.1** — added the recommended phase-based entrypoint, strict child-process failure semantics, controlled-promotion freshness guard, fail-closed `full --execute`, and latest/history reports.
 46. **Scientific Entity Evidence Contract v0.1** — defines six contextual entity types, exact Unicode code-point spans, extractor-independent mention identity, extractor-specific evidence identity, confidence semantics, canonical build compatibility, immutable future output layout, executable Pydantic models, deterministic fixtures, and fail-closed validation without selecting a model.
 47. **Bounded Scientific Entity Extractor Baseline v0.1** — adds a deterministic literal adapter, fail-closed plan/execute builder, immutable local candidate output, independent validator, bounded safety limits, and synthetic regression fixtures without selecting a production model.
+48. **Scientific Entity Evaluation Harness v0.1** — adds extractor-independent reference identities, deterministic exact/relaxed one-to-one matching, micro/per-type/source-field metrics, structural error evidence, immutable plan/execute output, and independent semantic recomputation without model promotion.
 
 Recommended next safe slices:
 
-1. **Scientific Entity Review and Evaluation v0.1** — compare the reference baseline and later candidate approaches on manually reviewed evidence before model promotion.
-2. **Accepted Derived Entity Build** — only after explicit per-type/span quality, license, latency, and reproducibility gates.
-3. **Product and Graph Integration** — Discovery facets and paper–entity evidence only after the derived build is accepted.
-4. **Full-text / Chunk Provenance Contract** — only after the entity line is stable and before any grounded RAG implementation.
+1. **Bounded Scientific Entity Manual Review Evidence v0.1** — prepare a local prediction-blind real-paper reference sample without committing third-party text.
+2. **Candidate Extractor Benchmark v0.1** — compare approaches only after reviewed evidence exists, including quality, license, latency, memory, determinism, and provenance.
+3. **Accepted Derived Entity Build** — only after explicit per-type/span quality and reproducibility gates plus a human acceptance decision.
+4. **Product and Graph Integration** — Discovery facets and paper–entity evidence only after the derived build is accepted.
+5. **Full-text / Chunk Provenance Contract** — only after the entity line is stable and before any grounded RAG implementation.
 
 Explicit immediate non-goals:
 
@@ -4811,12 +4814,77 @@ no canonical/reconcile/Postgres/retrieval/Qdrant/graph/API/UI change
 no publication
 ```
 
+Implemented follow-on:
+
+```text
+Scientific Entity Evaluation Harness v0.1
+```
+
+The harness introduces exact/relaxed per-type metrics and independent
+recomputation. Real manually reviewed evidence remains a separate next slice.
+
+## Scientific Entity Evaluation Harness v0.1
+
+Status: **implemented bounded deterministic evaluation; descriptive only**
+
+Tracked package:
+
+```text
+configs/scientific_entity_evaluation_v0.1.yaml
+docs/scientific_entity_evaluation_harness_v0.1.md
+radar_core/contracts/scientific_entity_evaluation.py
+radar_core/entities/scientific_entity_evaluation.py
+scripts/entities/evaluate_scientific_entity_evidence.py
+scripts/validation/check_scientific_entity_evaluation.py
+tests/fixtures/scientific_entity_evaluation_v0_1/*
+tests/smoke/test_scientific_entity_evaluation_contract.py
+tests/smoke/test_scientific_entity_evaluator.py
+tests/smoke/test_scientific_entity_evaluation_validation.py
+```
+
+Implemented semantics:
+
+```text
+reference identity = review_id + extractor-independent mention_id + annotation provenance
+exact matching = same text identity + type + exact half-open span
+relaxed matching = same text identity + type + character IoU >= 0.5
+assignment = deterministic greedy IoU-desc, one-to-one
+metrics = micro + per type + title/abstract, exact and relaxed
+undefined metrics = null
+automatic errors = boundary mismatch, type mismatch, FP, FN
+output = immutable seven-file local evaluation directory
+validator = independent input reload and semantic recomputation
+```
+
+Synthetic harness evidence:
+
+```text
+documents = 4
+reference mentions = 18
+prediction mentions = 17
+exact matches = 14
+relaxed-only matches = 1
+structural error records = 5
+promotion_sample_sufficient = false
+```
+
+Boundary:
+
+```text
+metrics are descriptive only
+no production extractor/model selection
+no full-corpus run or authorization
+no real-paper reference text committed
+no canonical/reconcile/Postgres/retrieval/Qdrant/graph/API/UI change
+no redistribution or publication
+```
+
 Next bounded slice:
 
 ```text
-Scientific Entity Review and Evaluation v0.1
+Bounded Scientific Entity Manual Review Evidence v0.1
 ```
 
-The review/evaluation layer must introduce manually reviewed evidence and
-exact/relaxed per-type metrics before any production-model or full-build
-proposal.
+That slice must create a reproducible local sample with separately reported
+uniform and type-enriched strata, complete prediction-blind reference
+annotation, and run this accepted harness before any model benchmark proposal.

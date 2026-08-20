@@ -1,0 +1,38 @@
+{
+  "schema_version": "scientific_entity_review_manifest_v0.1",
+  "review_id": "scientific-entity-evaluation-fixture-review-v0.1",
+  "status": "fixture",
+  "generated_at_utc": "2026-08-21T09:00:00Z",
+  "canonical_input": {
+    "schema_version": "scientific_entity_canonical_input_v0.1",
+    "path": "tests/fixtures/scientific_entity_evaluation_v0_1/canonical_documents.jsonl",
+    "sha256": "3c750d9df2aabdcd6f6666ac4cd1a47682bd1399a75828c2a6064ff4f9fc31f3",
+    "document_count": 4,
+    "canonical_contract": "CanonicalDocument"
+  },
+  "annotation_method": "synthetic_fixture",
+  "annotation_guideline_version": "scientific_entity_annotation_guidelines_v0.1-synthetic",
+  "annotation_passes": 1,
+  "annotator_ids": [],
+  "prediction_blind": true,
+  "review_complete": true,
+  "source_fields": [
+    "title",
+    "abstract"
+  ],
+  "entity_types": [
+    "task",
+    "method",
+    "dataset",
+    "metric",
+    "model",
+    "domain"
+  ],
+  "reference_mentions_file": "reference_mentions.jsonl",
+  "reference_mention_count": 18,
+  "reference_mentions_sha256": "089315d162b6b16d79e06f87413dc411e9815afbd95bca2e378b262aaf897917",
+  "canonical_truth_mutated": false,
+  "may_be_used_as_reconcile_input": false,
+  "redistribution_allowed": false,
+  "publication_ready": false
+}
