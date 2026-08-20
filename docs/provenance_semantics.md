@@ -49,6 +49,12 @@ governance/evidence family:
   identity. It does not explain reconciliation and does not modify canonical
   provenance.
 
+- **Bounded Scientific Entity Extractor Baseline v0.1**
+  A deterministic rule-based producer of fixture/candidate mention evidence.
+  It records canonical input, semantic config, dependency environment, and code
+  fingerprints, but remains downstream of canonical truth and cannot become a
+  reconcile input.
+
 The contract, evidence, review, and checkpoint are not a third truth layer and do
 not add fields to `CanonicalDocument`. They document, explain, and validate current
 reconciliation behavior.

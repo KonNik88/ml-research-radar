@@ -587,26 +587,28 @@ unmeasured implementation choice and is therefore deferred.
 
 ---
 
-## 16. Next bounded slice
+## 16. Authorized bounded follow-on
 
-The next slice after this contract is:
+The bounded follow-on authorized by this contract is:
 
 ```text
 Bounded Scientific Entity Extractor Baseline v0.1
 ```
 
-That slice should:
+That follow-on is implemented in
+`docs/scientific_entity_extractor_baseline_v0.1.md` and:
 
 ```text
-consume only synthetic and small curated paper fixtures
-use the accepted mention/manifest models
-provide a deterministic adapter boundary
-emit candidate evidence only
-avoid full-corpus generation
-avoid production model claims
-prepare exact/relaxed span evaluation
+consumes only synthetic and small curated canonical-shaped inputs
+uses the accepted mention/manifest models
+provides a deterministic adapter boundary
+emits fixture/candidate evidence only
+forbids the current full canonical path and caps input at 100 documents
+avoids production model claims
+prepares exact/relaxed span evaluation
 ```
 
+The next authorized slice is Scientific Entity Review and Evaluation v0.1.
 Only after bounded review/evaluation may the project select a model and design
 an accepted full derived entity build.
 

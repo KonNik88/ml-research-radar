@@ -21,9 +21,9 @@ public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
 fallback = absent
-current extension = Safe Canonical Refresh and Derived Synchronization v1 / Refresh Operational Orchestration v0.1 / Current Project State Checkpoint v0.2 / Scientific Entity Evidence Contract v0.1
+current extension = Safe Canonical Refresh / Operational Orchestration v0.1 / Scientific Entity Extractor Baseline v0.1
 dataset publication = paused pending redistribution guidance
-next accepted functional direction = Bounded Scientific Entity Extractor Baseline v0.1
+next accepted functional direction = Scientific Entity Review and Evaluation v0.1
 ```
 
 Current canonical and synchronized core/Discovery baseline:
@@ -137,6 +137,7 @@ sources
 → Field-Level Canonical Provenance Evidence semantic review / accepted-baseline pinning
 → Field-Level Canonical Provenance Evidence final bounded checkpoint
 → Scientific Entity Evidence Contract / exact span and evidence identity validation
+→ bounded literal extractor / immutable candidate evidence build and validation
 → retrieval artifacts
 → deterministic source-observation identity materialization
 → Postgres materialized serving layer
@@ -181,7 +182,8 @@ Field-Level Canonical Provenance Contract = static derived governance over curre
 Field-Level Canonical Provenance Evidence = bounded derived explanatory evidence, not canonical truth
 Field-Level Canonical Provenance Evidence Review = read-only semantic determinism and drift-detection gate
 Field-Level Canonical Provenance Evidence Checkpoint = final read-only fail-closed closure gate over the bounded provenance line
-Scientific Entity Evidence Contract = contract-only downstream mention-evidence schema; not canonical truth or entity linking
+Scientific Entity Evidence Contract = downstream mention-evidence schema; not canonical truth or entity linking
+Bounded Scientific Entity Extractor Baseline = deterministic fixture/candidate producer; not production NER or full-corpus output
 Qdrant = optional derived vector-serving implementation
 ```
 
@@ -1254,9 +1256,10 @@ they are not alternative paper truth.
 Refresh Operational Orchestration v0.1 is the recommended local operational
 entrypoint. The older refresh pipeline remains a lower-level candidate runner.
 Scheduler orchestration such as Airflow remains deferred.
-Scientific Entity Evidence Contract v0.1 now defines tasks, methods, datasets,
-metrics, models, and domains without selecting an extractor. The next accepted
-direction is its bounded extractor baseline over synthetic/curated fixtures.
+Scientific Entity Evidence Contract v0.1 defines tasks, methods, datasets,
+metrics, models, and domains. Its bounded deterministic literal baseline now
+exercises the contract on synthetic/curated fixtures without model promotion.
+The next accepted direction is review/evaluation evidence.
 The source-observation promotion follows this rule: two checked dumps and the
 70,244-row legacy database remain available for rollback.
 Citation graph status/references/citations/external-reference-papers/source-families/top-referenced-papers/top-external-references are the checkpointed v0.3 narrow local-inspection API block, not a graph-runtime promotion.
@@ -1727,5 +1730,10 @@ no publication
 Raw-byte-pinned JSONL fixtures are forced to LF through the scoped
 `.gitattributes` rule, including on Windows checkouts with `core.autocrlf`.
 
-The next authorized slice is **Bounded Scientific Entity Extractor Baseline
-v0.1** over synthetic and small curated fixtures.
+The bounded literal/rule baseline now implements the contract over synthetic and
+small curated fixtures. It has a plan/execute boundary, a hard 100-document cap,
+an immutable six-file output layout, and an independent read-only validator.
+
+The next authorized slice is **Scientific Entity Review and Evaluation v0.1**.
+No production model or full-corpus build is authorized before that evidence is
+accepted.
