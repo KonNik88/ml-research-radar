@@ -81,8 +81,8 @@ field_level_provenance_line_complete = true
 bounded_evidence_checkpoint_ready = true
 
 scientific_entity_evidence_contract_status = implemented_contract_only
-scientific_entity_evidence_contract_checks = 124 / 124
-scientific_entity_evidence_contract_smoke_tests = 20
+scientific_entity_evidence_contract_checks = 127 / 127
+scientific_entity_evidence_contract_smoke_tests = 21
 scientific_entity_fixture_papers = 1
 scientific_entity_fixture_mentions = 6
 scientific_entity_model_selected = false
@@ -1703,6 +1703,7 @@ do not force unrelated mention-ID churn or require a contract rewrite.
 Current implementation:
 
 ```text
+.gitattributes
 configs/scientific_entity_evidence.yaml
 radar_core/contracts/scientific_entity_evidence.py
 scripts/validation/check_scientific_entity_evidence_contract.py
@@ -1722,6 +1723,9 @@ no Postgres/retrieval/Qdrant/graph/API/UI integration
 no canonical mutation or reconcile-input role
 no publication
 ```
+
+Raw-byte-pinned JSONL fixtures are forced to LF through the scoped
+`.gitattributes` rule, including on Windows checkouts with `core.autocrlf`.
 
 The next authorized slice is **Bounded Scientific Entity Extractor Baseline
 v0.1** over synthetic and small curated fixtures.

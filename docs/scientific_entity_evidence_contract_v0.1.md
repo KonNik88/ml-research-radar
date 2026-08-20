@@ -400,6 +400,11 @@ The contract deliberately does not hardcode the current corpus count. The
 project-state checkpoint records `61,075`, but each future entity build must pin
 the exact canonical file it actually consumed.
 
+The fixture SHA-256 values cover raw JSONL bytes with LF line endings. The
+scoped repository `.gitattributes` rule forces those pinned fixture files to
+remain LF even when a Windows checkout uses `core.autocrlf`. CRLF drift is a
+contract failure, not a reason to rewrite the expected hashes per platform.
+
 Compatibility rules:
 
 ```text
@@ -443,6 +448,7 @@ build directory = immutable
 mutable latest pointer = not required
 generated output committed to Git = false by default
 generated output ignore rule = /data/entities/
+SHA-pinned fixture checkout EOL = LF
 contract slice generates output = false
 encoding = UTF-8
 line ending = LF
@@ -477,6 +483,7 @@ Fixture requirements:
 ```text
 synthetic data only
 synthetic paper rows validate against CanonicalDocument
+canonical and mention JSONL files use LF-only line endings
 all six entity types represented
 title and abstract spans represented
 exact span reconstruction passes
@@ -546,6 +553,7 @@ missing model provenance for a model-based extractor
 unlabelled confidence semantics
 calibrated probability without calibration evidence
 duplicate ID with conflicting content
+CRLF or mixed line endings in raw-byte-hashed JSONL fixtures
 fixture manifest/file count or hash mismatch
 unsafe contract flag
 full-corpus output claimed by the contract-only slice

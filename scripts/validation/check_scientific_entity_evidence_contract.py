@@ -32,6 +32,7 @@ CONTRACT_PATH = (
     PROJECT_ROOT / "docs" / "scientific_entity_evidence_contract_v0.1.md"
 )
 GITIGNORE_PATH = PROJECT_ROOT / ".gitignore"
+GITATTRIBUTES_PATH = PROJECT_ROOT / ".gitattributes"
 REPORT_DIR = PROJECT_ROOT / "artifacts" / "reports" / "validation"
 
 CONFIG_SCHEMA_VERSION = "scientific_entity_evidence_config_v1"
@@ -254,6 +255,11 @@ def _file_sha256(path: Path) -> str:
     return hasher.hexdigest()
 
 
+def _uses_lf_only(path: Path) -> bool:
+    payload = path.read_bytes()
+    return bool(payload) and b"\r" not in payload and payload.endswith(b"\n")
+
+
 def _as_dict(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
@@ -328,6 +334,17 @@ def _validate_fixture(
 
     if not all(path.is_file() for path in paths.values()):
         return checks, evidence
+
+    _add(
+        checks,
+        "fixture_canonical_jsonl_lf_only",
+        _uses_lf_only(paths["canonical_documents_path"]),
+    )
+    _add(
+        checks,
+        "fixture_mentions_jsonl_lf_only",
+        _uses_lf_only(paths["mentions_path"]),
+    )
 
     try:
         canonical_items = list(_iter_jsonl(paths["canonical_documents_path"]))
@@ -825,6 +842,23 @@ def validate_contract(
         "generated_output_gitignore_present",
         gitignore_rule in gitignore_lines,
         str(gitignore_rule),
+    )
+    gitattributes_lines = (
+        {
+            line.strip()
+            for line in GITATTRIBUTES_PATH.read_text(encoding="utf-8").splitlines()
+        }
+        if GITATTRIBUTES_PATH.is_file()
+        else set()
+    )
+    _add(
+        checks,
+        "fixture_jsonl_eol_attribute_present",
+        (
+            "tests/fixtures/scientific_entity_evidence_v0_1/*.jsonl "
+            "text eol=lf"
+        )
+        in gitattributes_lines,
     )
     _add(
         checks,
