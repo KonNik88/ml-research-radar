@@ -21,9 +21,9 @@ public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
 fallback = absent
-current extension = Safe Canonical Refresh and Derived Synchronization v1 / Refresh Operational Orchestration v0.1 / Current Project State Checkpoint v0.2
+current extension = Safe Canonical Refresh and Derived Synchronization v1 / Refresh Operational Orchestration v0.1 / Current Project State Checkpoint v0.2 / Scientific Entity Evidence Contract v0.1
 dataset publication = paused pending redistribution guidance
-next accepted functional direction = Scientific Entity Evidence Layer
+next accepted functional direction = Bounded Scientific Entity Extractor Baseline v0.1
 ```
 
 Current canonical and synchronized core/Discovery baseline:
@@ -80,6 +80,14 @@ field_level_provenance_checkpoint_required_failed_count = 0
 field_level_provenance_line_complete = true
 bounded_evidence_checkpoint_ready = true
 
+scientific_entity_evidence_contract_status = implemented_contract_only
+scientific_entity_evidence_contract_checks = 124 / 124
+scientific_entity_evidence_contract_smoke_tests = 20
+scientific_entity_fixture_papers = 1
+scientific_entity_fixture_mentions = 6
+scientific_entity_model_selected = false
+scientific_entity_full_corpus_output_generated = false
+
 retrieval_build_id = 20260818T105227Z
 retrieval_corpus_doc_count = 61075
 embedding_model = sentence-transformers/all-MiniLM-L6-v2
@@ -128,6 +136,7 @@ sources
 → bounded Field-Level Canonical Provenance Evidence / independent validator
 → Field-Level Canonical Provenance Evidence semantic review / accepted-baseline pinning
 → Field-Level Canonical Provenance Evidence final bounded checkpoint
+→ Scientific Entity Evidence Contract / exact span and evidence identity validation
 → retrieval artifacts
 → deterministic source-observation identity materialization
 → Postgres materialized serving layer
@@ -172,6 +181,7 @@ Field-Level Canonical Provenance Contract = static derived governance over curre
 Field-Level Canonical Provenance Evidence = bounded derived explanatory evidence, not canonical truth
 Field-Level Canonical Provenance Evidence Review = read-only semantic determinism and drift-detection gate
 Field-Level Canonical Provenance Evidence Checkpoint = final read-only fail-closed closure gate over the bounded provenance line
+Scientific Entity Evidence Contract = contract-only downstream mention-evidence schema; not canonical truth or entity linking
 Qdrant = optional derived vector-serving implementation
 ```
 
@@ -1244,8 +1254,9 @@ they are not alternative paper truth.
 Refresh Operational Orchestration v0.1 is the recommended local operational
 entrypoint. The older refresh pipeline remains a lower-level candidate runner.
 Scheduler orchestration such as Airflow remains deferred.
-The next accepted functional direction is a contract-first Scientific Entity
-Evidence Layer for tasks, methods, datasets, metrics, models, and domains.
+Scientific Entity Evidence Contract v0.1 now defines tasks, methods, datasets,
+metrics, models, and domains without selecting an extractor. The next accepted
+direction is its bounded extractor baseline over synthetic/curated fixtures.
 The source-observation promotion follows this rule: two checked dumps and the
 70,244-row legacy database remain available for rollback.
 Citation graph status/references/citations/external-reference-papers/source-families/top-referenced-papers/top-external-references are the checkpointed v0.3 narrow local-inspection API block, not a graph-runtime promotion.
@@ -1651,3 +1662,66 @@ the bounded field-level provenance line is closed. Full-corpus generation,
 Postgres materialization, API/UI exposure, publication, or any use as
 reconciliation input remains unauthorized without a later separate accepted
 design slice.
+
+## Scientific Entity Evidence Contract v0.1
+
+The scientific-entity line begins as an executable downstream evidence
+contract:
+
+```text
+exact canonical title / abstract
+→ typed Unicode code-point span
+→ extractor-independent mention_id
+→ extractor-specific evidence_id
+→ manifest-pinned candidate build
+```
+
+Identity separation:
+
+```text
+canonical_id = paper identity
+mention_id = canonical field version + exact span + contextual entity type
+evidence_id = mention_id + immutable extractor fingerprint
+future entity_id = normalization/linking identity, not defined in v0.1
+```
+
+Accepted entity types:
+
+```text
+task
+method
+dataset
+metric
+model
+domain
+```
+
+The manifest pins the exact canonical file SHA-256 and document count at build
+time. The contract does not hardcode a mutable corpus count, so future refreshes
+do not force unrelated mention-ID churn or require a contract rewrite.
+
+Current implementation:
+
+```text
+configs/scientific_entity_evidence.yaml
+radar_core/contracts/scientific_entity_evidence.py
+scripts/validation/check_scientific_entity_evidence_contract.py
+tests/fixtures/scientific_entity_evidence_v0_1/*
+tests/smoke/test_scientific_entity_evidence_contract.py
+```
+
+Boundary:
+
+```text
+contract and synthetic fixture only
+no production extractor or model selection
+no model/tokenizer download
+no full-corpus generation
+no mention normalization or entity linking
+no Postgres/retrieval/Qdrant/graph/API/UI integration
+no canonical mutation or reconcile-input role
+no publication
+```
+
+The next authorized slice is **Bounded Scientific Entity Extractor Baseline
+v0.1** over synthetic and small curated fixtures.

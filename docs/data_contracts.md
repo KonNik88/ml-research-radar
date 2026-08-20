@@ -189,6 +189,46 @@ entity, and cannot be used as a reconcile input or serving truth.
 
 ---
 
+## 1.7 Scientific entity mention evidence
+
+Scientific entity mention evidence is a separate downstream derived record,
+validated by:
+
+```text
+radar_core/contracts/scientific_entity_evidence.py
+configs/scientific_entity_evidence.yaml
+scripts/validation/check_scientific_entity_evidence_contract.py
+```
+
+The v0.1 record captures:
+
+```text
+canonical_id
+source field = title | abstract
+exact Unicode code-point half-open span
+source_text_sha256
+contextual entity type = task | method | dataset | metric | model | domain
+extractor-independent mention_id
+extractor-specific evidence_id
+extractor fingerprint
+explicit confidence semantics
+```
+
+Identity boundary:
+
+```text
+canonical_id = paper identity
+mention_id = exact typed span identity
+evidence_id = one extractor/config observation
+future entity_id = not defined by this contract
+```
+
+The contract adds no entity fields to `CanonicalDocument`, does not normalize
+mentions into global entity nodes, and cannot be used as a reconcile input or
+serving truth.
+
+---
+
 # 2. Identity fields
 
 | Field | Purpose | Document | CanonicalDocument | Current Status |
@@ -686,12 +726,14 @@ allow package checksums to substitute for semantic-drift comparison
 - Field-Level Canonical Provenance Evidence Checkpoint v0.1
 - retrieval and serving metadata
 - separate artifact entities, observations, and trusted paper-artifact links
+- Scientific Entity Evidence Contract v0.1 and deterministic synthetic fixture
 
 ## Explicitly postponed
 - promotion of artifact metadata into canonical paper truth
 - dedicated Paper–Artifact Graph API unless existing Artifact API surfaces prove insufficient
 - chunk-level full-text entities
-- NER/entity extraction layer
+- bounded and full-corpus scientific-entity extraction beyond the accepted contract
+- scientific-entity normalization/linking and paper–entity integration
 - LLM summaries and RAG-specific chunk contracts
 
 ---

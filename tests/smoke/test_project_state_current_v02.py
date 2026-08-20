@@ -42,8 +42,10 @@ def test_readme_points_to_the_current_checkpoint_and_scopes_old_outputs() -> Non
 def test_roadmap_selects_contract_first_entity_evidence_direction() -> None:
     text = _read("docs/roadmap.md")
 
-    assert "current active direction = Scientific Entity Evidence Layer preparation" in text
-    assert "Paper Entity Evidence Contract v0.1" in text
+    assert "current active direction = Scientific Entity Evidence Layer" in text
+    assert "latest completed slice = Scientific Entity Evidence Contract v0.1" in text
+    assert "next authorized slice = Bounded Scientific Entity Extractor Baseline v0.1" in text
+    assert "Scientific Entity Evidence Contract v0.1" in text
     assert "no full-corpus entity extraction" in text
     assert "The local phase-based refresh runner is already implemented" in text
     assert "Prior retrieval-serving green checkpoint (60,954 build)" in text

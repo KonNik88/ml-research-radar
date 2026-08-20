@@ -1,0 +1,244 @@
+schema_version: scientific_entity_evidence_config_v1
+
+layer:
+  name: scientific_entity_evidence
+  version: v0.1
+  status: contract_only
+  layer_kind: derived_mention_evidence
+  description: >-
+    Contract for typed scientific-entity mention evidence extracted from exact
+    canonical title and abstract strings. This slice defines and validates the
+    contract only; it does not select a production model or build corpus output.
+
+canonical_input:
+  path: data/analytics/reconciled/canonical_documents.jsonl
+  contract: CanonicalDocument
+  identity_field: canonical_id
+  allowed_text_fields:
+    - title
+    - abstract
+  compatibility_policy:
+    manifest_records_canonical_sha256: true
+    manifest_records_canonical_document_count: true
+    record_stores_source_text_sha256: true
+    reject_mixed_canonical_inputs: true
+    no_fixed_corpus_count_in_contract: true
+
+entity_taxonomy:
+  required_types:
+    - task
+    - method
+    - dataset
+    - metric
+    - model
+    - domain
+  definitions:
+    task: research objective, prediction problem, or evaluation task
+    method: algorithmic technique, procedure, or methodological approach
+    dataset: named or contextually identifiable dataset, corpus, or benchmark data resource
+    metric: named evaluation measure; numeric values alone are not metric entities
+    model: named model, architecture, system, or checkpoint used as a model instance
+    domain: research or application area in which the work is situated
+  annotation_policy:
+    exact_contextual_type_required: true
+    overlapping_mentions_allowed: true
+    same_span_multiple_types_allowed: true
+    ambiguous_mentions_may_be_omitted: true
+    generic_terms_without_specific_referent_excluded: true
+    entity_linking_out_of_scope: true
+
+span_contract:
+  offset_unit: unicode_codepoint
+  offset_interval: half_open
+  offset_base: 0
+  source_text_policy: exact_json_decoded_canonical_field
+  normalization_before_offsets: forbidden
+  surface_must_equal_source_slice: true
+  empty_or_whitespace_span_forbidden: true
+  null_abstract_policy: skip
+
+identity:
+  mention:
+    namespace: scientific_entity_mention_v0.1
+    prefix: "mention:"
+    hash: sha256
+    hash_hex_length: 32
+    extractor_independent: true
+    parts:
+      - canonical_id
+      - source_field
+      - source_text_sha256
+      - char_start
+      - char_end
+      - entity_type
+  extraction_evidence:
+    namespace: scientific_entity_extraction_evidence_v0.1
+    prefix: "evidence:"
+    hash: sha256
+    hash_hex_length: 32
+    parts:
+      - mention_id
+      - extractor_fingerprint
+  policies:
+    canonical_id_remains_paper_identity: true
+    mention_id_is_not_entity_id: true
+    evidence_id_is_not_entity_id: true
+    same_mention_across_extractors_keeps_mention_id: true
+    extractor_or_config_change_changes_evidence_id: true
+    source_text_change_changes_mention_id: true
+    identity_collisions_fail_closed: true
+
+extractor_provenance:
+  required_descriptor_fields:
+    - schema_version
+    - name
+    - version
+    - kind
+    - code_revision
+    - config_sha256
+    - environment_sha256
+  allowed_kinds:
+    - rule_based
+    - statistical_model
+    - language_model
+    - human_annotation
+    - imported
+  model_descriptor_required_fields:
+    - model_name
+    - model_revision
+    - model_artifact_sha256
+    - model_license
+  fingerprint_policy: sha256_of_canonical_json_descriptor
+
+mention_record:
+  schema_version: scientific_entity_mention_evidence_v0.1
+  required_fields:
+    - schema_version
+    - evidence_id
+    - mention_id
+    - build_id
+    - canonical_id
+    - entity_type
+    - source_field
+    - source_text_sha256
+    - char_start
+    - char_end
+    - surface_text
+    - extractor_fingerprint
+    - confidence_kind
+    - confidence_score
+    - calibration_id
+  extra_fields_forbidden: true
+
+confidence:
+  allowed_kinds:
+    - not_available
+    - rule_score
+    - model_score
+    - calibrated_probability
+  score_range:
+    minimum: 0.0
+    maximum: 1.0
+  policies:
+    model_score_is_not_probability: true
+    rule_score_is_not_probability: true
+    calibrated_probability_requires_calibration_id: true
+    not_available_requires_null_score: true
+    thresholds_belong_to_extractor_config: true
+
+manifest:
+  schema_version: scientific_entity_evidence_manifest_v0.1
+  required_canonical_fields:
+    - path
+    - sha256
+    - document_count
+    - canonical_contract
+  required_build_fields:
+    - build_id
+    - status
+    - generated_at_utc
+    - canonical_input
+    - extractor
+    - extractor_fingerprint
+    - offset_unit
+    - offset_interval
+    - source_fields
+    - entity_types
+    - mentions_file
+    - mention_count
+    - mentions_sha256
+    - canonical_truth_mutated
+    - may_be_used_as_reconcile_input
+    - publication_ready
+  allowed_statuses:
+    - fixture
+    - candidate
+    - accepted
+
+outputs:
+  status: future_layout_only
+  generated_in_this_slice: false
+  expected_future_output_root: data/entities/scientific_entity_evidence/v0.1
+  generated_output_gitignore_rule: /data/entities/
+  build_directory_policy: immutable_build_id_directory
+  mutable_latest_pointer_required: false
+  serialization:
+    encoding: utf-8
+    line_ending: lf
+    jsonl_record_key_order: executable_contract_field_order
+  ordering:
+    source_field_order:
+      - title
+      - abstract
+    record_sort_keys:
+      - canonical_id
+      - source_field_order
+      - char_start
+      - char_end
+      - entity_type
+      - evidence_id
+  expected_future_output_layout:
+    - mentions.jsonl
+    - manifest.json
+    - schema.json
+    - data_quality_summary.json
+    - README.md
+    - checksums.txt
+
+fixtures:
+  canonical_documents_path: tests/fixtures/scientific_entity_evidence_v0_1/canonical_documents.jsonl
+  extractor_descriptor_path: tests/fixtures/scientific_entity_evidence_v0_1/extractor.json
+  manifest_path: tests/fixtures/scientific_entity_evidence_v0_1/manifest.json
+  mentions_path: tests/fixtures/scientific_entity_evidence_v0_1/mentions.jsonl
+  require_all_entity_types: true
+  synthetic_only: true
+
+safety:
+  canonical_truth_impact: none
+  may_be_used_as_reconcile_input: false
+  may_add_fields_to_canonical_document: false
+  may_mutate_canonical_corpus: false
+  may_generate_full_corpus_output: false
+  may_download_model_weights: false
+  may_select_production_model: false
+  may_change_postgres_schema: false
+  may_change_retrieval_behavior: false
+  may_change_qdrant_behavior: false
+  may_change_graph_behavior: false
+  may_change_api_behavior: false
+  may_change_streamlit_behavior: false
+  may_publish_output: false
+
+validation:
+  report_dir: artifacts/reports/validation
+  require_executable_pydantic_contract: true
+  require_contract_document: true
+  require_all_entity_types: true
+  require_exact_span_semantics: true
+  require_identity_semantics: true
+  require_extractor_provenance: true
+  require_confidence_semantics: true
+  require_build_compatibility: true
+  require_synthetic_fixture_validation: true
+  require_safety_flags: true
+  require_future_layout_only_outputs: true
