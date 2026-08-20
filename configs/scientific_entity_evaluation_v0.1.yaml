@@ -1,0 +1,118 @@
+schema_version: scientific_entity_evaluation_config_v0.1
+
+layer:
+  name: scientific_entity_evaluation_harness
+  version: v0.1
+  status: evaluation_harness
+  layer_kind: derived_bounded_quality_evidence
+  description: >-
+    Deterministic bounded evaluation harness for comparing reviewed scientific
+    entity reference mentions with extractor evidence. Metrics are descriptive
+    quality evidence only and cannot promote a production extractor or
+    authorize full-corpus generation.
+
+matching:
+  offset_unit: unicode_codepoint
+  offset_interval: half_open
+  exact_requires_same_entity_type: true
+  exact_requires_same_span: true
+  exact_requires_same_text_identity: true
+  relaxed_enabled: true
+  relaxed_min_char_iou: 0.5
+  relaxed_requires_same_entity_type: true
+  relaxed_requires_same_text_identity: true
+  relaxed_assignment: deterministic_greedy_iou_desc_v0.1
+  one_to_one: true
+
+metrics:
+  source_fields:
+    - title
+    - abstract
+  entity_types:
+    - task
+    - method
+    - dataset
+    - metric
+    - model
+    - domain
+  undefined_metric_value: "null"
+  decimal_places: 6
+  minimum_document_count_for_promotion_evidence: 32
+  minimum_reference_mentions_per_type: 20
+  promotion_verdict_allowed: false
+  metrics_are_descriptive_only: true
+
+safety:
+  default_max_documents: 32
+  hard_max_documents: 100
+  hard_max_reference_mentions: 5000
+  hard_max_prediction_mentions: 5000
+  fail_if_input_exceeds_limit: true
+  truncation_allowed: false
+  forbid_current_canonical_input: true
+  current_canonical_path: data/analytics/reconciled/canonical_documents.jsonl
+  allowed_evaluation_statuses:
+    - fixture
+    - candidate
+  accepted_or_promoted_status_allowed: false
+  execute_required_for_writes: true
+  overwrite_allowed: false
+  model_or_tokenizer_download_allowed: false
+  provider_api_allowed: false
+  canonical_truth_mutation_allowed: false
+  reconcile_input_allowed: false
+  full_corpus_build_authorized: false
+  redistribution_allowed: false
+  publication_allowed: false
+
+outputs:
+  root: data/entities/scientific_entity_evaluation/v0.1
+  immutable_evaluation_directory: true
+  mutable_latest_pointer: false
+  encoding: utf-8
+  line_ending: lf
+  required_files:
+    - manifest.json
+    - metrics.json
+    - per_type_metrics.json
+    - matches.jsonl
+    - errors.jsonl
+    - README.md
+    - checksums.txt
+
+validation:
+  report_dir: artifacts/reports/validation
+  require_independent_validator: true
+  require_metric_recomputation: true
+  require_one_to_one_matches: true
+  require_checksums: true
+  require_lf_outputs: true
+  require_input_hashes: true
+  require_fail_closed_safety: true
+
+fixtures:
+  documents_path: >-
+    tests/fixtures/scientific_entity_evaluation_v0_1/canonical_documents.jsonl
+  review_manifest_path: >-
+    tests/fixtures/scientific_entity_evaluation_v0_1/review_manifest.json
+  reference_mentions_path: >-
+    tests/fixtures/scientific_entity_evaluation_v0_1/reference_mentions.jsonl
+  prediction_manifest_path: >-
+    tests/fixtures/scientific_entity_evaluation_v0_1/prediction_build/manifest.json
+  prediction_mentions_path: >-
+    tests/fixtures/scientific_entity_evaluation_v0_1/prediction_build/mentions.jsonl
+  expected_metrics_path: >-
+    tests/fixtures/scientific_entity_evaluation_v0_1/expected_metrics.json
+  synthetic_only: true
+
+manual_error_labels:
+  - false_positive_generic_term
+  - false_positive_lexical_ambiguity
+  - missed_entity
+  - wrong_entity_type
+  - boundary_too_narrow
+  - boundary_too_wide
+  - alias_or_acronym_miss
+  - dataset_model_ambiguity
+  - task_domain_ambiguity
+  - annotation_uncertainty

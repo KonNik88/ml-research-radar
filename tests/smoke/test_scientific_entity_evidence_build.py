@@ -151,8 +151,11 @@ def test_independent_validator_accepts_generated_build(tmp_path: Path) -> None:
     assert report["summary"]["input_document_count"] == 4
     assert report["summary"]["mention_count"] == 17
     assert _check_map(report)["manifest_code_revision_matches_current_source"] is True
-    assert report["verdict"]["next_slice"] == (
+    assert report["verdict"]["authorized_follow_on"] == (
         "scientific_entity_review_and_evaluation_v0.1"
+    )
+    assert report["verdict"]["next_slice"] == (
+        "bounded_scientific_entity_manual_review_evidence_v0.1"
     )
 
 

@@ -728,12 +728,14 @@ allow package checksums to substitute for semantic-drift comparison
 - separate artifact entities, observations, and trusted paper-artifact links
 - Scientific Entity Evidence Contract v0.1 and deterministic synthetic fixture
 - bounded Scientific Entity Extractor Baseline v0.1 candidate evidence builds
+- Scientific Entity Evaluation Harness v0.1 descriptive exact/relaxed quality evidence
 
 ## Explicitly postponed
 - promotion of artifact metadata into canonical paper truth
 - dedicated Paper–Artifact Graph API unless existing Artifact API surfaces prove insufficient
 - chunk-level full-text entities
-- scientific-entity extraction beyond the bounded literal fixture/candidate baseline
+- real-paper manual review evidence and candidate extractor benchmarking
+- scientific-entity extraction beyond bounded reviewed evidence
 - scientific-entity normalization/linking and paper–entity integration
 - LLM summaries and RAG-specific chunk contracts
 

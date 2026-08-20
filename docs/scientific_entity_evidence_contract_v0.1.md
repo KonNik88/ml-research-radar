@@ -608,9 +608,10 @@ avoids production model claims
 prepares exact/relaxed span evaluation
 ```
 
-The next authorized slice is Scientific Entity Review and Evaluation v0.1.
-Only after bounded review/evaluation may the project select a model and design
-an accepted full derived entity build.
+The baseline and Scientific Entity Evaluation Harness v0.1 are now implemented.
+The current project-level next slice is Bounded Scientific Entity Manual Review
+Evidence v0.1. Only after real bounded review/evaluation may the project design
+a candidate-model benchmark and an accepted full derived entity build.
 
 ---
 

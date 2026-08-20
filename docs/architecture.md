@@ -21,9 +21,9 @@ public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
 fallback = absent
-current extension = Safe Canonical Refresh / Operational Orchestration v0.1 / Scientific Entity Extractor Baseline v0.1
+current extension = Safe Canonical Refresh / Operational Orchestration v0.1 / Scientific Entity Evaluation Harness v0.1
 dataset publication = paused pending redistribution guidance
-next accepted functional direction = Scientific Entity Review and Evaluation v0.1
+next accepted functional direction = Bounded Scientific Entity Manual Review Evidence v0.1
 ```
 
 Current canonical and synchronized core/Discovery baseline:
@@ -85,6 +85,14 @@ scientific_entity_evidence_contract_checks = 127 / 127
 scientific_entity_evidence_contract_smoke_tests = 21
 scientific_entity_fixture_papers = 1
 scientific_entity_fixture_mentions = 6
+scientific_entity_baseline_status = implemented_bounded_reference
+scientific_entity_evaluation_harness_status = implemented_bounded_descriptive_metrics
+scientific_entity_evaluation_fixture_documents = 4
+scientific_entity_evaluation_reference_mentions = 18
+scientific_entity_evaluation_prediction_mentions = 17
+scientific_entity_evaluation_exact_matches = 14
+scientific_entity_evaluation_relaxed_only_matches = 1
+scientific_entity_evaluation_errors = 5
 scientific_entity_model_selected = false
 scientific_entity_full_corpus_output_generated = false
 
@@ -138,6 +146,7 @@ sources
 → Field-Level Canonical Provenance Evidence final bounded checkpoint
 → Scientific Entity Evidence Contract / exact span and evidence identity validation
 → bounded literal extractor / immutable candidate evidence build and validation
+→ Scientific Entity Evaluation Harness / exact-relaxed metrics and independent recomputation
 → retrieval artifacts
 → deterministic source-observation identity materialization
 → Postgres materialized serving layer
@@ -184,6 +193,7 @@ Field-Level Canonical Provenance Evidence Review = read-only semantic determinis
 Field-Level Canonical Provenance Evidence Checkpoint = final read-only fail-closed closure gate over the bounded provenance line
 Scientific Entity Evidence Contract = downstream mention-evidence schema; not canonical truth or entity linking
 Bounded Scientific Entity Extractor Baseline = deterministic fixture/candidate producer; not production NER or full-corpus output
+Scientific Entity Evaluation Harness = bounded descriptive quality evidence; not model promotion or full-corpus authorization
 Qdrant = optional derived vector-serving implementation
 ```
 
@@ -1734,6 +1744,50 @@ The bounded literal/rule baseline now implements the contract over synthetic and
 small curated fixtures. It has a plan/execute boundary, a hard 100-document cap,
 an immutable six-file output layout, and an independent read-only validator.
 
-The next authorized slice is **Scientific Entity Review and Evaluation v0.1**.
-No production model or full-corpus build is authorized before that evidence is
-accepted.
+## Scientific Entity Evaluation Harness v0.1
+
+The bounded evaluation harness is implemented downstream of the evidence
+contract and literal baseline:
+
+```text
+reviewed extractor-independent reference mentions
+  + immutable ScientificEntityMentionEvidence predictions
+  + shared canonical input SHA-256
+→ deterministic exact matching
+→ deterministic one-to-one relaxed matching at character IoU >= 0.5
+→ micro, per-type, and source-field metrics
+→ structural error evidence
+→ independent recomputation validator
+```
+
+The tracked synthetic fixture has four documents, 18 reference mentions, and
+17 prediction mentions. It intentionally yields 14 exact matches, one
+relaxed-only boundary match, and five structural error records. These numbers
+validate evaluation semantics; they do not estimate real-corpus quality.
+
+The immutable evaluation output contains manifest, metrics, per-type metrics,
+matches, errors, README, and checksums. Plan mode writes nothing, execution
+requires `--execute`, and existing evaluation directories are never
+overwritten.
+
+The validator independently reloads the canonical/review/prediction inputs and
+recomputes every match, error, and metric. Internally consistent checksum
+rewrites cannot hide semantic metric drift.
+
+Current boundary:
+
+```text
+metrics are descriptive only
+promotion_sample_sufficient = false
+production_extractor_selected = false
+full_corpus_build_authorized = false
+no model/provider access
+no canonical/reconcile/Postgres/API/UI mutation
+no redistribution or publication
+```
+
+The next authorized slice is **Bounded Scientific Entity Manual Review
+Evidence v0.1**. It must prepare a local prediction-blind real-paper review
+sample without committing third-party title/abstract text. No production model
+or full-corpus build is authorized before that evidence and a separate
+acceptance decision exist.

@@ -448,16 +448,26 @@ publish entity evidence
 
 ---
 
-## 16. Next bounded slice
+## 16. Implemented evaluation follow-on and next bounded slice
 
-After this baseline is accepted, the next slice is:
+The evaluation follow-on is now implemented as:
 
 ```text
-Scientific Entity Review and Evaluation v0.1
+Scientific Entity Evaluation Harness v0.1
 ```
 
-That slice should define a small local curated review set and compare extractors
-with explicit evidence such as:
+It provides deterministic exact/relaxed one-to-one matching, micro/per-type/
+source-field metrics, structural error evidence, immutable output, and an
+independent validator. Its tracked fixture validates evaluation semantics only.
+
+The next bounded slice is:
+
+```text
+Bounded Scientific Entity Manual Review Evidence v0.1
+```
+
+That slice should define a small local curated review set and evaluate this
+baseline with explicit evidence such as:
 
 ```text
 exact-span precision / recall / F1
@@ -469,5 +479,6 @@ runtime and resource measurements
 license and model provenance review
 ```
 
-Only an evidence-backed decision from that layer may propose a production
-extractor or a separately reviewed full derived build.
+Only an evidence-backed decision after real bounded review may propose a
+candidate model benchmark, production extractor, or separately reviewed full
+derived build.
