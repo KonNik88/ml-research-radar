@@ -462,6 +462,45 @@ def test_corrupt_fixture_span_and_hash_fail_validation(tmp_path: Path) -> None:
     assert "fixture_records_valid" in failed
 
 
+def test_crlf_fixture_fails_explicit_line_ending_gates(tmp_path: Path) -> None:
+    fixture_copy = tmp_path / "fixture"
+    shutil.copytree(FIXTURE_ROOT, fixture_copy)
+    canonical_path = fixture_copy / "canonical_documents.jsonl"
+    mentions_path = fixture_copy / "mentions.jsonl"
+    for path in (canonical_path, mentions_path):
+        path.write_bytes(path.read_bytes().replace(b"\n", b"\r\n"))
+
+    manifest_path = fixture_copy / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["canonical_input"]["sha256"] = hashlib.sha256(
+        canonical_path.read_bytes()
+    ).hexdigest()
+    manifest["mentions_sha256"] = hashlib.sha256(
+        mentions_path.read_bytes()
+    ).hexdigest()
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    config = _base_config()
+    for key, name in {
+        "canonical_documents_path": "canonical_documents.jsonl",
+        "extractor_descriptor_path": "extractor.json",
+        "manifest_path": "manifest.json",
+        "mentions_path": "mentions.jsonl",
+    }.items():
+        config["fixtures"][key] = str(fixture_copy / name)
+    report = _validate(tmp_path, config)
+
+    assert report["summary"]["ok"] is False
+    failed = report["verdict"]["required_failed_checks"]
+    assert "fixture_canonical_jsonl_lf_only" in failed
+    assert "fixture_mentions_jsonl_lf_only" in failed
+    assert "fixture_manifest_canonical_sha256_matches" not in failed
+    assert "fixture_manifest_mentions_sha256_matches" not in failed
+
+
 def test_reordered_fixture_records_fail_deterministic_order_gate(
     tmp_path: Path,
 ) -> None:

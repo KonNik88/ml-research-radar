@@ -1,12 +1,12 @@
 {
   "schema_version": "scientific_entity_evidence_manifest_v0.1",
-  "build_id": "scientific-entity-contract-fixture-v0.1",
+  "build_id": "scientific-entity-contract-fixture-v0.1-lf",
   "status": "fixture",
   "generated_at_utc": "2026-08-20T00:00:00Z",
   "canonical_input": {
     "schema_version": "scientific_entity_canonical_input_v0.1",
     "path": "tests/fixtures/scientific_entity_evidence_v0_1/canonical_documents.jsonl",
-    "sha256": "258499e642c79c8074f0394330fb7dc2472049d17112fe0e127f258ea1b0449d",
+    "sha256": "b204637893788a8ae3ec212f9f04f936a1a37b7a4c005a192a9bc7eded811108",
     "document_count": 1,
     "canonical_contract": "CanonicalDocument"
   },
@@ -40,7 +40,7 @@
   ],
   "mentions_file": "mentions.jsonl",
   "mention_count": 6,
-  "mentions_sha256": "e7e47db1eb4b5a87adb21e4f2d46861a25f7394a01ad6beb9321ce316ec15073",
+  "mentions_sha256": "62767ab4fa9c6c547e9e0776edf938f8e045615968fcfd7403b94789dd03c6b9",
   "canonical_truth_mutated": false,
   "may_be_used_as_reconcile_input": false,
   "publication_ready": false

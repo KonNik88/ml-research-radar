@@ -4697,6 +4697,7 @@ Status: **implemented contract-only slice; no extractor/model promotion**
 Tracked package:
 
 ```text
+.gitattributes
 configs/scientific_entity_evidence.yaml
 docs/scientific_entity_evidence_contract_v0.1.md
 radar_core/contracts/scientific_entity_evidence.py
@@ -4722,12 +4723,13 @@ output policy = immutable build directory, future-layout only
 Accepted contract evidence:
 
 ```text
-contract checks = 124 / 124
+contract checks = 127 / 127
 synthetic canonical papers = 1
 synthetic mention records = 6
 entity-type coverage = 6 / 6
 source-field coverage = title + abstract
-smoke tests = 20
+smoke tests = 21
+Windows core.autocrlf fixture portability = enforced by scoped eol=lf
 required_failed_count = 0
 ```
 
