@@ -35,8 +35,9 @@ paper-centric research-discovery system.
 ## Current validated checkpoint
 
 ```text
-checkpoint = Current Project State Checkpoint v0.2 / Refresh Operational Orchestration v0.1
+checkpoint = Current Project State Checkpoint v0.2 / Refresh Operational Orchestration v0.1 / Scientific Entity Evidence Contract v0.1
 base checkpoint = safe canonical refresh and synchronized core/Discovery derived layers
+scientific entity status = contract-only; no model or corpus build
 public behavior change = none
 public dense/hybrid backend = file
 experimental Qdrant endpoint = explicit
@@ -197,6 +198,9 @@ artifact entities and links
 paper features, ranking, similar papers, clusters, projections
 = derived discovery and analytics layers
 
+scientific entity mention evidence
+= contract-first derived evidence layer; no canonical mutation or entity linking in v0.1
+
 FastAPI
 = service boundary
 
@@ -220,6 +224,9 @@ artifact_id
 
 Qdrant point_id / dense_index
 = serving mapping inside one retrieval generation
+
+scientific mention_id / evidence_id
+= typed source span identity / extractor observation identity
 ```
 
 Paper identity priority:
@@ -535,6 +542,7 @@ Current families include:
 - Discovery API;
 - clusters and projection;
 - Streamlit UI;
+- Scientific Entity Evidence Contract and deterministic fixture;
 - Qdrant collection, parity, profile sweep, performance, and hybrid evaluation;
 - retrieval-serving checkpoint gate;
 - strict Definition of Done.
@@ -676,26 +684,23 @@ requirements.
 
 Recommended order:
 
-1. **Current Project State Checkpoint v0.2**  
-   Record the post-refresh/post-orchestration state and distinguish current
-   `61,075`-paper layers from previous `60,954` build-scoped outputs.
+1. **Scientific Entity Evidence Contract v0.1 — implemented here.**
+   The accepted foundation defines mention/evidence identity, six entity types,
+   exact Unicode spans, extractor provenance, confidence semantics, and
+   immutable build compatibility without downloading a model.
 
-2. **Paper Entity Evidence Contract v0.1**  
-   Define mention identity, entity types, provenance, confidence, offsets,
-   build compatibility, and validation without downloading a model.
-
-3. **Bounded Entity Extractor Baseline v0.1**  
+2. **Bounded Scientific Entity Extractor Baseline v0.1 — next.**
    Exercise the contract on synthetic/curated fixtures without full-corpus
    generation or claims of production NER quality.
 
-4. **Entity Review and Evaluation v0.1**  
+3. **Scientific Entity Review and Evaluation v0.1**
    Build a manually reviewed sample and compare candidate extraction approaches
    before selecting or promoting a model.
 
-5. **Accepted Derived Entity Build and Product Integration**  
+4. **Accepted Derived Entity Build and Product Integration**
    Only after quality gates; entities remain downstream of canonical truth.
 
-6. **Full-text / Chunk Provenance / Grounded RAG**  
+5. **Full-text / Chunk Provenance / Grounded RAG**
    Separate acquisition and evidence contract after the entity layer is stable.
 
 Dataset publication remains paused pending explicit redistribution guidance.

@@ -4,16 +4,17 @@
 
 ```text
 document = primary living roadmap
-accepted checkpoint = Current Project State Checkpoint v0.2 / Refresh Operational Orchestration v0.1
+accepted checkpoint = Current Project State Checkpoint v0.2 / Refresh Operational Orchestration v0.1 / Scientific Entity Evidence Contract v0.1
 base checkpoint = current canonical latest 61,075 with synchronized core and Discovery derived layers
-current active direction = Scientific Entity Evidence Layer preparation
-current active slice = Current Project State Checkpoint v0.2 post-orchestration living-docs sync
+current active direction = Scientific Entity Evidence Layer
+latest completed slice = Scientific Entity Evidence Contract v0.1
+next authorized slice = Bounded Scientific Entity Extractor Baseline v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
 dataset publication = paused pending redistribution guidance
-scope of current branch = record the post-refresh and post-orchestration state; distinguish current 61,075-paper layers from previous 60,954 build-scoped outputs; select Scientific Entity Evidence as the next bounded functional direction; and preserve every canonical/runtime/publication boundary
+current entity boundary = contract accepted; no model selected and no corpus output generated
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -25,8 +26,9 @@ expansion. The safe canonical refresh, core/Discovery synchronization,
 operational runbook, and phase-based orchestration entrypoint are complete and
 green. Older Qdrant, graph, and dataset outputs remain separate build-scoped
 candidates rather than silently becoming current against canonical latest.
-Scientific Entity Evidence is the next accepted functional direction, beginning
-with a contract and bounded evaluation harness rather than a model download or
+Scientific Entity Evidence is the active functional direction. Its executable
+mention-evidence contract and deterministic synthetic fixture are complete. The
+next authorized slice is a bounded extractor baseline, not a model promotion or
 full-corpus run.
 
 ---
@@ -70,7 +72,8 @@ safe canonical refresh to 61,075 papers = completed
 core retrieval/Postgres/Discovery synchronization = completed
 Refresh Operational Orchestration v0.1 = completed
 dataset publication = paused pending redistribution guidance
-Scientific Entity Evidence Layer = next accepted functional direction
+Scientific Entity Evidence Contract v0.1 = completed contract-only foundation
+Bounded Scientific Entity Extractor Baseline v0.1 = next authorized slice
 full-corpus entity generation = not authorized before contract and evaluation
 GraphRAG / Qdrant promotion / scheduler orchestration = deferred
 ```
@@ -122,13 +125,14 @@ Recently completed safe slices:
 43. **Safe Canonical Refresh and Derived Synchronization v1** — promoted a green 61,075-paper candidate after alignment/source-coverage repair and synchronized retrieval, Postgres, paper features, detail/similar, topic, Discovery API, and Streamlit quality layers.
 44. **Refresh Operational Runbook v1** — documented the accepted phase ownership, promotion boundary, generated-artifact policy, and operator checks.
 45. **Refresh Operational Orchestration v0.1** — added the recommended phase-based entrypoint, strict child-process failure semantics, controlled-promotion freshness guard, fail-closed `full --execute`, and latest/history reports.
+46. **Scientific Entity Evidence Contract v0.1** — defines six contextual entity types, exact Unicode code-point spans, extractor-independent mention identity, extractor-specific evidence identity, confidence semantics, canonical build compatibility, immutable future output layout, executable Pydantic models, deterministic fixtures, and fail-closed validation without selecting a model.
 
 Recommended next safe slices:
 
-1. **Current Project State Checkpoint v0.2** — synchronize living state after the accepted refresh and orchestration merge.
-2. **Paper Entity Evidence Contract v0.1** — define mention identity, types, offsets, provenance, confidence, build compatibility, and validation without selecting a model.
-3. **Bounded Entity Extractor Baseline v0.1** — exercise the contract on synthetic/curated fixtures; no full-corpus generation.
-4. **Entity Review and Evaluation v0.1** — compare candidate extraction approaches on manually reviewed evidence before promotion.
+1. **Bounded Scientific Entity Extractor Baseline v0.1** — consume the executable contract on synthetic and small curated fixtures; no full-corpus generation.
+2. **Scientific Entity Review and Evaluation v0.1** — compare candidate extraction approaches on manually reviewed evidence before model promotion.
+3. **Accepted Derived Entity Build** — only after explicit per-type/span quality, license, latency, and reproducibility gates.
+4. **Product and Graph Integration** — Discovery facets and paper–entity evidence only after the derived build is accepted.
 5. **Full-text / Chunk Provenance Contract** — only after the entity line is stable and before any grounded RAG implementation.
 
 Explicit immediate non-goals:
@@ -4685,3 +4689,64 @@ no publication action
 The bounded field-level provenance line is now closed. Any later full-corpus
 generation, materialized serving layer, publication path, or product/runtime
 provenance surface requires a separate accepted architecture slice.
+
+## Scientific Entity Evidence Contract v0.1
+
+Status: **implemented contract-only slice; no extractor/model promotion**
+
+Tracked package:
+
+```text
+configs/scientific_entity_evidence.yaml
+docs/scientific_entity_evidence_contract_v0.1.md
+radar_core/contracts/scientific_entity_evidence.py
+scripts/validation/check_scientific_entity_evidence_contract.py
+tests/fixtures/scientific_entity_evidence_v0_1/*
+tests/smoke/test_scientific_entity_evidence_contract.py
+```
+
+Implemented contract:
+
+```text
+entity types = task, method, dataset, metric, model, domain
+source fields = exact canonical title and abstract
+offsets = zero-based Unicode code points, half-open interval
+mention_id = extractor-independent typed span identity
+evidence_id = extractor-specific observation identity
+extractor fingerprint = SHA-256 of canonical descriptor JSON
+model scores != calibrated probabilities
+canonical input = manifest-pinned path, SHA-256, and document count
+output policy = immutable build directory, future-layout only
+```
+
+Accepted contract evidence:
+
+```text
+contract checks = 124 / 124
+synthetic canonical papers = 1
+synthetic mention records = 6
+entity-type coverage = 6 / 6
+source-field coverage = title + abstract
+smoke tests = 20
+required_failed_count = 0
+```
+
+Boundary:
+
+```text
+no model or tokenizer download
+no production extractor selection
+no 61,075-paper corpus run
+no entity normalization or linking
+no canonical/reconcile/Postgres/retrieval/Qdrant/graph/API/UI change
+no publication
+```
+
+Next bounded slice:
+
+```text
+Bounded Scientific Entity Extractor Baseline v0.1
+```
+
+That slice may use only synthetic and small curated fixtures until a separate
+review/evaluation harness supports an evidence-backed model decision.

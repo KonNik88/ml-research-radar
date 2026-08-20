@@ -307,17 +307,17 @@ linking.
 
 Recommended order:
 
-1. **Paper Entity Evidence Contract v0.1**
+1. **Scientific Entity Evidence Contract v0.1**
    - define mention schema, identity, provenance, confidence, output, and
      validation semantics;
    - no model download and no full-corpus generation.
 
-2. **Bounded Entity Extractor Baseline v0.1**
+2. **Bounded Scientific Entity Extractor Baseline v0.1**
    - deterministic adapter and small synthetic/curated fixtures;
    - explicit plan/execute boundary;
    - no claim of production NER quality.
 
-3. **Entity Review and Evaluation v0.1**
+3. **Scientific Entity Review and Evaluation v0.1**
    - manually reviewed sample;
    - exact/relaxed span and per-type quality metrics;
    - model/license/latency decision only after the harness exists.

@@ -1,0 +1,13 @@
+{
+  "schema_version": "scientific_entity_extractor_descriptor_v0.1",
+  "name": "contract_fixture_human_annotation",
+  "version": "0.1.0",
+  "kind": "human_annotation",
+  "code_revision": "synthetic-fixture-v0.1",
+  "config_sha256": "97ad3a9043addb7710be424a44a0d6519b958e97c3cc54338b012055770c36cf",
+  "environment_sha256": "c2ed778dd1a61a3add5879f0fcd6fdf145e93e0a47a3ccbb461ed084f3abe994",
+  "model_name": null,
+  "model_revision": null,
+  "model_artifact_sha256": null,
+  "model_license": null
+}

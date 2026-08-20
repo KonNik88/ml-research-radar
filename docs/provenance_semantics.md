@@ -43,6 +43,12 @@ governance/evidence family:
   A final fail-closed read-only report that aggregates the accepted contract,
   evidence-validation, and semantic-review reports and closes the bounded line.
 
+- **Scientific Entity Evidence Contract v0.1**
+  A downstream contract for exact typed spans in canonical title/abstract text,
+  with extractor-independent mention identity and extractor-specific evidence
+  identity. It does not explain reconciliation and does not modify canonical
+  provenance.
+
 The contract, evidence, review, and checkpoint are not a third truth layer and do
 not add fields to `CanonicalDocument`. They document, explain, and validate current
 reconciliation behavior.
@@ -311,6 +317,44 @@ For these fields, a single scalar winner would be misleading. The implemented
 bounded evidence maps each retained element or identifier key to contributing
 `source_observation_id` values and preserves first-contributor and duplicate
 evidence where applicable.
+
+---
+
+## Downstream scientific-entity evidence provenance
+
+Scientific entity mention evidence is downstream of canonical reconciliation:
+
+```text
+canonical_id
++ exact canonical source_field text
++ source_text_sha256
++ Unicode code-point [char_start, char_end)
++ contextual entity_type
+= mention_id
+
+mention_id
++ immutable extractor descriptor fingerprint
+= evidence_id
+```
+
+This is a separate evidence axis, not another canonical reconciliation
+provenance resolution.
+
+```text
+source_observation_id = provider observation identity
+canonical_id = paper identity
+field evidence record_id = canonical field-selection evidence identity
+scientific mention_id = exact typed text-span identity
+scientific evidence_id = extractor observation identity
+future entity_id = normalization/linking identity, not defined in v0.1
+```
+
+The global canonical file SHA-256 and document count belong to the entity-build
+manifest. The per-record `source_text_sha256` prevents stale offsets while
+avoiding global mention-ID churn when an unrelated paper changes.
+
+Entity evidence must not be embedded in `CanonicalDocument.sources`, used as a
+field-selection winner, or treated as source-observation provenance.
 
 ---
 

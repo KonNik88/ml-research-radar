@@ -25,6 +25,7 @@ data/enriched
 data/state/
 data/analytics/
 data/features/
+/data/entities/
 
 .ipynb_checkpoints/
 
