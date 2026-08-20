@@ -11,6 +11,7 @@ canonical_truth_changed_by_document = false
 runtime_behavior_changed_by_document = false
 generated_layers_rebuilt_by_document = false
 publishes_dataset = false
+current_extension = Bounded Scientific Entity Extractor Baseline v0.1
 ```
 
 This checkpoint records the accepted project state after the August 2026 safe
@@ -102,6 +103,8 @@ of file-backed truth. They must remain rebuildable.
 | Citation / Reference Graph package/output | previous local build-scoped baseline | 60,954-paper generation | Completed local line; runtime must fail closed on incompatibility |
 | Metadata dataset release candidate | previous local build-scoped baseline | 60,954 rows | Publication remains paused |
 | Field-level provenance evidence | accepted bounded sample | 12 papers / 732 field records | Explanatory evidence, not full-corpus materialization |
+| Scientific Entity Evidence Contract | accepted | v0.1 / six entity types | Exact span, identity, provenance, confidence, and build compatibility |
+| Bounded Scientific Entity Extractor Baseline | implemented reference baseline | fixture/candidate only; max 100 documents | Deterministic derived evidence producer; no production model or full-corpus run |
 | Refresh operational orchestration | implemented | v0.1 | Recommended operational refresh entrypoint |
 
 The previous Qdrant, graph, and dataset candidates are not silently redefined as
@@ -307,17 +310,17 @@ linking.
 
 Recommended order:
 
-1. **Scientific Entity Evidence Contract v0.1**
+1. **Scientific Entity Evidence Contract v0.1 — completed**
    - define mention schema, identity, provenance, confidence, output, and
      validation semantics;
    - no model download and no full-corpus generation.
 
-2. **Bounded Scientific Entity Extractor Baseline v0.1**
+2. **Bounded Scientific Entity Extractor Baseline v0.1 — completed**
    - deterministic adapter and small synthetic/curated fixtures;
    - explicit plan/execute boundary;
    - no claim of production NER quality.
 
-3. **Scientific Entity Review and Evaluation v0.1**
+3. **Scientific Entity Review and Evaluation v0.1 — next**
    - manually reviewed sample;
    - exact/relaxed span and per-type quality metrics;
    - model/license/latency decision only after the harness exists.

@@ -35,9 +35,9 @@ paper-centric research-discovery system.
 ## Current validated checkpoint
 
 ```text
-checkpoint = Current Project State Checkpoint v0.2 / Refresh Operational Orchestration v0.1 / Scientific Entity Evidence Contract v0.1
+checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Extractor Baseline v0.1
 base checkpoint = safe canonical refresh and synchronized core/Discovery derived layers
-scientific entity status = contract-only; no model or corpus build
+scientific entity status = bounded literal baseline; no model or full-corpus build
 public behavior change = none
 public dense/hybrid backend = file
 experimental Qdrant endpoint = explicit
@@ -543,6 +543,7 @@ Current families include:
 - clusters and projection;
 - Streamlit UI;
 - Scientific Entity Evidence Contract and deterministic fixture;
+- bounded Scientific Entity Extractor Baseline build and output validation;
 - Qdrant collection, parity, profile sweep, performance, and hybrid evaluation;
 - retrieval-serving checkpoint gate;
 - strict Definition of Done.
@@ -684,16 +685,17 @@ requirements.
 
 Recommended order:
 
-1. **Scientific Entity Evidence Contract v0.1 — implemented here.**
+1. **Scientific Entity Evidence Contract v0.1 — implemented.**
    The accepted foundation defines mention/evidence identity, six entity types,
    exact Unicode spans, extractor provenance, confidence semantics, and
    immutable build compatibility without downloading a model.
 
-2. **Bounded Scientific Entity Extractor Baseline v0.1 — next.**
-   Exercise the contract on synthetic/curated fixtures without full-corpus
-   generation or claims of production NER quality.
+2. **Bounded Scientific Entity Extractor Baseline v0.1 — implemented here.**
+   A deterministic literal adapter, plan/execute builder, immutable six-file
+   output, independent validator, and synthetic regression fixtures exercise
+   the contract without full-corpus generation or production NER claims.
 
-3. **Scientific Entity Review and Evaluation v0.1**
+3. **Scientific Entity Review and Evaluation v0.1 — next.**
    Build a manually reviewed sample and compare candidate extraction approaches
    before selecting or promoting a model.
 

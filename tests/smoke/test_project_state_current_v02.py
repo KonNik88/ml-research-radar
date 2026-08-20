@@ -39,13 +39,14 @@ def test_readme_points_to_the_current_checkpoint_and_scopes_old_outputs() -> Non
     assert "assignments = 61,075" in text
 
 
-def test_roadmap_selects_contract_first_entity_evidence_direction() -> None:
+def test_roadmap_selects_review_after_bounded_entity_baseline() -> None:
     text = _read("docs/roadmap.md")
 
     assert "current active direction = Scientific Entity Evidence Layer" in text
-    assert "latest completed slice = Scientific Entity Evidence Contract v0.1" in text
-    assert "next authorized slice = Bounded Scientific Entity Extractor Baseline v0.1" in text
+    assert "latest completed slice = Bounded Scientific Entity Extractor Baseline v0.1" in text
+    assert "next authorized slice = Scientific Entity Review and Evaluation v0.1" in text
     assert "Scientific Entity Evidence Contract v0.1" in text
+    assert "hard max documents = 100" in text
     assert "no full-corpus entity extraction" in text
     assert "The local phase-based refresh runner is already implemented" in text
     assert "Prior retrieval-serving green checkpoint (60,954 build)" in text
@@ -60,7 +61,21 @@ def test_architecture_distinguishes_current_and_build_scoped_layers() -> None:
     assert "qdrant_points_count = 60954" in text
     assert "qdrant_baseline_scope = previous experimental build" in text
     assert "refresh_operational_orchestration = implemented_v0.1" in text
+    assert "Scientific Entity Review and Evaluation v0.1" in text
     assert "scheduler orchestration / Airflow" in text
+
+
+def test_bounded_entity_baseline_is_documented_without_runtime_promotion() -> None:
+    readme = _read("README.md")
+    checkpoint = _read("docs/project_state_current_v0.2.md")
+    baseline = _read("docs/scientific_entity_extractor_baseline_v0.1.md")
+
+    assert "scientific entity status = bounded literal baseline" in readme
+    assert "Bounded Scientific Entity Extractor Baseline | implemented" in checkpoint
+    assert "default_max_documents = 32" in baseline
+    assert "hard_max_documents = 100" in baseline
+    assert "full_corpus_authorized = false" in baseline
+    assert "production_model_selected = false" in baseline
 
 
 def test_docs_do_not_reassert_an_unverified_current_source_document_count() -> None:

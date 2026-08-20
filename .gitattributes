@@ -1,2 +1,3 @@
 # Raw-byte SHA-256-pinned JSONL fixtures must not follow core.autocrlf.
 tests/fixtures/scientific_entity_evidence_v0_1/*.jsonl text eol=lf
+tests/fixtures/scientific_entity_extractor_baseline_v0_1/*.jsonl text eol=lf

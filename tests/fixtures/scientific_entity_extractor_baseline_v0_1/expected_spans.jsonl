@@ -1,0 +1,17 @@
+{"canonical_id":"synthetic-baseline-001","source_field":"title","entity_type":"model","char_start":0,"char_end":4,"surface_text":"BERT"}
+{"canonical_id":"synthetic-baseline-001","source_field":"title","entity_type":"dataset","char_start":9,"char_end":17,"surface_text":"ImageNet"}
+{"canonical_id":"synthetic-baseline-001","source_field":"title","entity_type":"task","char_start":18,"char_end":32,"surface_text":"classification"}
+{"canonical_id":"synthetic-baseline-001","source_field":"title","entity_type":"metric","char_start":38,"char_end":46,"surface_text":"F1 score"}
+{"canonical_id":"synthetic-baseline-001","source_field":"abstract","entity_type":"method","char_start":9,"char_end":29,"surface_text":"contrastive learning"}
+{"canonical_id":"synthetic-baseline-001","source_field":"abstract","entity_type":"domain","char_start":33,"char_end":48,"surface_text":"medical imaging"}
+{"canonical_id":"synthetic-baseline-002","source_field":"title","entity_type":"model","char_start":0,"char_end":5,"surface_text":"β-VAE"}
+{"canonical_id":"synthetic-baseline-002","source_field":"title","entity_type":"task","char_start":14,"char_end":28,"surface_text":"classification"}
+{"canonical_id":"synthetic-baseline-002","source_field":"title","entity_type":"domain","char_start":32,"char_end":59,"surface_text":"natural language processing"}
+{"canonical_id":"synthetic-baseline-002","source_field":"abstract","entity_type":"method","char_start":0,"char_end":11,"surface_text":"Naive Bayes"}
+{"canonical_id":"synthetic-baseline-002","source_field":"abstract","entity_type":"metric","char_start":20,"char_end":28,"surface_text":"accuracy"}
+{"canonical_id":"synthetic-baseline-002","source_field":"abstract","entity_type":"dataset","char_start":32,"char_end":40,"surface_text":"CIFAR-10"}
+{"canonical_id":"synthetic-baseline-004","source_field":"title","entity_type":"model","char_start":0,"char_end":4,"surface_text":"BERT"}
+{"canonical_id":"synthetic-baseline-004","source_field":"title","entity_type":"method","char_start":11,"char_end":28,"surface_text":"transfer learning"}
+{"canonical_id":"synthetic-baseline-004","source_field":"title","entity_type":"task","char_start":33,"char_end":57,"surface_text":"named entity recognition"}
+{"canonical_id":"synthetic-baseline-004","source_field":"abstract","entity_type":"model","char_start":0,"char_end":4,"surface_text":"BERT"}
+{"canonical_id":"synthetic-baseline-004","source_field":"abstract","entity_type":"metric","char_start":14,"char_end":22,"surface_text":"F1 score"}

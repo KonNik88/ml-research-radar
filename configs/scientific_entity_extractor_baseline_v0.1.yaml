@@ -1,0 +1,112 @@
+schema_version: scientific_entity_literal_baseline_config_v0.1
+
+layer:
+  name: bounded_scientific_entity_extractor_baseline
+  version: v0.1
+  status: reference_baseline
+  layer_kind: derived_candidate_mention_evidence
+  description: >-
+    Deterministic literal/rule reference extractor for bounded contract,
+    builder, validation, and evaluation-harness testing. It is not a
+    production NER model or a quality baseline for the full corpus.
+
+extractor:
+  name: ml_radar_literal_scientific_entity_baseline
+  version: 0.1.0
+  kind: rule_based
+  environment_lock_path: requirements/requirements.core.lock.txt
+  code_revision_policy: normalized_source_bundle_sha256
+  config_fingerprint_policy: sha256_of_canonical_semantic_json
+  confidence_kind: not_available
+
+matching:
+  source_fields:
+    - title
+    - abstract
+  default_case_sensitive: true
+  default_boundary: unicode_word
+  overlapping_mentions_allowed: true
+  same_span_multiple_types_allowed: true
+  normalization_before_offsets: forbidden
+  surface_from_exact_source_slice: true
+
+rules:
+  - entity_type: task
+    term: classification
+  - entity_type: task
+    term: named entity recognition
+  - entity_type: task
+    term: machine translation
+  - entity_type: method
+    term: contrastive learning
+  - entity_type: method
+    term: transfer learning
+  - entity_type: method
+    term: naive Bayes
+    case_sensitive: false
+  - entity_type: dataset
+    term: ImageNet
+  - entity_type: dataset
+    term: CIFAR-10
+  - entity_type: metric
+    term: F1 score
+  - entity_type: metric
+    term: accuracy
+  - entity_type: model
+    term: BERT
+  - entity_type: model
+    term: "β-VAE"
+  - entity_type: domain
+    term: medical imaging
+  - entity_type: domain
+    term: natural language processing
+
+safety:
+  default_max_documents: 32
+  hard_max_documents: 100
+  fail_if_input_exceeds_limit: true
+  truncation_allowed: false
+  forbid_current_canonical_input: true
+  current_canonical_path: data/analytics/reconciled/canonical_documents.jsonl
+  allowed_build_statuses:
+    - fixture
+    - candidate
+  accepted_status_may_be_emitted: false
+  execute_required_for_writes: true
+  overwrite_allowed: false
+  model_or_tokenizer_download_allowed: false
+  provider_api_allowed: false
+  canonical_truth_mutation_allowed: false
+  reconcile_input_allowed: false
+  publication_allowed: false
+
+outputs:
+  root: data/entities/scientific_entity_evidence/v0.1
+  immutable_build_directory: true
+  mutable_latest_pointer: false
+  encoding: utf-8
+  line_ending: lf
+  required_files:
+    - mentions.jsonl
+    - manifest.json
+    - schema.json
+    - data_quality_summary.json
+    - README.md
+    - checksums.txt
+
+validation:
+  report_dir: artifacts/reports/validation
+  require_independent_output_validator: true
+  require_exact_spans: true
+  require_deterministic_order: true
+  require_identity_recomputation: true
+  require_checksums: true
+  require_lf_outputs: true
+  require_bounded_input: true
+
+fixtures:
+  default_input_path: >-
+    tests/fixtures/scientific_entity_extractor_baseline_v0_1/canonical_documents.jsonl
+  expected_spans_path: >-
+    tests/fixtures/scientific_entity_extractor_baseline_v0_1/expected_spans.jsonl
+  synthetic_only: true
