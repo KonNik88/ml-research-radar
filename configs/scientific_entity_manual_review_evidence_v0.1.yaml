@@ -1,0 +1,142 @@
+schema_version: scientific_entity_manual_review_evidence_config_v0.1
+
+layer:
+  name: bounded_scientific_entity_manual_review_evidence
+  version: v0.1
+  status: review_evidence_preparation
+  layer_kind: derived_local_prediction_blind_review_evidence
+  description: >-
+    Deterministic bounded sampling and prediction-blind annotation preparation
+    for real-paper scientific-entity review. This layer prepares evidence for
+    the accepted evaluation harness; it does not score or promote an extractor.
+
+sampling:
+  algorithm: deterministic_hash_uniform_and_type_enriched_v0.1
+  seed: ml-research-radar-scientific-entity-manual-review-v0.1
+  uniform_document_count: 12
+  type_enriched_documents_per_type: 2
+  total_document_count: 24
+  candidate_pool_per_stratum: 256
+  require_nonempty_title: true
+  require_nonempty_abstract: true
+  selection_term_matching: unicode_word_case_insensitive
+  type_enrichment_terms:
+    task:
+      - classification
+      - named entity recognition
+      - machine translation
+    method:
+      - contrastive learning
+      - transfer learning
+      - naive Bayes
+    dataset:
+      - ImageNet
+      - CIFAR-10
+      - benchmark dataset
+    metric:
+      - F1 score
+      - accuracy
+      - BLEU
+    model:
+      - BERT
+      - transformer model
+      - language model
+    domain:
+      - medical imaging
+      - natural language processing
+      - computer vision
+
+annotation:
+  guideline_version: scientific_entity_annotation_guidelines_v0.1
+  default_method: manual_independent
+  prediction_blind: true
+  source_fields:
+    - title
+    - abstract
+  entity_types:
+    - task
+    - method
+    - dataset
+    - metric
+    - model
+    - domain
+  offset_unit: unicode_codepoint
+  offset_interval: half_open
+  annotation_passes: 1
+  require_every_source_field_completed: true
+  require_surface_from_exact_source_slice: true
+  duplicate_typed_spans_allowed: false
+
+safety:
+  default_max_source_documents: 100000
+  hard_max_source_documents: 250000
+  hard_max_selected_documents: 32
+  hard_max_annotation_rows: 64
+  hard_max_reference_mentions: 5000
+  fail_if_input_exceeds_limit: true
+  truncation_allowed: false
+  current_canonical_path: data/analytics/reconciled/canonical_documents.jsonl
+  candidate_input_must_be_current_canonical: true
+  fixture_input_must_be_tracked_fixture: true
+  execute_required_for_writes: true
+  overwrite_allowed: false
+  full_corpus_entity_extraction_allowed: false
+  predictions_visible_during_annotation: false
+  automatic_annotation_allowed: false
+  automatic_review_approval_allowed: false
+  production_extractor_selection_allowed: false
+  model_or_tokenizer_download_allowed: false
+  provider_api_allowed: false
+  canonical_truth_mutation_allowed: false
+  reconcile_input_allowed: false
+  redistribution_allowed: false
+  publication_allowed: false
+
+outputs:
+  prepared_root: data/entities/scientific_entity_manual_review/v0.1/prepared
+  completed_root: data/entities/scientific_entity_manual_review/v0.1/completed
+  immutable_directories: true
+  mutable_latest_pointer: false
+  encoding: utf-8
+  line_ending: lf
+  prepared_required_files:
+    - canonical_documents.sample.jsonl
+    - sample_assignments.jsonl
+    - annotation_template.jsonl
+    - manifest.json
+    - data_quality_summary.json
+    - README.md
+    - checksums.txt
+  completed_required_files:
+    - completed_annotations.jsonl
+    - review_manifest.json
+    - reference_mentions.jsonl
+    - completion_manifest.json
+    - annotation_audit_summary.json
+    - README.md
+    - checksums.txt
+
+validation:
+  report_dir: artifacts/reports/validation
+  require_independent_validator: true
+  require_sampling_recomputation: true
+  require_prediction_blind_schema: true
+  require_complete_annotation_rows: true
+  require_reference_identity_recomputation: true
+  require_checksums: true
+  require_lf_outputs: true
+  require_input_hashes: true
+  require_fail_closed_safety: true
+
+fixtures:
+  input_path: >-
+    tests/fixtures/scientific_entity_manual_review_evidence_v0_1/canonical_documents.jsonl
+  completed_annotations_path: >-
+    tests/fixtures/scientific_entity_manual_review_evidence_v0_1/completed_annotations.jsonl
+  review_id: scientific-entity-manual-review-fixture-v0.1
+  uniform_document_count: 2
+  type_enriched_documents_per_type: 1
+  expected_document_count: 8
+  expected_annotation_row_count: 16
+  expected_reference_mention_count: 6
+  synthetic_only: true

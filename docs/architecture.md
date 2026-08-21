@@ -21,9 +21,9 @@ public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
 fallback = absent
-current extension = Safe Canonical Refresh / Operational Orchestration v0.1 / Scientific Entity Evaluation Harness v0.1
+current extension = Safe Canonical Refresh / Operational Orchestration v0.1 / Bounded Scientific Entity Manual Review Evidence v0.1
 dataset publication = paused pending redistribution guidance
-next accepted functional direction = Bounded Scientific Entity Manual Review Evidence v0.1
+next accepted functional direction = Bounded Real-Paper Scientific Entity Manual Review Execution v0.1
 ```
 
 Current canonical and synchronized core/Discovery baseline:
@@ -93,6 +93,14 @@ scientific_entity_evaluation_prediction_mentions = 17
 scientific_entity_evaluation_exact_matches = 14
 scientific_entity_evaluation_relaxed_only_matches = 1
 scientific_entity_evaluation_errors = 5
+scientific_entity_manual_review_tooling_status = implemented_prediction_blind_preparation_and_finalization
+scientific_entity_manual_review_fixture_documents = 8
+scientific_entity_manual_review_fixture_uniform_documents = 2
+scientific_entity_manual_review_fixture_type_enriched_documents = 6
+scientific_entity_manual_review_fixture_annotation_rows = 16
+scientific_entity_manual_review_fixture_reference_mentions = 6
+scientific_entity_manual_review_fixture_validator_checks = 118 / 118
+scientific_entity_real_review_complete = false
 scientific_entity_model_selected = false
 scientific_entity_full_corpus_output_generated = false
 
@@ -147,6 +155,7 @@ sources
 → Scientific Entity Evidence Contract / exact span and evidence identity validation
 → bounded literal extractor / immutable candidate evidence build and validation
 → Scientific Entity Evaluation Harness / exact-relaxed metrics and independent recomputation
+→ Bounded Scientific Entity Manual Review / deterministic sample, blind annotation, and reference evidence
 → retrieval artifacts
 → deterministic source-observation identity materialization
 → Postgres materialized serving layer
@@ -194,6 +203,7 @@ Field-Level Canonical Provenance Evidence Checkpoint = final read-only fail-clos
 Scientific Entity Evidence Contract = downstream mention-evidence schema; not canonical truth or entity linking
 Bounded Scientific Entity Extractor Baseline = deterministic fixture/candidate producer; not production NER or full-corpus output
 Scientific Entity Evaluation Harness = bounded descriptive quality evidence; not model promotion or full-corpus authorization
+Bounded Scientific Entity Manual Review Evidence = local prediction-blind reference-evidence tooling; not real-review completion or model acceptance
 Qdrant = optional derived vector-serving implementation
 ```
 
@@ -1786,8 +1796,77 @@ no canonical/reconcile/Postgres/API/UI mutation
 no redistribution or publication
 ```
 
-The next authorized slice is **Bounded Scientific Entity Manual Review
-Evidence v0.1**. It must prepare a local prediction-blind real-paper review
-sample without committing third-party title/abstract text. No production model
-or full-corpus build is authorized before that evidence and a separate
-acceptance decision exist.
+The accepted follow-on tooling is **Bounded Scientific Entity Manual Review
+Evidence v0.1**, described below. No production model or full-corpus build is
+authorized before real prediction-blind evidence and a separate acceptance
+decision exist.
+
+## Bounded Scientific Entity Manual Review Evidence v0.1
+
+The bounded manual-review layer is implemented as a local derived evidence
+workflow downstream of canonical title/abstract text:
+
+```text
+current canonical file + semantic sampling config
+→ deterministic 12-paper uniform stratum
+→ deterministic 12-paper type-enriched stratum
+→ prediction-blind 48-row title/abstract template
+→ completed human annotations
+→ extractor-independent reference mentions
+→ existing evaluation harness
+```
+
+Preparation and finalization are separate immutable operations. Both default to
+plan mode and require `--execute` for local writes. Existing review directories
+cannot be overwritten, and no mutable `latest` pointer is created.
+
+The prepared manifest pins the source canonical SHA-256 and count, sample
+SHA-256 and count, assignments, blind template, semantic configuration, code,
+and environment. The completed manifest pins the prepared package, completed
+annotation file, annotator/method provenance, reference mentions, and audit
+summary.
+
+Prediction blindness is enforced structurally: annotation rows contain source
+identity/text and empty human mention lists, while extra fields are forbidden.
+Extractor descriptors, predictions, scores, and evaluation results are not
+valid annotation-template fields. Enrichment terms affect selection only and
+are explicitly not reference annotations.
+
+The independent validator reloads the original source input, recomputes both
+sampling strata and all selection scores, validates exact source slices and
+reference identities, and checks layout, raw hashes, LF output, counts, and
+safety flags. It does not reuse the builder's sampling or reference-generation
+functions.
+
+Tracked acceptance evidence is synthetic only:
+
+```text
+fixture documents = 8
+uniform documents = 2
+type-enriched documents = 6
+annotation rows = 16
+reference mentions = 6
+completed-package validator = 118 / 118
+real_review_complete = false
+```
+
+Real prepared/completed packages live under ignored
+`data/entities/scientific_entity_manual_review/v0.1/` paths. Third-party
+title/abstract text and local annotator identity must not be committed.
+
+Current boundary:
+
+```text
+automatic annotation = forbidden
+automatic approval = forbidden
+production extractor selection = forbidden
+full-corpus entity extraction = forbidden
+canonical/reconcile/Postgres/retrieval/Qdrant/graph/API/UI mutation = forbidden
+redistribution/publication = forbidden
+```
+
+The next operational slice is **Bounded Real-Paper Scientific Entity Manual
+Review Execution v0.1**. It runs this accepted tooling against current canonical
+latest, completes the 24-paper review prediction-blind, validates it, and uses
+the existing baseline/evaluation harness. Candidate-model comparison remains a
+later separate slice.

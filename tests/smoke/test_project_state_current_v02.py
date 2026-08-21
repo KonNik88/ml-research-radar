@@ -39,12 +39,15 @@ def test_readme_points_to_the_current_checkpoint_and_scopes_old_outputs() -> Non
     assert "assignments = 61,075" in text
 
 
-def test_roadmap_selects_manual_review_after_evaluation_harness() -> None:
+def test_roadmap_selects_real_review_execution_after_review_tooling() -> None:
     text = _read("docs/roadmap.md")
 
     assert "current active direction = Scientific Entity Evidence Layer" in text
-    assert "latest completed slice = Scientific Entity Evaluation Harness v0.1" in text
-    assert "next authorized slice = Bounded Scientific Entity Manual Review Evidence v0.1" in text
+    assert "latest completed slice = Bounded Scientific Entity Manual Review Evidence v0.1" in text
+    assert (
+        "next authorized slice = Bounded Real-Paper Scientific Entity Manual Review "
+        "Execution v0.1"
+    ) in text
     assert "Scientific Entity Evidence Contract v0.1" in text
     assert "hard max documents = 100" in text
     assert "no full-corpus entity extraction" in text
@@ -62,7 +65,8 @@ def test_architecture_distinguishes_current_and_build_scoped_layers() -> None:
     assert "qdrant_baseline_scope = previous experimental build" in text
     assert "refresh_operational_orchestration = implemented_v0.1" in text
     assert "Scientific Entity Evaluation Harness v0.1" in text
-    assert "Bounded Scientific Entity Manual Review" in text
+    assert "Bounded Scientific Entity Manual Review Evidence v0.1" in text
+    assert "scientific_entity_real_review_complete = false" in text
     assert "scheduler orchestration / Airflow" in text
 
 
@@ -84,13 +88,34 @@ def test_scientific_entity_evaluation_harness_is_descriptive_and_bounded() -> No
     checkpoint = _read("docs/project_state_current_v0.2.md")
     evaluation = _read("docs/scientific_entity_evaluation_harness_v0.1.md")
 
-    assert "Scientific Entity Evaluation Harness v0.1 — implemented here" in readme
+    assert "Scientific Entity Evaluation Harness v0.1 — implemented." in readme
     assert "Scientific Entity Evaluation Harness | implemented" in checkpoint
     assert "minimum character IoU = 0.5" in evaluation
     assert "promotion_sample_sufficient = false" in evaluation
     assert "production_extractor_selected = false" in evaluation
     assert "full_corpus_build_authorized = false" in evaluation
     assert "Bounded Scientific Entity Manual Review Evidence v0.1" in evaluation
+
+
+def test_manual_review_tooling_is_documented_without_real_quality_claim() -> None:
+    readme = _read("README.md")
+    checkpoint = _read("docs/project_state_current_v0.2.md")
+    contract = _read("docs/scientific_entity_manual_review_evidence_v0.1.md")
+    config = _read("configs/scientific_entity_manual_review_evidence_v0.1.yaml")
+
+    assert (
+        "Bounded Scientific Entity Manual Review Evidence v0.1 — implemented here."
+        in readme
+    )
+    assert "Bounded Scientific Entity Manual Review Evidence | implemented" in checkpoint
+    assert "real_paper_review_complete = false" in contract
+    assert "prediction_blind = true" in contract
+    assert "fixture reference mentions = 6" in contract
+    assert "independent completed-package checks = 118 / 118" in contract
+    assert "uniform_document_count: 12" in config
+    assert "type_enriched_documents_per_type: 2" in config
+    assert "automatic_review_approval_allowed: false" in config
+    assert "full_corpus_entity_extraction_allowed: false" in config
 
 
 def test_docs_do_not_reassert_an_unverified_current_source_document_count() -> None:

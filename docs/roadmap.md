@@ -4,17 +4,17 @@
 
 ```text
 document = primary living roadmap
-accepted checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Evaluation Harness v0.1
+accepted checkpoint = Current Project State Checkpoint v0.2 / Bounded Scientific Entity Manual Review Evidence v0.1
 base checkpoint = current canonical latest 61,075 with synchronized core and Discovery derived layers
 current active direction = Scientific Entity Evidence Layer
-latest completed slice = Scientific Entity Evaluation Harness v0.1
-next authorized slice = Bounded Scientific Entity Manual Review Evidence v0.1
+latest completed slice = Bounded Scientific Entity Manual Review Evidence v0.1
+next authorized slice = Bounded Real-Paper Scientific Entity Manual Review Execution v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
 dataset publication = paused pending redistribution guidance
-current entity boundary = bounded fixture/candidate evidence and descriptive evaluation only; no model or full-corpus output
+current entity boundary = bounded fixture/candidate evidence, descriptive evaluation, and prediction-blind review tooling; real review/model/full-corpus output not completed
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -28,8 +28,11 @@ green. Older Qdrant, graph, and dataset outputs remain separate build-scoped
 candidates rather than silently becoming current against canonical latest.
 Scientific Entity Evidence is the active functional direction. Its executable
 mention-evidence contract, bounded deterministic literal baseline, and
-independently validated evaluation harness are complete. The next authorized
-slice is local manual-review evidence, not a model promotion or full-corpus run.
+independently validated evaluation harness are complete. Deterministic sampling,
+prediction-blind annotation preparation/finalization, and independent review-
+package validation are also implemented on a synthetic fixture. The next
+authorized action is the bounded real-paper human review, not a model promotion
+or full-corpus run.
 
 ---
 
@@ -75,7 +78,8 @@ dataset publication = paused pending redistribution guidance
 Scientific Entity Evidence Contract v0.1 = completed contract-only foundation
 Bounded Scientific Entity Extractor Baseline v0.1 = completed bounded reference implementation
 Scientific Entity Evaluation Harness v0.1 = completed deterministic descriptive evaluation
-Bounded Scientific Entity Manual Review Evidence v0.1 = next authorized slice
+Bounded Scientific Entity Manual Review Evidence v0.1 = completed tooling and synthetic integration
+Bounded Real-Paper Scientific Entity Manual Review Execution v0.1 = next authorized slice
 full-corpus entity generation = not authorized before contract and evaluation
 GraphRAG / Qdrant promotion / scheduler orchestration = deferred
 ```
@@ -130,10 +134,11 @@ Recently completed safe slices:
 46. **Scientific Entity Evidence Contract v0.1** — defines six contextual entity types, exact Unicode code-point spans, extractor-independent mention identity, extractor-specific evidence identity, confidence semantics, canonical build compatibility, immutable future output layout, executable Pydantic models, deterministic fixtures, and fail-closed validation without selecting a model.
 47. **Bounded Scientific Entity Extractor Baseline v0.1** — adds a deterministic literal adapter, fail-closed plan/execute builder, immutable local candidate output, independent validator, bounded safety limits, and synthetic regression fixtures without selecting a production model.
 48. **Scientific Entity Evaluation Harness v0.1** — adds extractor-independent reference identities, deterministic exact/relaxed one-to-one matching, micro/per-type/source-field metrics, structural error evidence, immutable plan/execute output, and independent semantic recomputation without model promotion.
+49. **Bounded Scientific Entity Manual Review Evidence v0.1** — adds deterministic uniform/type-enriched sampling, prediction-blind annotation packages, explicit human finalization, extractor-independent reference output, immutable local evidence, and independent semantic recomputation; tracked acceptance remains synthetic and makes no real quality claim.
 
 Recommended next safe slices:
 
-1. **Bounded Scientific Entity Manual Review Evidence v0.1** — prepare a local prediction-blind real-paper reference sample without committing third-party text.
+1. **Bounded Real-Paper Scientific Entity Manual Review Execution v0.1** — run the accepted tooling locally against canonical latest, complete the 24-paper review prediction-blind, and validate/evaluate it without committing third-party text.
 2. **Candidate Extractor Benchmark v0.1** — compare approaches only after reviewed evidence exists, including quality, license, latency, memory, determinism, and provenance.
 3. **Accepted Derived Entity Build** — only after explicit per-type/span quality and reproducibility gates plus a human acceptance decision.
 4. **Product and Graph Integration** — Discovery facets and paper–entity evidence only after the derived build is accepted.
@@ -4879,12 +4884,90 @@ no canonical/reconcile/Postgres/retrieval/Qdrant/graph/API/UI change
 no redistribution or publication
 ```
 
-Next bounded slice:
+Implemented follow-on:
 
 ```text
 Bounded Scientific Entity Manual Review Evidence v0.1
 ```
 
-That slice must create a reproducible local sample with separately reported
-uniform and type-enriched strata, complete prediction-blind reference
-annotation, and run this accepted harness before any model benchmark proposal.
+That follow-on now provides reproducible local sampling and prediction-blind
+annotation tooling with separately reported uniform and type-enriched strata.
+The actual real-paper annotation run remains the next operational action before
+any model benchmark proposal.
+
+## Bounded Scientific Entity Manual Review Evidence v0.1
+
+Status: **implemented bounded tooling and synthetic integration; real review not completed**
+
+Tracked package:
+
+```text
+configs/scientific_entity_manual_review_evidence_v0.1.yaml
+docs/scientific_entity_manual_review_evidence_v0.1.md
+radar_core/contracts/scientific_entity_manual_review.py
+radar_core/entities/scientific_entity_manual_review.py
+scripts/entities/build_scientific_entity_manual_review_evidence.py
+scripts/validation/check_scientific_entity_manual_review_evidence.py
+tests/fixtures/scientific_entity_manual_review_evidence_v0_1/*
+tests/smoke/test_scientific_entity_manual_review_contract.py
+tests/smoke/test_scientific_entity_manual_review_builder.py
+tests/smoke/test_scientific_entity_manual_review_validation.py
+```
+
+Implemented semantics:
+
+```text
+candidate sample = 12 uniform + 12 type-enriched documents
+type-enriched allocation = 2 documents per each of six entity types
+selection = deterministic SHA-256 ranking over canonical_id and stratum
+sampling terms = candidate-selection evidence, never reference labels
+annotation scope = every selected title and abstract
+annotation schema = prediction-blind and extra-field-forbidden
+offsets = Unicode code points, zero-based half-open intervals
+prepared and completed outputs = separate immutable local directories
+default mode = plan; writes require --execute
+overwrite = forbidden
+validator = independent source reload, sampling/identity/span recomputation
+```
+
+Synthetic acceptance evidence:
+
+```text
+fixture source documents = 8
+uniform documents = 2
+type-enriched documents = 6
+annotation rows = 16
+reference mentions = 6
+completed-package validator = 118 / 118
+literal-baseline integration mentions = 6
+evaluation exact matches = 6
+evaluation errors = 0
+real_review_complete = false
+```
+
+The synthetic fixture proves the workflow and compatibility with the accepted
+baseline/evaluation harness. It does not estimate real-corpus quality and does
+not select a model.
+
+Boundary:
+
+```text
+no automatic annotation or automatic approval
+no model/provider access
+no production extractor selection
+no full-corpus extraction
+no canonical/reconcile/Postgres/retrieval/Qdrant/graph/API/UI change
+no committed real-paper title/abstract or annotator identity
+no redistribution or publication
+```
+
+Next bounded operational slice:
+
+```text
+Bounded Real-Paper Scientific Entity Manual Review Execution v0.1
+```
+
+That slice must prepare the 24-paper candidate sample from current canonical
+latest, complete all 48 source-field rows prediction-blind, independently
+validate the completed package, and run the existing baseline/evaluation
+harness. Candidate extractor benchmarking remains separate and later.

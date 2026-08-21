@@ -711,6 +711,97 @@ become reconcile inputs or serving truth
 allow package checksums to substitute for semantic-drift comparison
 ```
 
+## 11.9 Bounded scientific-entity manual-review evidence
+
+Scientific-entity review evidence is a downstream local contract over exact
+canonical title/abstract text. It does not add fields to `CanonicalDocument` and
+does not define a normalized entity identity.
+
+Prepared evidence consists of:
+
+```text
+ScientificEntityManualReviewPreparedManifest
+ScientificEntityCanonicalInput for the source corpus
+ScientificEntityCanonicalInput for the bounded sample
+ScientificEntitySamplingPolicy
+ScientificEntitySampleAssignment rows
+ScientificEntityBlindAnnotationRow rows
+```
+
+Sampling identity is deterministic:
+
+```text
+selection_score
+= SHA-256(contract namespace + seed + stratum + enrichment type + canonical_id)
+
+sample strata
+= uniform | type_enriched
+```
+
+The candidate policy selects 12 uniform documents and two enriched documents
+for each of the six accepted entity types. A paper may occur only once in the
+final sample. Selection terms are sampling evidence, never reference labels.
+
+Blind annotation rows pin:
+
+```text
+review_id
+canonical_id
+sample_stratum
+optional enrichment_entity_type
+source_field = title | abstract
+source_text_sha256
+exact source_text
+annotation_complete
+human mention list
+```
+
+Each mention uses an accepted `ScientificEntityType`, zero-based Unicode
+code-point offsets, a half-open interval, and the exact source slice. Extra
+fields are forbidden so predictions, model names, scores, and evaluation output
+cannot silently enter the prediction-blind annotation schema.
+
+Completed evidence consists of:
+
+```text
+validated LF-normalized completed annotation rows
+ScientificEntityManualReviewCompletionManifest
+ScientificEntityReviewManifest with reviewed_candidate status
+ScientificEntityReferenceMention rows
+annotation audit summary
+raw-byte checksums
+```
+
+Completion requires every title and abstract row, including zero-mention rows,
+to be explicitly marked complete. Reference `mention_id` values reuse the
+extractor-independent Scientific Entity Evidence Contract; `reference_id`
+additionally binds review identity and annotation provenance.
+
+Accepted implementation state:
+
+```text
+preparation/finalization tooling = implemented
+independent sampling/reference validator = implemented
+synthetic fixture documents = 8
+synthetic annotation rows = 16
+synthetic reference mentions = 6
+completed-package checks = 118 / 118
+real-paper review complete = false
+```
+
+The manifest boundary remains fail-closed:
+
+```text
+prediction_blind = true
+automatic_review_approval = false
+production_extractor_selected = false
+full_corpus_build_authorized = false
+canonical_truth_mutated = false
+may_be_used_as_reconcile_input = false
+redistribution_allowed = false
+publication_ready = false
+```
+
 ---
 
 # 12. Current scope boundaries
@@ -729,12 +820,15 @@ allow package checksums to substitute for semantic-drift comparison
 - Scientific Entity Evidence Contract v0.1 and deterministic synthetic fixture
 - bounded Scientific Entity Extractor Baseline v0.1 candidate evidence builds
 - Scientific Entity Evaluation Harness v0.1 descriptive exact/relaxed quality evidence
+- Bounded Scientific Entity Manual Review Evidence v0.1 preparation,
+  finalization, contracts, independent validation, and synthetic integration
 
 ## Explicitly postponed
 - promotion of artifact metadata into canonical paper truth
 - dedicated Paper–Artifact Graph API unless existing Artifact API surfaces prove insufficient
 - chunk-level full-text entities
-- real-paper manual review evidence and candidate extractor benchmarking
+- execution and acceptance of real-paper scientific-entity manual review
+- candidate extractor benchmarking and model selection
 - scientific-entity extraction beyond bounded reviewed evidence
 - scientific-entity normalization/linking and paper–entity integration
 - LLM summaries and RAG-specific chunk contracts
