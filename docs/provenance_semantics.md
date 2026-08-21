@@ -62,6 +62,15 @@ governance/evidence family:
   structural error evidence. Evaluation provenance does not select a model,
   authorize full-corpus extraction, or modify paper/source provenance.
 
+- **Bounded Scientific Entity Manual Review Evidence v0.1**
+  A local prediction-blind reference-evidence workflow. Preparation pins the
+  source canonical raw hash/count, semantic sampling config, code/environment,
+  deterministic uniform/type-enriched assignments, bounded sample, and blind
+  annotation template. Completion additionally pins the human annotation file,
+  method/annotator provenance, extractor-independent reference mentions, and
+  audit summary. Sampling cues are not labels, review evidence is not canonical
+  truth, and completion does not approve an extractor or publication.
+
 The contract, evidence, review, and checkpoint are not a third truth layer and do
 not add fields to `CanonicalDocument`. They document, explain, and validate current
 reconciliation behavior.

@@ -35,10 +35,10 @@ paper-centric research-discovery system.
 ## Current validated checkpoint
 
 ```text
-checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Evaluation Harness v0.1
+checkpoint = Current Project State Checkpoint v0.2 / Bounded Scientific Entity Manual Review Evidence v0.1
 base checkpoint = safe canonical refresh and synchronized core/Discovery derived layers
-scientific entity status = bounded literal baseline + deterministic evaluation harness
-scientific entity quality status = synthetic descriptive evidence only; no model or full-corpus build
+scientific entity status = bounded literal baseline + deterministic evaluation harness + prediction-blind review tooling
+scientific entity quality status = synthetic integration evidence only; real review not completed; no model or full-corpus build
 public behavior change = none
 public dense/hybrid backend = file
 experimental Qdrant endpoint = explicit
@@ -546,6 +546,7 @@ Current families include:
 - Scientific Entity Evidence Contract and deterministic fixture;
 - bounded Scientific Entity Extractor Baseline build and output validation;
 - Scientific Entity Evaluation Harness exact/relaxed metrics and independent validation;
+- bounded Scientific Entity Manual Review preparation/finalization and independent validation;
 - Qdrant collection, parity, profile sweep, performance, and hybrid evaluation;
 - retrieval-serving checkpoint gate;
 - strict Definition of Done.
@@ -697,23 +698,30 @@ Recommended order:
    output, independent validator, and synthetic regression fixtures exercise
    the contract without full-corpus generation or production NER claims.
 
-3. **Scientific Entity Evaluation Harness v0.1 — implemented here.**
+3. **Scientific Entity Evaluation Harness v0.1 — implemented.**
    Exact and relaxed one-to-one matching, per-type/source-field metrics,
    structural error evidence, immutable output, and independent recomputation
    are executable on a deterministic synthetic fixture.
 
-4. **Bounded Scientific Entity Manual Review Evidence v0.1 — next.**
-   Build a local, prediction-blind reviewed sample without committing real paper
-   text or treating descriptive metrics as a production acceptance decision.
+4. **Bounded Scientific Entity Manual Review Evidence v0.1 — implemented here.**
+   Deterministic uniform/type-enriched sampling, prediction-blind annotation
+   preparation, explicit finalization, immutable local packages, and independent
+   validation are executable. The tracked evidence is synthetic; no real-paper
+   quality claim is made.
 
-5. **Candidate Extractor Benchmark and Accepted Derived Entity Build**
+5. **Bounded Real-Paper Manual Review Execution v0.1 — next.**
+   Run the accepted tooling locally against current canonical latest, complete
+   the 24-paper prediction-blind review, and pass the existing evaluation
+   harness without committing third-party paper text.
+
+6. **Candidate Extractor Benchmark and Accepted Derived Entity Build**
    Compare models only after real bounded review evidence exists; evaluate
    quality, license, latency, memory, determinism, and provenance.
 
-6. **Product Integration**
+7. **Product Integration**
    Only after quality gates; entities remain downstream of canonical truth.
 
-7. **Full-text / Chunk Provenance / Grounded RAG**
+8. **Full-text / Chunk Provenance / Grounded RAG**
    Separate acquisition and evidence contract after the entity layer is stable.
 
 Dataset publication remains paused pending explicit redistribution guidance.
