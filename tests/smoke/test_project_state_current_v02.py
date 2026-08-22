@@ -37,16 +37,21 @@ def test_readme_points_to_the_current_checkpoint_and_scopes_old_outputs() -> Non
     assert "synchronized to current canonical = false" in text
     assert "recorded local collection currently belongs to the previous 60,954-paper build" in text
     assert "assignments = 61,075" in text
+    assert "docs/scientific_entity_literal_baseline_pilot_evaluation_v0.1.md" in text
+    assert "completed prediction-blind 24-paper pilot" in text
 
 
-def test_roadmap_selects_real_review_execution_after_review_tooling() -> None:
+def test_roadmap_selects_candidate_adapter_after_completed_real_pilot() -> None:
     text = _read("docs/roadmap.md")
 
     assert "current active direction = Scientific Entity Evidence Layer" in text
-    assert "latest completed slice = Bounded Scientific Entity Manual Review Evidence v0.1" in text
     assert (
-        "next authorized slice = Bounded Real-Paper Scientific Entity Manual Review "
-        "Execution v0.1"
+        "latest completed slice = Bounded Real-Paper Scientific Entity Manual Review "
+        "and Literal Baseline Pilot v0.1"
+    ) in text
+    assert (
+        "next authorized slice = Bounded Scientific Entity Candidate Extractor "
+        "Selection and Adapter v0.1"
     ) in text
     assert "Scientific Entity Evidence Contract v0.1" in text
     assert "hard max documents = 100" in text
@@ -66,7 +71,11 @@ def test_architecture_distinguishes_current_and_build_scoped_layers() -> None:
     assert "refresh_operational_orchestration = implemented_v0.1" in text
     assert "Scientific Entity Evaluation Harness v0.1" in text
     assert "Bounded Scientific Entity Manual Review Evidence v0.1" in text
-    assert "scientific_entity_real_review_complete = false" in text
+    assert "scientific_entity_real_review_complete = true_bounded_local_pilot" in text
+    assert (
+        "scientific_entity_pilot_evaluation_id = "
+        "scientific-entity-evaluation-v0.1-20260822T114935748579Z"
+    ) in text
     assert "scheduler orchestration / Airflow" in text
 
 
@@ -97,14 +106,14 @@ def test_scientific_entity_evaluation_harness_is_descriptive_and_bounded() -> No
     assert "Bounded Scientific Entity Manual Review Evidence v0.1" in evaluation
 
 
-def test_manual_review_tooling_is_documented_without_real_quality_claim() -> None:
+def test_manual_review_fixture_is_distinguished_from_completed_real_pilot() -> None:
     readme = _read("README.md")
     checkpoint = _read("docs/project_state_current_v0.2.md")
     contract = _read("docs/scientific_entity_manual_review_evidence_v0.1.md")
     config = _read("configs/scientific_entity_manual_review_evidence_v0.1.yaml")
 
     assert (
-        "Bounded Scientific Entity Manual Review Evidence v0.1 — implemented here."
+        "Bounded Scientific Entity Manual Review Evidence v0.1 — implemented."
         in readme
     )
     assert "Bounded Scientific Entity Manual Review Evidence | implemented" in checkpoint
@@ -116,6 +125,11 @@ def test_manual_review_tooling_is_documented_without_real_quality_claim() -> Non
     assert "type_enriched_documents_per_type: 2" in config
     assert "automatic_review_approval_allowed: false" in config
     assert "full_corpus_entity_extraction_allowed: false" in config
+    assert (
+        "scientific entity real review complete = true (bounded local pilot/dev evidence)"
+        in checkpoint
+    )
+    assert "scientific entity production model selected = false" in checkpoint
 
 
 def test_docs_do_not_reassert_an_unverified_current_source_document_count() -> None:

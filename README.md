@@ -35,10 +35,10 @@ paper-centric research-discovery system.
 ## Current validated checkpoint
 
 ```text
-checkpoint = Current Project State Checkpoint v0.2 / Bounded Scientific Entity Manual Review Evidence v0.1
+checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Literal Baseline Pilot Evaluation v0.1
 base checkpoint = safe canonical refresh and synchronized core/Discovery derived layers
-scientific entity status = bounded literal baseline + deterministic evaluation harness + prediction-blind review tooling
-scientific entity quality status = synthetic integration evidence only; real review not completed; no model or full-corpus build
+scientific entity status = bounded literal baseline + deterministic evaluation harness + completed prediction-blind 24-paper pilot
+scientific entity quality status = descriptive pilot evidence; literal control not production-selected; no full-corpus build
 public behavior change = none
 public dense/hybrid backend = file
 experimental Qdrant endpoint = explicit
@@ -50,6 +50,9 @@ recommended refresh entrypoint = scripts.update.run_refresh_operational_flow
 
 The transfer-safe current-state record is
 [`docs/project_state_current_v0.2.md`](docs/project_state_current_v0.2.md).
+
+The aggregate real-paper pilot record is
+[`docs/scientific_entity_literal_baseline_pilot_evaluation_v0.1.md`](docs/scientific_entity_literal_baseline_pilot_evaluation_v0.1.md).
 
 Current corpus and retrieval baseline:
 
@@ -547,6 +550,7 @@ Current families include:
 - bounded Scientific Entity Extractor Baseline build and output validation;
 - Scientific Entity Evaluation Harness exact/relaxed metrics and independent validation;
 - bounded Scientific Entity Manual Review preparation/finalization and independent validation;
+- 24-paper Scientific Entity literal-baseline pilot evaluation checkpoint;
 - Qdrant collection, parity, profile sweep, performance, and hybrid evaluation;
 - retrieval-serving checkpoint gate;
 - strict Definition of Done.
@@ -703,25 +707,31 @@ Recommended order:
    structural error evidence, immutable output, and independent recomputation
    are executable on a deterministic synthetic fixture.
 
-4. **Bounded Scientific Entity Manual Review Evidence v0.1 — implemented here.**
+4. **Bounded Scientific Entity Manual Review Evidence v0.1 — implemented.**
    Deterministic uniform/type-enriched sampling, prediction-blind annotation
    preparation, explicit finalization, immutable local packages, and independent
-   validation are executable. The tracked evidence is synthetic; no real-paper
-   quality claim is made.
+   validation are executable. Its tracked fixture remains synthetic.
 
-5. **Bounded Real-Paper Manual Review Execution v0.1 — next.**
-   Run the accepted tooling locally against current canonical latest, complete
-   the 24-paper prediction-blind review, and pass the existing evaluation
-   harness without committing third-party paper text.
+5. **Bounded Real-Paper Manual Review and Literal Baseline Pilot v0.1 — completed.**
+   The local 24-paper, 48-row prediction-blind review contains 435 reference
+   mentions. The literal candidate emitted 30 predictions and passed the
+   immutable evaluation plus 69-check independent validation. Exact F1 is
+   `0.043012`; relaxed F1 is `0.068818`. Metrics remain descriptive.
 
-6. **Candidate Extractor Benchmark and Accepted Derived Entity Build**
-   Compare models only after real bounded review evidence exists; evaluate
-   quality, license, latency, memory, determinism, and provenance.
+6. **Bounded Candidate Extractor Selection and Adapter — next.**
+   Reuse the existing evidence contract and evaluation harness. Compare a
+   bounded candidate only after recording quality, license, exact revision,
+   latency, memory, determinism, artifact identity, and provenance. Literal
+   v0.1 remains the unchanged control.
 
-7. **Product Integration**
+7. **Accepted Derived Entity Build**
+   Requires a separately frozen candidate, held-out prediction-blind evidence,
+   reproducibility gates, and explicit human acceptance before full-corpus use.
+
+8. **Product Integration**
    Only after quality gates; entities remain downstream of canonical truth.
 
-8. **Full-text / Chunk Provenance / Grounded RAG**
+9. **Full-text / Chunk Provenance / Grounded RAG**
    Separate acquisition and evidence contract after the entity layer is stable.
 
 Dataset publication remains paused pending explicit redistribution guidance.
