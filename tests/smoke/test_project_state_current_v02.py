@@ -38,20 +38,20 @@ def test_readme_points_to_the_current_checkpoint_and_scopes_old_outputs() -> Non
     assert "recorded local collection currently belongs to the previous 60,954-paper build" in text
     assert "assignments = 61,075" in text
     assert "docs/scientific_entity_literal_baseline_pilot_evaluation_v0.1.md" in text
-    assert "completed prediction-blind 24-paper pilot" in text
+    assert "docs/scientific_entity_gliner_candidate_adapter_v0.1.md" in text
+    assert "completed 24-paper review" in text
 
 
-def test_roadmap_selects_candidate_adapter_after_completed_real_pilot() -> None:
+def test_roadmap_selects_gliner_pilot_after_candidate_adapter() -> None:
     text = _read("docs/roadmap.md")
 
     assert "current active direction = Scientific Entity Evidence Layer" in text
     assert (
-        "latest completed slice = Bounded Real-Paper Scientific Entity Manual Review "
-        "and Literal Baseline Pilot v0.1"
+        "latest completed slice = Bounded Scientific Entity GLiNER Candidate Adapter v0.1"
     ) in text
     assert (
-        "next authorized slice = Bounded Scientific Entity Candidate Extractor "
-        "Selection and Adapter v0.1"
+        "next authorized slice = GLiNER Candidate Comparison on Existing Pilot/Dev "
+        "Evidence v0.1"
     ) in text
     assert "Scientific Entity Evidence Contract v0.1" in text
     assert "hard max documents = 100" in text
@@ -84,7 +84,7 @@ def test_bounded_entity_baseline_is_documented_without_runtime_promotion() -> No
     checkpoint = _read("docs/project_state_current_v0.2.md")
     baseline = _read("docs/scientific_entity_extractor_baseline_v0.1.md")
 
-    assert "scientific entity status = bounded literal baseline" in readme
+    assert "scientific entity status = bounded literal control" in readme
     assert "Bounded Scientific Entity Extractor Baseline | implemented" in checkpoint
     assert "default_max_documents = 32" in baseline
     assert "hard_max_documents = 100" in baseline
@@ -138,3 +138,33 @@ def test_docs_do_not_reassert_an_unverified_current_source_document_count() -> N
 
     assert "current source_documents count = not reasserted" in checkpoint
     assert "current_source_documents_count = not reasserted" in architecture
+
+
+def test_gliner_candidate_is_pinned_bounded_and_not_promoted() -> None:
+    readme = _read("README.md")
+    checkpoint = _read("docs/project_state_current_v0.2.md")
+    architecture = _read("docs/architecture.md")
+    adapter = _read("docs/scientific_entity_gliner_candidate_adapter_v0.1.md")
+    config = _read("configs/scientific_entity_gliner_candidate_v0.1.yaml")
+
+    assert "Bounded GLiNER Candidate Extractor Adapter v0.1 — implemented" in readme
+    assert "Bounded Scientific Entity GLiNER Candidate Adapter | implemented" in checkpoint
+    assert (
+        "scientific_entity_gliner_adapter_status = "
+        "implemented_bounded_candidate_build_validated_comparison_pending"
+    ) in architecture
+    assert "gliner-community/gliner_small-v2.5" in adapter
+    assert "f227d3cd637bd4e6757ae143935316d062393341" in adapter
+    assert "d444ff406b27affc07e3165b454c3adc9f25f228c81ede197a7b806f49d12c74" in adapter
+    assert "microsoft/deberta-v3-small" in adapter
+    assert "a36c739020e01763fe789b4b85e2df55d6180012" in adapter
+    assert "b0bb1caf90a50aa67d1085130508dfbf8646ac5a11928305e280b07a36e100ae" in adapter
+    assert "verified local config injection" in adapter
+    assert "scientific-entity-gliner-small-v2.5-v0.1-20260822T143405630144Z" in adapter
+    assert "mentions = 546" in adapter
+    assert "independent build validation = 91 / 91 required checks" in adapter
+    assert "hard maximum documents = 100" in adapter
+    assert "production extractor selected = false" in adapter
+    assert "model_download_requires_explicit_flag: true" in config
+    assert "require_backbone_config_hash: true" in config
+    assert "accepted_status_may_be_emitted: false" in config

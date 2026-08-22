@@ -1,0 +1,2 @@
+{"canonical_id":"synthetic-gliner-001","reconciliation_key":"synthetic:gliner-001","title":"BERT for ImageNet classification with F1 score","abstract":"We apply contrastive learning to medical imaging."}
+{"canonical_id":"synthetic-gliner-002","reconciliation_key":"synthetic:gliner-002","title":"Named entity recognition with BioBERT","abstract":"The model is evaluated on the BC5CDR corpus using accuracy."}

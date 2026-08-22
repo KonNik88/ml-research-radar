@@ -70,7 +70,7 @@ def test_pilot_report_preserves_truth_and_promotion_boundaries() -> None:
     assert "commit raw paper text = forbidden" in report
 
 
-def test_living_docs_advance_to_bounded_candidate_selection() -> None:
+def test_living_docs_preserve_pilot_while_advancing_to_gliner_comparison() -> None:
     readme = _read("README.md")
     architecture = _read("docs/architecture.md")
     checkpoint = _read("docs/project_state_current_v0.2.md")
@@ -82,8 +82,8 @@ def test_living_docs_advance_to_bounded_candidate_selection() -> None:
     assert "scientific entity real review complete = true" in checkpoint
     assert "scientific_entity_real_review_complete = true_bounded_local_pilot" in architecture
     assert (
-        "next authorized slice = Bounded Scientific Entity Candidate Extractor "
-        "Selection and Adapter v0.1"
+        "next authorized slice = GLiNER Candidate Comparison on Existing Pilot/Dev "
+        "Evidence v0.1"
     ) in roadmap
     assert "no duplicate evaluation harness" in roadmap
     assert "no production extractor selection" in roadmap

@@ -35,10 +35,10 @@ paper-centric research-discovery system.
 ## Current validated checkpoint
 
 ```text
-checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Literal Baseline Pilot Evaluation v0.1
+checkpoint = Current Project State Checkpoint v0.2 / Bounded Scientific Entity GLiNER Candidate Adapter v0.1
 base checkpoint = safe canonical refresh and synchronized core/Discovery derived layers
-scientific entity status = bounded literal baseline + deterministic evaluation harness + completed prediction-blind 24-paper pilot
-scientific entity quality status = descriptive pilot evidence; literal control not production-selected; no full-corpus build
+scientific entity status = bounded literal control + evaluation harness + completed 24-paper review + GLiNER candidate adapter
+scientific entity quality status = GLiNER candidate build validated; comparative evaluation pending; no production selection or full-corpus build
 public behavior change = none
 public dense/hybrid backend = file
 experimental Qdrant endpoint = explicit
@@ -53,6 +53,9 @@ The transfer-safe current-state record is
 
 The aggregate real-paper pilot record is
 [`docs/scientific_entity_literal_baseline_pilot_evaluation_v0.1.md`](docs/scientific_entity_literal_baseline_pilot_evaluation_v0.1.md).
+
+The bounded model-candidate adapter record is
+[`docs/scientific_entity_gliner_candidate_adapter_v0.1.md`](docs/scientific_entity_gliner_candidate_adapter_v0.1.md).
 
 Current corpus and retrieval baseline:
 
@@ -551,6 +554,7 @@ Current families include:
 - Scientific Entity Evaluation Harness exact/relaxed metrics and independent validation;
 - bounded Scientific Entity Manual Review preparation/finalization and independent validation;
 - 24-paper Scientific Entity literal-baseline pilot evaluation checkpoint;
+- bounded GLiNER candidate config, exact-span adapter, immutable builder, and independent validation;
 - Qdrant collection, parity, profile sweep, performance, and hybrid evaluation;
 - retrieval-serving checkpoint gate;
 - strict Definition of Done.
@@ -718,20 +722,31 @@ Recommended order:
    immutable evaluation plus 69-check independent validation. Exact F1 is
    `0.043012`; relaxed F1 is `0.068818`. Metrics remain descriptive.
 
-6. **Bounded Candidate Extractor Selection and Adapter — next.**
-   Reuse the existing evidence contract and evaluation harness. Compare a
-   bounded candidate only after recording quality, license, exact revision,
-   latency, memory, determinism, artifact identity, and provenance. Literal
+6. **Bounded GLiNER Candidate Extractor Adapter v0.1 — implemented and runtime-validated; comparison pending.**
+   The exact Apache-2.0 `gliner-community/gliner_small-v2.5` revision and FP16
+   artifact are pinned behind explicit offline/download boundaries. Its
+   auxiliary `microsoft/deberta-v3-small/config.json` is also revision-, size-,
+   and SHA-pinned and injected from verified local bytes during model loading.
+   The adapter adds exact-span model-score evidence, deterministic long-input
+   windowing, immutable output, independent validation, and model-free
+   synthetic tests. The bounded 24-paper candidate build emitted `546`
+   mentions and passed all `91` independent build checks; these are runtime
+   verification facts, not extractor-quality acceptance.
+
+7. **GLiNER Candidate Comparison on Existing Pilot/Dev Evidence — next.**
+   Run the frozen adapter on the same 24 papers, validate the candidate build,
+   and reuse the existing evaluation harness. Record exact/relaxed metrics,
+   duration, peak CUDA memory, artifact provenance, and repeatability. Literal
    v0.1 remains the unchanged control.
 
-7. **Accepted Derived Entity Build**
+8. **Accepted Derived Entity Build**
    Requires a separately frozen candidate, held-out prediction-blind evidence,
    reproducibility gates, and explicit human acceptance before full-corpus use.
 
-8. **Product Integration**
+9. **Product Integration**
    Only after quality gates; entities remain downstream of canonical truth.
 
-9. **Full-text / Chunk Provenance / Grounded RAG**
+10. **Full-text / Chunk Provenance / Grounded RAG**
    Separate acquisition and evidence contract after the entity layer is stable.
 
 Dataset publication remains paused pending explicit redistribution guidance.

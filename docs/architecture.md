@@ -21,9 +21,9 @@ public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
 fallback = absent
-current extension = Safe Canonical Refresh / Operational Orchestration v0.1 / Scientific Entity Literal Baseline Pilot Evaluation v0.1
+current extension = Safe Canonical Refresh / Operational Orchestration v0.1 / Bounded Scientific Entity GLiNER Candidate Adapter v0.1
 dataset publication = paused pending redistribution guidance
-next accepted functional direction = Bounded Scientific Entity Candidate Extractor Selection and Adapter v0.1
+next accepted functional direction = GLiNER Candidate Comparison on Existing Pilot/Dev Evidence v0.1
 ```
 
 Current canonical and synchronized core/Discovery baseline:
@@ -112,6 +112,17 @@ scientific_entity_pilot_evaluation_validator_checks = 69 / 69
 scientific_entity_pilot_exact_f1 = 0.043012
 scientific_entity_pilot_relaxed_f1 = 0.068818
 scientific_entity_pilot_metrics_descriptive_only = true
+scientific_entity_gliner_adapter_status = implemented_bounded_candidate_build_validated_comparison_pending
+scientific_entity_gliner_model = gliner-community/gliner_small-v2.5
+scientific_entity_gliner_model_revision = f227d3cd637bd4e6757ae143935316d062393341
+scientific_entity_gliner_fp16_sha256 = d444ff406b27affc07e3165b454c3adc9f25f228c81ede197a7b806f49d12c74
+scientific_entity_gliner_backbone_config = microsoft/deberta-v3-small/config.json
+scientific_entity_gliner_backbone_revision = a36c739020e01763fe789b4b85e2df55d6180012
+scientific_entity_gliner_backbone_config_sha256 = b0bb1caf90a50aa67d1085130508dfbf8646ac5a11928305e280b07a36e100ae
+scientific_entity_gliner_candidate_build_id = scientific-entity-gliner-small-v2.5-v0.1-20260822T143405630144Z
+scientific_entity_gliner_candidate_documents = 24
+scientific_entity_gliner_candidate_mentions = 546
+scientific_entity_gliner_candidate_validator_checks = 91 / 91
 scientific_entity_model_selected = false
 scientific_entity_full_corpus_output_generated = false
 
@@ -1293,9 +1304,10 @@ Scientific Entity Evidence Contract v0.1 defines tasks, methods, datasets,
 metrics, models, and domains. Its bounded deterministic literal baseline now
 exercises the contract on synthetic fixtures and a completed 24-paper local
 pilot without model promotion. The pilot contains 435 reference mentions and
-30 literal predictions; exact F1 is 0.043012 and relaxed F1 is 0.068818. The
-next accepted direction is bounded candidate extractor selection and adapter
-work using the existing evidence and evaluation contracts.
+30 literal predictions; exact F1 is 0.043012 and relaxed F1 is 0.068818. A
+pinned bounded GLiNER candidate adapter now reuses the same evidence contract;
+its real 24-paper comparison is the next accepted action and must reuse the
+existing evaluation harness.
 The source-observation promotion follows this rule: two checked dumps and the
 70,244-row legacy database remain available for rollback.
 Citation graph status/references/citations/external-reference-papers/source-families/top-referenced-papers/top-external-references are the checkpointed v0.3 narrow local-inspection API block, not a graph-runtime promotion.
@@ -1920,8 +1932,45 @@ full_corpus_build_authorized = false
 ```
 
 The literal v0.1 lexicon remains unchanged to avoid tuning against the same dev
-labels. The next architectural slice is **Bounded Scientific Entity Candidate
-Extractor Selection and Adapter v0.1**. It must reuse the existing Evidence
-Contract and Evaluation Harness, record exact model/license/artifact/runtime
-provenance, and remain bounded. A separate prediction-blind held-out review is
-required only after a candidate is frozen.
+labels. **Bounded Scientific Entity GLiNER Candidate Adapter v0.1** now freezes
+one Apache-2.0 small-model revision, FP16 artifact SHA, six label prompts,
+threshold, bounded/offline policy, exact-span model-score mapping, long-input
+windowing and independent output validation. The next architectural action is a
+descriptive comparison on the unchanged 24-paper pilot/dev package. A separate
+prediction-blind held-out review is required only after the candidate is frozen.
+
+## Bounded Scientific Entity GLiNER Candidate Adapter v0.1
+
+```text
+model = gliner-community/gliner_small-v2.5
+revision = f227d3cd637bd4e6757ae143935316d062393341
+variant = fp16
+artifact SHA-256 = d444ff406b27affc07e3165b454c3adc9f25f228c81ede197a7b806f49d12c74
+library = gliner==0.2.28
+backbone config = microsoft/deberta-v3-small/config.json
+backbone revision = a36c739020e01763fe789b4b85e2df55d6180012
+backbone config SHA-256 = b0bb1caf90a50aa67d1085130508dfbf8646ac5a11928305e280b07a36e100ae
+backbone resolution = verified local config injection
+threshold = 0.5
+window = 320 splitter tokens / 64 overlap
+default/hard document caps = 32 / 100
+network = disabled unless explicit
+current full canonical = forbidden
+accepted/full-corpus/product use = forbidden
+```
+
+The adapter remains downstream of canonical truth and emits the same evidence
+contract as the literal control. It neither normalizes nor links entities and
+does not add fields to canonical documents. Synthetic tests inject a fake
+backend, so repository smoke validation does not require GLiNER, weights, CUDA,
+or network access. Candidate-status builds categorically reject injected test
+backends and require locally rehashed pinned model weights plus the pinned
+DeBERTa config. The runtime temporarily replaces only GLiNER's module-local
+`AutoConfig` resolver while the graph is constructed, rejects any unpinned
+backbone request, and restores the upstream resolver in a `finally` boundary.
+
+The first immutable bounded candidate build processed the existing 24-paper
+pilot/dev sample, emitted 546 candidate mentions, reverified both artifacts,
+used the pinned config injection, and passed all 91 independent build checks.
+This proves runtime/build integrity only. Exact/relaxed quality comparison and
+candidate selection remain separate downstream decisions.
