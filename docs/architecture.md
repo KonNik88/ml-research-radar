@@ -21,9 +21,9 @@ public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
 fallback = absent
-current extension = Safe Canonical Refresh / Operational Orchestration v0.1 / Bounded Scientific Entity Manual Review Evidence v0.1
+current extension = Safe Canonical Refresh / Operational Orchestration v0.1 / Scientific Entity Literal Baseline Pilot Evaluation v0.1
 dataset publication = paused pending redistribution guidance
-next accepted functional direction = Bounded Real-Paper Scientific Entity Manual Review Execution v0.1
+next accepted functional direction = Bounded Scientific Entity Candidate Extractor Selection and Adapter v0.1
 ```
 
 Current canonical and synchronized core/Discovery baseline:
@@ -100,7 +100,18 @@ scientific_entity_manual_review_fixture_type_enriched_documents = 6
 scientific_entity_manual_review_fixture_annotation_rows = 16
 scientific_entity_manual_review_fixture_reference_mentions = 6
 scientific_entity_manual_review_fixture_validator_checks = 118 / 118
-scientific_entity_real_review_complete = false
+scientific_entity_real_review_complete = true_bounded_local_pilot
+scientific_entity_real_review_id = scientific-entity-manual-review-v0.1-20260821T131320262656Z
+scientific_entity_real_review_documents = 24
+scientific_entity_real_review_annotation_rows = 48
+scientific_entity_real_review_reference_mentions = 435
+scientific_entity_literal_candidate_build_id = scientific-entity-literal-v0.1-20260822T114316573133Z
+scientific_entity_literal_candidate_predictions = 30
+scientific_entity_pilot_evaluation_id = scientific-entity-evaluation-v0.1-20260822T114935748579Z
+scientific_entity_pilot_evaluation_validator_checks = 69 / 69
+scientific_entity_pilot_exact_f1 = 0.043012
+scientific_entity_pilot_relaxed_f1 = 0.068818
+scientific_entity_pilot_metrics_descriptive_only = true
 scientific_entity_model_selected = false
 scientific_entity_full_corpus_output_generated = false
 
@@ -156,6 +167,7 @@ sources
 → bounded literal extractor / immutable candidate evidence build and validation
 → Scientific Entity Evaluation Harness / exact-relaxed metrics and independent recomputation
 → Bounded Scientific Entity Manual Review / deterministic sample, blind annotation, and reference evidence
+→ Scientific Entity Literal Baseline Pilot / real bounded descriptive evaluation evidence
 → retrieval artifacts
 → deterministic source-observation identity materialization
 → Postgres materialized serving layer
@@ -203,7 +215,8 @@ Field-Level Canonical Provenance Evidence Checkpoint = final read-only fail-clos
 Scientific Entity Evidence Contract = downstream mention-evidence schema; not canonical truth or entity linking
 Bounded Scientific Entity Extractor Baseline = deterministic fixture/candidate producer; not production NER or full-corpus output
 Scientific Entity Evaluation Harness = bounded descriptive quality evidence; not model promotion or full-corpus authorization
-Bounded Scientific Entity Manual Review Evidence = local prediction-blind reference-evidence tooling; not real-review completion or model acceptance
+Bounded Scientific Entity Manual Review Evidence = local prediction-blind reference-evidence tooling and completed pilot reference package; not model acceptance
+Scientific Entity Literal Baseline Pilot = bounded dev-quality evidence; not production selection or full-corpus authorization
 Qdrant = optional derived vector-serving implementation
 ```
 
@@ -1278,8 +1291,11 @@ entrypoint. The older refresh pipeline remains a lower-level candidate runner.
 Scheduler orchestration such as Airflow remains deferred.
 Scientific Entity Evidence Contract v0.1 defines tasks, methods, datasets,
 metrics, models, and domains. Its bounded deterministic literal baseline now
-exercises the contract on synthetic/curated fixtures without model promotion.
-The next accepted direction is review/evaluation evidence.
+exercises the contract on synthetic fixtures and a completed 24-paper local
+pilot without model promotion. The pilot contains 435 reference mentions and
+30 literal predictions; exact F1 is 0.043012 and relaxed F1 is 0.068818. The
+next accepted direction is bounded candidate extractor selection and adapter
+work using the existing evidence and evaluation contracts.
 The source-observation promotion follows this rule: two checked dumps and the
 70,244-row legacy database remain available for rollback.
 Citation graph status/references/citations/external-reference-papers/source-families/top-referenced-papers/top-external-references are the checkpointed v0.3 narrow local-inspection API block, not a graph-runtime promotion.
@@ -1797,9 +1813,9 @@ no redistribution or publication
 ```
 
 The accepted follow-on tooling is **Bounded Scientific Entity Manual Review
-Evidence v0.1**, described below. No production model or full-corpus build is
-authorized before real prediction-blind evidence and a separate acceptance
-decision exist.
+Evidence v0.1**, described below. Its first real bounded execution is now
+complete, but no production model or full-corpus build is authorized without a
+separate candidate and held-out acceptance decision.
 
 ## Bounded Scientific Entity Manual Review Evidence v0.1
 
@@ -1847,7 +1863,7 @@ type-enriched documents = 6
 annotation rows = 16
 reference mentions = 6
 completed-package validator = 118 / 118
-real_review_complete = false
+tracked_fixture_real_review_complete = false
 ```
 
 Real prepared/completed packages live under ignored
@@ -1865,8 +1881,47 @@ canonical/reconcile/Postgres/retrieval/Qdrant/graph/API/UI mutation = forbidden
 redistribution/publication = forbidden
 ```
 
-The next operational slice is **Bounded Real-Paper Scientific Entity Manual
-Review Execution v0.1**. It runs this accepted tooling against current canonical
-latest, completes the 24-paper review prediction-blind, validates it, and uses
-the existing baseline/evaluation harness. Candidate-model comparison remains a
-later separate slice.
+The first real operational execution is complete. It ran the accepted tooling
+against current canonical latest, completed the 24-paper/48-row review
+prediction-blind, produced 435 reference mentions, validated the immutable
+completed package, and used the existing baseline/evaluation harness.
+
+## Scientific Entity Literal Baseline Pilot Evaluation v0.1
+
+The tracked aggregate checkpoint is:
+
+```text
+docs/scientific_entity_literal_baseline_pilot_evaluation_v0.1.md
+```
+
+The local derived chain is:
+
+```text
+review_id = scientific-entity-manual-review-v0.1-20260821T131320262656Z
+prediction_build_id = scientific-entity-literal-v0.1-20260822T114316573133Z
+evaluation_id = scientific-entity-evaluation-v0.1-20260822T114935748579Z
+24 papers / 48 annotation rows / 435 references
+30 literal predictions / 10 exact matches / 6 relaxed-only matches
+17 boundary mismatches / 2 type mismatches / 1 false positive / 406 false negatives
+independent evaluation validator = 69 / 69
+```
+
+The result establishes the literal implementation as an executable control, not
+as a quality candidate:
+
+```text
+exact precision / recall / F1 = 0.333333 / 0.022989 / 0.043012
+relaxed precision / recall / F1 = 0.533333 / 0.036782 / 0.068818
+all six per-type support markers = sufficient
+document count = 24 / configured minimum 32
+metrics_are_descriptive_only = true
+production_extractor_selected = false
+full_corpus_build_authorized = false
+```
+
+The literal v0.1 lexicon remains unchanged to avoid tuning against the same dev
+labels. The next architectural slice is **Bounded Scientific Entity Candidate
+Extractor Selection and Adapter v0.1**. It must reuse the existing Evidence
+Contract and Evaluation Harness, record exact model/license/artifact/runtime
+provenance, and remain bounded. A separate prediction-blind held-out review is
+required only after a candidate is frozen.

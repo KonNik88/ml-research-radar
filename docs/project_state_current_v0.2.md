@@ -3,24 +3,28 @@
 ## Document status
 
 ```text
-status = accepted post-orchestration planning checkpoint
-checkpoint_date = 2026-08-19
+status = accepted post-orchestration and scientific-entity pilot checkpoint
+checkpoint_date = 2026-08-22
 supersedes_for_current_planning = docs/project_state_current_v0.1.md
 historical_detail_retained_in = docs/project_state_current_v0.1.md
 canonical_truth_changed_by_document = false
 runtime_behavior_changed_by_document = false
 generated_layers_rebuilt_by_document = false
 publishes_dataset = false
-current_extension = Bounded Scientific Entity Manual Review Evidence v0.1
+current_extension = Scientific Entity Literal Baseline Pilot Evaluation v0.1
 ```
 
 This checkpoint records the accepted project state after the August 2026 safe
 canonical refresh, derived-layer synchronization, operational refresh runbook,
-and Refresh Operational Orchestration v0.1 merge.
+Refresh Operational Orchestration v0.1 merge, and the first completed bounded
+real-paper Scientific Entity evaluation.
 
 It is a planning and transfer document. It is not a source dataset, reconcile
 input, runtime manifest, release authorization, or replacement for build-scoped
 validation reports.
+
+The corresponding aggregate real-paper pilot evidence is recorded in
+[`docs/scientific_entity_literal_baseline_pilot_evaluation_v0.1.md`](scientific_entity_literal_baseline_pilot_evaluation_v0.1.md).
 
 ---
 
@@ -105,8 +109,9 @@ of file-backed truth. They must remain rebuildable.
 | Field-level provenance evidence | accepted bounded sample | 12 papers / 732 field records | Explanatory evidence, not full-corpus materialization |
 | Scientific Entity Evidence Contract | accepted | v0.1 / six entity types | Exact span, identity, provenance, confidence, and build compatibility |
 | Bounded Scientific Entity Extractor Baseline | implemented reference baseline | fixture/candidate only; max 100 documents | Deterministic derived evidence producer; no production model or full-corpus run |
-| Scientific Entity Evaluation Harness | implemented descriptive evaluation | 4 synthetic documents / 18 references / 17 predictions | Exact/relaxed quality semantics and independent recomputation; no model promotion |
-| Bounded Scientific Entity Manual Review Evidence | implemented local review tooling | 8-document synthetic fixture / 16 annotation rows / 6 references | Deterministic sampling and prediction-blind preparation/finalization; real review not completed |
+| Scientific Entity Evaluation Harness | implemented descriptive evaluation | synthetic fixture plus independently validated real pilot | Exact/relaxed quality semantics and independent recomputation; no model promotion |
+| Bounded Scientific Entity Manual Review Evidence | implemented tooling plus completed local pilot | review `scientific-entity-manual-review-v0.1-20260821T131320262656Z`; 24 papers / 48 rows / 435 references | Prediction-blind AI-assisted, human-adjudicated dev evidence; raw paper text remains outside Git |
+| Scientific Entity Literal Baseline Pilot Evaluation | completed local descriptive checkpoint | evaluation `scientific-entity-evaluation-v0.1-20260822T114935748579Z`; 30 predictions | Exact F1 `0.043012`, relaxed F1 `0.068818`; literal v0.1 retained as control only |
 | Refresh operational orchestration | implemented | v0.1 | Recommended operational refresh entrypoint |
 
 The previous Qdrant, graph, and dataset candidates are not silently redefined as
@@ -332,25 +337,34 @@ Recommended order:
    - deterministic 12-document uniform plus 12-document type-enriched sample;
    - prediction-blind reference-annotation preparation and explicit finalization;
    - immutable prepared/completed local packages and independent validator;
-   - synthetic integration is green; real review remains incomplete.
+   - synthetic integration remains green.
 
-5. **Bounded Real-Paper Scientific Entity Manual Review Execution v0.1 — next**
+5. **Bounded Real-Paper Scientific Entity Manual Review Execution and Literal
+   Baseline Pilot v0.1 — completed**
    - prepare the 24-paper sample from current canonical latest;
    - annotate all title/abstract rows prediction-blind;
    - keep raw third-party text and annotator identity outside Git;
-   - validate and run the existing baseline/evaluation harness.
+   - finalized 48 rows and 435 references;
+   - evaluated 30 literal predictions with 10 exact plus 6 relaxed-only matches;
+   - passed the independent 69-check evaluation validator.
 
-6. **Candidate Extractor Benchmark and Accepted Full Derived Entity Build**
-   - only after quality gates;
+6. **Bounded Candidate Extractor Selection and Adapter — next**
+   - reuse the existing evidence contract and evaluation harness;
    - model license, latency, memory, determinism, and provenance evidence;
+   - exact model revision, artifact identity, environment, and cache/download policy;
+   - current 24-paper package is dev evidence, not a final held-out benchmark;
+   - keep literal v0.1 unchanged as the deterministic control.
+
+7. **Accepted Full Derived Entity Build**
+   - only after a candidate is frozen and separately held-out evidence exists;
    - build-scoped manifest and current-canonical compatibility checks;
    - explicit human acceptance decision.
 
-7. **Product and Graph Integration**
+8. **Product and Graph Integration**
    - Discovery facets, paper detail/comparison evidence, paper–entity edges;
    - only after the derived entity layer is accepted.
 
-8. **Full-text / Chunk Provenance / Grounded RAG**
+9. **Full-text / Chunk Provenance / Grounded RAG**
    - separate contract and acquisition-policy line;
    - no ungrounded chat layer.
 
@@ -368,7 +382,7 @@ no Kafka/Ray/Kubernetes expansion
 no Neo4j or graph DB materialization
 no GraphRAG implementation
 no full-text acquisition
-no full-corpus entity extraction before contract/evaluation
+no full-corpus entity extraction before candidate and held-out acceptance
 no entity fields added to canonical documents
 ```
 
@@ -394,10 +408,13 @@ dataset publication = paused pending permission
 next macro-layer = Scientific Entity Evidence
 scientific entity evaluation harness = implemented descriptive evidence
 scientific entity manual-review tooling = implemented prediction-blind preparation/finalization
-scientific entity real review complete = false
+scientific entity real review complete = true (bounded local pilot/dev evidence)
+scientific entity pilot review = 24 papers / 48 rows / 435 references
+scientific entity literal candidate = 30 predictions / exact F1 0.043012 / relaxed F1 0.068818
+scientific entity pilot evaluation id = scientific-entity-evaluation-v0.1-20260822T114935748579Z
 scientific entity production model selected = false
 scientific entity full-corpus build authorized = false
-new model selection = deferred until bounded real manual-review evidence exists
+next entity slice = bounded candidate extractor selection and adapter
 ```
 
 The project is not restarting or replacing completed work. The next entity
