@@ -4,11 +4,11 @@
 
 ```text
 document = primary living roadmap
-accepted checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Literal Baseline Pilot Evaluation v0.1
+accepted checkpoint = Current Project State Checkpoint v0.2 / Bounded Scientific Entity GLiNER Candidate Adapter v0.1
 base checkpoint = current canonical latest 61,075 with synchronized core and Discovery derived layers
 current active direction = Scientific Entity Evidence Layer
-latest completed slice = Bounded Real-Paper Scientific Entity Manual Review and Literal Baseline Pilot v0.1
-next authorized slice = Bounded Scientific Entity Candidate Extractor Selection and Adapter v0.1
+latest completed slice = Bounded Scientific Entity GLiNER Candidate Adapter v0.1
+next authorized slice = GLiNER Candidate Comparison on Existing Pilot/Dev Evidence v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
@@ -31,9 +31,13 @@ mention-evidence contract, bounded deterministic literal baseline, independently
 validated evaluation harness, deterministic sampling, and prediction-blind
 annotation workflow are complete. The first real-paper execution is also
 complete: 24 papers, 48 title/abstract rows, 435 reference mentions, 30 literal
-predictions, and a green 69-check evaluation validator. The next authorized
-action is bounded candidate selection and adapter work, not production model
-promotion or a full-corpus run.
+predictions, and a green 69-check evaluation validator. A pinned, bounded
+GLiNER candidate adapter is now implemented and its first immutable bounded
+candidate build is independently validated: 24 papers, 546 mentions, and 91
+of 91 build checks. Its model weights and auxiliary DeBERTa config are
+independently pinned and verified. The next authorized action is exact/relaxed
+comparison on the unchanged pilot/dev evidence, not production model promotion
+or a full-corpus run.
 
 ---
 
@@ -81,7 +85,9 @@ Bounded Scientific Entity Extractor Baseline v0.1 = completed bounded reference 
 Scientific Entity Evaluation Harness v0.1 = completed deterministic descriptive evaluation
 Bounded Scientific Entity Manual Review Evidence v0.1 = completed tooling and synthetic integration
 Bounded Real-Paper Scientific Entity Manual Review and Literal Baseline Pilot v0.1 = completed local descriptive evidence
-Scientific Entity Candidate Extractor Selection and Adapter v0.1 = next authorized slice
+Scientific Entity Candidate Extractor Selection and Adapter v0.1 = completed as bounded GLiNER adapter
+Bounded Scientific Entity GLiNER Candidate Adapter v0.1 = implemented; immutable candidate build validated; comparison pending
+GLiNER Candidate Comparison on Existing Pilot/Dev Evidence v0.1 = next authorized slice
 full-corpus entity generation = not authorized before candidate and held-out acceptance
 GraphRAG / Qdrant promotion / scheduler orchestration = deferred
 ```
@@ -138,11 +144,12 @@ Recently completed safe slices:
 48. **Scientific Entity Evaluation Harness v0.1** — adds extractor-independent reference identities, deterministic exact/relaxed one-to-one matching, micro/per-type/source-field metrics, structural error evidence, immutable plan/execute output, and independent semantic recomputation without model promotion.
 49. **Bounded Scientific Entity Manual Review Evidence v0.1** — adds deterministic uniform/type-enriched sampling, prediction-blind annotation packages, explicit human finalization, extractor-independent reference output, immutable local evidence, and independent semantic recomputation; tracked acceptance remains synthetic and makes no real quality claim.
 50. **Bounded Real-Paper Scientific Entity Manual Review and Literal Baseline Pilot Evaluation v0.1** — completed a local 24-paper/48-row prediction-blind AI-assisted, human-adjudicated review with 435 references, evaluated 30 literal predictions, passed the 69-check independent validator, retained the literal extractor as a control, and authorized neither production selection nor full-corpus generation.
+51. **Bounded Scientific Entity GLiNER Candidate Adapter v0.1** — freezes an Apache-2.0 small-model revision and FP16 artifact hash plus the auxiliary DeBERTa config revision/size/hash, injects that config from verified local bytes, freezes exact runtime and prompts, and adds explicit model-download/offline boundaries, deterministic overlapping windows, model-score evidence, immutable build output, independent validation, and model-free synthetic regression tests. Its first 24-paper immutable candidate build emitted 546 mentions and passed 91/91 build checks without selecting a production extractor.
 
 Recommended next safe slices:
 
-1. **Bounded Scientific Entity Candidate Extractor Selection and Adapter v0.1** — research current candidates, verify license/revision/resource boundaries, and adapt one bounded candidate to the existing evidence contract without creating another evaluation harness.
-2. **Candidate Comparison on Pilot/Dev Evidence** — reuse the completed 24-paper package for diagnostics only; record exact/relaxed quality, latency, memory, determinism, and provenance against unchanged literal v0.1.
+1. **GLiNER Candidate Comparison on Pilot/Dev Evidence** — reuse the completed 24-paper package for diagnostics only; record exact/relaxed quality, latency, memory, determinism, and provenance against unchanged literal v0.1.
+2. **Candidate Decision** — reject, revise as explicitly tuned dev configuration, or freeze before any new held-out evidence.
 3. **Independent Held-Out Review Evidence** — after candidate freeze, annotate a separate prediction-blind set and prohibit tuning against it.
 4. **Accepted Derived Entity Build** — only after explicit per-type/span quality and reproducibility gates plus a human acceptance decision.
 5. **Product and Graph Integration** — Discovery facets and paper–entity evidence only after the derived build is accepted.
@@ -5027,13 +5034,16 @@ no full-corpus entity build
 no raw paper text, reference rows, or annotator identity committed
 ```
 
-Next bounded functional slice:
+Implemented bounded adapter:
 
 ```text
 Bounded Scientific Entity Candidate Extractor Selection and Adapter v0.1
 ```
 
-That slice must verify candidate license, exact revision, artifact identity,
-runtime resources, determinism, and provenance before a bounded adapter build.
-It must reuse the existing Evidence Contract and Evaluation Harness. A separate
-prediction-blind held-out review is deferred until a candidate is frozen.
+The selected GLiNER candidate now has pinned license, revision, FP16 artifact,
+auxiliary DeBERTa config revision/size/hash, runtime, prompts, safe model-cache
+policy, long-input windowing, immutable build and independent validation. The
+next slice executes that frozen adapter on the existing pilot/dev package and
+reuses the existing Evaluation Harness. A separate prediction-blind held-out
+review remains deferred until a candidate is frozen after the descriptive
+comparison.

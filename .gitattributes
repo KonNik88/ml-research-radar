@@ -4,3 +4,4 @@ tests/fixtures/scientific_entity_extractor_baseline_v0_1/*.jsonl text eol=lf
 tests/fixtures/scientific_entity_evaluation_v0_1/*.jsonl text eol=lf
 tests/fixtures/scientific_entity_evaluation_v0_1/prediction_build/*.jsonl text eol=lf
 tests/fixtures/scientific_entity_manual_review_evidence_v0_1/*.jsonl text eol=lf
+tests/fixtures/scientific_entity_gliner_candidate_v0_1/*.jsonl text eol=lf
