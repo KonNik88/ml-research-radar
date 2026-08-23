@@ -35,10 +35,10 @@ paper-centric research-discovery system.
 ## Current validated checkpoint
 
 ```text
-checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity GLiNER Pilot Comparison v0.1
+checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity GLiNER Dev Policy Review v0.1
 base checkpoint = safe canonical refresh and synchronized core/Discovery derived layers
 scientific entity status = bounded literal control + evaluation harness + completed 24-paper review + GLiNER candidate adapter
-scientific entity quality status = GLiNER pilot comparison complete; leading candidate retained for bounded dev calibration; no production selection or full-corpus build
+scientific entity quality status = real 24-paper GLiNER calibration complete; balanced dev policy frozen at title 0.55 / abstract 0.65; no production selection or full-corpus build
 public behavior change = none
 public dense/hybrid backend = file
 experimental Qdrant endpoint = explicit
@@ -59,6 +59,12 @@ The bounded model-candidate adapter record is
 
 The completed candidate comparison and error-analysis checkpoint is
 [`docs/scientific_entity_gliner_pilot_comparison_v0.1.md`](docs/scientific_entity_gliner_pilot_comparison_v0.1.md).
+
+The bounded threshold-policy calibration contract and operator workflow are
+[`docs/scientific_entity_gliner_dev_calibration_v0.1.md`](docs/scientific_entity_gliner_dev_calibration_v0.1.md).
+
+The completed real calibration review and frozen development policy are recorded in
+[`docs/scientific_entity_gliner_dev_policy_review_v0.1.md`](docs/scientific_entity_gliner_dev_policy_review_v0.1.md).
 
 Current corpus and retrieval baseline:
 
@@ -559,6 +565,7 @@ Current families include:
 - 24-paper Scientific Entity literal-baseline pilot evaluation checkpoint;
 - bounded GLiNER candidate config, exact-span adapter, immutable builder, and independent validation;
 - 24-paper GLiNER-versus-literal pilot/dev comparison, confidence diagnostics, and qualitative error audit;
+- bounded 127-trial GLiNER threshold-policy calibration, immutable output, and deterministic byte-for-byte validation;
 - Qdrant collection, parity, profile sweep, performance, and hybrid evaluation;
 - retrieval-serving checkpoint gate;
 - strict Definition of Done.
@@ -744,27 +751,40 @@ Recommended order:
    per-type, confidence, type-confusion, and qualitative error evidence.
    GLiNER is retained as the leading bounded candidate, not promoted.
 
-8. **Bounded Scientific Entity GLiNER Dev Calibration v0.1 — next.**
-   Reuse the 24-paper package explicitly as dev evidence. Evaluate global then
-   source-field thresholds, a small frozen set of clearer prompts, and
-   principled generic/cross-sentence rejection rules before considering a
-   second-stage classifier. Every changed semantic configuration receives a
-   new extractor fingerprint and immutable candidate build.
+8. **Bounded Scientific Entity GLiNER Dev Calibration v0.1 — implemented and real candidate execution validated.**
+   The read-only layer reuses one frozen prediction build, recomputes its pinned
+   baseline, executes 127 declared global/source-pair/type-probe trials, emits
+   exact F0.5/F1/F2 recommendations plus an exact precision/recall Pareto
+   frontier, and independently reproduces every output byte. Type probes remain
+   diagnostic and no combined per-type policy is selected. The tracked fixture
+   is green; real calibration `scientific-entity-gliner-dev-calibration-v0.1-20260823T152930597192Z` passed `53 / 53` strict checks.
 
-9. **Independent Held-Out Review Evidence**
-   After candidate freeze, annotate at least 32 disjoint papers prediction-
-   blind. This minimum gate is not sufficient by itself for future large-scale
-   production; broader stratified evidence must grow in later bounded slices.
+9. **Scientific Entity GLiNER Dev Policy Review v0.1 — completed.**
+   Human review freezes the balanced source-field policy `title >= 0.55 / abstract >= 0.65`
+   by immutable calibration/trial identity. Exact F1 is `0.380146` and relaxed F1 is
+   `0.404358`; type probes remain diagnostic only. The next slice is a new immutable
+   candidate configuration/build/evaluation carrying the frozen policy, followed by
+   disjoint prediction-blind held-out review.
 
-10. **Accepted Derived Entity Build**
-   Requires a separately frozen candidate, held-out prediction-blind evidence,
-   reproducibility gates, and explicit human acceptance before full-corpus use.
+10. **Materialize Frozen Dev Policy as New Immutable Candidate — next.**
+    Preserve the original 546-mention GLiNER build and carry the frozen
+    `title >= 0.55 / abstract >= 0.65` policy into a new candidate
+    configuration/build/evaluation identity.
 
-11. **Product Integration**
-   Only after quality gates; entities remain downstream of canonical truth.
+11. **Independent Held-Out Review Evidence**
+    After candidate semantics are frozen, annotate at least 32 disjoint papers
+    prediction-blind. This minimum gate is not sufficient by itself for future
+    large-scale production; broader stratified evidence must grow later.
 
-12. **Full-text / Chunk Provenance / Grounded RAG**
-   Separate acquisition and evidence contract after the entity layer is stable.
+12. **Accepted Derived Entity Build**
+    Requires a separately frozen candidate, held-out prediction-blind evidence,
+    reproducibility gates, and explicit human acceptance before full-corpus use.
+
+13. **Product Integration**
+    Only after quality gates; entities remain downstream of canonical truth.
+
+14. **Full-text / Chunk Provenance / Grounded RAG**
+    Separate acquisition and evidence contract after the entity layer is stable.
 
 Dataset publication remains paused pending explicit redistribution guidance.
 Qdrant promotion, new embeddings, Airflow, and GraphRAG remain deferred until a

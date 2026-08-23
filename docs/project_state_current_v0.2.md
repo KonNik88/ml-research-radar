@@ -3,7 +3,7 @@
 ## Document status
 
 ```text
-status = accepted post-orchestration and scientific-entity pilot checkpoint
+status = accepted post-orchestration and scientific-entity dev-policy-review checkpoint
 checkpoint_date = 2026-08-23
 supersedes_for_current_planning = docs/project_state_current_v0.1.md
 historical_detail_retained_in = docs/project_state_current_v0.1.md
@@ -11,14 +11,14 @@ canonical_truth_changed_by_document = false
 runtime_behavior_changed_by_document = false
 generated_layers_rebuilt_by_document = false
 publishes_dataset = false
-current_extension = Scientific Entity GLiNER Pilot Comparison v0.1
+current_extension = Scientific Entity GLiNER Dev Policy Review v0.1
 ```
 
 This checkpoint records the accepted project state after the August 2026 safe
 canonical refresh, derived-layer synchronization, operational refresh runbook,
 Refresh Operational Orchestration v0.1 merge, the first completed bounded
-real-paper Scientific Entity evaluation, and the frozen GLiNER-versus-literal
-pilot/dev comparison.
+real-paper Scientific Entity evaluation, the frozen GLiNER-versus-literal
+pilot/dev comparison, fixture-validated read-only calibration tooling, the real 24-paper calibration execution, and the frozen balanced development policy.
 
 It is a planning and transfer document. It is not a source dataset, reconcile
 input, runtime manifest, release authorization, or replacement for build-scoped
@@ -32,6 +32,13 @@ The current bounded candidate-adapter contract is recorded in
 
 The completed candidate comparison and decision record is
 [`docs/scientific_entity_gliner_pilot_comparison_v0.1.md`](scientific_entity_gliner_pilot_comparison_v0.1.md).
+
+The bounded threshold-policy calibration contract and local operator workflow
+are recorded in
+[`docs/scientific_entity_gliner_dev_calibration_v0.1.md`](scientific_entity_gliner_dev_calibration_v0.1.md).
+
+The completed human policy review and frozen development policy are recorded in
+[`docs/scientific_entity_gliner_dev_policy_review_v0.1.md`](scientific_entity_gliner_dev_policy_review_v0.1.md).
 
 ---
 
@@ -121,6 +128,7 @@ of file-backed truth. They must remain rebuildable.
 | Scientific Entity Literal Baseline Pilot Evaluation | completed local descriptive checkpoint | evaluation `scientific-entity-evaluation-v0.1-20260822T114935748579Z`; 30 predictions | Exact F1 `0.043012`, relaxed F1 `0.068818`; literal v0.1 retained as control only |
 | Bounded Scientific Entity GLiNER Candidate Adapter | implemented; immutable candidate build validated | build `scientific-entity-gliner-small-v2.5-v0.1-20260822T143405630144Z`; 24 papers / 546 mentions / 91 checks | Experimental candidate only; verified local config injection; no production selection or full-corpus authorization |
 | Scientific Entity GLiNER Pilot Comparison | completed local descriptive checkpoint | evaluation `scientific-entity-evaluation-v0.1-20260823T124036780234Z`; 176 exact plus 19 relaxed-only matches / 69 checks | Exact F1 `0.358817`, relaxed F1 `0.397554`; retained for dev calibration, not promoted |
+| Bounded Scientific Entity GLiNER Dev Calibration | real candidate execution complete; strict validation green | calibration `scientific-entity-gliner-dev-calibration-v0.1-20260823T152930597192Z` / 24 papers / 127 trials / 69 eligible / 29 Pareto / 53 checks | Balanced dev policy frozen at title `0.55`, abstract `0.65`; exact F1 `0.380146`, relaxed F1 `0.404358`; type probes diagnostic; no promotion or full-corpus claim |
 | Refresh operational orchestration | implemented | v0.1 | Recommended operational refresh entrypoint |
 
 The previous Qdrant, graph, and dataset candidates are not silently redefined as
@@ -377,31 +385,42 @@ Recommended order:
    - retained GLiNER as the leading bounded candidate without promotion;
    - do not tune and claim the same 24 papers as held-out evidence.
 
-8. **Bounded Scientific Entity GLiNER Dev Calibration v0.1 — next**
-   - treat the current 24-paper package explicitly as dev evidence;
-   - evaluate global and then source-field thresholds before per-type overrides;
-   - test only a small predeclared set of clearer prompts and principled
-     generic/cross-sentence rejection rules;
-   - defer a second-stage classifier until cheaper controls leave a measured
-     high-confidence bottleneck;
-   - freeze one immutable candidate before new held-out annotation.
+8. **Bounded Scientific Entity GLiNER Dev Calibration Tooling v0.1 — implemented**
+   - read only one frozen prediction build and pinned baseline evaluation;
+   - execute 127 declared baseline/global/source-pair/type-probe trials;
+   - select descriptive exact F0.5/F1/F2 profiles plus a Pareto frontier;
+   - keep per-type probes diagnostic and forbid combined type-policy selection;
+   - independently reproduce all seven immutable output files byte for byte;
+   - never run a model, reinterpret scores as probabilities, or claim promotion.
 
-9. **Independent Held-Out Review Evidence**
+9. **Execute Candidate Calibration and Freeze at Most One Dev Policy — completed**
+   - calibration `scientific-entity-gliner-dev-calibration-v0.1-20260823T152930597192Z` executed on 24 papers / 435 references / 546 frozen predictions;
+   - strict validator passed `53 / 53`; 127 trials, 69 profile-eligible, 29 Pareto;
+   - balanced policy frozen at `title >= 0.55 / abstract >= 0.65`;
+   - exact F1 `0.380146`, relaxed F1 `0.404358`;
+   - type probes remain diagnostic; no combined type-specific policy selected.
+
+10. **Materialize Frozen Dev Policy as New Immutable Candidate — next**
+   - preserve the original 546-mention GLiNER build unchanged;
+   - carry the frozen source-field policy into a new immutable candidate configuration/build identity;
+   - validate and evaluate that candidate before any held-out claim.
+
+11. **Independent Held-Out Review Evidence**
    - use at least 32 new, disjoint, prediction-blind papers after candidate freeze;
    - treat 32 as the minimum gate, not final evidence for full-corpus or future
      multi-million-paper scaling;
    - grow later evidence in bounded stratified slices before production acceptance.
 
-10. **Accepted Full Derived Entity Build**
+12. **Accepted Full Derived Entity Build**
    - only after a candidate is frozen and separately held-out evidence exists;
    - build-scoped manifest and current-canonical compatibility checks;
    - explicit human acceptance decision.
 
-11. **Product and Graph Integration**
+13. **Product and Graph Integration**
    - Discovery facets, paper detail/comparison evidence, paper–entity edges;
    - only after the derived entity layer is accepted.
 
-10. **Full-text / Chunk Provenance / Grounded RAG**
+14. **Full-text / Chunk Provenance / Grounded RAG**
    - separate contract and acquisition-policy line;
    - no ungrounded chat layer.
 
@@ -457,9 +476,15 @@ scientific entity GLiNER evaluation id = scientific-entity-evaluation-v0.1-20260
 scientific entity GLiNER exact metrics = precision 0.322344 / recall 0.404598 / F1 0.358817
 scientific entity GLiNER relaxed metrics = precision 0.357143 / recall 0.448276 / F1 0.397554
 scientific entity GLiNER comparison = completed descriptive pilot/dev checkpoint / retained for bounded calibration / not promoted
+scientific entity GLiNER calibration tooling = implemented read-only fixed-prediction search / fixture 127 trials / 53 of 53 checks
+scientific entity GLiNER real calibration = complete / scientific-entity-gliner-dev-calibration-v0.1-20260823T152930597192Z / 127 trials / 69 eligible / 29 Pareto / 53 of 53 checks
+scientific entity GLiNER type probes = diagnostic only / combined policy selection forbidden
+scientific entity confidence remains = model_score / no probability reinterpretation / mention calibration_id remains null
+scientific entity current 24-paper dev set becomes held-out = false
 scientific entity production model selected = false
 scientific entity full-corpus build authorized = false
-next entity slice = Bounded Scientific Entity GLiNER Dev Calibration v0.1
+scientific entity GLiNER frozen dev policy = balanced_f1 / title 0.55 / abstract 0.65 / no type overrides
+next entity slice = materialize frozen GLiNER dev policy as a new immutable candidate build and evaluation
 ```
 
 The project is not restarting or replacing completed work. The next entity

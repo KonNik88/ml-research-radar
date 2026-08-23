@@ -227,6 +227,18 @@ The contract adds no entity fields to `CanonicalDocument`, does not normalize
 mentions into global entity nodes, and cannot be used as a reconcile input or
 serving truth.
 
+Threshold-policy development is represented by a separate downstream
+`ScientificEntityGLiNERCalibrationManifest`. It pins one documents/review/
+prediction/baseline-evaluation chain and immutable trial/profile/Pareto/
+diagnostic outputs. It does not mutate `ScientificEntityMentionEvidence`:
+
+```text
+input confidence_kind = model_score
+input calibration_id = null
+output confidence probability = not defined
+output mention rows = none
+```
+
 ---
 
 # 2. Identity fields
@@ -786,7 +798,8 @@ synthetic fixture documents = 8
 synthetic annotation rows = 16
 synthetic reference mentions = 6
 completed-package checks = 118 / 118
-real-paper review complete = false
+real-paper review complete = true, bounded local 24-paper dev package
+real-paper references = 435
 ```
 
 The manifest boundary remains fail-closed:
@@ -801,6 +814,44 @@ may_be_used_as_reconcile_input = false
 redistribution_allowed = false
 publication_ready = false
 ```
+
+---
+
+## 11.10 Bounded GLiNER threshold-policy calibration evidence
+
+The v0.1 calibration contract is derived configuration evidence over one frozen
+prediction build. Its manifest pins:
+
+```text
+documents/review/reference raw hashes
+prediction manifest/mentions/quality raw hashes
+baseline evaluation manifest/metrics raw hashes
+semantic calibration-config hash
+127 deterministic threshold trials
+exact F0.5/F1/F2 profile trial identities
+exact precision/recall Pareto trial identities
+diagnostic-only isolated type probes
+```
+
+Trial identity binds `calibration_id`, stage, and the complete threshold policy.
+Only baseline, global, and title/abstract source-pair policies that retain all
+six prediction types are profile-eligible. Per-type probes cannot be combined
+or selected as a v0.1 profile.
+
+The output is immutable build-scoped evidence and explicitly records:
+
+```text
+confidence scores reinterpreted as probabilities = false
+calibration_id written to mentions = false
+current dev set becomes held-out = false
+model inference executed = false
+production extractor selected = false
+canonical truth mutated = false
+full-corpus build authorized = false
+```
+
+The tracked fixture validates contract and reproducibility only. Real local
+candidate calibration remains dev evidence and cannot authorize promotion.
 
 ---
 
@@ -822,13 +873,16 @@ publication_ready = false
 - Scientific Entity Evaluation Harness v0.1 descriptive exact/relaxed quality evidence
 - Bounded Scientific Entity Manual Review Evidence v0.1 preparation,
   finalization, contracts, independent validation, and synthetic integration
+- bounded GLiNER candidate adapter and completed 24-paper descriptive comparison
+- Bounded Scientific Entity GLiNER Dev Calibration v0.1 contracts, fixed-
+  prediction threshold search, immutable output, and independent recomputation
 
 ## Explicitly postponed
 - promotion of artifact metadata into canonical paper truth
 - dedicated Paper–Artifact Graph API unless existing Artifact API surfaces prove insufficient
 - chunk-level full-text entities
-- execution and acceptance of real-paper scientific-entity manual review
-- candidate extractor benchmarking and model selection
+- execution and human review of the real 24-paper calibration output
+- candidate policy freeze and independent held-out acceptance
 - scientific-entity extraction beyond bounded reviewed evidence
 - scientific-entity normalization/linking and paper–entity integration
 - LLM summaries and RAG-specific chunk contracts

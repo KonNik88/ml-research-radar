@@ -1,0 +1,155 @@
+schema_version: scientific_entity_gliner_dev_calibration_config_v0.1
+
+layer:
+  name: scientific_entity_gliner_dev_calibration
+  version: v0.1
+  status: dev_calibration
+  layer_kind: derived_bounded_configuration_evidence
+  description: >-
+    Read-only bounded threshold-policy calibration over one immutable GLiNER
+    candidate prediction build and one completed development review package.
+    The layer does not execute model inference, reinterpret model scores as
+    probabilities, select a production extractor, or authorize full-corpus use.
+
+evaluation:
+  evaluation_config_path: configs/scientific_entity_evaluation_v0.1.yaml
+  reuse_existing_matching_policy: true
+  recompute_every_trial: true
+  baseline_metrics_must_match: true
+  decimal_places: 6
+
+search:
+  input_threshold: 0.50
+  threshold_is_inclusive: true
+  threshold_decimal_places: 2
+  global_thresholds:
+    - 0.55
+    - 0.60
+    - 0.65
+    - 0.70
+    - 0.75
+    - 0.80
+    - 0.85
+    - 0.90
+    - 0.95
+  title_thresholds:
+    - 0.50
+    - 0.55
+    - 0.60
+    - 0.65
+    - 0.70
+    - 0.75
+    - 0.80
+  abstract_thresholds:
+    - 0.50
+    - 0.55
+    - 0.60
+    - 0.65
+    - 0.70
+    - 0.75
+    - 0.80
+    - 0.85
+    - 0.90
+  type_probe_thresholds:
+    - 0.50
+    - 0.55
+    - 0.60
+    - 0.65
+    - 0.70
+    - 0.75
+    - 0.80
+    - 0.85
+    - 0.90
+  source_pair_search_enabled: true
+  type_probe_search_enabled: true
+  type_probes_diagnostic_only: true
+  combined_type_specific_policy_selection_allowed: false
+  full_source_field_by_type_cartesian_search_allowed: false
+  hard_max_trial_count: 200
+
+profiles:
+  eligible_stages:
+    - baseline
+    - global
+    - source_pair
+  require_all_entity_types_represented: true
+  primary_metric: exact_f_beta
+  profile_betas:
+    precision_oriented_f0_5: 0.5
+    balanced_f1: 1.0
+    recall_oriented_f2: 2.0
+  tie_break_order:
+    - primary_metric_desc
+    - exact_precision_desc
+    - exact_recall_desc
+    - relaxed_f1_desc
+    - policy_complexity_asc
+    - trial_id_asc
+  pareto_axes: exact_precision_and_exact_recall
+  promotion_verdict_allowed: false
+
+safety:
+  default_max_documents: 32
+  hard_max_documents: 100
+  hard_max_reference_mentions: 5000
+  hard_max_prediction_mentions: 5000
+  fail_if_input_exceeds_limit: true
+  truncation_allowed: false
+  forbid_current_canonical_input: true
+  current_canonical_path: data/analytics/reconciled/canonical_documents.jsonl
+  require_model_score_confidence: true
+  require_null_mention_calibration_id: true
+  require_all_scores_at_or_above_input_threshold: true
+  allowed_statuses:
+    - fixture
+    - candidate
+  accepted_or_promoted_status_allowed: false
+  execute_required_for_writes: true
+  overwrite_allowed: false
+  model_inference_allowed: false
+  model_or_tokenizer_download_allowed: false
+  provider_api_allowed: false
+  canonical_truth_mutation_allowed: false
+  reconcile_input_allowed: false
+  full_corpus_build_authorized: false
+  redistribution_allowed: false
+  publication_allowed: false
+
+outputs:
+  root: data/entities/scientific_entity_gliner_calibration/v0.1
+  immutable_calibration_directory: true
+  mutable_latest_pointer: false
+  encoding: utf-8
+  line_ending: lf
+  required_files:
+    - manifest.json
+    - trials.jsonl
+    - pareto_frontier.json
+    - recommended_profiles.json
+    - diagnostics.json
+    - README.md
+    - checksums.txt
+
+validation:
+  report_dir: artifacts/reports/validation
+  require_independent_validator: true
+  require_trial_recomputation: true
+  require_profile_recomputation: true
+  require_pareto_recomputation: true
+  require_checksums: true
+  require_lf_outputs: true
+  require_input_hashes: true
+  require_fail_closed_safety: true
+
+fixtures:
+  documents_path: >-
+    tests/fixtures/scientific_entity_evaluation_v0_1/canonical_documents.jsonl
+  review_manifest_path: >-
+    tests/fixtures/scientific_entity_evaluation_v0_1/review_manifest.json
+  reference_mentions_path: >-
+    tests/fixtures/scientific_entity_evaluation_v0_1/reference_mentions.jsonl
+  prediction_build_dir: >-
+    tests/fixtures/scientific_entity_gliner_dev_calibration_v0_1/prediction_build
+  baseline_evaluation_dir: >-
+    tests/fixtures/scientific_entity_gliner_dev_calibration_v0_1/baseline_evaluation
+  synthetic_only: true
