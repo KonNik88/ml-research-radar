@@ -71,6 +71,14 @@ governance/evidence family:
   audit summary. Sampling cues are not labels, review evidence is not canonical
   truth, and completion does not approve an extractor or publication.
 
+- **Bounded Scientific Entity GLiNER Dev Calibration v0.1**
+  Read-only configuration evidence derived from one hash-pinned documents,
+  review, prediction-build, and baseline-evaluation chain. It records
+  deterministic threshold trial identities, exact F0.5/F1/F2 recommendations,
+  a Pareto frontier, and diagnostic type probes. It does not alter mention
+  evidence, convert model scores to probabilities, execute a model, or approve
+  a production/full-corpus path.
+
 The contract, evidence, review, and checkpoint are not a third truth layer and do
 not add fields to `CanonicalDocument`. They document, explain, and validate current
 reconciliation behavior.
@@ -377,6 +385,24 @@ avoiding global mention-ID churn when an unrelated paper changes.
 
 Entity evidence must not be embedded in `CanonicalDocument.sources`, used as a
 field-selection winner, or treated as source-observation provenance.
+
+Calibration evidence adds another derived identity without changing the two
+mention identities:
+
+```text
+calibration trial_id
+= calibration_id + trial stage + complete threshold policy
+
+mention_id remains unchanged
+evidence_id remains unchanged
+mention calibration_id remains null
+confidence_kind remains model_score
+```
+
+The calibration manifest pins the raw hashes of its review, prediction, and
+baseline-evaluation inputs. Its profile and Pareto outputs are development
+configuration evidence, not paper truth, annotation truth, calibrated
+probabilities, or extractor acceptance.
 
 ---
 

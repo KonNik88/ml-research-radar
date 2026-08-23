@@ -81,10 +81,9 @@ def test_living_docs_preserve_literal_control_after_gliner_comparison() -> None:
     assert report_link in architecture
     assert "scientific entity real review complete = true" in checkpoint
     assert "scientific_entity_real_review_complete = true_bounded_local_pilot" in architecture
-    assert (
-        "next authorized slice = Bounded Scientific Entity GLiNER Dev Calibration "
-        "v0.1"
-    ) in roadmap
+    # Do not pin the mutable living ``next`` pointer in a historical regression.
+    # Current-state sequencing is covered centrally by test_project_state_current_v02.py.
+    assert "Bounded Scientific Entity GLiNER Dev Calibration Tooling v0.1" in roadmap
     assert "Scientific Entity GLiNER Pilot Comparison v0.1" in roadmap
     assert "no duplicate evaluation harness" in roadmap
     assert "no production extractor selection" in roadmap

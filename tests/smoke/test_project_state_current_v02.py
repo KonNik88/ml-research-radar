@@ -40,19 +40,21 @@ def test_readme_points_to_the_current_checkpoint_and_scopes_old_outputs() -> Non
     assert "docs/scientific_entity_literal_baseline_pilot_evaluation_v0.1.md" in text
     assert "docs/scientific_entity_gliner_candidate_adapter_v0.1.md" in text
     assert "docs/scientific_entity_gliner_pilot_comparison_v0.1.md" in text
+    assert "docs/scientific_entity_gliner_dev_calibration_v0.1.md" in text
+    assert "docs/scientific_entity_gliner_dev_policy_review_v0.1.md" in text
     assert "completed 24-paper review" in text
 
 
-def test_roadmap_selects_gliner_dev_calibration_after_pilot_comparison() -> None:
+def test_roadmap_advances_after_real_calibration_and_policy_freeze() -> None:
     text = _read("docs/roadmap.md")
 
     assert "current active direction = Scientific Entity Evidence Layer" in text
     assert (
-        "latest completed slice = Scientific Entity GLiNER Pilot Comparison v0.1"
+        "latest completed slice = Scientific Entity GLiNER Dev Policy Review v0.1"
     ) in text
     assert (
-        "next authorized slice = Bounded Scientific Entity GLiNER Dev Calibration "
-        "v0.1"
+        "next authorized slice = materialize frozen GLiNER dev policy as a new "
+        "immutable candidate build and evaluation"
     ) in text
     assert "Scientific Entity Evidence Contract v0.1" in text
     assert "hard max documents = 100" in text
@@ -197,3 +199,59 @@ def test_gliner_comparison_is_recorded_without_promotion() -> None:
     ) in comparison
     assert "production_extractor_selected = false" in comparison
     assert "full_corpus_build_authorized = false" in comparison
+
+
+def test_gliner_dev_calibration_is_bounded_and_not_probabilistic() -> None:
+    readme = _read("README.md")
+    checkpoint = _read("docs/project_state_current_v0.2.md")
+    architecture = _read("docs/architecture.md")
+    calibration = _read("docs/scientific_entity_gliner_dev_calibration_v0.1.md")
+    config = _read("configs/scientific_entity_gliner_dev_calibration_v0.1.yaml")
+
+    assert (
+        "Bounded Scientific Entity GLiNER Dev Calibration v0.1 — implemented and "
+        "real candidate execution validated."
+    ) in readme
+    assert (
+        "Bounded Scientific Entity GLiNER Dev Calibration | real candidate execution "
+        "complete; strict validation green"
+        in checkpoint
+    )
+    assert (
+        "scientific_entity_gliner_calibration_tooling_status = "
+        "implemented_fixture_validated"
+    ) in architecture
+    assert "exactly 127 trials" in calibration
+    assert "confidence_kind = model_score" in calibration
+    assert "calibration_id = null" in calibration
+    assert "full source_field × entity_type Cartesian policy search" in calibration
+    assert "real 24-paper candidate execution = complete" in calibration
+    assert "real calibration strict validation = 53 / 53 required checks" in calibration
+    assert "dev policy review = complete / balanced_f1 selected" in calibration
+    assert "docs/scientific_entity_gliner_dev_policy_review_v0.1.md" in calibration
+    assert "model_inference_allowed: false" in config
+    assert "combined_type_specific_policy_selection_allowed: false" in config
+    assert "full_source_field_by_type_cartesian_search_allowed: false" in config
+    assert "promotion_verdict_allowed: false" in config
+    assert "full_corpus_build_authorized: false" in config
+
+
+def test_gliner_dev_policy_review_freezes_one_bounded_policy() -> None:
+    review = _read("docs/scientific_entity_gliner_dev_policy_review_v0.1.md")
+    checkpoint = _read("docs/project_state_current_v0.2.md")
+    architecture = _read("docs/architecture.md")
+
+    assert "calibration_id = scientific-entity-gliner-dev-calibration-v0.1-20260823T152930597192Z" in review
+    assert "strict_validator = 53 / 53 required checks" in review
+    assert "selected_profile = balanced_f1" in review
+    assert "selected_trial_id = calibration-trial:1172aea9d875d59f3b39cc21488dec8f" in review
+    assert "selected_title_threshold = 0.55 inclusive" in review
+    assert "selected_abstract_threshold = 0.65 inclusive" in review
+    assert "selected_entity_type_thresholds = none" in review
+    assert "selected_dev_policy_frozen = true" in review
+    assert "production_extractor_selected = false" in review
+    assert "full_corpus_build_authorized = false" in review
+    assert "current_24_paper_dev_set_becomes_held_out = false" in review
+    assert "exact F1 from `0.358817` to `0.380146`" in review
+    assert "scientific entity GLiNER frozen dev policy = balanced_f1 / title 0.55 / abstract 0.65 / no type overrides" in checkpoint
+    assert "scientific_entity_gliner_dev_policy_frozen = true" in architecture

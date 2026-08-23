@@ -1,0 +1,47 @@
+{
+  "schema_version": "scientific_entity_evidence_manifest_v0.1",
+  "build_id": "scientific-entity-evaluation-fixture-predictions-v0.1",
+  "status": "fixture",
+  "generated_at_utc": "2026-08-21T10:00:00Z",
+  "canonical_input": {
+    "schema_version": "scientific_entity_canonical_input_v0.1",
+    "path": "tests/fixtures/scientific_entity_extractor_baseline_v0_1/canonical_documents.jsonl",
+    "sha256": "3c750d9df2aabdcd6f6666ac4cd1a47682bd1399a75828c2a6064ff4f9fc31f3",
+    "document_count": 4,
+    "canonical_contract": "CanonicalDocument"
+  },
+  "extractor": {
+    "schema_version": "scientific_entity_extractor_descriptor_v0.1",
+    "name": "ml_radar_literal_scientific_entity_baseline",
+    "version": "0.1.0",
+    "kind": "rule_based",
+    "code_revision": "normalized-source-sha256:cbc87b04b4b5ae22371579f233f2a952f41f6f82390f5e6adbee76eb8c3d2609",
+    "config_sha256": "373078cb884d9cf92bed6f509d63e1b147689bb274e75225f90e66768e3732e4",
+    "environment_sha256": "1b8c0325e69ae3b302070b7c3da62e6a7bec45d6873222734c9e95e1abec981b",
+    "model_name": null,
+    "model_revision": null,
+    "model_artifact_sha256": null,
+    "model_license": null
+  },
+  "extractor_fingerprint": "81574f26a1e5166460a927e45d160c8d51c7d7d5b2418944cbc1bfeeba6575fd",
+  "offset_unit": "unicode_codepoint",
+  "offset_interval": "half_open",
+  "source_fields": [
+    "title",
+    "abstract"
+  ],
+  "entity_types": [
+    "task",
+    "method",
+    "dataset",
+    "metric",
+    "model",
+    "domain"
+  ],
+  "mentions_file": "mentions.jsonl",
+  "mention_count": 17,
+  "mentions_sha256": "55392d88c855bf2f22d282121f43e06b4c4b8a5a356ee53aa186394a6fc2be7b",
+  "canonical_truth_mutated": false,
+  "may_be_used_as_reconcile_input": false,
+  "publication_ready": false
+}

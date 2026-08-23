@@ -1,0 +1,17 @@
+{
+  "schema_version": "scientific_entity_gliner_quality_v0.1",
+  "build_id": "scientific-entity-evaluation-fixture-predictions-v0.1",
+  "status": "fixture",
+  "bounded": true,
+  "input_document_count": 4,
+  "mention_count": 17,
+  "confidence_kind": "model_score",
+  "threshold": 0.5,
+  "test_backend_injected": true,
+  "canonical_truth_mutated": false,
+  "may_be_used_as_reconcile_input": false,
+  "publication_ready": false,
+  "model_weights_downloaded": false,
+  "provider_api_called": false,
+  "full_corpus_processed": false
+}

@@ -115,10 +115,11 @@ def test_living_docs_advance_to_bounded_dev_calibration() -> None:
     assert link in checkpoint
     assert link in roadmap
     assert "Scientific Entity GLiNER Pilot Comparison v0.1" in architecture
-    assert "next entity slice = Bounded Scientific Entity GLiNER Dev Calibration v0.1" in checkpoint
-    assert (
-        "next authorized slice = Bounded Scientific Entity GLiNER Dev Calibration "
-        "v0.1"
-    ) in roadmap
+    # Historical regression tests must not pin the living ``next`` pointer.
+    # The current next slice is owned by test_project_state_current_v02.py and
+    # intentionally advances as later slices close. Preserve only the durable
+    # fact that the comparison led into implemented GLiNER dev-calibration tooling.
+    assert "Bounded Scientific Entity GLiNER Dev Calibration" in checkpoint
+    assert "Bounded Scientific Entity GLiNER Dev Calibration Tooling v0.1" in roadmap
     assert "production extractor selected = false" in architecture
     assert "full-corpus build authorized = false" in architecture

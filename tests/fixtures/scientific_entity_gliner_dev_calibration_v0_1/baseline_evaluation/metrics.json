@@ -1,0 +1,125 @@
+{
+  "schema_version": "scientific_entity_evaluation_metrics_v0.1",
+  "evaluation_id": "scientific-entity-gliner-calibration-fixture-baseline-v0.1",
+  "document_count": 4,
+  "reference_mention_count": 18,
+  "prediction_mention_count": 17,
+  "matching_policy": {
+    "exact_requires_same_entity_type": true,
+    "exact_requires_same_span": true,
+    "exact_requires_same_text_identity": true,
+    "relaxed_enabled": true,
+    "relaxed_min_char_iou": 0.5,
+    "relaxed_requires_same_entity_type": true,
+    "relaxed_requires_same_text_identity": true,
+    "relaxed_assignment": "deterministic_greedy_iou_desc_v0.1",
+    "one_to_one": true
+  },
+  "micro": {
+    "exact": {
+      "true_positive": 14,
+      "false_positive": 3,
+      "false_negative": 4,
+      "reference_support": 18,
+      "prediction_support": 17,
+      "precision_denominator": 17,
+      "recall_denominator": 18,
+      "precision": 0.823529,
+      "recall": 0.777778,
+      "f1": 0.8
+    },
+    "relaxed": {
+      "true_positive": 15,
+      "false_positive": 2,
+      "false_negative": 3,
+      "reference_support": 18,
+      "prediction_support": 17,
+      "precision_denominator": 17,
+      "recall_denominator": 18,
+      "precision": 0.882353,
+      "recall": 0.833333,
+      "f1": 0.857143
+    }
+  },
+  "by_source_field": {
+    "title": {
+      "exact": {
+        "true_positive": 9,
+        "false_positive": 1,
+        "false_negative": 3,
+        "reference_support": 12,
+        "prediction_support": 10,
+        "precision_denominator": 10,
+        "recall_denominator": 12,
+        "precision": 0.9,
+        "recall": 0.75,
+        "f1": 0.818182
+      },
+      "relaxed": {
+        "true_positive": 10,
+        "false_positive": 0,
+        "false_negative": 2,
+        "reference_support": 12,
+        "prediction_support": 10,
+        "precision_denominator": 10,
+        "recall_denominator": 12,
+        "precision": 1.0,
+        "recall": 0.833333,
+        "f1": 0.909091
+      }
+    },
+    "abstract": {
+      "exact": {
+        "true_positive": 5,
+        "false_positive": 2,
+        "false_negative": 1,
+        "reference_support": 6,
+        "prediction_support": 7,
+        "precision_denominator": 7,
+        "recall_denominator": 6,
+        "precision": 0.714286,
+        "recall": 0.833333,
+        "f1": 0.769231
+      },
+      "relaxed": {
+        "true_positive": 5,
+        "false_positive": 2,
+        "false_negative": 1,
+        "reference_support": 6,
+        "prediction_support": 7,
+        "precision_denominator": 7,
+        "recall_denominator": 6,
+        "precision": 0.714286,
+        "recall": 0.833333,
+        "f1": 0.769231
+      }
+    }
+  },
+  "exact_match_count": 14,
+  "relaxed_only_match_count": 1,
+  "error_count_by_kind": {
+    "boundary_mismatch": 1,
+    "type_mismatch": 1,
+    "false_positive": 1,
+    "false_negative": 2
+  },
+  "data_sufficiency": {
+    "minimum_document_count": 32,
+    "minimum_reference_mentions_per_type": 20,
+    "document_count_sufficient": false,
+    "per_type_support_sufficient": {
+      "task": false,
+      "method": false,
+      "dataset": false,
+      "metric": false,
+      "model": false,
+      "domain": false
+    },
+    "promotion_sample_sufficient": false,
+    "metrics_are_descriptive_only": true
+  },
+  "production_extractor_selected": false,
+  "full_corpus_build_authorized": false,
+  "canonical_truth_mutated": false,
+  "publication_ready": false
+}
