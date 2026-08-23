@@ -4,17 +4,17 @@
 
 ```text
 document = primary living roadmap
-accepted checkpoint = Current Project State Checkpoint v0.2 / Bounded Scientific Entity GLiNER Candidate Adapter v0.1
+accepted checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity GLiNER Pilot Comparison v0.1
 base checkpoint = current canonical latest 61,075 with synchronized core and Discovery derived layers
 current active direction = Scientific Entity Evidence Layer
-latest completed slice = Bounded Scientific Entity GLiNER Candidate Adapter v0.1
-next authorized slice = GLiNER Candidate Comparison on Existing Pilot/Dev Evidence v0.1
+latest completed slice = Scientific Entity GLiNER Pilot Comparison v0.1
+next authorized slice = Bounded Scientific Entity GLiNER Dev Calibration v0.1
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
 dataset publication = paused pending redistribution guidance
-current entity boundary = completed 24-paper pilot/dev evidence; production model and full-corpus output not selected or authorized
+current entity boundary = completed 24-paper GLiNER comparison retained for dev calibration; production model and full-corpus output not selected or authorized
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -35,9 +35,11 @@ predictions, and a green 69-check evaluation validator. A pinned, bounded
 GLiNER candidate adapter is now implemented and its first immutable bounded
 candidate build is independently validated: 24 papers, 546 mentions, and 91
 of 91 build checks. Its model weights and auxiliary DeBERTa config are
-independently pinned and verified. The next authorized action is exact/relaxed
-comparison on the unchanged pilot/dev evidence, not production model promotion
-or a full-corpus run.
+independently pinned and verified. The exact/relaxed comparison is complete:
+exact F1 is `0.358817`, relaxed F1 is `0.397554`, and the independent
+evaluation validator passed `69 / 69`. GLiNER is retained as the leading
+bounded candidate without promotion. The next authorized action is explicit
+dev calibration, not a full-corpus run.
 
 ---
 
@@ -86,8 +88,9 @@ Scientific Entity Evaluation Harness v0.1 = completed deterministic descriptive 
 Bounded Scientific Entity Manual Review Evidence v0.1 = completed tooling and synthetic integration
 Bounded Real-Paper Scientific Entity Manual Review and Literal Baseline Pilot v0.1 = completed local descriptive evidence
 Scientific Entity Candidate Extractor Selection and Adapter v0.1 = completed as bounded GLiNER adapter
-Bounded Scientific Entity GLiNER Candidate Adapter v0.1 = implemented; immutable candidate build validated; comparison pending
-GLiNER Candidate Comparison on Existing Pilot/Dev Evidence v0.1 = next authorized slice
+Bounded Scientific Entity GLiNER Candidate Adapter v0.1 = implemented; immutable candidate build validated
+Scientific Entity GLiNER Pilot Comparison v0.1 = completed descriptive evidence; retained for calibration, not promoted
+Bounded Scientific Entity GLiNER Dev Calibration v0.1 = next authorized slice
 full-corpus entity generation = not authorized before candidate and held-out acceptance
 GraphRAG / Qdrant promotion / scheduler orchestration = deferred
 ```
@@ -145,15 +148,17 @@ Recently completed safe slices:
 49. **Bounded Scientific Entity Manual Review Evidence v0.1** — adds deterministic uniform/type-enriched sampling, prediction-blind annotation packages, explicit human finalization, extractor-independent reference output, immutable local evidence, and independent semantic recomputation; tracked acceptance remains synthetic and makes no real quality claim.
 50. **Bounded Real-Paper Scientific Entity Manual Review and Literal Baseline Pilot Evaluation v0.1** — completed a local 24-paper/48-row prediction-blind AI-assisted, human-adjudicated review with 435 references, evaluated 30 literal predictions, passed the 69-check independent validator, retained the literal extractor as a control, and authorized neither production selection nor full-corpus generation.
 51. **Bounded Scientific Entity GLiNER Candidate Adapter v0.1** — freezes an Apache-2.0 small-model revision and FP16 artifact hash plus the auxiliary DeBERTa config revision/size/hash, injects that config from verified local bytes, freezes exact runtime and prompts, and adds explicit model-download/offline boundaries, deterministic overlapping windows, model-score evidence, immutable build output, independent validation, and model-free synthetic regression tests. Its first 24-paper immutable candidate build emitted 546 mentions and passed 91/91 build checks without selecting a production extractor.
+52. **Scientific Entity GLiNER Pilot Comparison v0.1** — evaluated the frozen 546-mention GLiNER build against the unchanged 24-paper/435-reference dev package and literal control, passed 69/69 independent evaluation checks, recorded exact F1 `0.358817`, relaxed F1 `0.397554`, per-source/per-type/confidence/error diagnostics, retained GLiNER for bounded dev calibration, and authorized neither production selection nor full-corpus generation.
 
 Recommended next safe slices:
 
-1. **GLiNER Candidate Comparison on Pilot/Dev Evidence** — reuse the completed 24-paper package for diagnostics only; record exact/relaxed quality, latency, memory, determinism, and provenance against unchanged literal v0.1.
-2. **Candidate Decision** — reject, revise as explicitly tuned dev configuration, or freeze before any new held-out evidence.
-3. **Independent Held-Out Review Evidence** — after candidate freeze, annotate a separate prediction-blind set and prohibit tuning against it.
-4. **Accepted Derived Entity Build** — only after explicit per-type/span quality and reproducibility gates plus a human acceptance decision.
-5. **Product and Graph Integration** — Discovery facets and paper–entity evidence only after the derived build is accepted.
-6. **Full-text / Chunk Provenance Contract** — only after the entity line is stable and before any grounded RAG implementation.
+1. **Bounded GLiNER Dev Calibration** — reuse the completed 24-paper package explicitly as dev evidence; test global then source-field thresholds, a small predeclared prompt set, and principled generic/cross-sentence rejection rules without claiming held-out quality.
+2. **Candidate Freeze** — select one immutable configuration only after bounded comparisons; defer a second-stage classifier unless cheaper controls leave a measured high-confidence bottleneck.
+3. **Independent Held-Out Review Evidence** — after candidate freeze, annotate at least 32 disjoint prediction-blind papers and prohibit tuning against them; 32 is a minimum gate, not final large-corpus evidence.
+4. **Stratified Evidence Growth** — expand prediction-blind review in later bounded slices across research areas, source families, time, rare types, and hard negatives before any full-corpus production claim.
+5. **Accepted Derived Entity Build** — only after explicit per-type/span quality and reproducibility gates plus a human acceptance decision.
+6. **Product and Graph Integration** — Discovery facets and paper–entity evidence only after the derived build is accepted.
+7. **Full-text / Chunk Provenance Contract** — only after the entity line is stable and before any grounded RAG implementation.
 
 Explicit immediate non-goals:
 
@@ -5027,7 +5032,7 @@ Evidence-backed decision:
 ```text
 literal v0.1 remains unchanged deterministic control
 24-paper review becomes pilot/dev evidence
-no lexicon tuning from the same dev labels as the next slice
+any tuning on the same 24 papers is explicitly dev-only and never held-out evidence
 no duplicate evaluation harness
 no production extractor selection
 no full-corpus entity build
@@ -5040,10 +5045,67 @@ Implemented bounded adapter:
 Bounded Scientific Entity Candidate Extractor Selection and Adapter v0.1
 ```
 
-The selected GLiNER candidate now has pinned license, revision, FP16 artifact,
+The selected GLiNER candidate has pinned license, revision, FP16 artifact,
 auxiliary DeBERTa config revision/size/hash, runtime, prompts, safe model-cache
-policy, long-input windowing, immutable build and independent validation. The
-next slice executes that frozen adapter on the existing pilot/dev package and
-reuses the existing Evaluation Harness. A separate prediction-blind held-out
-review remains deferred until a candidate is frozen after the descriptive
-comparison.
+policy, long-input windowing, immutable build and independent validation. Its
+frozen execution and descriptive comparison on the existing pilot/dev package
+are complete and reuse the existing Evaluation Harness. A separate prediction-
+blind held-out review remains deferred until a candidate is frozen after
+explicit dev calibration.
+
+## Scientific Entity GLiNER Pilot Comparison v0.1
+
+Status: **completed descriptive pilot/dev comparison; candidate retained, not promoted**
+
+Tracked aggregate evidence:
+
+```text
+docs/scientific_entity_gliner_pilot_comparison_v0.1.md
+tests/smoke/test_scientific_entity_gliner_pilot_comparison.py
+```
+
+Pinned local comparison:
+
+```text
+GLiNER build = scientific-entity-gliner-small-v2.5-v0.1-20260822T143405630144Z
+evaluation = scientific-entity-evaluation-v0.1-20260823T124036780234Z
+documents = 24
+references = 435
+predictions = 546
+exact matches = 176
+relaxed-only matches = 19
+evaluation validator = 69 / 69
+```
+
+Accepted descriptive result:
+
+```text
+exact = TP 176 / FP 370 / FN 259 / precision 0.322344 / recall 0.404598 / F1 0.358817
+relaxed = TP 195 / FP 351 / FN 240 / precision 0.357143 / recall 0.448276 / F1 0.397554
+title relaxed F1 = 0.509804
+abstract relaxed F1 = 0.384528
+boundary mismatch = 22
+type mismatch = 113
+false positive = 235
+false negative = 124
+promotion_sample_sufficient = false
+```
+
+Decision:
+
+```text
+literal v0.1 = unchanged deterministic control
+GLiNER v0.1 = leading bounded candidate retained for dev calibration
+production promotion = false
+full-corpus authorization = false
+24-paper package = dev diagnostics, never post-tuning held-out evidence
+next slice = Bounded Scientific Entity GLiNER Dev Calibration v0.1
+```
+
+The comparison preserves the narrow six-type product ontology. It prioritizes
+global/source-field thresholds, clearer prompts, versioned dev adjudication,
+generic-surface filtering, and cross-sentence-span rejection before any second-
+stage classifier. After one candidate is frozen, a disjoint prediction-blind
+set of at least 32 papers becomes the minimum next gate. Larger stratified
+evidence remains necessary before full-corpus or future multi-million-paper
+scaling claims.

@@ -4,20 +4,21 @@
 
 ```text
 status = accepted post-orchestration and scientific-entity pilot checkpoint
-checkpoint_date = 2026-08-22
+checkpoint_date = 2026-08-23
 supersedes_for_current_planning = docs/project_state_current_v0.1.md
 historical_detail_retained_in = docs/project_state_current_v0.1.md
 canonical_truth_changed_by_document = false
 runtime_behavior_changed_by_document = false
 generated_layers_rebuilt_by_document = false
 publishes_dataset = false
-current_extension = Bounded Scientific Entity GLiNER Candidate Adapter v0.1
+current_extension = Scientific Entity GLiNER Pilot Comparison v0.1
 ```
 
 This checkpoint records the accepted project state after the August 2026 safe
 canonical refresh, derived-layer synchronization, operational refresh runbook,
-Refresh Operational Orchestration v0.1 merge, and the first completed bounded
-real-paper Scientific Entity evaluation.
+Refresh Operational Orchestration v0.1 merge, the first completed bounded
+real-paper Scientific Entity evaluation, and the frozen GLiNER-versus-literal
+pilot/dev comparison.
 
 It is a planning and transfer document. It is not a source dataset, reconcile
 input, runtime manifest, release authorization, or replacement for build-scoped
@@ -28,6 +29,9 @@ The corresponding aggregate real-paper pilot evidence is recorded in
 
 The current bounded candidate-adapter contract is recorded in
 [`docs/scientific_entity_gliner_candidate_adapter_v0.1.md`](scientific_entity_gliner_candidate_adapter_v0.1.md).
+
+The completed candidate comparison and decision record is
+[`docs/scientific_entity_gliner_pilot_comparison_v0.1.md`](scientific_entity_gliner_pilot_comparison_v0.1.md).
 
 ---
 
@@ -115,7 +119,8 @@ of file-backed truth. They must remain rebuildable.
 | Scientific Entity Evaluation Harness | implemented descriptive evaluation | synthetic fixture plus independently validated real pilot | Exact/relaxed quality semantics and independent recomputation; no model promotion |
 | Bounded Scientific Entity Manual Review Evidence | implemented tooling plus completed local pilot | review `scientific-entity-manual-review-v0.1-20260821T131320262656Z`; 24 papers / 48 rows / 435 references | Prediction-blind AI-assisted, human-adjudicated dev evidence; raw paper text remains outside Git |
 | Scientific Entity Literal Baseline Pilot Evaluation | completed local descriptive checkpoint | evaluation `scientific-entity-evaluation-v0.1-20260822T114935748579Z`; 30 predictions | Exact F1 `0.043012`, relaxed F1 `0.068818`; literal v0.1 retained as control only |
-| Bounded Scientific Entity GLiNER Candidate Adapter | implemented; immutable candidate build validated; comparison pending | build `scientific-entity-gliner-small-v2.5-v0.1-20260822T143405630144Z`; 24 papers / 546 mentions / 91 checks | Experimental candidate only; verified local config injection; no production selection or full-corpus authorization |
+| Bounded Scientific Entity GLiNER Candidate Adapter | implemented; immutable candidate build validated | build `scientific-entity-gliner-small-v2.5-v0.1-20260822T143405630144Z`; 24 papers / 546 mentions / 91 checks | Experimental candidate only; verified local config injection; no production selection or full-corpus authorization |
+| Scientific Entity GLiNER Pilot Comparison | completed local descriptive checkpoint | evaluation `scientific-entity-evaluation-v0.1-20260823T124036780234Z`; 176 exact plus 19 relaxed-only matches / 69 checks | Exact F1 `0.358817`, relaxed F1 `0.397554`; retained for dev calibration, not promoted |
 | Refresh operational orchestration | implemented | v0.1 | Recommended operational refresh entrypoint |
 
 The previous Qdrant, graph, and dataset candidates are not silently redefined as
@@ -363,18 +368,36 @@ Recommended order:
    - current 24-paper package is dev evidence, not a final held-out benchmark;
    - keep literal v0.1 unchanged as the deterministic control.
 
-7. **GLiNER Candidate Comparison on Existing Pilot/Dev Evidence — next**
+7. **GLiNER Candidate Comparison on Existing Pilot/Dev Evidence — completed**
    - run the frozen configuration on the existing 24-paper sample;
    - validate artifact identity, output, duration, peak CUDA memory and repeatability;
    - reuse the existing exact/relaxed evaluation harness;
+   - evaluated 546 predictions against 435 references with exact F1 `0.358817`
+     and relaxed F1 `0.397554`;
+   - retained GLiNER as the leading bounded candidate without promotion;
    - do not tune and claim the same 24 papers as held-out evidence.
 
-8. **Accepted Full Derived Entity Build**
+8. **Bounded Scientific Entity GLiNER Dev Calibration v0.1 — next**
+   - treat the current 24-paper package explicitly as dev evidence;
+   - evaluate global and then source-field thresholds before per-type overrides;
+   - test only a small predeclared set of clearer prompts and principled
+     generic/cross-sentence rejection rules;
+   - defer a second-stage classifier until cheaper controls leave a measured
+     high-confidence bottleneck;
+   - freeze one immutable candidate before new held-out annotation.
+
+9. **Independent Held-Out Review Evidence**
+   - use at least 32 new, disjoint, prediction-blind papers after candidate freeze;
+   - treat 32 as the minimum gate, not final evidence for full-corpus or future
+     multi-million-paper scaling;
+   - grow later evidence in bounded stratified slices before production acceptance.
+
+10. **Accepted Full Derived Entity Build**
    - only after a candidate is frozen and separately held-out evidence exists;
    - build-scoped manifest and current-canonical compatibility checks;
    - explicit human acceptance decision.
 
-9. **Product and Graph Integration**
+11. **Product and Graph Integration**
    - Discovery facets, paper detail/comparison evidence, paper–entity edges;
    - only after the derived entity layer is accepted.
 
@@ -426,13 +449,17 @@ scientific entity real review complete = true (bounded local pilot/dev evidence)
 scientific entity pilot review = 24 papers / 48 rows / 435 references
 scientific entity literal candidate = 30 predictions / exact F1 0.043012 / relaxed F1 0.068818
 scientific entity pilot evaluation id = scientific-entity-evaluation-v0.1-20260822T114935748579Z
-scientific entity GLiNER adapter = implemented bounded candidate / immutable build validated / comparison pending
+scientific entity GLiNER adapter = implemented bounded candidate / immutable build validated
 scientific entity GLiNER model = gliner-community/gliner_small-v2.5 / exact revision and FP16 SHA pinned
 scientific entity GLiNER backbone config = microsoft/deberta-v3-small/config.json / exact revision, size and SHA pinned
 scientific entity GLiNER candidate build = scientific-entity-gliner-small-v2.5-v0.1-20260822T143405630144Z / 24 papers / 546 mentions / 91 of 91 checks
+scientific entity GLiNER evaluation id = scientific-entity-evaluation-v0.1-20260823T124036780234Z
+scientific entity GLiNER exact metrics = precision 0.322344 / recall 0.404598 / F1 0.358817
+scientific entity GLiNER relaxed metrics = precision 0.357143 / recall 0.448276 / F1 0.397554
+scientific entity GLiNER comparison = completed descriptive pilot/dev checkpoint / retained for bounded calibration / not promoted
 scientific entity production model selected = false
 scientific entity full-corpus build authorized = false
-next entity slice = GLiNER comparison on existing 24-paper pilot/dev evidence
+next entity slice = Bounded Scientific Entity GLiNER Dev Calibration v0.1
 ```
 
 The project is not restarting or replacing completed work. The next entity
