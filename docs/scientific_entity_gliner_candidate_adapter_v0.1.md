@@ -3,11 +3,12 @@
 ## Status
 
 ```text
-status = immutable bounded candidate build validated; comparative evaluation pending
+status = immutable bounded candidate build validated; comparative evaluation completed separately
 canonical truth mutation = false
 full-corpus entity extraction = false
 production extractor selected = false
 candidate accepted = false
+candidate retained for bounded dev calibration = true
 publication = false
 ```
 
@@ -27,8 +28,10 @@ independent build validation = 91 / 91 required checks
 ```
 
 The immutable output is local and ignored by Git. These values establish that
-the pinned adapter can execute and serialize valid evidence; they do not yet
-measure extraction quality or select a production extractor.
+the pinned adapter can execute and serialize valid evidence; build validation
+alone does not measure extraction quality or select a production extractor.
+The completed quality comparison is recorded separately in
+[`scientific_entity_gliner_pilot_comparison_v0.1.md`](scientific_entity_gliner_pilot_comparison_v0.1.md).
 
 This slice adds one bounded zero-shot candidate behind the existing Scientific
 Entity Evidence Contract and Evaluation Harness. It does not replace the
@@ -322,3 +325,22 @@ The real pilot can support one of three decisions:
 
 It cannot by itself authorize production selection, current-canonical
 full-corpus extraction, API/UI integration, graph edges, RAG, or publication.
+
+## Post-adapter comparison outcome
+
+The frozen candidate was subsequently evaluated on the predeclared 24-paper
+pilot/dev package:
+
+```text
+evaluation_id = scientific-entity-evaluation-v0.1-20260823T124036780234Z
+reference mentions = 435
+prediction mentions = 546
+exact F1 = 0.358817
+relaxed F1 = 0.397554
+independent evaluation validation = 69 / 69
+decision = retain for bounded dev calibration; do not promote
+```
+
+The original frozen configuration and build remain unchanged. The 24 papers
+are dev evidence for any subsequent threshold, prompt, filtering, or
+adjudication work and may not be relabelled as held-out evidence after tuning.

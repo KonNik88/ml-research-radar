@@ -39,19 +39,20 @@ def test_readme_points_to_the_current_checkpoint_and_scopes_old_outputs() -> Non
     assert "assignments = 61,075" in text
     assert "docs/scientific_entity_literal_baseline_pilot_evaluation_v0.1.md" in text
     assert "docs/scientific_entity_gliner_candidate_adapter_v0.1.md" in text
+    assert "docs/scientific_entity_gliner_pilot_comparison_v0.1.md" in text
     assert "completed 24-paper review" in text
 
 
-def test_roadmap_selects_gliner_pilot_after_candidate_adapter() -> None:
+def test_roadmap_selects_gliner_dev_calibration_after_pilot_comparison() -> None:
     text = _read("docs/roadmap.md")
 
     assert "current active direction = Scientific Entity Evidence Layer" in text
     assert (
-        "latest completed slice = Bounded Scientific Entity GLiNER Candidate Adapter v0.1"
+        "latest completed slice = Scientific Entity GLiNER Pilot Comparison v0.1"
     ) in text
     assert (
-        "next authorized slice = GLiNER Candidate Comparison on Existing Pilot/Dev "
-        "Evidence v0.1"
+        "next authorized slice = Bounded Scientific Entity GLiNER Dev Calibration "
+        "v0.1"
     ) in text
     assert "Scientific Entity Evidence Contract v0.1" in text
     assert "hard max documents = 100" in text
@@ -151,7 +152,7 @@ def test_gliner_candidate_is_pinned_bounded_and_not_promoted() -> None:
     assert "Bounded Scientific Entity GLiNER Candidate Adapter | implemented" in checkpoint
     assert (
         "scientific_entity_gliner_adapter_status = "
-        "implemented_bounded_candidate_build_validated_comparison_pending"
+        "implemented_bounded_candidate_build_validated"
     ) in architecture
     assert "gliner-community/gliner_small-v2.5" in adapter
     assert "f227d3cd637bd4e6757ae143935316d062393341" in adapter
@@ -168,3 +169,31 @@ def test_gliner_candidate_is_pinned_bounded_and_not_promoted() -> None:
     assert "model_download_requires_explicit_flag: true" in config
     assert "require_backbone_config_hash: true" in config
     assert "accepted_status_may_be_emitted: false" in config
+
+
+def test_gliner_comparison_is_recorded_without_promotion() -> None:
+    readme = _read("README.md")
+    checkpoint = _read("docs/project_state_current_v0.2.md")
+    architecture = _read("docs/architecture.md")
+    comparison = _read("docs/scientific_entity_gliner_pilot_comparison_v0.1.md")
+
+    assert "Scientific Entity GLiNER Pilot Comparison v0.1 — completed." in readme
+    assert "Scientific Entity GLiNER Pilot Comparison | completed" in checkpoint
+    assert (
+        "scientific_entity_gliner_comparison_status = "
+        "completed_descriptive_pilot_dev_checkpoint"
+    ) in architecture
+    assert (
+        "gliner_evaluation_id = "
+        "scientific-entity-evaluation-v0.1-20260823T124036780234Z"
+    ) in comparison
+    assert (
+        "| GLiNER v0.1 | Exact | 176 | 370 | 259 | 0.322344 | 0.404598 | "
+        "0.358817 |"
+    ) in comparison
+    assert (
+        "| GLiNER v0.1 | Relaxed | 195 | 351 | 240 | 0.357143 | 0.448276 | "
+        "0.397554 |"
+    ) in comparison
+    assert "production_extractor_selected = false" in comparison
+    assert "full_corpus_build_authorized = false" in comparison

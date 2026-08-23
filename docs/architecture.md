@@ -21,9 +21,9 @@ public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant transport = gRPC
 fallback = absent
-current extension = Safe Canonical Refresh / Operational Orchestration v0.1 / Bounded Scientific Entity GLiNER Candidate Adapter v0.1
+current extension = Safe Canonical Refresh / Operational Orchestration v0.1 / Scientific Entity GLiNER Pilot Comparison v0.1
 dataset publication = paused pending redistribution guidance
-next accepted functional direction = GLiNER Candidate Comparison on Existing Pilot/Dev Evidence v0.1
+next accepted functional direction = Bounded Scientific Entity GLiNER Dev Calibration v0.1
 ```
 
 Current canonical and synchronized core/Discovery baseline:
@@ -112,7 +112,7 @@ scientific_entity_pilot_evaluation_validator_checks = 69 / 69
 scientific_entity_pilot_exact_f1 = 0.043012
 scientific_entity_pilot_relaxed_f1 = 0.068818
 scientific_entity_pilot_metrics_descriptive_only = true
-scientific_entity_gliner_adapter_status = implemented_bounded_candidate_build_validated_comparison_pending
+scientific_entity_gliner_adapter_status = implemented_bounded_candidate_build_validated
 scientific_entity_gliner_model = gliner-community/gliner_small-v2.5
 scientific_entity_gliner_model_revision = f227d3cd637bd4e6757ae143935316d062393341
 scientific_entity_gliner_fp16_sha256 = d444ff406b27affc07e3165b454c3adc9f25f228c81ede197a7b806f49d12c74
@@ -123,6 +123,12 @@ scientific_entity_gliner_candidate_build_id = scientific-entity-gliner-small-v2.
 scientific_entity_gliner_candidate_documents = 24
 scientific_entity_gliner_candidate_mentions = 546
 scientific_entity_gliner_candidate_validator_checks = 91 / 91
+scientific_entity_gliner_comparison_status = completed_descriptive_pilot_dev_checkpoint
+scientific_entity_gliner_evaluation_id = scientific-entity-evaluation-v0.1-20260823T124036780234Z
+scientific_entity_gliner_evaluation_validator_checks = 69 / 69
+scientific_entity_gliner_exact_f1 = 0.358817
+scientific_entity_gliner_relaxed_f1 = 0.397554
+scientific_entity_gliner_candidate_decision = retain_for_bounded_dev_calibration_not_promoted
 scientific_entity_model_selected = false
 scientific_entity_full_corpus_output_generated = false
 
@@ -1306,8 +1312,12 @@ exercises the contract on synthetic fixtures and a completed 24-paper local
 pilot without model promotion. The pilot contains 435 reference mentions and
 30 literal predictions; exact F1 is 0.043012 and relaxed F1 is 0.068818. A
 pinned bounded GLiNER candidate adapter now reuses the same evidence contract;
-its real 24-paper comparison is the next accepted action and must reuse the
-existing evaluation harness.
+its real 24-paper comparison reused the existing evaluation harness and is now
+complete. Exact F1 is 0.358817 and relaxed F1 is 0.397554. The candidate is
+retained for explicit dev calibration without production selection. The next
+accepted action is bounded threshold/prompt/filter calibration on the 24-paper
+dev package, followed by new disjoint prediction-blind evidence after one
+candidate is frozen.
 The source-observation promotion follows this rule: two checked dumps and the
 70,244-row legacy database remain available for rollback.
 Citation graph status/references/citations/external-reference-papers/source-families/top-referenced-papers/top-external-references are the checkpointed v0.3 narrow local-inspection API block, not a graph-runtime promotion.
@@ -1932,12 +1942,12 @@ full_corpus_build_authorized = false
 ```
 
 The literal v0.1 lexicon remains unchanged to avoid tuning against the same dev
-labels. **Bounded Scientific Entity GLiNER Candidate Adapter v0.1** now freezes
+labels. **Bounded Scientific Entity GLiNER Candidate Adapter v0.1** freezes
 one Apache-2.0 small-model revision, FP16 artifact SHA, six label prompts,
 threshold, bounded/offline policy, exact-span model-score mapping, long-input
-windowing and independent output validation. The next architectural action is a
-descriptive comparison on the unchanged 24-paper pilot/dev package. A separate
-prediction-blind held-out review is required only after the candidate is frozen.
+windowing and independent output validation. Its descriptive comparison on the
+unchanged 24-paper pilot/dev package is complete. A separate prediction-blind
+held-out review remains required after a calibrated candidate is frozen.
 
 ## Bounded Scientific Entity GLiNER Candidate Adapter v0.1
 
@@ -1974,3 +1984,83 @@ pilot/dev sample, emitted 546 candidate mentions, reverified both artifacts,
 used the pinned config injection, and passed all 91 independent build checks.
 This proves runtime/build integrity only. Exact/relaxed quality comparison and
 candidate selection remain separate downstream decisions.
+
+## Scientific Entity GLiNER Pilot Comparison v0.1
+
+The tracked aggregate comparison is:
+
+```text
+docs/scientific_entity_gliner_pilot_comparison_v0.1.md
+```
+
+The frozen GLiNER build was evaluated against the unchanged 24-paper manual
+review and literal control:
+
+```text
+evaluation_id = scientific-entity-evaluation-v0.1-20260823T124036780234Z
+references = 435
+GLiNER predictions = 546
+exact matches = 176
+relaxed-only matches = 19
+evaluation validator = 69 / 69
+exact precision / recall / F1 = 0.322344 / 0.404598 / 0.358817
+relaxed precision / recall / F1 = 0.357143 / 0.448276 / 0.397554
+title relaxed F1 = 0.509804
+abstract relaxed F1 = 0.384528
+production extractor selected = false
+full-corpus build authorized = false
+```
+
+Compared with literal v0.1, GLiNER improves exact F1 by `0.315805` (`8.34x`)
+and relaxed F1 by `0.328736` (`5.78x`) while emitting `18.2x` as many
+predictions. It is the first viable high-coverage candidate, but its precision,
+type assignment, and evidence breadth are insufficient for promotion.
+
+The error structure points to cheaper controls before a second model stage:
+
+```text
+boundary mismatches = 22
+type mismatches = 113
+unpaired false positives = 235
+unpaired false negatives = 124
+top three type-confusion directions = 85 / 113 = 75.2%
+abstract false-positive rows = 225 / 235
+exact median score = 0.827148
+type-mismatch median score = 0.784180
+false-positive median score = 0.676270
+```
+
+Exact-span, high-confidence `model → method` errors show that thresholds alone
+cannot repair semantic typing. Generic unmatched spans and noisier abstract
+behavior support global/source-field threshold sweeps, clearer prompts,
+principled generic-surface rules, and cross-sentence-span rejection before a
+separate type/rejection classifier is considered.
+
+The six-type product ontology remains unchanged. Authors and venues already
+belong to canonical metadata; document type belongs to a future classification
+layer; claims and numerical results require their own evidence contract. The
+entity extractor must not become a catch-all metadata reconstruction layer.
+
+The 24 papers are now dev evidence. A 32-paper disjoint prediction-blind set is
+the minimum next hold-out gate after candidate freeze, not adequate final proof
+for full-corpus or future multi-million-paper scaling. Evidence must later grow
+through bounded stratified review slices.
+
+## Bounded Scientific Entity GLiNER Dev Calibration v0.1 — next
+
+The accepted cost-aware order is:
+
+```text
+global threshold sweep
+→ title/abstract thresholds
+→ limited per-type overrides only when supported
+→ small predeclared prompt variants with new extractor fingerprints
+→ principled generic/cross-sentence rejection rules
+→ second-stage classifier only for a measured residual bottleneck
+→ freeze one candidate
+→ new disjoint prediction-blind review evidence
+```
+
+The current evidence package, candidate build, and evaluation remain immutable.
+Any adjudicated dev correction or tuned configuration receives a new identity.
+No calibration result on these 24 papers may be presented as held-out evidence.

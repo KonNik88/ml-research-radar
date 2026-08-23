@@ -35,10 +35,10 @@ paper-centric research-discovery system.
 ## Current validated checkpoint
 
 ```text
-checkpoint = Current Project State Checkpoint v0.2 / Bounded Scientific Entity GLiNER Candidate Adapter v0.1
+checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity GLiNER Pilot Comparison v0.1
 base checkpoint = safe canonical refresh and synchronized core/Discovery derived layers
 scientific entity status = bounded literal control + evaluation harness + completed 24-paper review + GLiNER candidate adapter
-scientific entity quality status = GLiNER candidate build validated; comparative evaluation pending; no production selection or full-corpus build
+scientific entity quality status = GLiNER pilot comparison complete; leading candidate retained for bounded dev calibration; no production selection or full-corpus build
 public behavior change = none
 public dense/hybrid backend = file
 experimental Qdrant endpoint = explicit
@@ -56,6 +56,9 @@ The aggregate real-paper pilot record is
 
 The bounded model-candidate adapter record is
 [`docs/scientific_entity_gliner_candidate_adapter_v0.1.md`](docs/scientific_entity_gliner_candidate_adapter_v0.1.md).
+
+The completed candidate comparison and error-analysis checkpoint is
+[`docs/scientific_entity_gliner_pilot_comparison_v0.1.md`](docs/scientific_entity_gliner_pilot_comparison_v0.1.md).
 
 Current corpus and retrieval baseline:
 
@@ -555,6 +558,7 @@ Current families include:
 - bounded Scientific Entity Manual Review preparation/finalization and independent validation;
 - 24-paper Scientific Entity literal-baseline pilot evaluation checkpoint;
 - bounded GLiNER candidate config, exact-span adapter, immutable builder, and independent validation;
+- 24-paper GLiNER-versus-literal pilot/dev comparison, confidence diagnostics, and qualitative error audit;
 - Qdrant collection, parity, profile sweep, performance, and hybrid evaluation;
 - retrieval-serving checkpoint gate;
 - strict Definition of Done.
@@ -722,7 +726,7 @@ Recommended order:
    immutable evaluation plus 69-check independent validation. Exact F1 is
    `0.043012`; relaxed F1 is `0.068818`. Metrics remain descriptive.
 
-6. **Bounded GLiNER Candidate Extractor Adapter v0.1 — implemented and runtime-validated; comparison pending.**
+6. **Bounded GLiNER Candidate Extractor Adapter v0.1 — implemented and runtime-validated.**
    The exact Apache-2.0 `gliner-community/gliner_small-v2.5` revision and FP16
    artifact are pinned behind explicit offline/download boundaries. Its
    auxiliary `microsoft/deberta-v3-small/config.json` is also revision-, size-,
@@ -733,20 +737,33 @@ Recommended order:
    mentions and passed all `91` independent build checks; these are runtime
    verification facts, not extractor-quality acceptance.
 
-7. **GLiNER Candidate Comparison on Existing Pilot/Dev Evidence — next.**
-   Run the frozen adapter on the same 24 papers, validate the candidate build,
-   and reuse the existing evaluation harness. Record exact/relaxed metrics,
-   duration, peak CUDA memory, artifact provenance, and repeatability. Literal
-   v0.1 remains the unchanged control.
+7. **Scientific Entity GLiNER Pilot Comparison v0.1 — completed.**
+   The frozen candidate emitted 546 predictions against 435 references. Exact
+   F1 is `0.358817` and relaxed F1 is `0.397554`, compared with `0.043012`
+   and `0.068818` for literal v0.1. The comparison also records source-field,
+   per-type, confidence, type-confusion, and qualitative error evidence.
+   GLiNER is retained as the leading bounded candidate, not promoted.
 
-8. **Accepted Derived Entity Build**
+8. **Bounded Scientific Entity GLiNER Dev Calibration v0.1 — next.**
+   Reuse the 24-paper package explicitly as dev evidence. Evaluate global then
+   source-field thresholds, a small frozen set of clearer prompts, and
+   principled generic/cross-sentence rejection rules before considering a
+   second-stage classifier. Every changed semantic configuration receives a
+   new extractor fingerprint and immutable candidate build.
+
+9. **Independent Held-Out Review Evidence**
+   After candidate freeze, annotate at least 32 disjoint papers prediction-
+   blind. This minimum gate is not sufficient by itself for future large-scale
+   production; broader stratified evidence must grow in later bounded slices.
+
+10. **Accepted Derived Entity Build**
    Requires a separately frozen candidate, held-out prediction-blind evidence,
    reproducibility gates, and explicit human acceptance before full-corpus use.
 
-9. **Product Integration**
+11. **Product Integration**
    Only after quality gates; entities remain downstream of canonical truth.
 
-10. **Full-text / Chunk Provenance / Grounded RAG**
+12. **Full-text / Chunk Provenance / Grounded RAG**
    Separate acquisition and evidence contract after the entity layer is stable.
 
 Dataset publication remains paused pending explicit redistribution guidance.
