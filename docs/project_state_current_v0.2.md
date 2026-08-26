@@ -3,22 +3,22 @@
 ## Document status
 
 ```text
-status = accepted post-orchestration and scientific-entity dev-policy-review checkpoint
-checkpoint_date = 2026-08-23
+status = accepted post-orchestration and scientific-entity frozen-policy-candidate checkpoint
+checkpoint_date = 2026-08-26
 supersedes_for_current_planning = docs/project_state_current_v0.1.md
 historical_detail_retained_in = docs/project_state_current_v0.1.md
 canonical_truth_changed_by_document = false
 runtime_behavior_changed_by_document = false
 generated_layers_rebuilt_by_document = false
 publishes_dataset = false
-current_extension = Scientific Entity GLiNER Dev Policy Review v0.1
+current_extension = Scientific Entity GLiNER Frozen Policy Candidate v0.1
 ```
 
 This checkpoint records the accepted project state after the August 2026 safe
 canonical refresh, derived-layer synchronization, operational refresh runbook,
 Refresh Operational Orchestration v0.1 merge, the first completed bounded
 real-paper Scientific Entity evaluation, the frozen GLiNER-versus-literal
-pilot/dev comparison, fixture-validated read-only calibration tooling, the real 24-paper calibration execution, and the frozen balanced development policy.
+pilot/dev comparison, fixture-validated read-only calibration tooling, the real 24-paper calibration execution, the frozen balanced development policy, and its deterministic 391-mention immutable candidate materialization with exact dev-evaluation reproduction.
 
 It is a planning and transfer document. It is not a source dataset, reconcile
 input, runtime manifest, release authorization, or replacement for build-scoped
@@ -39,6 +39,9 @@ are recorded in
 
 The completed human policy review and frozen development policy are recorded in
 [`docs/scientific_entity_gliner_dev_policy_review_v0.1.md`](scientific_entity_gliner_dev_policy_review_v0.1.md).
+
+The materialized frozen-policy candidate and dev-evaluation consistency checkpoint are recorded in
+[`docs/scientific_entity_gliner_frozen_policy_candidate_v0.1.md`](scientific_entity_gliner_frozen_policy_candidate_v0.1.md).
 
 ---
 
@@ -129,6 +132,7 @@ of file-backed truth. They must remain rebuildable.
 | Bounded Scientific Entity GLiNER Candidate Adapter | implemented; immutable candidate build validated | build `scientific-entity-gliner-small-v2.5-v0.1-20260822T143405630144Z`; 24 papers / 546 mentions / 91 checks | Experimental candidate only; verified local config injection; no production selection or full-corpus authorization |
 | Scientific Entity GLiNER Pilot Comparison | completed local descriptive checkpoint | evaluation `scientific-entity-evaluation-v0.1-20260823T124036780234Z`; 176 exact plus 19 relaxed-only matches / 69 checks | Exact F1 `0.358817`, relaxed F1 `0.397554`; retained for dev calibration, not promoted |
 | Bounded Scientific Entity GLiNER Dev Calibration | real candidate execution complete; strict validation green | calibration `scientific-entity-gliner-dev-calibration-v0.1-20260823T152930597192Z` / 24 papers / 127 trials / 69 eligible / 29 Pareto / 53 checks | Balanced dev policy frozen at title `0.55`, abstract `0.65`; exact F1 `0.380146`, relaxed F1 `0.404358`; type probes diagnostic; no promotion or full-corpus claim |
+| Scientific Entity GLiNER Frozen Policy Candidate | completed immutable dev candidate; strict candidate and evaluation validation green | build `scientific-entity-gliner-small-v2.5-frozen-policy-v0.1-20260826T102020767519Z`; 24 papers / 391 mentions / 69 candidate checks; evaluation `scientific-entity-evaluation-v0.1-20260826T102636476211Z` / 69 checks | 546 parent predictions filtered to 391 selected + 155 rejected; exact F1 `0.380146`, relaxed F1 `0.404358`; descriptive dev evidence only; no production selection or full-corpus authorization |
 | Refresh operational orchestration | implemented | v0.1 | Recommended operational refresh entrypoint |
 
 The previous Qdrant, graph, and dataset candidates are not silently redefined as
@@ -400,12 +404,15 @@ Recommended order:
    - exact F1 `0.380146`, relaxed F1 `0.404358`;
    - type probes remain diagnostic; no combined type-specific policy selected.
 
-10. **Materialize Frozen Dev Policy as New Immutable Candidate — next**
-   - preserve the original 546-mention GLiNER build unchanged;
-   - carry the frozen source-field policy into a new immutable candidate configuration/build identity;
-   - validate and evaluate that candidate before any held-out claim.
+10. **Materialize Frozen Dev Policy as New Immutable Candidate — completed**
+   - preserved the original 546-mention GLiNER build unchanged;
+   - materialized candidate `scientific-entity-gliner-small-v2.5-frozen-policy-v0.1-20260826T102020767519Z`;
+   - retained stable mention identity while creating policy-aware evidence identity and structured lineage;
+   - selected 391 predictions and rejected 155 under the frozen source-field policy;
+   - dedicated candidate validation passed `69 / 69`;
+   - evaluation `scientific-entity-evaluation-v0.1-20260826T102636476211Z` passed `69 / 69` and exactly reproduced exact F1 `0.380146` / relaxed F1 `0.404358`.
 
-11. **Independent Held-Out Review Evidence**
+11. **Independent Held-Out Review Evidence — next**
    - use at least 32 new, disjoint, prediction-blind papers after candidate freeze;
    - treat 32 as the minimum gate, not final evidence for full-corpus or future
      multi-million-paper scaling;
@@ -484,7 +491,10 @@ scientific entity current 24-paper dev set becomes held-out = false
 scientific entity production model selected = false
 scientific entity full-corpus build authorized = false
 scientific entity GLiNER frozen dev policy = balanced_f1 / title 0.55 / abstract 0.65 / no type overrides
-next entity slice = materialize frozen GLiNER dev policy as a new immutable candidate build and evaluation
+scientific entity frozen-policy candidate build = scientific-entity-gliner-small-v2.5-frozen-policy-v0.1-20260826T102020767519Z / 391 mentions / 155 rejected / 69 of 69 dedicated checks
+scientific entity frozen-policy candidate evaluation = scientific-entity-evaluation-v0.1-20260826T102636476211Z / exact P 0.401535 / R 0.360920 / F1 0.380146 / relaxed F1 0.404358 / 69 of 69 checks
+scientific entity frozen-policy candidate promotion sample sufficient = false / metrics descriptive only
+next entity slice = independent stratified prediction-blind held-out review evidence / hard minimum 32 papers / preferred target 48
 ```
 
 The project is not restarting or replacing completed work. The next entity

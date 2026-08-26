@@ -42,19 +42,20 @@ def test_readme_points_to_the_current_checkpoint_and_scopes_old_outputs() -> Non
     assert "docs/scientific_entity_gliner_pilot_comparison_v0.1.md" in text
     assert "docs/scientific_entity_gliner_dev_calibration_v0.1.md" in text
     assert "docs/scientific_entity_gliner_dev_policy_review_v0.1.md" in text
+    assert "docs/scientific_entity_gliner_frozen_policy_candidate_v0.1.md" in text
     assert "completed 24-paper review" in text
 
 
-def test_roadmap_advances_after_real_calibration_and_policy_freeze() -> None:
+def test_roadmap_advances_after_frozen_policy_candidate_materialization() -> None:
     text = _read("docs/roadmap.md")
 
     assert "current active direction = Scientific Entity Evidence Layer" in text
     assert (
-        "latest completed slice = Scientific Entity GLiNER Dev Policy Review v0.1"
+        "latest completed slice = Scientific Entity GLiNER Frozen Policy Candidate v0.1"
     ) in text
     assert (
-        "next authorized slice = materialize frozen GLiNER dev policy as a new "
-        "immutable candidate build and evaluation"
+        "next authorized slice = create independent stratified prediction-blind "
+        "held-out Scientific Entity review evidence"
     ) in text
     assert "Scientific Entity Evidence Contract v0.1" in text
     assert "hard max documents = 100" in text
@@ -255,3 +256,40 @@ def test_gliner_dev_policy_review_freezes_one_bounded_policy() -> None:
     assert "exact F1 from `0.358817` to `0.380146`" in review
     assert "scientific entity GLiNER frozen dev policy = balanced_f1 / title 0.55 / abstract 0.65 / no type overrides" in checkpoint
     assert "scientific_entity_gliner_dev_policy_frozen = true" in architecture
+
+
+def test_frozen_policy_candidate_is_materialized_without_promotion() -> None:
+    readme = _read("README.md")
+    checkpoint = _read("docs/project_state_current_v0.2.md")
+    architecture = _read("docs/architecture.md")
+    roadmap = _read("docs/roadmap.md")
+    candidate = _read("docs/scientific_entity_gliner_frozen_policy_candidate_v0.1.md")
+
+    build_id = "scientific-entity-gliner-small-v2.5-frozen-policy-v0.1-20260826T102020767519Z"
+    evaluation_id = "scientific-entity-evaluation-v0.1-20260826T102636476211Z"
+
+    assert "Scientific Entity GLiNER Frozen Policy Candidate v0.1" in readme
+    assert build_id in checkpoint
+    assert evaluation_id in checkpoint
+    assert build_id in architecture
+    assert evaluation_id in architecture
+    assert "Materialize Frozen Policy as New Immutable Candidate — completed." in roadmap
+    assert "Independent Held-Out Review Evidence — next." in roadmap
+
+    assert f"build_id = {build_id}" in candidate
+    assert f"evaluation_id = {evaluation_id}" in candidate
+    assert "input_prediction_count = 546" in candidate
+    assert "selected_prediction_count = 391" in candidate
+    assert "rejected_prediction_count = 155" in candidate
+    assert "total_checks = 69" in candidate
+    assert "required_failed_count = 0" in candidate
+    assert "exact precision = 0.401535" in candidate
+    assert "exact recall = 0.360920" in candidate
+    assert "exact F1 = 0.380146" in candidate
+    assert "relaxed F1 = 0.404358" in candidate
+    assert "document_count_sufficient = false" in candidate
+    assert "promotion_sample_sufficient = false" in candidate
+    assert "metrics_are_descriptive_only = true" in candidate
+    assert "production_extractor_selected = false" in candidate
+    assert "full_corpus_build_authorized = false" in candidate
+    assert "current_24_paper_dev_set_becomes_held_out = false" in candidate

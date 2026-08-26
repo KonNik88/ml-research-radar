@@ -2,6 +2,7 @@
 /artifacts/
 /artifacts/reports/
 /artifacts/retrieval/
+/perenos/
 
 __pycache__/
 *.pyc

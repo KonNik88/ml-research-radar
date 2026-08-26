@@ -4,17 +4,17 @@
 
 ```text
 document = primary living roadmap
-accepted checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity GLiNER Dev Policy Review v0.1
+accepted checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity GLiNER Frozen Policy Candidate v0.1
 base checkpoint = current canonical latest 61,075 with synchronized core and Discovery derived layers
 current active direction = Scientific Entity Evidence Layer
-latest completed slice = Scientific Entity GLiNER Dev Policy Review v0.1
-next authorized slice = materialize frozen GLiNER dev policy as a new immutable candidate build and evaluation
+latest completed slice = Scientific Entity GLiNER Frozen Policy Candidate v0.1
+next authorized slice = create independent stratified prediction-blind held-out Scientific Entity review evidence
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
 dataset publication = paused pending redistribution guidance
-current entity boundary = real 24-paper calibration complete; balanced dev policy frozen at title 0.55 / abstract 0.65; production model and full-corpus output not selected or authorized
+current entity boundary = frozen policy materialized as a 391-mention immutable candidate and exact dev evaluation reproduced; production model and full-corpus output not selected or authorized
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -41,7 +41,7 @@ evaluation validator passed `69 / 69`. GLiNER is retained as the leading
 bounded candidate without promotion. The read-only calibration layer now
 declares 127 global/source-pair/type-probe trials, keeps type probes diagnostic,
 and independently reproduces immutable output. Its tracked fixture is green.
-The real candidate calibration and policy review are complete: calibration `scientific-entity-gliner-dev-calibration-v0.1-20260823T152930597192Z` passed `53 / 53` strict checks and freezes the balanced source-field dev policy `title >= 0.55` / `abstract >= 0.65`. The next authorized action is a new immutable candidate materialization carrying that policy, not a full-corpus run.
+The real candidate calibration and policy review are complete: calibration `scientific-entity-gliner-dev-calibration-v0.1-20260823T152930597192Z` passed `53 / 53` strict checks and froze the balanced source-field dev policy `title >= 0.55` / `abstract >= 0.65`. That policy is now materialized as immutable candidate `scientific-entity-gliner-small-v2.5-frozen-policy-v0.1-20260826T102020767519Z`: 546 parent predictions became 391 selected plus 155 rejected mentions, the dedicated candidate validator passed `69 / 69`, and evaluation `scientific-entity-evaluation-v0.1-20260826T102636476211Z` exactly reproduced exact F1 `0.380146` and relaxed F1 `0.404358` with `69 / 69` evaluation checks. The next authorized action is disjoint stratified prediction-blind held-out evidence, not further tuning on the 24-paper dev package or a full-corpus run.
 
 ---
 
@@ -157,8 +157,8 @@ Recommended next safe slices:
 
 1. **Bounded GLiNER Dev Calibration Execution — completed.** The real 24-paper run produced 127 trials, 69 eligible trials and 29 Pareto points; strict validation passed 53 / 53.
 2. **Candidate Policy Review and Freeze — completed.** Balanced `title >= 0.55 / abstract >= 0.65` is frozen as the single dev policy; type probes remain diagnostic only.
-3. **Materialize Frozen Policy as New Immutable Candidate — next.** Preserve the original candidate build, create a new configuration/build/evaluation identity carrying the frozen source-field policy, and validate it before held-out review.
-4. **Independent Held-Out Review Evidence** — after candidate freeze, annotate at least 32 disjoint prediction-blind papers and prohibit tuning against them; 32 is a minimum gate, not final large-corpus evidence.
+3. **Materialize Frozen Policy as New Immutable Candidate — completed.** Candidate `scientific-entity-gliner-small-v2.5-frozen-policy-v0.1-20260826T102020767519Z` preserves mention identity, creates policy-aware evidence identity, records structured parent lineage, selects 391 of 546 parent predictions, passes `69 / 69` dedicated checks, and exactly reproduces the frozen dev metrics in evaluation `scientific-entity-evaluation-v0.1-20260826T102636476211Z`.
+4. **Independent Held-Out Review Evidence — next.** Create a new disjoint stratified prediction-blind package; 32 papers is the hard minimum and 48 is the preferred target when manual workload permits. Do not tune thresholds against this evidence.
 5. **Stratified Evidence Growth** — expand prediction-blind review in later bounded slices across research areas, source families, time, rare types, and hard negatives before any full-corpus production claim.
 6. **Accepted Derived Entity Build** — only after explicit per-type/span quality and reproducibility gates plus a human acceptance decision.
 7. **Product and Graph Integration** — Discovery facets and paper–entity evidence only after the derived build is accepted.
