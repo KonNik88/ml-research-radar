@@ -1,0 +1,86 @@
+schema_version: scientific_entity_gliner_frozen_policy_candidate_config_v0.1
+
+layer:
+  name: scientific_entity_gliner_frozen_policy_candidate
+  version: v0.1
+  status: dev_frozen_candidate
+  layer_kind: derived_policy_filtered_mention_evidence
+  description: >-
+    Read-only materialization of the frozen GLiNER development threshold policy.
+    The layer consumes one immutable GLiNER prediction build and one immutable
+    calibration, applies exactly the frozen balanced-F1 source-field policy,
+    and emits a new immutable candidate evidence build without model inference.
+
+extractor:
+  name: ml_radar_gliner_small_v2_5_frozen_policy_candidate
+  version: 0.1.0
+  environment_lock_path: requirements/requirements.entities_gliner.lock.txt
+  code_revision_policy: normalized_source_bundle_sha256
+  config_fingerprint_policy: sha256_of_canonical_semantic_json
+  parent_model_provenance_policy: inherit_and_verify
+
+frozen:
+  parent_build_id: scientific-entity-gliner-small-v2.5-v0.1-20260822T143405630144Z
+  calibration_id: scientific-entity-gliner-dev-calibration-v0.1-20260823T152930597192Z
+  selected_profile: balanced_f1
+  selected_trial_id: calibration-trial:1172aea9d875d59f3b39cc21488dec8f
+  input_threshold: 0.50
+  threshold_is_inclusive: true
+  policy:
+    default_threshold: 0.50
+    source_field_thresholds:
+      title: 0.55
+      abstract: 0.65
+    entity_type_thresholds: {}
+  expected_input_prediction_count: 546
+  expected_selected_prediction_count: 391
+  expected_rejected_prediction_count: 155
+
+inputs:
+  parent_build_root: data/entities/scientific_entity_evidence/v0.1
+  calibration_root: data/entities/scientific_entity_gliner_calibration/v0.1
+
+safety:
+  allowed_build_statuses:
+    - fixture
+    - candidate
+  accepted_status_may_be_emitted: false
+  execute_required_for_writes: true
+  overwrite_allowed: false
+  arbitrary_threshold_override_allowed: false
+  model_inference_allowed: false
+  model_or_tokenizer_download_allowed: false
+  provider_api_allowed: false
+  canonical_truth_mutation_allowed: false
+  reconcile_input_allowed: false
+  full_corpus_build_authorized: false
+  current_dev_set_becomes_held_out: false
+  publication_allowed: false
+
+outputs:
+  root: data/entities/scientific_entity_evidence/v0.1
+  immutable_build_directory: true
+  mutable_latest_pointer: false
+  encoding: utf-8
+  line_ending: lf
+  required_files:
+    - mentions.jsonl
+    - manifest.json
+    - schema.json
+    - data_quality_summary.json
+    - README.md
+    - derivation_manifest.json
+    - evidence_lineage.jsonl
+    - checksums.txt
+
+validation:
+  report_dir: artifacts/reports/validation
+  require_independent_validator: true
+  require_parent_build_validation: true
+  require_calibration_validation: true
+  require_selected_trial_recomputation: true
+  require_identity_recomputation: true
+  require_parent_lineage: true
+  require_checksums: true
+  require_lf_outputs: true
+  require_fail_closed_policy: true
