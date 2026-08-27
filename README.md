@@ -35,10 +35,11 @@ paper-centric research-discovery system.
 ## Current validated checkpoint
 
 ```text
-checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity GLiNER Frozen Policy Candidate v0.1
+checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity GLiNER Dev Policy Review v0.1
+current scientific entity checkpoint = Scientific Entity GLiNER Held-Out Evaluation v0.1
 base checkpoint = safe canonical refresh and synchronized core/Discovery derived layers
 scientific entity status = bounded literal control + evaluation harness + completed 24-paper review + GLiNER candidate adapter
-scientific entity quality status = frozen dev policy materialized as 391-mention immutable candidate; dev evaluation exactly reproduced; no production selection or full-corpus build
+scientific entity quality status = real 24-paper GLiNER calibration complete; balanced dev policy frozen at title 0.55 / abstract 0.65; no production selection or full-corpus build
 public behavior change = none
 public dense/hybrid backend = file
 experimental Qdrant endpoint = explicit
@@ -65,9 +66,6 @@ The bounded threshold-policy calibration contract and operator workflow are
 
 The completed real calibration review and frozen development policy are recorded in
 [`docs/scientific_entity_gliner_dev_policy_review_v0.1.md`](docs/scientific_entity_gliner_dev_policy_review_v0.1.md).
-
-The materialized frozen-policy candidate and exact dev-evaluation reproduction are recorded in
-[`docs/scientific_entity_gliner_frozen_policy_candidate_v0.1.md`](docs/scientific_entity_gliner_frozen_policy_candidate_v0.1.md).
 
 Current corpus and retrieval baseline:
 
@@ -769,16 +767,12 @@ Recommended order:
    candidate configuration/build/evaluation carrying the frozen policy, followed by
    disjoint prediction-blind held-out review.
 
-10. **Materialize Frozen Dev Policy as New Immutable Candidate — completed.**
-    The original 546-mention GLiNER build remains unchanged. Frozen source-field
-    policy materialization produced immutable candidate
-    `scientific-entity-gliner-small-v2.5-frozen-policy-v0.1-20260826T102020767519Z`
-    with 391 selected and 155 rejected mentions. The dedicated candidate validator
-    passed `69 / 69`, and evaluation
-    `scientific-entity-evaluation-v0.1-20260826T102636476211Z` reproduced exact F1
-    `0.380146` and relaxed F1 `0.404358` with `69 / 69` evaluation checks.
+10. **Materialize Frozen Dev Policy as New Immutable Candidate — next.**
+    Preserve the original 546-mention GLiNER build and carry the frozen
+    `title >= 0.55 / abstract >= 0.65` policy into a new candidate
+    configuration/build/evaluation identity.
 
-11. **Independent Held-Out Review Evidence — next.**
+11. **Independent Held-Out Review Evidence**
     After candidate semantics are frozen, annotate at least 32 disjoint papers
     prediction-blind. This minimum gate is not sufficient by itself for future
     large-scale production; broader stratified evidence must grow later.
