@@ -1,0 +1,64 @@
+schema_version: scientific_entity_gliner_heldout_frozen_policy_config_v0.1
+
+layer:
+  name: scientific_entity_gliner_heldout_frozen_policy
+  version: v0.1
+  status: heldout_frozen_candidate
+  layer_kind: derived_policy_filtered_mention_evidence
+  description: >-
+    Read-only application of the already frozen GLiNER development policy to the
+    immutable 48-paper held-out raw prediction build. This layer performs no model
+    inference and no threshold tuning.
+
+extractor:
+  name: ml_radar_gliner_small_v2_5_heldout_frozen_policy
+  version: 0.1.0
+  environment_lock_path: requirements/requirements.entities_gliner.lock.txt
+
+heldout:
+  review_id: scientific-entity-heldout-review-v0.1-20260827T092900455472Z
+  expected_document_count: 48
+  prepared_dir: data/entities/scientific_entity_heldout_review/v0.1/prepared/scientific-entity-heldout-review-v0.1-20260827T092900455472Z
+  canonical_sample_file: canonical_documents.sample.jsonl
+  preparation_manifest_file: preparation_manifest.json
+
+parent:
+  build_id: scientific-entity-gliner-small-v2.5-v0.1-20260827T111030652864Z
+  build_root: data/entities/scientific_entity_evidence/v0.1
+  expected_input_prediction_count: 1145
+  expected_selected_prediction_count: 787
+  expected_rejected_prediction_count: 358
+  expected_raw_threshold: 0.50
+
+policy_origin:
+  calibration_id: scientific-entity-gliner-dev-calibration-v0.1-20260823T152930597192Z
+  calibration_root: data/entities/scientific_entity_gliner_calibration/v0.1
+  selected_profile: balanced_f1
+  selected_trial_id: calibration-trial:1172aea9d875d59f3b39cc21488dec8f
+  input_threshold: 0.50
+  threshold_is_inclusive: true
+  policy:
+    default_threshold: 0.50
+    source_field_thresholds:
+      title: 0.55
+      abstract: 0.65
+    entity_type_thresholds: {}
+
+safety:
+  allowed_build_statuses: [fixture, candidate]
+  accepted_status_may_be_emitted: false
+  overwrite_allowed: false
+  arbitrary_threshold_override_allowed: false
+  model_inference_allowed: false
+  model_or_tokenizer_download_allowed: false
+  provider_api_allowed: false
+  canonical_truth_mutation_allowed: false
+  reconcile_input_allowed: false
+  full_corpus_build_authorized: false
+  heldout_reference_mutation_allowed: false
+  publication_allowed: false
+
+outputs:
+  root: data/entities/scientific_entity_evidence/v0.1
+  encoding: utf-8
+  line_ending: lf

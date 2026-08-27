@@ -226,19 +226,27 @@ def gliner_frozen_policy_config_sha256(
     return sha256_text(canonical_semantic_json(config.model_dump(mode="json")))
 
 
-def build_frozen_policy_extractor_descriptor(
+def build_policy_filtered_extractor_descriptor(
     *,
-    config: ScientificEntityGLiNERFrozenPolicyConfig,
+    extractor_name: str,
+    extractor_version: str,
+    environment_lock_path: str,
+    config_sha256: str,
     parent_manifest: ScientificEntityEvidenceManifest,
     project_root: Path,
 ) -> ScientificEntityExtractorDescriptor:
+    """Build a policy-aware extractor descriptor while inheriting model provenance.
+
+    The helper is intentionally data-agnostic so development and held-out policy
+    materializations use exactly the same identity semantics.
+    """
     parent = parent_manifest.extractor
     if (
         parent.kind != ExtractorKind.STATISTICAL_MODEL
         and parent_manifest.status.value != "fixture"
     ):
         raise ScientificEntityGLiNERFrozenPolicyError(
-            "non-fixture frozen-policy parent must be a statistical_model extractor"
+            "non-fixture policy-filter parent must be a statistical_model extractor"
         )
     if parent.kind == ExtractorKind.STATISTICAL_MODEL and not all(
         (
@@ -251,23 +259,39 @@ def build_frozen_policy_extractor_descriptor(
         raise ScientificEntityGLiNERFrozenPolicyError(
             "parent GLiNER extractor is missing model provenance"
         )
-    environment_path = Path(config.extractor.environment_lock_path)
+    environment_path = Path(environment_lock_path)
     if not environment_path.is_absolute():
         environment_path = project_root / environment_path
     if not environment_path.is_file():
         raise FileNotFoundError(environment_path)
     return ScientificEntityExtractorDescriptor(
         schema_version=EXTRACTOR_SCHEMA_VERSION,
-        name=config.extractor.name,
-        version=config.extractor.version,
+        name=extractor_name,
+        version=extractor_version,
         kind=parent.kind,
         code_revision=normalized_source_bundle_revision(project_root),
-        config_sha256=gliner_frozen_policy_config_sha256(config),
+        config_sha256=config_sha256,
         environment_sha256=normalized_text_sha256(environment_path),
         model_name=parent.model_name,
         model_revision=parent.model_revision,
         model_artifact_sha256=parent.model_artifact_sha256,
         model_license=parent.model_license,
+    )
+
+
+def build_frozen_policy_extractor_descriptor(
+    *,
+    config: ScientificEntityGLiNERFrozenPolicyConfig,
+    parent_manifest: ScientificEntityEvidenceManifest,
+    project_root: Path,
+) -> ScientificEntityExtractorDescriptor:
+    return build_policy_filtered_extractor_descriptor(
+        extractor_name=config.extractor.name,
+        extractor_version=config.extractor.version,
+        environment_lock_path=config.extractor.environment_lock_path,
+        config_sha256=gliner_frozen_policy_config_sha256(config),
+        parent_manifest=parent_manifest,
+        project_root=project_root,
     )
 
 
@@ -290,32 +314,38 @@ def validate_frozen_trial(
         raise ScientificEntityGLiNERFrozenPolicyError("selected trial rejected count mismatch")
 
 
-def materialize_frozen_policy_mentions(
+def materialize_policy_filtered_mentions(
     *,
     parent_mentions: Sequence[ScientificEntityMentionEvidence],
-    config: ScientificEntityGLiNERFrozenPolicyConfig,
+    policy: ScientificEntityThresholdPolicy,
+    input_threshold: float,
+    expected_input_prediction_count: int,
+    expected_selected_prediction_count: int,
+    expected_rejected_prediction_count: int,
+    parent_build_id: str,
     build_id: str,
     candidate_extractor_fingerprint: str,
 ) -> tuple[
     tuple[ScientificEntityMentionEvidence, ...],
     tuple[ScientificEntityFrozenPolicyEvidenceLineage, ...],
 ]:
-    if len(parent_mentions) != config.frozen.expected_input_prediction_count:
+    """Apply a frozen policy and preserve mention identity with explicit lineage."""
+    if len(parent_mentions) != expected_input_prediction_count:
         raise ScientificEntityGLiNERFrozenPolicyError(
-            "parent prediction count does not match frozen decision"
+            "parent prediction count does not match expected policy application input"
         )
     selected = filter_predictions(
         parent_mentions,
-        policy=config.frozen.policy,
-        input_threshold=config.frozen.input_threshold,
+        policy=policy,
+        input_threshold=input_threshold,
     )
-    if len(selected) != config.frozen.expected_selected_prediction_count:
+    if len(selected) != expected_selected_prediction_count:
         raise ScientificEntityGLiNERFrozenPolicyError(
-            "materialized selected prediction count does not match frozen decision"
+            "materialized selected prediction count does not match expected policy application"
         )
-    if len(parent_mentions) - len(selected) != config.frozen.expected_rejected_prediction_count:
+    if len(parent_mentions) - len(selected) != expected_rejected_prediction_count:
         raise ScientificEntityGLiNERFrozenPolicyError(
-            "materialized rejected prediction count does not match frozen decision"
+            "materialized rejected prediction count does not match expected policy application"
         )
 
     candidate_rows: list[ScientificEntityMentionEvidence] = []
@@ -342,7 +372,7 @@ def materialize_frozen_policy_mentions(
             ScientificEntityFrozenPolicyEvidenceLineage(
                 schema_version=EVIDENCE_LINEAGE_SCHEMA_VERSION,
                 build_id=build_id,
-                parent_build_id=config.frozen.parent_build_id,
+                parent_build_id=parent_build_id,
                 mention_id=parent.mention_id,
                 parent_evidence_id=parent.evidence_id,
                 candidate_evidence_id=candidate.evidence_id,
@@ -354,3 +384,26 @@ def materialize_frozen_policy_mentions(
     if len({row.evidence_id for row in candidate_rows}) != len(candidate_rows):
         raise ScientificEntityGLiNERFrozenPolicyError("candidate evidence_ids must be unique")
     return tuple(candidate_rows), tuple(lineage_rows)
+
+
+def materialize_frozen_policy_mentions(
+    *,
+    parent_mentions: Sequence[ScientificEntityMentionEvidence],
+    config: ScientificEntityGLiNERFrozenPolicyConfig,
+    build_id: str,
+    candidate_extractor_fingerprint: str,
+) -> tuple[
+    tuple[ScientificEntityMentionEvidence, ...],
+    tuple[ScientificEntityFrozenPolicyEvidenceLineage, ...],
+]:
+    return materialize_policy_filtered_mentions(
+        parent_mentions=parent_mentions,
+        policy=config.frozen.policy,
+        input_threshold=config.frozen.input_threshold,
+        expected_input_prediction_count=config.frozen.expected_input_prediction_count,
+        expected_selected_prediction_count=config.frozen.expected_selected_prediction_count,
+        expected_rejected_prediction_count=config.frozen.expected_rejected_prediction_count,
+        parent_build_id=config.frozen.parent_build_id,
+        build_id=build_id,
+        candidate_extractor_fingerprint=candidate_extractor_fingerprint,
+    )

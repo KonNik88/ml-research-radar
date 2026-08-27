@@ -1,0 +1,41 @@
+schema_version: scientific_entity_heldout_review_evidence_config_v0.1
+
+review:
+  review_id: scientific-entity-heldout-review-v0.1-20260827T092900455472Z
+  annotation_method: manual_adjudicated
+  annotation_guideline_version: scientific_entity_annotation_guidelines_v0.1
+  annotation_passes: 1
+
+expected:
+  document_count: 48
+  annotation_row_count: 96
+  reference_mention_count: 881
+  uncertain_reference_mention_count: 0
+  blank_annotations_sha256: c2b7dd9ae044c8f5b59b7d516b5df3fe261f00e34a0e633cd04472c8f12417d9
+  reference_count_by_type:
+    task: 175
+    method: 303
+    dataset: 56
+    metric: 94
+    model: 185
+    domain: 68
+
+safety:
+  prediction_blind: true
+  heldout_dev_overlap_count: 0
+  require_original_blank_template: true
+  require_exact_sample_identity: true
+  execute_required_for_writes: true
+  overwrite_allowed: false
+  production_extractor_selected: false
+  full_corpus_build_authorized: false
+  canonical_truth_mutation_allowed: false
+  reconcile_input_allowed: false
+  redistribution_allowed: false
+  publication_allowed: false
+
+outputs:
+  completed_root: data/entities/scientific_entity_heldout_review/v0.1/completed
+  immutable_directories: true
+  encoding: utf-8
+  line_ending: lf

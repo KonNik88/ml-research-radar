@@ -3,22 +3,22 @@
 ## Document status
 
 ```text
-status = accepted post-orchestration and scientific-entity frozen-policy-candidate checkpoint
-checkpoint_date = 2026-08-26
+status = accepted post-orchestration and scientific-entity dev-policy-review checkpoint
+checkpoint_date = 2026-08-23
 supersedes_for_current_planning = docs/project_state_current_v0.1.md
 historical_detail_retained_in = docs/project_state_current_v0.1.md
 canonical_truth_changed_by_document = false
 runtime_behavior_changed_by_document = false
 generated_layers_rebuilt_by_document = false
 publishes_dataset = false
-current_extension = Scientific Entity GLiNER Frozen Policy Candidate v0.1
+current_extension = Scientific Entity GLiNER Held-Out Evaluation v0.1
 ```
 
 This checkpoint records the accepted project state after the August 2026 safe
 canonical refresh, derived-layer synchronization, operational refresh runbook,
 Refresh Operational Orchestration v0.1 merge, the first completed bounded
 real-paper Scientific Entity evaluation, the frozen GLiNER-versus-literal
-pilot/dev comparison, fixture-validated read-only calibration tooling, the real 24-paper calibration execution, the frozen balanced development policy, and its deterministic 391-mention immutable candidate materialization with exact dev-evaluation reproduction.
+pilot/dev comparison, fixture-validated read-only calibration tooling, the real 24-paper calibration execution, and the frozen balanced development policy.
 
 It is a planning and transfer document. It is not a source dataset, reconcile
 input, runtime manifest, release authorization, or replacement for build-scoped
@@ -39,9 +39,6 @@ are recorded in
 
 The completed human policy review and frozen development policy are recorded in
 [`docs/scientific_entity_gliner_dev_policy_review_v0.1.md`](scientific_entity_gliner_dev_policy_review_v0.1.md).
-
-The materialized frozen-policy candidate and dev-evaluation consistency checkpoint are recorded in
-[`docs/scientific_entity_gliner_frozen_policy_candidate_v0.1.md`](scientific_entity_gliner_frozen_policy_candidate_v0.1.md).
 
 ---
 
@@ -132,7 +129,8 @@ of file-backed truth. They must remain rebuildable.
 | Bounded Scientific Entity GLiNER Candidate Adapter | implemented; immutable candidate build validated | build `scientific-entity-gliner-small-v2.5-v0.1-20260822T143405630144Z`; 24 papers / 546 mentions / 91 checks | Experimental candidate only; verified local config injection; no production selection or full-corpus authorization |
 | Scientific Entity GLiNER Pilot Comparison | completed local descriptive checkpoint | evaluation `scientific-entity-evaluation-v0.1-20260823T124036780234Z`; 176 exact plus 19 relaxed-only matches / 69 checks | Exact F1 `0.358817`, relaxed F1 `0.397554`; retained for dev calibration, not promoted |
 | Bounded Scientific Entity GLiNER Dev Calibration | real candidate execution complete; strict validation green | calibration `scientific-entity-gliner-dev-calibration-v0.1-20260823T152930597192Z` / 24 papers / 127 trials / 69 eligible / 29 Pareto / 53 checks | Balanced dev policy frozen at title `0.55`, abstract `0.65`; exact F1 `0.380146`, relaxed F1 `0.404358`; type probes diagnostic; no promotion or full-corpus claim |
-| Scientific Entity GLiNER Frozen Policy Candidate | completed immutable dev candidate; strict candidate and evaluation validation green | build `scientific-entity-gliner-small-v2.5-frozen-policy-v0.1-20260826T102020767519Z`; 24 papers / 391 mentions / 69 candidate checks; evaluation `scientific-entity-evaluation-v0.1-20260826T102636476211Z` / 69 checks | 546 parent predictions filtered to 391 selected + 155 rejected; exact F1 `0.380146`, relaxed F1 `0.404358`; descriptive dev evidence only; no production selection or full-corpus authorization |
+| Scientific Entity GLiNER Frozen Policy Candidate | completed immutable dev materialization | 24 papers / 391 selected predictions / new policy-aware evidence identity | Dev evaluation reproduced exact F1 `0.380146` and relaxed F1 `0.404358`; still candidate-only |
+| Scientific Entity Independent Held-Out Review and Evaluation | completed bounded generalization gate | review `scientific-entity-heldout-review-v0.1-20260827T092900455472Z`; 48 papers / 881 references; evaluation `scientific-entity-evaluation-v0.1-20260827T113112815887Z` | Exact F1 `0.396882`, relaxed F1 `0.414868`; bounded v0.1 extractor accepted; production/full-corpus remains unauthorized |
 | Refresh operational orchestration | implemented | v0.1 | Recommended operational refresh entrypoint |
 
 The previous Qdrant, graph, and dataset candidates are not silently redefined as
@@ -406,28 +404,35 @@ Recommended order:
 
 10. **Materialize Frozen Dev Policy as New Immutable Candidate — completed**
    - preserved the original 546-mention GLiNER build unchanged;
-   - materialized candidate `scientific-entity-gliner-small-v2.5-frozen-policy-v0.1-20260826T102020767519Z`;
-   - retained stable mention identity while creating policy-aware evidence identity and structured lineage;
-   - selected 391 predictions and rejected 155 under the frozen source-field policy;
-   - dedicated candidate validation passed `69 / 69`;
-   - evaluation `scientific-entity-evaluation-v0.1-20260826T102636476211Z` passed `69 / 69` and exactly reproduced exact F1 `0.380146` / relaxed F1 `0.404358`.
+   - materialized 391 frozen-policy predictions with a policy-aware extractor fingerprint and new evidence IDs;
+   - reproduced the selected dev metrics under a new immutable evaluation identity.
 
-11. **Independent Held-Out Review Evidence — next**
-   - use at least 32 new, disjoint, prediction-blind papers after candidate freeze;
-   - treat 32 as the minimum gate, not final evidence for full-corpus or future
-     multi-million-paper scaling;
-   - grow later evidence in bounded stratified slices before production acceptance.
+11. **Independent Held-Out Review Evidence and Frozen-Policy Evaluation — completed**
+   - selected 48 new disjoint papers, 24 uniform plus 24 type-enriched;
+   - finalized 96 prediction-blind annotation rows into 881 references;
+   - reference package passed `4444 / 4444` strict checks;
+   - one raw GLiNER run emitted 1145 predictions and passed `91 / 91` checks;
+   - unchanged frozen policy selected 787 predictions and passed `4762 / 4762` checks;
+   - held-out evaluation passed `69 / 69` checks with exact F1 `0.396882` and relaxed F1 `0.414868`;
+   - generalization gate passed; v0.1 accepted only as a bounded working extractor.
 
-12. **Accepted Full Derived Entity Build**
-   - only after a candidate is frozen and separately held-out evidence exists;
+12. **Structured Held-Out Error Analysis / Extractor v0.2 Design — next**
+   - do not retune v0.1 thresholds on these 48 papers;
+   - inspect semantic type confusions, false positives and false negatives;
+   - prioritize `model -> method`, `method -> task`, weak `metric`/`domain`, and task recall;
+   - choose one bounded v0.2 hypothesis before any new candidate inference;
+   - because these 48 papers now inform v0.2 design, use a new disjoint held-out sample for future v0.2 acceptance.
+
+13. **Accepted Large-Scale Derived Entity Build — deferred**
+   - requires a later production-quality decision and explicit full-corpus authorization;
    - build-scoped manifest and current-canonical compatibility checks;
-   - explicit human acceptance decision.
+   - current held-out success alone does not authorize a 61,075-paper entity run.
 
-13. **Product and Graph Integration**
-   - Discovery facets, paper detail/comparison evidence, paper–entity edges;
-   - only after the derived entity layer is accepted.
+14. **Normalization / Linking / Product and Graph Integration — deferred**
+   - avoid normalizing six-type evidence before weak types and semantic typing are hardened;
+   - later add aliases, canonical entity IDs, Discovery facets, paper detail/comparison evidence, and paper–entity edges.
 
-14. **Full-text / Chunk Provenance / Grounded RAG**
+15. **Full-text / Chunk Provenance / Grounded RAG**
    - separate contract and acquisition-policy line;
    - no ungrounded chat layer.
 
@@ -488,13 +493,19 @@ scientific entity GLiNER real calibration = complete / scientific-entity-gliner-
 scientific entity GLiNER type probes = diagnostic only / combined policy selection forbidden
 scientific entity confidence remains = model_score / no probability reinterpretation / mention calibration_id remains null
 scientific entity current 24-paper dev set becomes held-out = false
+scientific entity GLiNER frozen dev policy = balanced_f1 / title 0.55 / abstract 0.65 / no type overrides
+scientific entity held-out review id = scientific-entity-heldout-review-v0.1-20260827T092900455472Z / 48 papers / 96 rows / 881 references / prediction-blind / dev overlap 0
+scientific entity held-out reference validator = 4444 / 4444 required checks
+scientific entity held-out raw build = scientific-entity-gliner-small-v2.5-v0.1-20260827T111030652864Z / 48 papers / 1145 predictions / 91 of 91 checks
+scientific entity held-out frozen-policy build = scientific-entity-gliner-small-v2.5-heldout-frozen-policy-v0.1-20260827T112658493807Z / 787 selected / 358 rejected / 4762 of 4762 checks
+scientific entity held-out evaluation id = scientific-entity-evaluation-v0.1-20260827T113112815887Z / 69 of 69 checks
+scientific entity held-out exact metrics = precision 0.420584 / recall 0.375709 / F1 0.396882
+scientific entity held-out relaxed metrics = precision 0.439644 / recall 0.392736 / F1 0.414868
+scientific entity held-out weakest exact types = metric F1 0.209877 / domain F1 0.293707 / task recall 0.308571
+scientific entity held-out decision = generalization gate passed / accept v0.1 as bounded working extractor / no production promotion
 scientific entity production model selected = false
 scientific entity full-corpus build authorized = false
-scientific entity GLiNER frozen dev policy = balanced_f1 / title 0.55 / abstract 0.65 / no type overrides
-scientific entity frozen-policy candidate build = scientific-entity-gliner-small-v2.5-frozen-policy-v0.1-20260826T102020767519Z / 391 mentions / 155 rejected / 69 of 69 dedicated checks
-scientific entity frozen-policy candidate evaluation = scientific-entity-evaluation-v0.1-20260826T102636476211Z / exact P 0.401535 / R 0.360920 / F1 0.380146 / relaxed F1 0.404358 / 69 of 69 checks
-scientific entity frozen-policy candidate promotion sample sufficient = false / metrics descriptive only
-next entity slice = independent stratified prediction-blind held-out review evidence / hard minimum 32 papers / preferred target 48
+next entity slice = structured held-out error analysis / choose one bounded extractor v0.2 hypothesis
 ```
 
 The project is not restarting or replacing completed work. The next entity
