@@ -1,0 +1,54 @@
+schema_version: scientific_entity_heldout_error_analysis_config_v0.1
+analysis_name: scientific_entity_heldout_error_analysis
+analysis_version: v0.1
+expected:
+  evaluation_id: scientific-entity-evaluation-v0.1-20260827T113112815887Z
+  heldout_review_id: scientific-entity-heldout-review-v0.1-20260827T092900455472Z
+  prediction_build_id: scientific-entity-gliner-small-v2.5-heldout-frozen-policy-v0.1-20260827T112658493807Z
+  document_count: 48
+  reference_mention_count: 881
+  prediction_mention_count: 787
+  exact_match_count: 331
+  relaxed_only_match_count: 15
+  error_count: 808
+  error_count_by_kind:
+    boundary_mismatch: 22
+    type_mismatch: 176
+    false_positive: 258
+    false_negative: 352
+  entity_types:
+    - task
+    - method
+    - dataset
+    - metric
+    - model
+    - domain
+
+gliner_windowing_audit:
+  checkpoint_model_id: gliner-community/gliner_small-v2.5
+  checkpoint_revision: f227d3cd637bd4e6757ae143935316d062393341
+  model_max_len: 768
+  model_max_width: 12
+  words_splitter_type: whitespace
+  window_size_tokens: 320
+  window_overlap_tokens: 64
+  runtime_splitter_verification_required: true
+diagnostics:
+  representative_examples_per_family: 5
+  confidence_percentiles: [0.25, 0.5, 0.75]
+  major_confusion_pairs:
+    - [model, method]
+    - [method, task]
+output:
+  root: data/entities/scientific_entity_heldout_error_analysis/v0.1
+safety:
+  analysis_only: true
+  model_inference_allowed: false
+  threshold_tuning_allowed: false
+  model_or_tokenizer_download_allowed: false
+  provider_api_allowed: false
+  canonical_truth_mutation_allowed: false
+  reconcile_input_allowed: false
+  production_extractor_selection_allowed: false
+  full_corpus_build_authorized: false
+  publication_ready: false

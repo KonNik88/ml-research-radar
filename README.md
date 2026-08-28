@@ -35,11 +35,11 @@ paper-centric research-discovery system.
 ## Current validated checkpoint
 
 ```text
-checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity GLiNER Dev Policy Review v0.1
-current scientific entity checkpoint = Scientific Entity GLiNER Held-Out Evaluation v0.1
+checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Held-Out Error Analysis v0.1
+current scientific entity checkpoint = Scientific Entity Held-Out Error Analysis v0.1
 base checkpoint = safe canonical refresh and synchronized core/Discovery derived layers
 scientific entity status = bounded literal control + evaluation harness + completed 24-paper review + GLiNER candidate adapter
-scientific entity quality status = real 24-paper GLiNER calibration complete; balanced dev policy frozen at title 0.55 / abstract 0.65; no production selection or full-corpus build
+scientific entity quality status = 48-paper held-out gate passed for bounded v0.1; structured error analysis complete; semantic prompt disambiguation selected as first v0.2a hypothesis; no production selection or full-corpus build
 public behavior change = none
 public dense/hybrid backend = file
 experimental Qdrant endpoint = explicit
@@ -66,6 +66,12 @@ The bounded threshold-policy calibration contract and operator workflow are
 
 The completed real calibration review and frozen development policy are recorded in
 [`docs/scientific_entity_gliner_dev_policy_review_v0.1.md`](docs/scientific_entity_gliner_dev_policy_review_v0.1.md).
+
+The completed **Scientific Entity GLiNER Held-Out Evaluation v0.1** is recorded in
+[`docs/scientific_entity_gliner_heldout_evaluation_v0.1.md`](docs/scientific_entity_gliner_heldout_evaluation_v0.1.md).
+
+The completed post-held-out diagnosis and selected first v0.2 hypothesis are recorded in
+[`docs/scientific_entity_heldout_error_analysis_v0.1.md`](docs/scientific_entity_heldout_error_analysis_v0.1.md).
 
 Current corpus and retrieval baseline:
 
@@ -767,25 +773,44 @@ Recommended order:
    candidate configuration/build/evaluation carrying the frozen policy, followed by
    disjoint prediction-blind held-out review.
 
-10. **Materialize Frozen Dev Policy as New Immutable Candidate — next.**
-    Preserve the original 546-mention GLiNER build and carry the frozen
-    `title >= 0.55 / abstract >= 0.65` policy into a new candidate
-    configuration/build/evaluation identity.
+10. **Materialize Frozen Dev Policy as New Immutable Candidate — completed.**
+    The frozen `title >= 0.55 / abstract >= 0.65` policy was materialized under
+    a new policy-aware evidence identity without rewriting the original GLiNER build.
 
-11. **Independent Held-Out Review Evidence**
-    After candidate semantics are frozen, annotate at least 32 disjoint papers
-    prediction-blind. This minimum gate is not sufficient by itself for future
-    large-scale production; broader stratified evidence must grow later.
+11. **Independent Held-Out Review Evidence — completed.**
+    A new 48-paper disjoint prediction-blind package produced 881 references.
+    The unchanged frozen policy selected 787 predictions; exact F1 is `0.396882`
+    and relaxed F1 is `0.414868`. The bounded v0.1 generalization gate passed,
+    but production and full-corpus authorization remain false.
 
-12. **Accepted Derived Entity Build**
-    Requires a separately frozen candidate, held-out prediction-blind evidence,
-    reproducibility gates, and explicit human acceptance before full-corpus use.
+12. **Scientific Entity Held-Out Error Analysis v0.1 — completed.**
+    Deterministic post-held-out analysis passed `398 / 398` strict checks.
+    `model -> method = 55`, `method -> task = 28`, and `method` absorbs
+    `94 / 176` type mismatches. The real `320/64` adapter windowing covers every
+    source token (`uncovered = 0`). Five markup-expanded references exceed
+    `model_max_width=12`; all five are false negatives, but they explain only a
+    bounded share of total error.
 
-13. **Product Integration**
-    Only after quality gates; entities remain downstream of canonical truth.
+13. **Scientific Entity Semantic Prompt Candidate v0.2a — next.**
+    Freeze one more discriminative set of GLiNER-facing prompts before inference.
+    Keep the pinned small-v2.5 model, six canonical types, first-comparison
+    thresholds, and evaluation semantics unchanged so the prompt effect is
+    isolated. The current 48 papers are now v0.2 development/error-analysis
+    evidence, not future independent held-out evidence.
 
-14. **Full-text / Chunk Provenance / Grounded RAG**
-    Separate acquisition and evidence contract after the entity layer is stable.
+14. **Fresh v0.2 Held-Out Gate — later.**
+    Any v0.2 candidate informed by the current 48-paper errors requires a new
+    disjoint prediction-blind held-out sample before acceptance.
+
+15. **Accepted Large-Scale Derived Entity Build — deferred.**
+    Requires explicit production-quality acceptance and separate full-corpus authorization.
+
+16. **Normalization / Linking / Product and Graph Integration — deferred.**
+    Only after typing quality is sufficiently stable; entities remain downstream
+    of canonical truth.
+
+17. **Full-text / Chunk Provenance / Grounded RAG — deferred.**
+    Separate acquisition/evidence line after the entity layer is stable.
 
 Dataset publication remains paused pending explicit redistribution guidance.
 Qdrant promotion, new embeddings, Airflow, and GraphRAG remain deferred until a

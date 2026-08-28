@@ -3,22 +3,22 @@
 ## Document status
 
 ```text
-status = accepted post-orchestration and scientific-entity dev-policy-review checkpoint
-checkpoint_date = 2026-08-23
+status = accepted post-orchestration and scientific-entity held-out-error-analysis checkpoint
+checkpoint_date = 2026-08-28
 supersedes_for_current_planning = docs/project_state_current_v0.1.md
 historical_detail_retained_in = docs/project_state_current_v0.1.md
 canonical_truth_changed_by_document = false
 runtime_behavior_changed_by_document = false
 generated_layers_rebuilt_by_document = false
 publishes_dataset = false
-current_extension = Scientific Entity GLiNER Held-Out Evaluation v0.1
+current_extension = Scientific Entity Held-Out Error Analysis v0.1
 ```
 
 This checkpoint records the accepted project state after the August 2026 safe
 canonical refresh, derived-layer synchronization, operational refresh runbook,
 Refresh Operational Orchestration v0.1 merge, the first completed bounded
 real-paper Scientific Entity evaluation, the frozen GLiNER-versus-literal
-pilot/dev comparison, fixture-validated read-only calibration tooling, the real 24-paper calibration execution, and the frozen balanced development policy.
+pilot/dev comparison, fixture-validated read-only calibration tooling, the real 24-paper calibration execution, the frozen balanced development policy, the independent 48-paper held-out gate, and the completed structured held-out error analysis.
 
 It is a planning and transfer document. It is not a source dataset, reconcile
 input, runtime manifest, release authorization, or replacement for build-scoped
@@ -39,6 +39,12 @@ are recorded in
 
 The completed human policy review and frozen development policy are recorded in
 [`docs/scientific_entity_gliner_dev_policy_review_v0.1.md`](scientific_entity_gliner_dev_policy_review_v0.1.md).
+
+The independent v0.1 generalization gate is recorded in
+[`docs/scientific_entity_gliner_heldout_evaluation_v0.1.md`](scientific_entity_gliner_heldout_evaluation_v0.1.md).
+
+The completed post-held-out diagnosis and selected first v0.2 hypothesis are recorded in
+[`docs/scientific_entity_heldout_error_analysis_v0.1.md`](scientific_entity_heldout_error_analysis_v0.1.md).
 
 ---
 
@@ -131,6 +137,7 @@ of file-backed truth. They must remain rebuildable.
 | Bounded Scientific Entity GLiNER Dev Calibration | real candidate execution complete; strict validation green | calibration `scientific-entity-gliner-dev-calibration-v0.1-20260823T152930597192Z` / 24 papers / 127 trials / 69 eligible / 29 Pareto / 53 checks | Balanced dev policy frozen at title `0.55`, abstract `0.65`; exact F1 `0.380146`, relaxed F1 `0.404358`; type probes diagnostic; no promotion or full-corpus claim |
 | Scientific Entity GLiNER Frozen Policy Candidate | completed immutable dev materialization | 24 papers / 391 selected predictions / new policy-aware evidence identity | Dev evaluation reproduced exact F1 `0.380146` and relaxed F1 `0.404358`; still candidate-only |
 | Scientific Entity Independent Held-Out Review and Evaluation | completed bounded generalization gate | review `scientific-entity-heldout-review-v0.1-20260827T092900455472Z`; 48 papers / 881 references; evaluation `scientific-entity-evaluation-v0.1-20260827T113112815887Z` | Exact F1 `0.396882`, relaxed F1 `0.414868`; bounded v0.1 extractor accepted; production/full-corpus remains unauthorized |
+| Scientific Entity Held-Out Error Analysis | completed diagnostic decision checkpoint | analysis `scientific-entity-heldout-error-analysis-v0.1-20260828T121239202063Z`; 48 papers / 808 errors / 398 checks | `model -> method = 55`, `method -> task = 28`; window coverage complete; 5 markup-expanded wide-span FNs; first v0.2a hypothesis = more discriminative semantic prompts |
 | Refresh operational orchestration | implemented | v0.1 | Recommended operational refresh entrypoint |
 
 The previous Qdrant, graph, and dataset candidates are not silently redefined as
@@ -416,23 +423,36 @@ Recommended order:
    - held-out evaluation passed `69 / 69` checks with exact F1 `0.396882` and relaxed F1 `0.414868`;
    - generalization gate passed; v0.1 accepted only as a bounded working extractor.
 
-12. **Structured Held-Out Error Analysis / Extractor v0.2 Design — next**
-   - do not retune v0.1 thresholds on these 48 papers;
-   - inspect semantic type confusions, false positives and false negatives;
-   - prioritize `model -> method`, `method -> task`, weak `metric`/`domain`, and task recall;
-   - choose one bounded v0.2 hypothesis before any new candidate inference;
-   - because these 48 papers now inform v0.2 design, use a new disjoint held-out sample for future v0.2 acceptance.
+12. **Scientific Entity Held-Out Error Analysis v0.1 — completed**
+   - materialized analysis `scientific-entity-heldout-error-analysis-v0.1-20260828T121239202063Z`;
+   - strict validator passed `398 / 398` required checks;
+   - confirmed semantic typing as the dominant actionable failure: `model -> method = 55`, `method -> task = 28`, and `method` receives `94 / 176` type mismatches;
+   - confirmed real `320`-token / `64`-overlap adapter windowing covers every source splitter token, with `0` windows above model `max_len=768`;
+   - isolated five markup-like references wider than `model_max_width=12`; all five are false negatives and two do not fit wholly in any one adapter window;
+   - superseded the earlier incorrect whole-document `max_len` diagnostic interpretation;
+   - selected one first v0.2 hypothesis without retuning v0.1.
 
-13. **Accepted Large-Scale Derived Entity Build — deferred**
+13. **Scientific Entity Semantic Prompt Candidate v0.2a — next**
+   - freeze one more discriminative set of GLiNER-facing semantic prompts before candidate inference;
+   - keep the pinned small-v2.5 weights/runtime, six canonical output types, first-comparison title/abstract thresholds, and evaluator unchanged;
+   - focus on separating `model` from `method`, `method` from `task`, broadening `metric` semantics beyond classic evaluation scores, and clarifying `domain`;
+   - issue a new extractor fingerprint/build/evaluation identity;
+   - do not use the current 48-paper package as future independent v0.2 held-out evidence.
+
+14. **Fresh v0.2 Held-Out Gate — later**
+   - select a new disjoint prediction-blind sample after v0.2 candidate semantics are frozen;
+   - require independent evidence before any v0.2 acceptance claim.
+
+15. **Accepted Large-Scale Derived Entity Build — deferred**
    - requires a later production-quality decision and explicit full-corpus authorization;
    - build-scoped manifest and current-canonical compatibility checks;
    - current held-out success alone does not authorize a 61,075-paper entity run.
 
-14. **Normalization / Linking / Product and Graph Integration — deferred**
+16. **Normalization / Linking / Product and Graph Integration — deferred**
    - avoid normalizing six-type evidence before weak types and semantic typing are hardened;
    - later add aliases, canonical entity IDs, Discovery facets, paper detail/comparison evidence, and paper–entity edges.
 
-15. **Full-text / Chunk Provenance / Grounded RAG**
+17. **Full-text / Chunk Provenance / Grounded RAG**
    - separate contract and acquisition-policy line;
    - no ungrounded chat layer.
 
@@ -505,7 +525,12 @@ scientific entity held-out weakest exact types = metric F1 0.209877 / domain F1 
 scientific entity held-out decision = generalization gate passed / accept v0.1 as bounded working extractor / no production promotion
 scientific entity production model selected = false
 scientific entity full-corpus build authorized = false
-next entity slice = structured held-out error analysis / choose one bounded extractor v0.2 hypothesis
+scientific entity held-out error analysis = complete / scientific-entity-heldout-error-analysis-v0.1-20260828T121239202063Z / 398 of 398 checks
+scientific entity dominant held-out error = semantic type disambiguation / model->method 55 / method->task 28 / method sink 94 of 176
+scientific entity adapter windowing audit = 3 multi-window source texts / 101 inference windows / 0 uncovered splitter tokens / 0 windows above model max_len
+scientific entity markup/max-width corner case = 5 markup-like references wider than max_width=12 / all 5 FN / 2 not fully contained in one adapter window
+scientific entity first v0.2 hypothesis = more discriminative GLiNER-facing semantic prompts
+next entity slice = Scientific Entity Semantic Prompt Candidate v0.2a design/freeze and controlled comparison
 ```
 
 The project is not restarting or replacing completed work. The next entity
