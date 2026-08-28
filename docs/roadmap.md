@@ -4,17 +4,17 @@
 
 ```text
 document = primary living roadmap
-accepted checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity GLiNER Held-Out Evaluation v0.1
+accepted checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Held-Out Error Analysis v0.1
 base checkpoint = current canonical latest 61,075 with synchronized core and Discovery derived layers
 current active direction = Scientific Entity Evidence Layer
-latest completed slice = Scientific Entity Independent Held-Out Review and Evaluation v0.1
-next authorized slice = structured held-out error analysis and one bounded extractor v0.2 design hypothesis
+latest completed slice = Scientific Entity Held-Out Error Analysis v0.1
+next authorized slice = Scientific Entity Semantic Prompt Candidate v0.2a design/freeze and controlled comparison
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
 dataset publication = paused pending redistribution guidance
-current entity boundary = 48-paper disjoint held-out gate passed; bounded v0.1 extractor accepted; metric/domain and semantic typing remain weak; production model and full-corpus output not selected or authorized
+current entity boundary = 48-paper v0.1 held-out gate passed and post-held-out diagnosis complete; semantic type disambiguation is the dominant actionable failure; five markup-expanded wide-span FNs are a bounded source-text corner case; v0.2a semantic-prompt redesign is next; production/full-corpus remains unauthorized
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -41,7 +41,7 @@ evaluation validator passed `69 / 69`. GLiNER is retained as the leading
 bounded candidate without promotion. The read-only calibration layer now
 declares 127 global/source-pair/type-probe trials, keeps type probes diagnostic,
 and independently reproduces immutable output. Its tracked fixture is green.
-The real candidate calibration and policy review are complete: calibration `scientific-entity-gliner-dev-calibration-v0.1-20260823T152930597192Z` passed `53 / 53` strict checks and freezes the balanced source-field dev policy `title >= 0.55` / `abstract >= 0.65`. That policy was materialized and then evaluated once on a new disjoint 48-paper prediction-blind held-out package with 881 references. The held-out exact F1 is `0.396882` and relaxed F1 is `0.414868`; generalization passed, but production/full-corpus promotion remains forbidden. The next authorized action is structured error analysis and one bounded v0.2 hypothesis, not threshold retuning or a full-corpus run.
+The real candidate calibration and policy review are complete: calibration `scientific-entity-gliner-dev-calibration-v0.1-20260823T152930597192Z` passed `53 / 53` strict checks and freezes the balanced source-field dev policy `title >= 0.55` / `abstract >= 0.65`. That policy was materialized and evaluated once on a new disjoint 48-paper prediction-blind held-out package with 881 references. The held-out exact F1 is `0.396882` and relaxed F1 is `0.414868`; generalization passed, but production/full-corpus promotion remains forbidden. Structured error analysis is now also complete: analysis `scientific-entity-heldout-error-analysis-v0.1-20260828T121239202063Z` passed `398 / 398` strict checks, identifies semantic type disambiguation as the dominant actionable failure, proves complete real adapter-window coverage, and isolates five markup-expanded wide-span false negatives as a bounded source-text corner case. The next authorized action is to freeze and compare one more discriminative GLiNER semantic-prompt candidate v0.2a, not to retune v0.1 thresholds or run the full corpus.
 
 ---
 
@@ -152,6 +152,8 @@ Recently completed safe slices:
 51. **Bounded Scientific Entity GLiNER Candidate Adapter v0.1** — freezes an Apache-2.0 small-model revision and FP16 artifact hash plus the auxiliary DeBERTa config revision/size/hash, injects that config from verified local bytes, freezes exact runtime and prompts, and adds explicit model-download/offline boundaries, deterministic overlapping windows, model-score evidence, immutable build output, independent validation, and model-free synthetic regression tests. Its first 24-paper immutable candidate build emitted 546 mentions and passed 91/91 build checks without selecting a production extractor.
 52. **Scientific Entity GLiNER Pilot Comparison v0.1** — evaluated the frozen 546-mention GLiNER build against the unchanged 24-paper/435-reference dev package and literal control, passed 69/69 independent evaluation checks, recorded exact F1 `0.358817`, relaxed F1 `0.397554`, per-source/per-type/confidence/error diagnostics, retained GLiNER for bounded dev calibration, and authorized neither production selection nor full-corpus generation.
 53. **Bounded Scientific Entity GLiNER Dev Calibration Tooling v0.1** — adds a read-only 127-trial threshold-policy search over one immutable prediction build, baseline metric recomputation, exact F0.5/F1/F2 profiles, an exact precision/recall Pareto frontier, diagnostic-only per-type probes, immutable seven-file output, and 53-check deterministic byte-for-byte validation without model inference, probability claims, production selection, or full-corpus authorization.
+54. **Scientific Entity Independent Held-Out Review and Evaluation v0.1** — completed a 48-paper disjoint prediction-blind gate with 881 references, 787 frozen-policy predictions, exact F1 `0.396882`, relaxed F1 `0.414868`, and bounded v0.1 acceptance without production/full-corpus promotion.
+55. **Scientific Entity Held-Out Error Analysis v0.1** — completed deterministic post-held-out diagnosis with `398 / 398` strict checks, `model -> method = 55`, `method -> task = 28`, complete `320/64` adapter-window coverage, and five markup-expanded references wider than `model_max_width=12`; selected semantic-prompt disambiguation as the first v0.2a hypothesis.
 
 Recommended next safe slices:
 
@@ -159,11 +161,12 @@ Recommended next safe slices:
 2. **Candidate Policy Review and Freeze — completed.** Balanced `title >= 0.55 / abstract >= 0.65` is frozen as the single dev policy; type probes remain diagnostic only.
 3. **Frozen Policy Candidate Materialization — completed.** The selected policy was materialized under a new policy-aware evidence identity and reproduced the selected dev metrics exactly.
 4. **Independent Held-Out Review and Evaluation — completed.** The 48-paper prediction-blind sample produced 881 references; unchanged frozen-policy predictions reached exact F1 `0.396882` and relaxed F1 `0.414868`, passing the bounded generalization gate.
-5. **Structured Held-Out Error Analysis / Extractor v0.2 Design — next.** Treat v0.1 as the bounded baseline, analyze the dominant semantic type confusions and weak `metric`/`domain` behavior, and choose one bounded improvement hypothesis without retuning v0.1.
-6. **New v0.2 Candidate and Fresh Held-Out Gate — later.** Any hypothesis informed by the current 48-paper errors gets a new fingerprint/build identity and must eventually be evaluated on a new disjoint held-out sample.
-7. **Accepted Large-Scale Derived Entity Build — deferred.** Requires explicit production-quality acceptance and full-corpus authorization; current v0.1 success is insufficient.
-8. **Normalization / Linking / Product and Graph Integration — deferred.** Proceed only after entity typing quality is hardened enough that normalization will not amplify noisy evidence.
-9. **Full-text / Chunk Provenance Contract** — only after the entity line is stable and before any grounded RAG implementation.
+5. **Scientific Entity Held-Out Error Analysis v0.1 — completed.** Analysis `scientific-entity-heldout-error-analysis-v0.1-20260828T121239202063Z` passed `398 / 398` strict checks; semantic type confusion dominates, adapter window coverage is complete, and five markup-expanded wide-span FNs are isolated as a bounded corner case.
+6. **Scientific Entity Semantic Prompt Candidate v0.2a — next.** Freeze one more discriminative set of GLiNER-facing prompts before inference and run a controlled comparison with the pinned small-v2.5 model, unchanged six canonical output types, unchanged first-comparison thresholds, and unchanged evaluation semantics.
+7. **Fresh v0.2 Held-Out Gate — later.** Any v0.2 candidate informed by the current 48-paper errors gets a new fingerprint/build identity and must later be evaluated on a new disjoint held-out sample.
+8. **Accepted Large-Scale Derived Entity Build — deferred.** Requires explicit production-quality acceptance and full-corpus authorization; current v0.1 success is insufficient.
+9. **Normalization / Linking / Product and Graph Integration — deferred.** Proceed only after entity typing quality is hardened enough that normalization will not amplify noisy evidence.
+10. **Full-text / Chunk Provenance Contract** — only after the entity line is stable and before any grounded RAG implementation.
 
 Explicit immediate non-goals:
 
@@ -5106,7 +5109,8 @@ production promotion = false
 full-corpus authorization = false
 24-paper package = dev diagnostics, never post-tuning held-out evidence
 48-paper held-out package = valid held-out evidence for v0.1; development/error-analysis evidence for any v0.2 designed from its errors
-next slice = structured held-out error analysis / one bounded v0.2 hypothesis
+next slice at held-out checkpoint = structured held-out error analysis / completed
+current next slice = Scientific Entity Semantic Prompt Candidate v0.2a design/freeze and controlled comparison
 ```
 
 The comparison preserves the narrow six-type product ontology. The first

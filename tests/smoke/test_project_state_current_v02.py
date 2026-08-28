@@ -42,6 +42,9 @@ def test_readme_points_to_the_current_checkpoint_and_scopes_old_outputs() -> Non
     assert "docs/scientific_entity_gliner_pilot_comparison_v0.1.md" in text
     assert "docs/scientific_entity_gliner_dev_calibration_v0.1.md" in text
     assert "docs/scientific_entity_gliner_dev_policy_review_v0.1.md" in text
+    assert "docs/scientific_entity_gliner_heldout_evaluation_v0.1.md" in text
+    assert "docs/scientific_entity_heldout_error_analysis_v0.1.md" in text
+    assert "current scientific entity checkpoint = Scientific Entity Held-Out Error Analysis v0.1" in text
     assert "completed 24-paper review" in text
 
 
@@ -50,11 +53,11 @@ def test_roadmap_advances_after_real_calibration_and_policy_freeze() -> None:
 
     assert "current active direction = Scientific Entity Evidence Layer" in text
     assert (
-        "latest completed slice = Scientific Entity Independent Held-Out Review and Evaluation v0.1"
+        "latest completed slice = Scientific Entity Held-Out Error Analysis v0.1"
     ) in text
     assert (
-        "next authorized slice = structured held-out error analysis and one bounded "
-        "extractor v0.2 design hypothesis"
+        "next authorized slice = Scientific Entity Semantic Prompt Candidate v0.2a "
+        "design/freeze and controlled comparison"
     ) in text
     assert "Scientific Entity Evidence Contract v0.1" in text
     assert "hard max documents = 100" in text
@@ -280,6 +283,30 @@ def test_scientific_entity_heldout_gate_is_recorded_as_bounded_acceptance() -> N
     assert "candidate_decision = accept_as_bounded_working_extractor_v0.1" in heldout
     assert "production_extractor_selected = false" in heldout
     assert "full_corpus_build_authorized = false" in heldout
-    assert "next entity slice = structured held-out error analysis" in checkpoint
+    assert "next entity slice = Scientific Entity Semantic Prompt Candidate v0.2a design/freeze and controlled comparison" in checkpoint
     assert "scientific_entity_heldout_generalization_gate = passed" in architecture
-    assert "next authorized slice = structured held-out error analysis" in roadmap
+    assert "next authorized slice = Scientific Entity Semantic Prompt Candidate v0.2a design/freeze and controlled comparison" in roadmap
+
+
+def test_scientific_entity_heldout_error_analysis_records_final_diagnosis() -> None:
+    readme = _read("README.md")
+    checkpoint = _read("docs/project_state_current_v0.2.md")
+    roadmap = _read("docs/roadmap.md")
+    analysis = _read("docs/scientific_entity_heldout_error_analysis_v0.1.md")
+
+    assert "scientific-entity-heldout-error-analysis-v0.1-20260828T121239202063Z" in analysis
+    assert "strict_validator = 398 / 398 required checks" in analysis
+    assert "model -> method = 55" in analysis
+    assert "method -> task = 28" in analysis
+    assert "method_semantic_sink = 94 / 176 type mismatches = 0.534091" in analysis
+    assert "uncovered_splitter_token_count = 0" in analysis
+    assert "window_exceeds_model_max_len_count = 0" in analysis
+    assert "reference_mentions_exceeding_model_max_width_count = 5" in analysis
+    assert "markup_like_reference_mention_count = 5" in analysis
+    assert "wide_reference_set == markup_like_reference_set = true" in analysis
+    assert "Scientific Entity Semantic Prompt Candidate v0.2a" in analysis
+    assert "future v0.2 independent acceptance = requires a new disjoint held-out sample" in analysis
+    assert "current scientific entity checkpoint = Scientific Entity Held-Out Error Analysis v0.1" in readme
+    assert "Scientific Entity Held-Out Error Analysis | completed diagnostic decision checkpoint" in checkpoint
+    assert "latest completed slice = Scientific Entity Held-Out Error Analysis v0.1" in roadmap
+    assert "next authorized slice = Scientific Entity Semantic Prompt Candidate v0.2a design/freeze and controlled comparison" in roadmap
