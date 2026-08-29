@@ -1,0 +1,45 @@
+schema_version: scientific_entity_semantic_prompt_policy_v0.2a
+
+layer:
+  name: scientific_entity_semantic_prompt_policy
+  version: v0.2a
+  status: development_candidate
+  layer_kind: derived_policy_filtered_mention_evidence
+
+candidate:
+  candidate_id: scientific-entity-semantic-prompt-candidate-v0.2a
+  design_config_path: configs/scientific_entity_semantic_prompt_candidate_v0.2a.yaml
+  runtime_config_path: configs/scientific_entity_gliner_semantic_prompt_candidate_v0.2a.yaml
+  expected_document_count: 72
+
+policy:
+  input_threshold: 0.50
+  threshold_is_inclusive: true
+  default_threshold: 0.50
+  source_field_thresholds:
+    title: 0.55
+    abstract: 0.65
+  entity_type_thresholds: {}
+
+extractor:
+  name: ml_radar_gliner_small_v2_5_semantic_prompt_policy_candidate
+  version: 0.2a.0
+  policy_identity: design_config_plus_runtime_config_plus_frozen_threshold_policy
+
+safety:
+  execute_required_for_writes: true
+  overwrite_allowed: false
+  accepted_status_allowed: false
+  model_inference_allowed: false
+  threshold_tuning_allowed: false
+  canonical_truth_mutation_allowed: false
+  reconcile_input_allowed: false
+  production_extractor_selected: false
+  full_corpus_build_authorized: false
+  publication_allowed: false
+
+outputs:
+  root: data/entities/scientific_entity_semantic_prompt_policy/v0.2a
+  immutable_build_directory: true
+  encoding: utf-8
+  line_ending: lf

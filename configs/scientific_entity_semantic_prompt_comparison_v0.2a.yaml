@@ -1,0 +1,45 @@
+schema_version: scientific_entity_semantic_prompt_comparison_v0.2a
+
+layer:
+  name: scientific_entity_semantic_prompt_comparison
+  version: v0.2a
+  status: development_candidate_comparison
+  layer_kind: derived_bounded_quality_evidence
+
+candidate:
+  candidate_id: scientific-entity-semantic-prompt-candidate-v0.2a
+  design_config_path: configs/scientific_entity_semantic_prompt_candidate_v0.2a.yaml
+  policy_config_path: configs/scientific_entity_semantic_prompt_policy_v0.2a.yaml
+  evaluation_config_path: configs/scientific_entity_evaluation_v0.1.yaml
+  expected_document_count: 72
+  expected_selected_prediction_count: 977
+  compare_splits:
+    - old_dev_24
+    - consumed_v01_heldout_48
+    - combined_dev_72
+
+outputs:
+  root: data/entities/scientific_entity_semantic_prompt_comparison/v0.2a
+  immutable_comparison_directory: true
+  encoding: utf-8
+  line_ending: lf
+  required_files:
+    - manifest.json
+    - comparison.json
+    - diagnostics.json
+    - gate_decision.json
+    - README.md
+    - checksums.txt
+
+safety:
+  execute_required_for_writes: true
+  overwrite_allowed: false
+  model_inference_allowed: false
+  threshold_tuning_allowed: false
+  canonical_truth_mutation_allowed: false
+  reconcile_input_allowed: false
+  production_extractor_selected: false
+  full_corpus_build_authorized: false
+  publication_allowed: false
+  current_48_is_independent_heldout_for_v02: false
+  future_v02_acceptance_requires_new_disjoint_heldout: true
