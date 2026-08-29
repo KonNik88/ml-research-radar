@@ -1,0 +1,132 @@
+schema_version: scientific_entity_semantic_prompt_candidate_v0.2a
+
+candidate:
+  candidate_id: scientific-entity-semantic-prompt-candidate-v0.2a
+  status: design_frozen
+  hypothesis: more_discriminative_gliner_facing_semantic_prompts
+  change_scope: semantic_prompts_only
+  baseline_runtime_config_path: configs/scientific_entity_gliner_candidate_v0.1.yaml
+  candidate_runtime_config_path: configs/scientific_entity_gliner_semantic_prompt_candidate_v0.2a.yaml
+  canonical_entity_types:
+    - task
+    - method
+    - dataset
+    - metric
+    - model
+    - domain
+
+prompts:
+  - entity_type: task
+    baseline_prompt: machine learning task or research objective
+    candidate_prompt: machine learning task, prediction problem, or learning objective
+    design_target: separate problems/objectives being solved from procedures used to solve them
+  - entity_type: method
+    baseline_prompt: machine learning method or algorithm
+    candidate_prompt: algorithm, training procedure, optimization method, or computational technique
+    design_target: separate algorithms/procedures from model architectures and task statements
+  - entity_type: dataset
+    baseline_prompt: dataset corpus or benchmark
+    candidate_prompt: named dataset, benchmark dataset, corpus, or data collection
+    design_target: emphasize data resources rather than generic benchmark/evaluation language
+  - entity_type: metric
+    baseline_prompt: evaluation metric
+    candidate_prompt: quantitative metric, score, measured property, or efficiency measure
+    design_target: cover annotated quantitative properties beyond classic evaluation scores
+  - entity_type: model
+    baseline_prompt: model architecture or named system
+    candidate_prompt: named machine learning or statistical model, neural network, or model architecture
+    design_target: separate named models/model families from algorithms or training procedures
+  - entity_type: domain
+    baseline_prompt: research or application domain
+    candidate_prompt: research field, scientific domain, application area, or data domain
+    design_target: separate fields/application areas from tasks and methods
+
+development_evidence:
+  old_dev:
+    document_count: 24
+    role: development
+    review_id: scientific-entity-manual-review-v0.1-20260821T131320262656Z
+  consumed_v01_heldout:
+    document_count: 48
+    role: v02_development_error_analysis
+    review_id: scientific-entity-heldout-review-v0.1-20260827T092900455472Z
+    evaluation_id: scientific-entity-evaluation-v0.1-20260827T113112815887Z
+    error_analysis_id: scientific-entity-heldout-error-analysis-v0.1-20260828T121239202063Z
+  combined_document_count: 72
+  current_48_may_be_called_independent_heldout_for_v02: false
+  future_v02_acceptance_requires_new_disjoint_heldout: true
+
+controlled_comparison:
+  raw_candidate_inference_threshold: 0.5
+  frozen_source_field_policy:
+    title_threshold: 0.55
+    abstract_threshold: 0.65
+    entity_type_overrides: {}
+  compare_splits:
+    - old_dev_24
+    - consumed_v01_heldout_48
+    - combined_dev_72
+  metrics:
+    - overall_exact
+    - overall_relaxed
+    - per_type_exact
+    - per_type_relaxed
+    - type_confusion_counts
+    - predicted_type_mismatch_totals
+    - false_positive_counts
+    - false_negative_counts
+  consumed_v01_heldout_baseline:
+    exact_f1: 0.396882
+    relaxed_f1: 0.414868
+    total_type_mismatch_count: 176
+    model_to_method_count: 55
+    method_to_task_count: 28
+    method_semantic_sink_count: 94
+    metric_exact_f1: 0.209877
+    domain_exact_f1: 0.293707
+    task_exact_recall: 0.308571
+    model_exact_f1: 0.513369
+  decision_gates:
+    evaluation_role: development_candidate_gate_not_independent_acceptance
+    all_hard_guardrails_required_for_promising: true
+    hard_guardrails:
+      minimum_overall_exact_f1: 0.386882
+      maximum_model_to_method_count: 44
+      maximum_method_to_task_count: 28
+      maximum_total_type_mismatch_count: 176
+      maximum_method_semantic_sink_count: 84
+      maximum_any_predicted_type_mismatch_sink_count: 94
+    desirable_directional_signals:
+      metric_exact_f1: increase
+      domain_exact_f1: increase
+      task_exact_recall: increase
+      model_exact_f1: increase
+      overall_relaxed_f1: nondecrease
+
+identity_and_lineage:
+  candidate_must_use_new_extractor_identity: true
+  candidate_runtime_config_sha_must_differ_from_baseline: true
+  extractor_fingerprint_must_differ_from_v01: true
+  same_span_type_text_keeps_mention_id: true
+  changed_extractor_fingerprint_changes_evidence_id: true
+  new_build_id_required: true
+  immutable_outputs_required: true
+  overwrite_forbidden: true
+
+safety:
+  contract_slice_runs_model_inference: false
+  contract_slice_runs_threshold_tuning: false
+  changes_canonical_truth: false
+  may_be_used_as_reconcile_input: false
+  production_extractor_selected: false
+  full_corpus_build_authorized: false
+  publication_ready: false
+  medium_model_comparison_in_scope: false
+  fine_tuning_in_scope: false
+  markup_cleanup_in_scope: false
+
+next_steps:
+  after_contract_freeze: bounded_raw_candidate_inference_on_72_development_documents
+  after_raw_candidate_inference: apply_unchanged_055_065_policy_and_run_controlled_comparison
+  if_promising: consider_separate_v02_recalibration_then_fresh_disjoint_heldout
+  if_not_promising: evaluate_next_bounded_hypothesis_without_reusing_future_heldout

@@ -35,11 +35,11 @@ paper-centric research-discovery system.
 ## Current validated checkpoint
 
 ```text
-checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Held-Out Error Analysis v0.1
-current scientific entity checkpoint = Scientific Entity Held-Out Error Analysis v0.1
+checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Semantic Prompt Candidate v0.2a
+current scientific entity checkpoint = Scientific Entity Semantic Prompt Candidate v0.2a
 base checkpoint = safe canonical refresh and synchronized core/Discovery derived layers
 scientific entity status = bounded literal control + evaluation harness + completed 24-paper review + GLiNER candidate adapter
-scientific entity quality status = 48-paper held-out gate passed for bounded v0.1; structured error analysis complete; semantic prompt disambiguation selected as first v0.2a hypothesis; no production selection or full-corpus build
+scientific entity quality status = semantic-prompt v0.2a controlled comparison complete; semantic confusion materially improved but the pre-frozen exact-F1 hard guardrail failed; v0.2a is not accepted as the next candidate configuration; threshold recalibration v0.2b is the next bounded hypothesis; no production selection or full-corpus build
 public behavior change = none
 public dense/hybrid backend = file
 experimental Qdrant endpoint = explicit
@@ -72,6 +72,10 @@ The completed **Scientific Entity GLiNER Held-Out Evaluation v0.1** is recorded 
 
 The completed post-held-out diagnosis and selected first v0.2 hypothesis are recorded in
 [`docs/scientific_entity_heldout_error_analysis_v0.1.md`](docs/scientific_entity_heldout_error_analysis_v0.1.md).
+
+The completed semantic-prompt v0.2a design, immutable evidence lineage, unchanged-policy materialization,
+controlled `24 / 48 / 72` comparison, and negative gate decision are recorded in
+[`docs/scientific_entity_semantic_prompt_candidate_v0.2a.md`](docs/scientific_entity_semantic_prompt_candidate_v0.2a.md).
 
 Current corpus and retrieval baseline:
 
@@ -791,25 +795,38 @@ Recommended order:
     `model_max_width=12`; all five are false negatives, but they explain only a
     bounded share of total error.
 
-13. **Scientific Entity Semantic Prompt Candidate v0.2a — next.**
-    Freeze one more discriminative set of GLiNER-facing prompts before inference.
-    Keep the pinned small-v2.5 model, six canonical types, first-comparison
-    thresholds, and evaluation semantics unchanged so the prompt effect is
-    isolated. The current 48 papers are now v0.2 development/error-analysis
-    evidence, not future independent held-out evidence.
+13. **Scientific Entity Semantic Prompt Candidate v0.2a — completed; hard gate failed.**
+    The controlled experiment kept the pinned small-v2.5 model, revision, weights,
+    `320/64` windowing, six canonical types, and the v0.1 `title >= 0.55 /
+    abstract >= 0.65` policy unchanged while changing only the six GLiNER-facing
+    semantic prompts. The 72-paper development package contains 24 old-DEV plus
+    48 consumed-v0.1-held-out papers with zero overlap. The immutable raw build
+    emitted `1430` predictions; unchanged policy selected `977`. On the consumed
+    48-paper decision view, semantic confusion improved materially
+    (`model -> method 55 -> 31`, `method -> task 28 -> 21`,
+    type mismatches `176 -> 125`, method sink `94 -> 54`), but exact F1
+    `0.383706` missed the pre-frozen floor `0.386882`. v0.2a is therefore not
+    accepted as the next candidate configuration.
 
-14. **Fresh v0.2 Held-Out Gate — later.**
-    Any v0.2 candidate informed by the current 48-paper errors requires a new
-    disjoint prediction-blind held-out sample before acceptance.
+14. **Scientific Entity Semantic Prompt Threshold Calibration v0.2b — next.**
+    Retain the v0.2a prompts and the same pinned small-v2.5 runtime, and test one
+    bounded threshold-recalibration hypothesis on already-consumed development
+    evidence. The motivation is the observed precision/recall shift: semantic
+    typing improved and precision rose, while recall fell under the inherited
+    v0.1 thresholds. Freeze the v0.2b calibration contract before any search.
 
-15. **Accepted Large-Scale Derived Entity Build — deferred.**
+15. **Fresh v0.2 Held-Out Gate — later.**
+    Any v0.2 candidate informed by the current 72-paper development evidence
+    requires a new disjoint prediction-blind held-out sample before acceptance.
+
+16. **Accepted Large-Scale Derived Entity Build — deferred.**
     Requires explicit production-quality acceptance and separate full-corpus authorization.
 
-16. **Normalization / Linking / Product and Graph Integration — deferred.**
+17. **Normalization / Linking / Product and Graph Integration — deferred.**
     Only after typing quality is sufficiently stable; entities remain downstream
     of canonical truth.
 
-17. **Full-text / Chunk Provenance / Grounded RAG — deferred.**
+18. **Full-text / Chunk Provenance / Grounded RAG — deferred.**
     Separate acquisition/evidence line after the entity layer is stable.
 
 Dataset publication remains paused pending explicit redistribution guidance.
