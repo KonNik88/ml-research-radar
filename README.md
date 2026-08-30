@@ -35,11 +35,11 @@ paper-centric research-discovery system.
 ## Current validated checkpoint
 
 ```text
-checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Semantic Prompt Candidate v0.2a
-current scientific entity checkpoint = Scientific Entity Semantic Prompt Candidate v0.2a
+checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Semantic Prompt Threshold Calibration v0.2b
+current scientific entity checkpoint = Scientific Entity Semantic Prompt Threshold Calibration v0.2b
 base checkpoint = safe canonical refresh and synchronized core/Discovery derived layers
 scientific entity status = bounded literal control + evaluation harness + completed 24-paper review + GLiNER candidate adapter
-scientific entity quality status = semantic-prompt v0.2a controlled comparison complete; semantic confusion materially improved but the pre-frozen exact-F1 hard guardrail failed; v0.2a is not accepted as the next candidate configuration; threshold recalibration v0.2b is the next bounded hypothesis; no production selection or full-corpus build
+scientific entity quality status = semantic-prompt threshold calibration v0.2b complete; selected policy title 0.50 / abstract 0.625 preserved semantic guardrails and improved combined-dev F1 but missed the consumed-48 exact-F1 hard gate by 0.000429; raw title floor may be binding; v0.2b is not accepted; raw-floor extension v0.2c is the next bounded hypothesis; no production selection or full-corpus build
 public behavior change = none
 public dense/hybrid backend = file
 experimental Qdrant endpoint = explicit
@@ -76,6 +76,10 @@ The completed post-held-out diagnosis and selected first v0.2 hypothesis are rec
 The completed semantic-prompt v0.2a design, immutable evidence lineage, unchanged-policy materialization,
 controlled `24 / 48 / 72` comparison, and negative gate decision are recorded in
 [`docs/scientific_entity_semantic_prompt_candidate_v0.2a.md`](docs/scientific_entity_semantic_prompt_candidate_v0.2a.md).
+
+The completed semantic-prompt threshold calibration v0.2b, deterministic 35-trial search,
+semantic-safe selection, hard-gate result, and raw-floor diagnosis are recorded in
+[`docs/scientific_entity_semantic_prompt_threshold_calibration_v0.2b.md`](docs/scientific_entity_semantic_prompt_threshold_calibration_v0.2b.md).
 
 Current corpus and retrieval baseline:
 
@@ -808,25 +812,34 @@ Recommended order:
     `0.383706` missed the pre-frozen floor `0.386882`. v0.2a is therefore not
     accepted as the next candidate configuration.
 
-14. **Scientific Entity Semantic Prompt Threshold Calibration v0.2b — next.**
-    Retain the v0.2a prompts and the same pinned small-v2.5 runtime, and test one
-    bounded threshold-recalibration hypothesis on already-consumed development
-    evidence. The motivation is the observed precision/recall shift: semantic
-    typing improved and precision rose, while recall fell under the inherited
-    v0.1 thresholds. Freeze the v0.2b calibration contract before any search.
+14. **Scientific Entity Semantic Prompt Threshold Calibration v0.2b — completed; hard gate failed.**
+    The frozen 35-trial source-field search reused the existing 72-paper / 1316-reference /
+    1430-raw-prediction v0.2a development evidence without model inference. Ten trials were
+    semantic-safe. The selected policy `title >= 0.50 / abstract >= 0.625` reached combined-72
+    exact F1 `0.398654` and consumed-48 exact F1 `0.396453`; semantic diagnostics remained
+    within guardrails (`model -> method 32`, `method -> task 25`, total type mismatches 138,
+    method sink 57). The consumed-48 floor `0.396882` was missed by `0.000429`, so v0.2b is
+    not accepted and no threshold is relaxed post hoc.
 
-15. **Fresh v0.2 Held-Out Gate — later.**
-    Any v0.2 candidate informed by the current 72-paper development evidence
-    requires a new disjoint prediction-blind held-out sample before acceptance.
+15. **Scientific Entity Semantic Prompt Raw-Floor Extension v0.2c — next.**
+    Retain the v0.2a prompts, pinned small-v2.5 model/runtime, 72-paper development evidence,
+    evaluator, and semantic guardrails. Extend only the raw inference score floor below
+    `0.50` so title thresholds below the current evidence boundary can be tested. The v0.2b
+    landscape shows that lowering title threshold at `abstract=0.625` improves F1 without
+    observed semantic-count regression, while lowering abstract to `0.60` crosses the frozen
+    `method -> task` guardrail.
 
-16. **Accepted Large-Scale Derived Entity Build — deferred.**
+16. **Fresh v0.2 Held-Out Gate — later.**
+    Any v0.2 candidate informed by the current 72-paper development evidence requires a new
+    disjoint prediction-blind held-out sample before acceptance.
+
+17. **Accepted Large-Scale Derived Entity Build — deferred.**
     Requires explicit production-quality acceptance and separate full-corpus authorization.
 
-17. **Normalization / Linking / Product and Graph Integration — deferred.**
-    Only after typing quality is sufficiently stable; entities remain downstream
-    of canonical truth.
+18. **Normalization / Linking / Product and Graph Integration — deferred.**
+    Only after typing quality is sufficiently stable; entities remain downstream of canonical truth.
 
-18. **Full-text / Chunk Provenance / Grounded RAG — deferred.**
+19. **Full-text / Chunk Provenance / Grounded RAG — deferred.**
     Separate acquisition/evidence line after the entity layer is stable.
 
 Dataset publication remains paused pending explicit redistribution guidance.

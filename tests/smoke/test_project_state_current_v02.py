@@ -45,7 +45,8 @@ def test_readme_points_to_the_current_checkpoint_and_scopes_old_outputs() -> Non
     assert "docs/scientific_entity_gliner_heldout_evaluation_v0.1.md" in text
     assert "docs/scientific_entity_heldout_error_analysis_v0.1.md" in text
     assert "docs/scientific_entity_semantic_prompt_candidate_v0.2a.md" in text
-    assert "current scientific entity checkpoint = Scientific Entity Semantic Prompt Candidate v0.2a" in text
+    assert "docs/scientific_entity_semantic_prompt_threshold_calibration_v0.2b.md" in text
+    assert "current scientific entity checkpoint = Scientific Entity Semantic Prompt Threshold Calibration v0.2b" in text
     assert "completed 24-paper review" in text
 
 
@@ -54,12 +55,11 @@ def test_roadmap_advances_after_real_calibration_and_policy_freeze() -> None:
 
     assert "current active direction = Scientific Entity Evidence Layer" in text
     assert (
-        "latest completed slice = Scientific Entity Semantic Prompt Candidate v0.2a "
-        "controlled comparison"
+        "latest completed slice = Scientific Entity Semantic Prompt Threshold Calibration v0.2b"
     ) in text
     assert (
-        "next authorized slice = Scientific Entity Semantic Prompt Threshold Calibration "
-        "v0.2b design/freeze"
+        "next authorized slice = Scientific Entity Semantic Prompt Raw-Floor Extension "
+        "v0.2c design/freeze"
     ) in text
     assert "Scientific Entity Evidence Contract v0.1" in text
     assert "hard max documents = 100" in text
@@ -285,9 +285,9 @@ def test_scientific_entity_heldout_gate_is_recorded_as_bounded_acceptance() -> N
     assert "candidate_decision = accept_as_bounded_working_extractor_v0.1" in heldout
     assert "production_extractor_selected = false" in heldout
     assert "full_corpus_build_authorized = false" in heldout
-    assert "next entity slice = Scientific Entity Semantic Prompt Threshold Calibration v0.2b design/freeze" in checkpoint
+    assert "next entity slice = Scientific Entity Semantic Prompt Raw-Floor Extension v0.2c design/freeze" in checkpoint
     assert "scientific_entity_heldout_generalization_gate = passed" in architecture
-    assert "next authorized slice = Scientific Entity Semantic Prompt Threshold Calibration v0.2b design/freeze" in roadmap
+    assert "next authorized slice = Scientific Entity Semantic Prompt Raw-Floor Extension v0.2c design/freeze" in roadmap
 
 
 def test_scientific_entity_heldout_error_analysis_records_final_diagnosis() -> None:
@@ -308,10 +308,10 @@ def test_scientific_entity_heldout_error_analysis_records_final_diagnosis() -> N
     assert "wide_reference_set == markup_like_reference_set = true" in analysis
     assert "Scientific Entity Semantic Prompt Candidate v0.2a" in analysis
     assert "future v0.2 independent acceptance = requires a new disjoint held-out sample" in analysis
-    assert "current scientific entity checkpoint = Scientific Entity Semantic Prompt Candidate v0.2a" in readme
+    assert "current scientific entity checkpoint = Scientific Entity Semantic Prompt Threshold Calibration v0.2b" in readme
     assert "Scientific Entity Held-Out Error Analysis | completed diagnostic decision checkpoint" in checkpoint
-    assert "latest completed slice = Scientific Entity Semantic Prompt Candidate v0.2a controlled comparison" in roadmap
-    assert "next authorized slice = Scientific Entity Semantic Prompt Threshold Calibration v0.2b design/freeze" in roadmap
+    assert "latest completed slice = Scientific Entity Semantic Prompt Threshold Calibration v0.2b" in roadmap
+    assert "next authorized slice = Scientific Entity Semantic Prompt Raw-Floor Extension v0.2c design/freeze" in roadmap
 
 
 def test_scientific_entity_semantic_prompt_v02a_is_closed_without_posthoc_promotion() -> None:
@@ -320,7 +320,7 @@ def test_scientific_entity_semantic_prompt_v02a_is_closed_without_posthoc_promot
     roadmap = _read("docs/roadmap.md")
     candidate = _read("docs/scientific_entity_semantic_prompt_candidate_v0.2a.md")
 
-    assert "current scientific entity checkpoint = Scientific Entity Semantic Prompt Candidate v0.2a" in readme
+    assert "current scientific entity checkpoint = Scientific Entity Semantic Prompt Threshold Calibration v0.2b" in readme
     assert "Scientific Entity Semantic Prompt Candidate v0.2a — completed; hard gate failed." in readme
     assert "scientific-entity-semantic-prompt-development-v0.2a-20260829T140201009151Z" in candidate
     assert "scientific-entity-gliner-small-v2.5-v0.1-20260829T141340564165Z" in candidate
@@ -342,8 +342,68 @@ def test_scientific_entity_semantic_prompt_v02a_is_closed_without_posthoc_promot
     assert "all type mismatches: 176 -> 125" in candidate
     assert "method semantic sink: 94 -> 54" in candidate
     assert "Scientific Entity Semantic Prompt Threshold Calibration v0.2b" in candidate
-    assert "current_extension = Scientific Entity Semantic Prompt Candidate v0.2a" in checkpoint
+    assert "current_extension = Scientific Entity Semantic Prompt Threshold Calibration v0.2b" in checkpoint
     assert "scientific entity v0.2a decision = hard gate failed" in checkpoint
-    assert "next entity slice = Scientific Entity Semantic Prompt Threshold Calibration v0.2b design/freeze" in checkpoint
-    assert "latest completed slice = Scientific Entity Semantic Prompt Candidate v0.2a controlled comparison" in roadmap
-    assert "next authorized slice = Scientific Entity Semantic Prompt Threshold Calibration v0.2b design/freeze" in roadmap
+    assert "next entity slice = Scientific Entity Semantic Prompt Raw-Floor Extension v0.2c design/freeze" in checkpoint
+    assert "latest completed slice = Scientific Entity Semantic Prompt Threshold Calibration v0.2b" in roadmap
+    assert "next authorized slice = Scientific Entity Semantic Prompt Raw-Floor Extension v0.2c design/freeze" in roadmap
+
+
+def test_scientific_entity_semantic_prompt_threshold_v02b_is_closed_without_gate_relaxation() -> None:
+    readme = _read("README.md")
+    checkpoint = _read("docs/project_state_current_v0.2.md")
+    roadmap = _read("docs/roadmap.md")
+    calibration = _read(
+        "docs/scientific_entity_semantic_prompt_threshold_calibration_v0.2b.md"
+    )
+
+    assert (
+        "current scientific entity checkpoint = "
+        "Scientific Entity Semantic Prompt Threshold Calibration v0.2b"
+    ) in readme
+    assert (
+        "Scientific Entity Semantic Prompt Threshold Calibration v0.2b — "
+        "completed; hard gate failed."
+    ) in readme
+    assert (
+        "scientific-entity-semantic-prompt-threshold-calibration-v0.2b-"
+        "20260830T093225845167Z"
+    ) in calibration
+    assert "trials = 35" in calibration
+    assert "semantic-safe eligible trials = 10" in calibration
+    assert "selected title threshold = 0.50" in calibration
+    assert "selected abstract threshold = 0.625" in calibration
+    assert "selected combined-72 exact F1 = 0.398654" in calibration
+    assert "selected consumed-48 exact F1 = 0.396453" in calibration
+    assert "difference = -0.000429" in calibration
+    assert "selected model -> method = 32" in calibration
+    assert "selected method -> task = 25" in calibration
+    assert "selected total type mismatches = 138" in calibration
+    assert "selected method semantic sink = 57" in calibration
+    assert "raw_input_floor_may_be_binding = true" in calibration
+    assert "strict validator = 53 / 53" in calibration
+    assert "candidate accepted = false" in calibration
+    assert "production_extractor_selected = false" in calibration
+    assert "full_corpus_build_authorized = false" in calibration
+    assert "| 0.600 | no | 0.400654 | 0.401227" in calibration
+    assert "| 0.625 | yes | 0.398654 | 0.396453" in calibration
+    assert "method -> task <= 25" in calibration
+    assert "Scientific Entity Semantic Prompt Raw-Floor Extension v0.2c" in calibration
+    assert (
+        "current_extension = "
+        "Scientific Entity Semantic Prompt Threshold Calibration v0.2b"
+    ) in checkpoint
+    assert "scientific entity v0.2b decision = hard gate failed" in checkpoint
+    assert (
+        "next entity slice = Scientific Entity Semantic Prompt Raw-Floor Extension "
+        "v0.2c design/freeze"
+    ) in checkpoint
+    assert (
+        "latest completed slice = "
+        "Scientific Entity Semantic Prompt Threshold Calibration v0.2b"
+    ) in roadmap
+    assert (
+        "next authorized slice = Scientific Entity Semantic Prompt Raw-Floor Extension "
+        "v0.2c design/freeze"
+    ) in roadmap
+
