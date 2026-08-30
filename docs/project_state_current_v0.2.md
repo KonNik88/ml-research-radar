@@ -3,7 +3,7 @@
 ## Document status
 
 ```text
-status = accepted post-orchestration and scientific-entity semantic-prompt-threshold-v0.2b calibration checkpoint
+status = accepted post-orchestration and scientific-entity semantic-prompt-raw-floor-v0.2c development-freeze checkpoint
 checkpoint_date = 2026-08-30
 supersedes_for_current_planning = docs/project_state_current_v0.1.md
 historical_detail_retained_in = docs/project_state_current_v0.1.md
@@ -11,14 +11,14 @@ canonical_truth_changed_by_document = false
 runtime_behavior_changed_by_document = false
 generated_layers_rebuilt_by_document = false
 publishes_dataset = false
-current_extension = Scientific Entity Semantic Prompt Threshold Calibration v0.2b
+current_extension = Scientific Entity Semantic Prompt Raw-Floor Candidate v0.2c Development Freeze
 ```
 
 This checkpoint records the accepted project state after the August 2026 safe
 canonical refresh, derived-layer synchronization, operational refresh runbook,
 Refresh Operational Orchestration v0.1 merge, the first completed bounded
 real-paper Scientific Entity evaluation, the frozen GLiNER-versus-literal
-pilot/dev comparison, fixture-validated read-only calibration tooling, the real 24-paper calibration execution, the frozen balanced development policy, the independent 48-paper held-out gate, the completed structured held-out error analysis, the completed semantic-prompt v0.2a controlled development comparison, and the completed v0.2b threshold calibration.
+pilot/dev comparison, fixture-validated read-only calibration tooling, the real 24-paper calibration execution, the frozen balanced development policy, the independent 48-paper held-out gate, the completed structured held-out error analysis, the completed semantic-prompt v0.2a controlled development comparison, the completed v0.2b threshold calibration, and the completed v0.2c raw-floor development-freeze line.
 
 It is a planning and transfer document. It is not a source dataset, reconcile
 input, runtime manifest, release authorization, or replacement for build-scoped
@@ -53,6 +53,14 @@ unchanged-policy build, controlled comparison, and gate decision are recorded in
 The completed v0.2b threshold calibration, deterministic trial landscape, semantic-safe
 selection, negative hard-gate decision, and raw-floor diagnosis are recorded in
 [`docs/scientific_entity_semantic_prompt_threshold_calibration_v0.2b.md`](scientific_entity_semantic_prompt_threshold_calibration_v0.2b.md).
+
+The completed v0.2c raw-floor design, immutable raw evidence, five-trial calibration,
+selected-policy materialization, and controlled development comparison are recorded in:
+
+- [`docs/scientific_entity_semantic_prompt_raw_floor_extension_v0.2c.md`](scientific_entity_semantic_prompt_raw_floor_extension_v0.2c.md)
+- [`docs/scientific_entity_semantic_prompt_raw_floor_calibration_v0.2c.md`](scientific_entity_semantic_prompt_raw_floor_calibration_v0.2c.md)
+- [`docs/scientific_entity_semantic_prompt_raw_floor_policy_v0.2c.md`](scientific_entity_semantic_prompt_raw_floor_policy_v0.2c.md)
+- [`docs/scientific_entity_semantic_prompt_raw_floor_comparison_v0.2c.md`](scientific_entity_semantic_prompt_raw_floor_comparison_v0.2c.md)
 
 ---
 
@@ -148,6 +156,7 @@ of file-backed truth. They must remain rebuildable.
 | Scientific Entity Held-Out Error Analysis | completed diagnostic decision checkpoint | analysis `scientific-entity-heldout-error-analysis-v0.1-20260828T121239202063Z`; 48 papers / 808 errors / 398 checks | `model -> method = 55`, `method -> task = 28`; window coverage complete; 5 markup-expanded wide-span FNs; first v0.2a hypothesis = more discriminative semantic prompts |
 | Scientific Entity Semantic Prompt Candidate v0.2a | completed controlled development comparison; hard gate failed | development package `scientific-entity-semantic-prompt-development-v0.2a-20260829T140201009151Z`; raw build `scientific-entity-gliner-small-v2.5-v0.1-20260829T141340564165Z`; policy build `scientific-entity-semantic-prompt-policy-v0.2a-20260829T143901678616Z`; comparison `scientific-entity-semantic-prompt-comparison-v0.2a-20260829T145954260189Z` | 72 development papers / 1316 references / 977 selected predictions; consumed-48 exact F1 `0.383706` missed frozen floor `0.386882`; semantic confusion improved materially; next hypothesis = threshold calibration v0.2b |
 | Scientific Entity Semantic Prompt Threshold Calibration v0.2b | completed bounded calibration; hard gate failed | calibration `scientific-entity-semantic-prompt-threshold-calibration-v0.2b-20260830T093225845167Z`; 35 trials / 10 semantic-safe eligible / selected title `0.50` / abstract `0.625`; validator `53 / 53` | combined-72 exact F1 `0.398654`; consumed-48 exact F1 `0.396453` missed frozen floor `0.396882` by `0.000429`; semantic guardrails passed; raw title input floor may be binding; next hypothesis = raw-floor extension v0.2c |
+| Scientific Entity Semantic Prompt Raw-Floor Candidate v0.2c | development freeze completed; independent acceptance pending | raw build `scientific-entity-gliner-small-v2.5-v0.1-20260830T100756992945Z` / `1762` predictions / `91 / 91`; calibration `scientific-entity-semantic-prompt-raw-floor-calibration-v0.2c-20260830T104242195583Z` / 5 trials / 4 eligible / `61 / 61`; policy `scientific-entity-semantic-prompt-raw-floor-policy-v0.2c-20260830T105318817514Z` / `1077` predictions / `48 / 48`; comparison `scientific-entity-semantic-prompt-raw-floor-comparison-v0.2c-20260830T110628936475Z` / `45 / 45` | selected title `0.45` / abstract `0.625`; combined exact F1 `0.403677`; consumed-48 exact F1 `0.400000`; relaxed F1 `0.422642`; semantic guardrails passed; candidate ready for development freeze; next = new disjoint prediction-blind v0.2 held-out |
 | Refresh operational orchestration | implemented | v0.1 | Recommended operational refresh entrypoint |
 
 The previous Qdrant, graph, and dataset candidates are not silently redefined as
@@ -462,15 +471,22 @@ Recommended order:
    - trial landscape shows `title=0.50 / abstract=0.60` would pass F1 (`0.401227` consumed-48) but violates semantic safety (`method -> task = 28`), while lowering title at `abstract=0.625` improves F1 without observed semantic-count regression and reaches the current raw floor;
    - v0.2b is not accepted and no hard gate is relaxed post hoc.
 
-15. **Scientific Entity Semantic Prompt Raw-Floor Extension v0.2c — next**
-   - retain v0.2a prompts, pinned small-v2.5 runtime, evaluator, semantic guardrails, and consumed 72-paper development evidence;
-   - lower only the raw inference score floor below `0.50` so title thresholds below the current evidence boundary become observable;
-   - keep the next experiment bounded and pre-freeze its raw-floor value, threshold-search range, and decision criteria before inference;
-   - do not use a fresh independent held-out sample.
+15. **Scientific Entity Semantic Prompt Raw-Floor Candidate v0.2c — development freeze completed**
+   - lowered only raw inference floor `0.50 -> 0.40` with v0.2a prompts/model/runtime otherwise fixed;
+   - raw build `scientific-entity-gliner-small-v2.5-v0.1-20260830T100756992945Z`: 72 papers, 1762 raw predictions, validator `91 / 91`;
+   - preserved all `1430 / 1430` baseline v0.2a mention IDs with unchanged scores; one additional title `method` mention (`Transfer Learning`) appeared at score exactly `0.50`;
+   - five-trial calibration selected `title=0.45 / abstract=0.625`; 4 trials were semantic-safe; calibration `scientific-entity-semantic-prompt-raw-floor-calibration-v0.2c-20260830T104242195583Z` passed `61 / 61`;
+   - selected policy build `scientific-entity-semantic-prompt-raw-floor-policy-v0.2c-20260830T105318817514Z` materialized 1077 predictions and passed `48 / 48`;
+   - controlled comparison `scientific-entity-semantic-prompt-raw-floor-comparison-v0.2c-20260830T110628936475Z` passed `45 / 45`, reproduced calibration, and recorded old-dev exact F1 `0.410959`, consumed-48 exact F1 `0.400000`, consumed-48 relaxed F1 `0.422642`, combined exact F1 `0.403677`;
+   - consumed-48 semantic diagnostics: `model -> method 32`, `method -> task 25`, total type mismatches `140`, method sink `58`; all frozen hard guardrails passed;
+   - `candidate_ready_for_development_freeze = true`, but independent v0.2 acceptance remains false;
+   - no production extractor selection, fresh-held-out consumption, canonical mutation, or full-corpus authorization occurred.
 
-16. **Fresh v0.2 Held-Out Gate — later**
-   - select a new disjoint prediction-blind sample only after a promising v0.2 candidate is frozen;
-   - require independent evidence before any v0.2 acceptance claim.
+16. **Fresh v0.2 Held-Out Gate — next**
+   - create a new disjoint prediction-blind sample that did not participate in v0.2 prompt design, threshold selection, raw-floor extension, or development comparison;
+   - freeze sampling, annotation, candidate inference, evaluation, and acceptance gates before viewing candidate quality;
+   - do not tune v0.2c against this new held-out set;
+   - require this independent evidence before any v0.2 acceptance or production-quality claim.
 
 17. **Accepted Large-Scale Derived Entity Build — deferred**
    - requires a later production-quality decision and explicit full-corpus authorization;
@@ -568,10 +584,13 @@ scientific entity v0.2a semantic signal = model->method 31 / method->task 21 / t
 scientific entity v0.2b calibration = scientific-entity-semantic-prompt-threshold-calibration-v0.2b-20260830T093225845167Z / 35 trials / 10 eligible / 53 of 53 checks
 scientific entity v0.2b selected policy = title 0.50 / abstract 0.625 / combined exact F1 0.398654 / consumed-48 exact F1 0.396453
 scientific entity v0.2b decision = hard gate failed / consumed-48 exact F1 below frozen 0.396882 floor by 0.000429 / semantic guardrails passed / not accepted
-scientific entity v0.2b raw-floor signal = selected title threshold equals raw input floor 0.50 / raw_input_floor_may_be_binding true
-scientific entity v0.2b landscape = abstract 0.60 recovers F1 but violates method-to-task guardrail; title lowering at abstract 0.625 improves F1 without observed semantic-count regression
-scientific entity next v0.2 hypothesis = semantic-prompt raw-floor extension v0.2c
-next entity slice = Scientific Entity Semantic Prompt Raw-Floor Extension v0.2c design/freeze
+scientific entity v0.2c raw build = scientific-entity-gliner-small-v2.5-v0.1-20260830T100756992945Z / raw floor 0.40 / 72 docs / 1762 predictions / 91 of 91 checks
+scientific entity v0.2c calibration = scientific-entity-semantic-prompt-raw-floor-calibration-v0.2c-20260830T104242195583Z / 5 trials / 4 eligible / title 0.45 / abstract 0.625 / 61 of 61 checks
+scientific entity v0.2c selected policy = scientific-entity-semantic-prompt-raw-floor-policy-v0.2c-20260830T105318817514Z / 1077 predictions / 48 of 48 checks
+scientific entity v0.2c comparison = scientific-entity-semantic-prompt-raw-floor-comparison-v0.2c-20260830T110628936475Z / combined exact F1 0.403677 / consumed-48 exact F1 0.400000 / relaxed F1 0.422642 / 45 of 45 checks
+scientific entity v0.2c decision = development gates passed / candidate ready for development freeze true / independent v0.2 acceptance pending / production selection false
+scientific entity next v0.2 gate = fresh disjoint prediction-blind held-out
+next entity slice = Fresh v0.2 Held-Out Gate design/freeze
 ```
 
 The project is not restarting or replacing completed work. The next entity

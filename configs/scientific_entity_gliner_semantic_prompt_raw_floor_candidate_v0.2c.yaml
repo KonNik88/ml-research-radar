@@ -1,0 +1,128 @@
+schema_version: scientific_entity_gliner_candidate_config_v0.1
+
+layer:
+  name: bounded_scientific_entity_gliner_candidate_adapter
+  version: v0.1
+  status: experimental_candidate
+  layer_kind: derived_candidate_mention_evidence
+  description: >-
+    Bounded zero-shot GLiNER semantic-prompt raw-floor candidate v0.2c. The
+    semantic prompts, model weights, source fields, windowing, safety, output
+    layout, and canonical entity taxonomy remain unchanged from v0.2a; only
+    extractor identity and the raw inference score floor are changed.
+
+extractor:
+  name: ml_radar_gliner_small_v2_5_semantic_prompt_raw_floor_candidate
+  version: 0.2.0c1
+  kind: statistical_model
+  environment_lock_path: requirements/requirements.entities_gliner.lock.txt
+  code_revision_policy: normalized_source_bundle_sha256
+  config_fingerprint_policy: sha256_of_canonical_semantic_json
+  confidence_kind: model_score
+
+model:
+  repository: gliner-community/gliner_small-v2.5
+  revision: f227d3cd637bd4e6757ae143935316d062393341
+  variant: fp16
+  artifact_filename: model.fp16.safetensors
+  artifact_sha256: d444ff406b27affc07e3165b454c3adc9f25f228c81ede197a7b806f49d12c74
+  artifact_size_bytes: 332065392
+  license: Apache-2.0
+  library: gliner
+  library_version: 0.2.28
+  required_snapshot_files:
+    - added_tokens.json
+    - gliner_config.json
+    - model.fp16.safetensors
+    - special_tokens_map.json
+    - spm.model
+    - tokenizer.json
+    - tokenizer_config.json
+  backbone_config:
+    repository: microsoft/deberta-v3-small
+    revision: a36c739020e01763fe789b4b85e2df55d6180012
+    artifact_filename: config.json
+    artifact_sha256: b0bb1caf90a50aa67d1085130508dfbf8646ac5a11928305e280b07a36e100ae
+    artifact_size_bytes: 578
+    model_type: deberta-v2
+    resolution_policy: verified_local_config_injection
+
+inference:
+  source_fields:
+    - title
+    - abstract
+  threshold: 0.4
+  flat_ner: false
+  multi_label: false
+  window_size_tokens: 320
+  window_overlap_tokens: 64
+  batch_size: 1
+  device: cuda
+  seed: 0
+  normalization_before_offsets: forbidden
+  surface_from_exact_source_slice: true
+  overlap_reconciliation: highest_score_per_exact_span_and_type
+  labels:
+    - entity_type: task
+      prompt: machine learning task, prediction problem, or learning objective
+    - entity_type: method
+      prompt: algorithm, training procedure, optimization method, or computational technique
+    - entity_type: dataset
+      prompt: named dataset, benchmark dataset, corpus, or data collection
+    - entity_type: metric
+      prompt: quantitative metric, score, measured property, or efficiency measure
+    - entity_type: model
+      prompt: named machine learning or statistical model, neural network, or model architecture
+    - entity_type: domain
+      prompt: research field, scientific domain, application area, or data domain
+
+safety:
+  default_max_documents: 32
+  hard_max_documents: 100
+  fail_if_input_exceeds_limit: true
+  truncation_allowed: false
+  forbid_current_canonical_input: true
+  current_canonical_path: data/analytics/reconciled/canonical_documents.jsonl
+  allowed_build_statuses:
+    - fixture
+    - candidate
+  accepted_status_may_be_emitted: false
+  execute_required_for_writes: true
+  overwrite_allowed: false
+  model_download_requires_explicit_flag: true
+  provider_api_allowed: false
+  canonical_truth_mutation_allowed: false
+  reconcile_input_allowed: false
+  publication_allowed: false
+
+outputs:
+  root: data/entities/scientific_entity_evidence/v0.1
+  immutable_build_directory: true
+  mutable_latest_pointer: false
+  encoding: utf-8
+  line_ending: lf
+  required_files:
+    - mentions.jsonl
+    - manifest.json
+    - schema.json
+    - data_quality_summary.json
+    - README.md
+    - checksums.txt
+
+validation:
+  report_dir: artifacts/reports/validation
+  require_independent_output_validator: true
+  require_exact_spans: true
+  require_deterministic_order: true
+  require_identity_recomputation: true
+  require_checksums: true
+  require_lf_outputs: true
+  require_bounded_input: true
+  require_model_artifact_hash: true
+  require_backbone_config_hash: true
+  require_no_silent_truncation: true
+
+fixtures:
+  default_input_path: >-
+    tests/fixtures/scientific_entity_gliner_candidate_v0_1/canonical_documents.jsonl
+  synthetic_only: true
