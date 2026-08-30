@@ -1,0 +1,118 @@
+schema_version: scientific_entity_semantic_prompt_threshold_calibration_v0.2b
+
+layer:
+  name: scientific_entity_semantic_prompt_threshold_calibration
+  version: v0.2b
+  status: design_frozen
+  layer_kind: derived_bounded_threshold_policy_evidence
+
+lineage:
+  candidate_id: scientific-entity-semantic-prompt-candidate-v0.2a
+  candidate_design_config_path: configs/scientific_entity_semantic_prompt_candidate_v0.2a.yaml
+  evaluation_config_path: configs/scientific_entity_evaluation_v0.1.yaml
+  development_package_id: scientific-entity-semantic-prompt-development-v0.2a-20260829T140201009151Z
+  raw_build_id: scientific-entity-gliner-small-v2.5-v0.1-20260829T141340564165Z
+  raw_extractor_fingerprint: 3e890253263ca3e5d7fa06e9a731205b020ec1251123b8aa1926a696180e48c0
+  v02a_comparison_id: scientific-entity-semantic-prompt-comparison-v0.2a-20260829T145954260189Z
+  expected_document_count: 72
+  expected_reference_mention_count: 1316
+  expected_raw_prediction_count: 1430
+  development_splits:
+    - old_dev_24
+    - consumed_v01_heldout_48
+    - combined_dev_72
+
+search:
+  input_threshold: 0.50
+  threshold_is_inclusive: true
+  title_thresholds:
+    - 0.50
+    - 0.525
+    - 0.55
+    - 0.575
+    - 0.60
+  abstract_thresholds:
+    - 0.50
+    - 0.525
+    - 0.55
+    - 0.575
+    - 0.60
+    - 0.625
+    - 0.65
+  expected_trial_count: 35
+  source_field_pair_search_only: true
+  entity_type_overrides_allowed: false
+  thresholds_below_raw_input_floor_allowed: false
+  inherited_v02a_policy:
+    title: 0.55
+    abstract: 0.65
+
+semantic_guardrails:
+  decision_split: consumed_v01_heldout_48
+  maximum_model_to_method_count: 43
+  maximum_method_to_task_count: 25
+  maximum_total_type_mismatch_count: 150
+  maximum_method_semantic_sink_count: 74
+  maximum_any_predicted_type_mismatch_sink_count: 74
+  require_all_guardrails_for_eligibility: true
+
+selection:
+  eligible_trials_only: true
+  primary_objective: combined_dev_72_exact_f1
+  tie_break_order:
+    - combined_dev_72_relaxed_f1_desc
+    - combined_dev_72_exact_recall_desc
+    - threshold_sum_desc
+    - title_threshold_desc
+    - abstract_threshold_desc
+    - trial_id_asc
+  automatic_production_promotion_allowed: false
+
+decision:
+  role: development_candidate_gate_not_independent_acceptance
+  selected_policy_minimum_consumed_heldout_exact_f1: 0.396882
+  selected_policy_minimum_combined_dev_exact_f1: 0.386393
+  selected_policy_minimum_consumed_heldout_relaxed_f1_desirable: 0.414868
+  require_semantic_guardrails: true
+  all_hard_gates_required_for_promising: true
+  selected_trial_is_not_automatic_acceptance: true
+
+safety:
+  model_inference_allowed: false
+  model_or_tokenizer_download_allowed: false
+  prompt_changes_allowed: false
+  model_changes_allowed: false
+  threshold_search_allowed_after_contract_freeze: true
+  canonical_truth_mutation_allowed: false
+  reconcile_input_allowed: false
+  provider_api_allowed: false
+  fresh_heldout_consumption_allowed: false
+  production_extractor_selected: false
+  full_corpus_build_authorized: false
+  publication_allowed: false
+  overwrite_allowed: false
+  execute_required_for_writes: true
+  current_72_is_development_only: true
+  future_v02_acceptance_requires_new_disjoint_heldout: true
+
+outputs:
+  root: data/entities/scientific_entity_semantic_prompt_threshold_calibration/v0.2b
+  immutable_calibration_directory: true
+  encoding: utf-8
+  line_ending: lf
+  required_files:
+    - manifest.json
+    - trials.jsonl
+    - selected_policy.json
+    - diagnostics.json
+    - README.md
+    - checksums.txt
+
+validation:
+  report_dir: artifacts/reports/validation
+  require_independent_validator: true
+  require_deterministic_recomputation: true
+  require_input_hashes: true
+  require_checksums: true
+  require_lf_outputs: true
+  require_fail_closed_safety: true

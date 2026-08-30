@@ -4,17 +4,17 @@
 
 ```text
 document = primary living roadmap
-accepted checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Semantic Prompt Candidate v0.2a
+accepted checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Semantic Prompt Threshold Calibration v0.2b
 base checkpoint = current canonical latest 61,075 with synchronized core and Discovery derived layers
 current active direction = Scientific Entity Evidence Layer
-latest completed slice = Scientific Entity Semantic Prompt Candidate v0.2a controlled comparison
-next authorized slice = Scientific Entity Semantic Prompt Threshold Calibration v0.2b design/freeze
+latest completed slice = Scientific Entity Semantic Prompt Threshold Calibration v0.2b
+next authorized slice = Scientific Entity Semantic Prompt Raw-Floor Extension v0.2c design/freeze
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
 dataset publication = paused pending redistribution guidance
-current entity boundary = v0.2a semantic-prompt controlled comparison complete on 72 consumed development papers; semantic confusion improved materially but the pre-frozen exact-F1 guardrail failed because recall fell under inherited v0.1 thresholds; v0.2a is not accepted as the next candidate configuration; threshold recalibration v0.2b is next; production/full-corpus remains unauthorized
+current entity boundary = v0.2b threshold calibration complete on the existing 72-paper v0.2a development evidence; selected title 0.50 / abstract 0.625 preserved semantic guardrails and improved combined-dev F1 but missed the consumed-48 exact-F1 floor by 0.000429; the selected title threshold sits on the raw 0.50 evidence boundary; v0.2b is not accepted; raw-floor extension v0.2c is next; production/full-corpus remains unauthorized
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -41,7 +41,7 @@ evaluation validator passed `69 / 69`. GLiNER is retained as the leading
 bounded candidate without promotion. The read-only calibration layer now
 declares 127 global/source-pair/type-probe trials, keeps type probes diagnostic,
 and independently reproduces immutable output. Its tracked fixture is green.
-The real candidate calibration and policy review are complete: calibration `scientific-entity-gliner-dev-calibration-v0.1-20260823T152930597192Z` passed `53 / 53` strict checks and freezes the balanced source-field dev policy `title >= 0.55` / `abstract >= 0.65`. That policy was materialized and evaluated once on a new disjoint 48-paper prediction-blind held-out package with 881 references. The held-out exact F1 is `0.396882` and relaxed F1 is `0.414868`; generalization passed, but production/full-corpus promotion remains forbidden. Structured error analysis is complete: analysis `scientific-entity-heldout-error-analysis-v0.1-20260828T121239202063Z` passed `398 / 398` strict checks and selected semantic prompt disambiguation as the first v0.2 hypothesis. That controlled v0.2a experiment is now also complete. A zero-overlap 72-paper development package produced a 1430-prediction raw build and a 977-prediction unchanged-policy build; comparison `scientific-entity-semantic-prompt-comparison-v0.2a-20260829T145954260189Z` validated with `required_failed_count=0`. On the consumed-48 decision view, semantic confusions improved strongly but exact F1 `0.383706` missed the pre-frozen floor `0.386882`, so v0.2a is not accepted as the next candidate configuration. The next authorized action is a separately frozen threshold-recalibration v0.2b over the same consumed development evidence, not a fresh held-out run or full-corpus extraction.
+The real candidate calibration and policy review are complete: calibration `scientific-entity-gliner-dev-calibration-v0.1-20260823T152930597192Z` passed `53 / 53` strict checks and freezes the balanced source-field dev policy `title >= 0.55` / `abstract >= 0.65`. That policy was materialized and evaluated once on a new disjoint 48-paper prediction-blind held-out package with 881 references. The held-out exact F1 is `0.396882` and relaxed F1 is `0.414868`; generalization passed, but production/full-corpus promotion remains forbidden. Structured error analysis is complete: analysis `scientific-entity-heldout-error-analysis-v0.1-20260828T121239202063Z` passed `398 / 398` strict checks and selected semantic prompt disambiguation as the first v0.2 hypothesis. That controlled v0.2a experiment is complete. A zero-overlap 72-paper development package produced a 1430-prediction raw build and a 977-prediction unchanged-policy build; comparison `scientific-entity-semantic-prompt-comparison-v0.2a-20260829T145954260189Z` validated with `required_failed_count=0`. The follow-on v0.2b threshold calibration is now also complete: calibration `scientific-entity-semantic-prompt-threshold-calibration-v0.2b-20260830T093225845167Z` evaluated 35 policies, found 10 semantic-safe trials, and selected `title=0.50 / abstract=0.625`. Combined-72 exact F1 reached `0.398654`, while consumed-48 exact F1 `0.396453` missed the frozen `0.396882` floor by `0.000429`; semantic guardrails passed and strict validation passed `53 / 53`. Because the selected title threshold equals the raw `0.50` input floor, and title lowering at fixed abstract `0.625` improves F1 without observed semantic-count regression, the next authorized action is a separately frozen raw-floor extension v0.2c, not a gate relaxation, fresh held-out run, or full-corpus extraction.
 
 ---
 
@@ -155,6 +155,7 @@ Recently completed safe slices:
 54. **Scientific Entity Independent Held-Out Review and Evaluation v0.1** — completed a 48-paper disjoint prediction-blind gate with 881 references, 787 frozen-policy predictions, exact F1 `0.396882`, relaxed F1 `0.414868`, and bounded v0.1 acceptance without production/full-corpus promotion.
 55. **Scientific Entity Held-Out Error Analysis v0.1** — completed deterministic post-held-out diagnosis with `398 / 398` strict checks, `model -> method = 55`, `method -> task = 28`, complete `320/64` adapter-window coverage, and five markup-expanded references wider than `model_max_width=12`; selected semantic-prompt disambiguation as the first v0.2a hypothesis.
 56. **Scientific Entity Semantic Prompt Candidate v0.2a** — completed a controlled prompt-only development experiment with the same pinned small-v2.5 model, revision, weights, windowing, six canonical types, and inherited `title 0.55 / abstract 0.65` policy. The 72-paper development package had zero split overlap; the raw build emitted `1430` predictions, policy selected `977`, and comparison `scientific-entity-semantic-prompt-comparison-v0.2a-20260829T145954260189Z` used `1316` references. On consumed-48, `model -> method` fell `55 -> 31`, `method -> task` `28 -> 21`, type mismatches `176 -> 125`, and method sink `94 -> 54`, but exact F1 `0.383706` failed the pre-frozen `0.386882` floor. v0.2a is therefore closed as a negative/partially successful development result, with threshold recalibration v0.2b selected as the next bounded hypothesis.
+57. **Scientific Entity Semantic Prompt Threshold Calibration v0.2b** — completed a deterministic 35-trial title/abstract threshold search over the existing v0.2a raw evidence without model inference. Ten trials passed semantic-safe eligibility. The selected trial `calibration-trial:05df528b9ef88cd383ce1c8f02e3b23e` uses `title=0.50 / abstract=0.625`, reaches combined-72 exact F1 `0.398654`, and preserves semantic guards (`model -> method 32`, `method -> task 25`, type mismatches `138`, method sink `57`), but consumed-48 exact F1 `0.396453` misses the pre-frozen `0.396882` floor by `0.000429`. Validation passed `53 / 53`. The trial landscape shows lower abstract thresholds can recover F1 only by violating semantic safety, while lower title thresholds at abstract `0.625` improve F1 and reach the raw `0.50` evidence floor; raw-floor extension v0.2c is therefore the next bounded hypothesis.
 
 Recommended next safe slices:
 
@@ -164,11 +165,12 @@ Recommended next safe slices:
 4. **Independent Held-Out Review and Evaluation — completed.** The 48-paper prediction-blind sample produced 881 references; unchanged frozen-policy predictions reached exact F1 `0.396882` and relaxed F1 `0.414868`, passing the bounded generalization gate.
 5. **Scientific Entity Held-Out Error Analysis v0.1 — completed.** Analysis `scientific-entity-heldout-error-analysis-v0.1-20260828T121239202063Z` passed `398 / 398` strict checks; semantic type confusion dominates, adapter window coverage is complete, and five markup-expanded wide-span FNs are isolated as a bounded corner case.
 6. **Scientific Entity Semantic Prompt Candidate v0.2a — completed; hard gate failed.** The prompt-only experiment materially reduced semantic type confusion and raised precision, but recall fell under inherited v0.1 thresholds; consumed-48 exact F1 `0.383706` missed the frozen floor `0.386882`.
-7. **Scientific Entity Semantic Prompt Threshold Calibration v0.2b — next.** Keep v0.2a prompts/model/runtime fixed; freeze a bounded source-field threshold search and decision gate before calibration, using only the already-consumed 72-paper development evidence.
-8. **Fresh v0.2 Held-Out Gate — later.** Spend a new disjoint prediction-blind held-out sample only after a promising v0.2 candidate is frozen.
-9. **Accepted Large-Scale Derived Entity Build — deferred.** Requires explicit production-quality acceptance and full-corpus authorization; current development results are insufficient.
-10. **Normalization / Linking / Product and Graph Integration — deferred.** Proceed only after entity typing quality is hardened enough that normalization will not amplify noisy evidence.
-11. **Full-text / Chunk Provenance Contract** — only after the entity line is stable and before any grounded RAG implementation.
+7. **Scientific Entity Semantic Prompt Threshold Calibration v0.2b — completed; hard gate failed.** The selected `title=0.50 / abstract=0.625` policy preserves semantic safety and reaches combined-72 exact F1 `0.398654`, but consumed-48 exact F1 `0.396453` misses the frozen `0.396882` floor by `0.000429`; no gate is relaxed post hoc.
+8. **Scientific Entity Semantic Prompt Raw-Floor Extension v0.2c — next.** Keep v0.2a prompts/model/runtime/evaluator and semantic guardrails fixed; lower only the raw inference score floor below `0.50` so title thresholds below the current evidence boundary can be tested on the same consumed 72-paper development pool.
+9. **Fresh v0.2 Held-Out Gate — later.** Spend a new disjoint prediction-blind held-out sample only after a promising v0.2 candidate is frozen.
+10. **Accepted Large-Scale Derived Entity Build — deferred.** Requires explicit production-quality acceptance and full-corpus authorization; current development results are insufficient.
+11. **Normalization / Linking / Product and Graph Integration — deferred.** Proceed only after entity typing quality is hardened enough that normalization will not amplify noisy evidence.
+12. **Full-text / Chunk Provenance Contract** — only after the entity line is stable and before any grounded RAG implementation.
 
 Explicit immediate non-goals:
 
@@ -5112,7 +5114,7 @@ full-corpus authorization = false
 24-paper package = dev diagnostics, never post-tuning held-out evidence
 48-paper held-out package = valid held-out evidence for v0.1; development/error-analysis evidence for any v0.2 designed from its errors
 next slice at held-out checkpoint = structured held-out error analysis / completed
-current next slice = Scientific Entity Semantic Prompt Candidate v0.2a design/freeze and controlled comparison
+current next slice = Scientific Entity Semantic Prompt Raw-Floor Extension v0.2c design/freeze
 ```
 
 The comparison preserves the narrow six-type product ontology. The first
