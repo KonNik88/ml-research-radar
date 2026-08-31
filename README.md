@@ -35,11 +35,11 @@ paper-centric research-discovery system.
 ## Current validated checkpoint
 
 ```text
-checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Semantic Prompt Raw-Floor Candidate v0.2c Development Freeze
-current scientific entity checkpoint = Scientific Entity Semantic Prompt Raw-Floor Candidate v0.2c Development Freeze
+checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Fresh v0.2 Held-Out Gate Design Freeze
+current scientific entity checkpoint = Scientific Entity Fresh v0.2 Held-Out Gate Design Freeze
 base checkpoint = safe canonical refresh and synchronized core/Discovery derived layers
 scientific entity status = bounded literal control + evaluation harness + completed 24-paper review + GLiNER candidate adapter
-scientific entity quality status = semantic-prompt raw-floor v0.2c development candidate frozen; raw floor 0.40 produced 1762 predictions, five-trial calibration selected title 0.45 / abstract 0.625, controlled 24/48/72 comparison reproduced combined exact F1 0.403677 and consumed-48 exact F1 0.400000 with frozen semantic guardrails; development gates pass; independent v0.2 acceptance still requires a new disjoint prediction-blind held-out; no production selection or full-corpus build
+scientific entity quality status = semantic-prompt raw-floor v0.2c remains frozen as a promising development candidate; the independent Fresh v0.2 Held-Out Gate design is now frozen before sample selection, with a new 48-paper deterministic prediction-blind sample contract, zero overlap against all 72 consumed development papers, hard exact-F1 floor 0.396882, preserved semantic guardrails, and no post-heldout tuning; fresh sample not yet selected or consumed; no production selection or full-corpus build
 public behavior change = none
 public dense/hybrid backend = file
 experimental Qdrant endpoint = explicit
@@ -88,6 +88,7 @@ and controlled development comparison are recorded in:
 - [`docs/scientific_entity_semantic_prompt_raw_floor_calibration_v0.2c.md`](docs/scientific_entity_semantic_prompt_raw_floor_calibration_v0.2c.md)
 - [`docs/scientific_entity_semantic_prompt_raw_floor_policy_v0.2c.md`](docs/scientific_entity_semantic_prompt_raw_floor_policy_v0.2c.md)
 - [`docs/scientific_entity_semantic_prompt_raw_floor_comparison_v0.2c.md`](docs/scientific_entity_semantic_prompt_raw_floor_comparison_v0.2c.md)
+- [`docs/scientific_entity_fresh_heldout_gate_v0.2.md`](docs/scientific_entity_fresh_heldout_gate_v0.2.md)
 
 Current corpus and retrieval baseline:
 
@@ -839,12 +840,20 @@ Recommended order:
     semantic diagnostics remained within frozen guardrails and comparison validation passed `45 / 45`.
     v0.2c is therefore frozen as a promising **development candidate**, not independently accepted.
 
-16. **Fresh v0.2 Held-Out Gate — next.**
-    Prepare a new disjoint prediction-blind held-out sample that was not used for prompt design,
-    threshold calibration, raw-floor selection, or development comparison. Freeze the sampling,
-    annotation, evaluation, and acceptance contract before candidate inference/evaluation.
+16. **Fresh v0.2 Held-Out Gate — design freeze completed.**
+    The independent acceptance contract is frozen before sample selection. It requires a new
+    deterministic 48-paper prediction-blind sample (`24` uniform + `24` type-enriched), zero
+    canonical-ID overlap with all 72 consumed development papers, title+abstract annotation,
+    at least 20 frozen references per entity type, no unresolved uncertain references, exact
+    F1 >= `0.396882`, preserved semantic guardrails, and no post-heldout tuning. Relaxed F1
+    `0.414868` remains desirable rather than a newly introduced hard gate.
 
-17. **Accepted Large-Scale Derived Entity Build — deferred.**
+17. **Fresh v0.2 Held-Out Sample — next.**
+    Materialize and validate the deterministic blank annotation package without reading any
+    v0.2c predictions. Only after the reference evidence is manually completed and frozen may
+    the candidate be run once.
+
+18. **Accepted Large-Scale Derived Entity Build — deferred.**
     Requires explicit production-quality acceptance and separate full-corpus authorization.
 
 18. **Normalization / Linking / Product and Graph Integration — deferred.**

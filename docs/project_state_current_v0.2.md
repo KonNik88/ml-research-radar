@@ -3,7 +3,7 @@
 ## Document status
 
 ```text
-status = accepted post-orchestration and scientific-entity semantic-prompt-raw-floor-v0.2c development-freeze checkpoint
+status = accepted post-orchestration and scientific-entity fresh-v0.2-heldout-gate design-freeze checkpoint
 checkpoint_date = 2026-08-30
 supersedes_for_current_planning = docs/project_state_current_v0.1.md
 historical_detail_retained_in = docs/project_state_current_v0.1.md
@@ -11,7 +11,7 @@ canonical_truth_changed_by_document = false
 runtime_behavior_changed_by_document = false
 generated_layers_rebuilt_by_document = false
 publishes_dataset = false
-current_extension = Scientific Entity Semantic Prompt Raw-Floor Candidate v0.2c Development Freeze
+current_extension = Scientific Entity Fresh v0.2 Held-Out Gate Design Freeze
 ```
 
 This checkpoint records the accepted project state after the August 2026 safe
@@ -61,6 +61,7 @@ selected-policy materialization, and controlled development comparison are recor
 - [`docs/scientific_entity_semantic_prompt_raw_floor_calibration_v0.2c.md`](scientific_entity_semantic_prompt_raw_floor_calibration_v0.2c.md)
 - [`docs/scientific_entity_semantic_prompt_raw_floor_policy_v0.2c.md`](scientific_entity_semantic_prompt_raw_floor_policy_v0.2c.md)
 - [`docs/scientific_entity_semantic_prompt_raw_floor_comparison_v0.2c.md`](scientific_entity_semantic_prompt_raw_floor_comparison_v0.2c.md)
+- [`docs/scientific_entity_fresh_heldout_gate_v0.2.md`](scientific_entity_fresh_heldout_gate_v0.2.md)
 
 ---
 
@@ -482,13 +483,23 @@ Recommended order:
    - `candidate_ready_for_development_freeze = true`, but independent v0.2 acceptance remains false;
    - no production extractor selection, fresh-held-out consumption, canonical mutation, or full-corpus authorization occurred.
 
-16. **Fresh v0.2 Held-Out Gate — next**
-   - create a new disjoint prediction-blind sample that did not participate in v0.2 prompt design, threshold selection, raw-floor extension, or development comparison;
-   - freeze sampling, annotation, candidate inference, evaluation, and acceptance gates before viewing candidate quality;
-   - do not tune v0.2c against this new held-out set;
-   - require this independent evidence before any v0.2 acceptance or production-quality claim.
+16. **Fresh v0.2 Held-Out Gate — design freeze completed**
+   - candidate remains the exact frozen v0.2c development candidate: raw floor `0.40`, title `0.45`, abstract `0.625`, no entity-type overrides;
+   - sample contract is frozen at 48 papers: 24 deterministic uniform + 24 deterministic type-enriched (`4` per entity type), title+abstract only;
+   - all 72 consumed development papers must be excluded by canonical ID; the former v0.1 held-out 48 are explicitly consumed development evidence for v0.2;
+   - annotation is prediction-blind; candidate predictions are forbidden during sampling and annotation;
+   - reference adequacy requires all 96 rows complete, zero unresolved uncertain mentions, and at least 20 reference mentions for each of the six entity types;
+   - independent hard quality floor is exact F1 `>= 0.396882`; relaxed F1 `>= 0.414868` remains desirable, not hard;
+   - semantic hard caps remain `model -> method <=43`, `method -> task <=25`, total mismatches `<=150`, method sink `<=74`, any sink `<=74`;
+   - any held-out failure consumes the sample as future development evidence; v0.2c may not be tuned and reaccepted on the same sample;
+   - design slice selected no sample, ran no inference/evaluation, mutated no canonical truth, and authorized no production/full-corpus promotion.
 
-17. **Accepted Large-Scale Derived Entity Build — deferred**
+17. **Fresh v0.2 Held-Out Sample — next**
+   - materialize the deterministic blank 48-paper package from the current canonical corpus while excluding the immutable 72-paper development package;
+   - validate exact sample identity, zero overlap, 96 blank annotation rows, checksums, and prediction-blind provenance;
+   - stop before candidate inference; manual annotation and reference freeze follow as a separate bounded step.
+
+18. **Accepted Large-Scale Derived Entity Build — deferred**
    - requires a later production-quality decision and explicit full-corpus authorization;
    - build-scoped manifest and current-canonical compatibility checks;
    - current development evidence does not authorize a 61,075-paper entity run.
@@ -589,8 +600,10 @@ scientific entity v0.2c calibration = scientific-entity-semantic-prompt-raw-floo
 scientific entity v0.2c selected policy = scientific-entity-semantic-prompt-raw-floor-policy-v0.2c-20260830T105318817514Z / 1077 predictions / 48 of 48 checks
 scientific entity v0.2c comparison = scientific-entity-semantic-prompt-raw-floor-comparison-v0.2c-20260830T110628936475Z / combined exact F1 0.403677 / consumed-48 exact F1 0.400000 / relaxed F1 0.422642 / 45 of 45 checks
 scientific entity v0.2c decision = development gates passed / candidate ready for development freeze true / independent v0.2 acceptance pending / production selection false
-scientific entity next v0.2 gate = fresh disjoint prediction-blind held-out
-next entity slice = Fresh v0.2 Held-Out Gate design/freeze
+scientific entity fresh v0.2 heldout gate = design frozen / 48 papers / 24 uniform + 24 type-enriched / exclude all 72 consumed development papers / prediction blind
+scientific entity fresh v0.2 acceptance = exact F1 minimum 0.396882 / relaxed F1 0.414868 desirable only / semantic caps 43,25,150,74,74 / no post-heldout tuning
+scientific entity fresh v0.2 safety = sample not selected / inference not run / evaluation not run / production false / full corpus false
+next entity slice = Scientific Entity Fresh v0.2 Held-Out Sample materialization/validation
 ```
 
 The project is not restarting or replacing completed work. The next entity
