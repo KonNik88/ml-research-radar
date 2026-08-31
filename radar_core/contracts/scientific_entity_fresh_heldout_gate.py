@@ -1,0 +1,263 @@
+from __future__ import annotations
+
+import hashlib
+import json
+from pathlib import Path
+from typing import Literal
+
+import yaml
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+
+CONFIG_SCHEMA_VERSION = "scientific_entity_fresh_heldout_gate_v0.2"
+
+
+class ScientificEntityFreshHeldoutGateError(ValueError):
+    """Raised when the frozen fresh-heldout v0.2 acceptance contract drifts."""
+
+
+class _UniqueKeySafeLoader(yaml.SafeLoader):
+    pass
+
+
+def _construct_unique_mapping(loader: _UniqueKeySafeLoader, node, deep=False):
+    mapping = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        if key in mapping:
+            raise ScientificEntityFreshHeldoutGateError(
+                f"Duplicate YAML key: {key!r}"
+            )
+        mapping[key] = loader.construct_object(value_node, deep=deep)
+    return mapping
+
+
+_UniqueKeySafeLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+    _construct_unique_mapping,
+)
+
+
+ENTITY_TYPES = ("task", "method", "dataset", "metric", "model", "domain")
+
+
+class LayerConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: Literal["scientific_entity_fresh_heldout_gate"]
+    version: Literal["v0.2"]
+    status: Literal["design_frozen"]
+    layer_kind: Literal["independent_prediction_blind_acceptance_gate"]
+
+
+class CandidateConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    candidate_id: Literal["scientific-entity-semantic-prompt-raw-floor-extension-v0.2c"]
+    development_comparison_id: Literal[
+        "scientific-entity-semantic-prompt-raw-floor-comparison-v0.2c-20260830T110628936475Z"
+    ]
+    development_policy_build_id: Literal[
+        "scientific-entity-semantic-prompt-raw-floor-policy-v0.2c-20260830T105318817514Z"
+    ]
+    development_calibration_id: Literal[
+        "scientific-entity-semantic-prompt-raw-floor-calibration-v0.2c-20260830T104242195583Z"
+    ]
+    raw_runtime_config_path: Literal[
+        "configs/scientific_entity_gliner_semantic_prompt_raw_floor_candidate_v0.2c.yaml"
+    ]
+    policy_config_path: Literal[
+        "configs/scientific_entity_semantic_prompt_raw_floor_policy_v0.2c.yaml"
+    ]
+    comparison_config_path: Literal[
+        "configs/scientific_entity_semantic_prompt_raw_floor_comparison_v0.2c.yaml"
+    ]
+    raw_inference_floor: Literal[0.4]
+    title_threshold: Literal[0.45]
+    abstract_threshold: Literal[0.625]
+    entity_type_overrides_allowed: Literal[False]
+    prompts_frozen: Literal[True]
+    model_revision_artifact_frozen: Literal[True]
+    adapter_windowing_frozen: Literal[True]
+
+
+class DevelopmentExclusionConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    development_package_id: Literal[
+        "scientific-entity-semantic-prompt-development-v0.2a-20260829T140201009151Z"
+    ]
+    expected_consumed_document_count: Literal[72]
+    expected_consumed_reference_mention_count: Literal[1316]
+    exclude_all_consumed_development_documents: Literal[True]
+    canonical_id_overlap_allowed: Literal[False]
+    previous_v01_heldout_is_consumed_development_for_v02: Literal[True]
+
+
+class SamplingConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    sampling_algorithm: Literal["deterministic_hash_uniform_and_type_enriched_v0.2"]
+    sampling_seed: Literal["ml-research-radar-scientific-entity-fresh-heldout-v0.2"]
+    canonical_input_path: Literal["data/analytics/reconciled/canonical_documents.jsonl"]
+    require_title: Literal[True]
+    require_abstract: Literal[True]
+    uniform_document_count: Literal[24]
+    type_enriched_documents_per_type: Literal[4]
+    expected_document_count: Literal[48]
+    expected_annotation_row_count: Literal[96]
+    candidate_pool_per_stratum: Literal[512]
+    source_fields: list[Literal["title", "abstract"]] = Field(min_length=2, max_length=2)
+    enrichment_terms: dict[str, list[str]]
+
+    @model_validator(mode="after")
+    def validate_sampling(self) -> "SamplingConfig":
+        if self.source_fields != ["title", "abstract"]:
+            raise ValueError("fresh held-out source fields drifted")
+        if set(self.enrichment_terms) != set(ENTITY_TYPES):
+            raise ValueError("fresh held-out enrichment terms must cover all six entity types")
+        if any(len(self.enrichment_terms[t]) != 3 for t in ENTITY_TYPES):
+            raise ValueError("each entity type must keep exactly three frozen enrichment terms")
+        expected = self.uniform_document_count + (
+            self.type_enriched_documents_per_type * len(ENTITY_TYPES)
+        )
+        if expected != self.expected_document_count:
+            raise ValueError("fresh held-out document-count arithmetic drifted")
+        if self.expected_annotation_row_count != self.expected_document_count * 2:
+            raise ValueError("fresh held-out annotation-row count drifted")
+        return self
+
+
+class ReferenceFreezeConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    annotation_method: Literal["manual_adjudicated"]
+    annotation_guideline_version: Literal["scientific_entity_annotation_guidelines_v0.1"]
+    prediction_blind: Literal[True]
+    annotations_initially_empty: Literal[True]
+    candidate_predictions_may_be_read_during_sampling: Literal[False]
+    candidate_predictions_may_be_read_during_annotation: Literal[False]
+    require_exact_sample_identity: Literal[True]
+    require_original_blank_template: Literal[True]
+    require_all_annotation_rows_complete: Literal[True]
+    require_zero_unresolved_uncertain_mentions: Literal[True]
+    minimum_reference_mentions_per_type: Literal[20]
+    required_entity_types: list[
+        Literal["task", "method", "dataset", "metric", "model", "domain"]
+    ] = Field(min_length=6, max_length=6)
+    candidate_inference_only_after_reference_freeze: Literal[True]
+
+    @model_validator(mode="after")
+    def validate_types(self) -> "ReferenceFreezeConfig":
+        if self.required_entity_types != list(ENTITY_TYPES):
+            raise ValueError("fresh held-out entity type order/set drifted")
+        return self
+
+
+class AcceptanceConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    decision_role: Literal["independent_v02_candidate_acceptance_gate"]
+    minimum_exact_f1: Literal[0.396882]
+    exact_f1_floor_origin: Literal["independent_v01_heldout_exact_f1"]
+    desirable_minimum_relaxed_f1: Literal[0.414868]
+    relaxed_f1_floor_role: Literal["desirable_not_hard"]
+    maximum_model_to_method_count: Literal[43]
+    maximum_method_to_task_count: Literal[25]
+    maximum_total_type_mismatch_count: Literal[150]
+    maximum_method_semantic_sink_count: Literal[74]
+    maximum_any_predicted_type_mismatch_sink_count: Literal[74]
+    require_sample_adequacy: Literal[True]
+    require_exact_f1_hard_gate: Literal[True]
+    require_all_semantic_guardrails: Literal[True]
+    require_relaxed_f1_as_hard_gate: Literal[False]
+    no_post_heldout_tuning: Literal[True]
+    all_hard_gates_required_for_acceptance: Literal[True]
+
+
+class DecisionSemanticsConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    if_all_hard_gates_pass: Literal[
+        "accept_as_independently_validated_bounded_extractor_v0.2"
+    ]
+    pass_does_not_select_production_extractor: Literal[True]
+    pass_does_not_authorize_full_corpus_build: Literal[True]
+    if_any_hard_gate_fails: Literal["reject_v02c_independent_acceptance"]
+    failed_heldout_becomes_consumed_development_evidence: Literal[True]
+    future_candidate_after_failure_requires_new_independent_heldout: Literal[True]
+    heldout_may_not_be_reused_for_retuning_and_reacceptance: Literal[True]
+
+
+class SafetyConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    contract_slice_selects_sample: Literal[False]
+    contract_slice_runs_model_inference: Literal[False]
+    contract_slice_runs_evaluation: Literal[False]
+    contract_slice_consumes_fresh_heldout: Literal[False]
+    sample_preparation_allowed_after_contract_freeze: Literal[True]
+    model_inference_allowed_before_reference_freeze: Literal[False]
+    threshold_tuning_allowed: Literal[False]
+    prompt_changes_allowed: Literal[False]
+    model_changes_allowed: Literal[False]
+    entity_type_changes_allowed: Literal[False]
+    canonical_truth_mutation_allowed: Literal[False]
+    reconcile_input_allowed: Literal[False]
+    provider_api_allowed: Literal[False]
+    production_extractor_selected: Literal[False]
+    full_corpus_build_authorized: Literal[False]
+    publication_allowed: Literal[False]
+
+
+class NextStepsConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    after_contract_freeze: Literal[
+        "materialize_prediction_blind_fresh_heldout_sample_v02"
+    ]
+    after_sample_validation: Literal[
+        "prediction_blind_manual_annotation_and_reference_freeze"
+    ]
+    after_reference_freeze: Literal["run_frozen_v02c_raw_inference_once"]
+    after_raw_build_validation: Literal["apply_frozen_v02c_policy_once"]
+    after_policy_validation: Literal[
+        "evaluate_frozen_v02c_against_frozen_fresh_references_once"
+    ]
+    after_evaluation: Literal[
+        "immutable_accept_or_reject_decision_without_tuning"
+    ]
+
+
+class ScientificEntityFreshHeldoutGateConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    schema_version: Literal[CONFIG_SCHEMA_VERSION]
+    layer: LayerConfig
+    candidate: CandidateConfig
+    development_exclusion: DevelopmentExclusionConfig
+    sampling: SamplingConfig
+    reference_freeze: ReferenceFreezeConfig
+    acceptance: AcceptanceConfig
+    decision_semantics: DecisionSemanticsConfig
+    safety: SafetyConfig
+    next_steps: NextStepsConfig
+
+
+def load_scientific_entity_fresh_heldout_gate_config(
+    path: str | Path,
+) -> ScientificEntityFreshHeldoutGateConfig:
+    path = Path(path)
+    try:
+        payload = yaml.load(
+            path.read_text(encoding="utf-8"),
+            Loader=_UniqueKeySafeLoader,
+        )
+    except (OSError, yaml.YAMLError) as exc:
+        raise ScientificEntityFreshHeldoutGateError(str(exc)) from exc
+    try:
+        return ScientificEntityFreshHeldoutGateConfig.model_validate(payload)
+    except Exception as exc:
+        raise ScientificEntityFreshHeldoutGateError(str(exc)) from exc
+
+
+def canonical_config_sha256(
+    config: ScientificEntityFreshHeldoutGateConfig,
+) -> str:
+    payload = json.dumps(
+        config.model_dump(mode="json"),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
