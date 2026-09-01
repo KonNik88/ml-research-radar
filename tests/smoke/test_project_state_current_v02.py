@@ -46,7 +46,7 @@ def test_readme_points_to_the_current_checkpoint_and_scopes_old_outputs() -> Non
     assert "docs/scientific_entity_heldout_error_analysis_v0.1.md" in text
     assert "docs/scientific_entity_semantic_prompt_candidate_v0.2a.md" in text
     assert "docs/scientific_entity_semantic_prompt_threshold_calibration_v0.2b.md" in text
-    assert "current scientific entity checkpoint = Scientific Entity Fresh v0.2 Held-Out Gate Design Freeze" in text
+    assert "current scientific entity checkpoint = Scientific Entity Fresh v0.2 Held-Out Sample Materialization" in text
     assert "completed 24-paper review" in text
 
 
@@ -55,9 +55,12 @@ def test_roadmap_advances_after_real_calibration_and_policy_freeze() -> None:
 
     assert "current active direction = Scientific Entity Evidence Layer" in text
     assert (
-        "latest completed slice = Scientific Entity Fresh v0.2 Held-Out Gate Design Freeze"
+        "latest completed slice = Scientific Entity Fresh v0.2 Held-Out Sample Materialization"
     ) in text
-    assert "next authorized slice = Scientific Entity Fresh v0.2 Held-Out Sample materialization/validation" in text
+    assert (
+        "next authorized slice = Scientific Entity Fresh v0.2 Prediction-Blind "
+        "Manual Annotation and Reference Freeze"
+    ) in text
     assert "Scientific Entity Evidence Contract v0.1" in text
     assert "hard max documents = 100" in text
     assert "no full-corpus entity extraction" in text
@@ -282,9 +285,7 @@ def test_scientific_entity_heldout_gate_is_recorded_as_bounded_acceptance() -> N
     assert "candidate_decision = accept_as_bounded_working_extractor_v0.1" in heldout
     assert "production_extractor_selected = false" in heldout
     assert "full_corpus_build_authorized = false" in heldout
-    assert "next entity slice = Scientific Entity Fresh v0.2 Held-Out Sample materialization/validation" in checkpoint
     assert "scientific_entity_heldout_generalization_gate = passed" in architecture
-    assert "next authorized slice = Scientific Entity Fresh v0.2 Held-Out Sample materialization/validation" in roadmap
 
 
 def test_scientific_entity_heldout_error_analysis_records_final_diagnosis() -> None:
@@ -305,10 +306,7 @@ def test_scientific_entity_heldout_error_analysis_records_final_diagnosis() -> N
     assert "wide_reference_set == markup_like_reference_set = true" in analysis
     assert "Scientific Entity Semantic Prompt Candidate v0.2a" in analysis
     assert "future v0.2 independent acceptance = requires a new disjoint held-out sample" in analysis
-    assert "current scientific entity checkpoint = Scientific Entity Fresh v0.2 Held-Out Gate Design Freeze" in readme
     assert "Scientific Entity Held-Out Error Analysis | completed diagnostic decision checkpoint" in checkpoint
-    assert "latest completed slice = Scientific Entity Fresh v0.2 Held-Out Gate Design Freeze" in roadmap
-    assert "next authorized slice = Scientific Entity Fresh v0.2 Held-Out Sample materialization/validation" in roadmap
 
 
 def test_scientific_entity_semantic_prompt_v02a_is_closed_without_posthoc_promotion() -> None:
@@ -317,7 +315,6 @@ def test_scientific_entity_semantic_prompt_v02a_is_closed_without_posthoc_promot
     roadmap = _read("docs/roadmap.md")
     candidate = _read("docs/scientific_entity_semantic_prompt_candidate_v0.2a.md")
 
-    assert "current scientific entity checkpoint = Scientific Entity Fresh v0.2 Held-Out Gate Design Freeze" in readme
     assert "Scientific Entity Semantic Prompt Candidate v0.2a — completed; hard gate failed." in readme
     assert "scientific-entity-semantic-prompt-development-v0.2a-20260829T140201009151Z" in candidate
     assert "scientific-entity-gliner-small-v2.5-v0.1-20260829T141340564165Z" in candidate
@@ -339,11 +336,7 @@ def test_scientific_entity_semantic_prompt_v02a_is_closed_without_posthoc_promot
     assert "all type mismatches: 176 -> 125" in candidate
     assert "method semantic sink: 94 -> 54" in candidate
     assert "Scientific Entity Semantic Prompt Threshold Calibration v0.2b" in candidate
-    assert "current_extension = Scientific Entity Fresh v0.2 Held-Out Gate Design Freeze" in checkpoint
     assert "scientific entity v0.2a decision = hard gate failed" in checkpoint
-    assert "next entity slice = Scientific Entity Fresh v0.2 Held-Out Sample materialization/validation" in checkpoint
-    assert "latest completed slice = Scientific Entity Fresh v0.2 Held-Out Gate Design Freeze" in roadmap
-    assert "next authorized slice = Scientific Entity Fresh v0.2 Held-Out Sample materialization/validation" in roadmap
 
 
 def test_scientific_entity_semantic_prompt_threshold_v02b_is_closed_without_gate_relaxation() -> None:
@@ -434,30 +427,10 @@ def test_scientific_entity_semantic_prompt_raw_floor_v02c_development_freeze_is_
         "58. **Scientific Entity Semantic Prompt Raw-Floor Candidate v0.2c**"
     ) in roadmap
 
-def test_scientific_entity_fresh_v02_heldout_gate_design_is_current() -> None:
-    readme = _read("README.md")
+def test_scientific_entity_fresh_v02_heldout_gate_design_is_preserved() -> None:
     checkpoint = _read("docs/project_state_current_v0.2.md")
     roadmap = _read("docs/roadmap.md")
     gate = _read("docs/scientific_entity_fresh_heldout_gate_v0.2.md")
-
-    assert (
-        "current scientific entity checkpoint = Scientific Entity Fresh v0.2 "
-        "Held-Out Gate Design Freeze"
-    ) in readme
-    assert (
-        "current_extension = Scientific Entity Fresh v0.2 Held-Out Gate Design Freeze"
-    ) in checkpoint
-    assert (
-        "latest completed slice = Scientific Entity Fresh v0.2 Held-Out Gate Design Freeze"
-    ) in roadmap
-    assert (
-        "next authorized slice = Scientific Entity Fresh v0.2 Held-Out Sample "
-        "materialization/validation"
-    ) in roadmap
-    assert (
-        "next entity slice = Scientific Entity Fresh v0.2 Held-Out Sample "
-        "materialization/validation"
-    ) in checkpoint
 
     assert "sample selected = false" in gate
     assert "fresh held-out consumed = false" in gate
@@ -471,7 +444,56 @@ def test_scientific_entity_fresh_v02_heldout_gate_design_is_current() -> None:
     assert "model -> method <= 43" in gate
     assert "method -> task <= 25" in gate
     assert "total type mismatches <= 150" in gate
-    assert "no post-heldout tuning" in checkpoint
     assert "production extractor selected = false" in gate
     assert "full-corpus build authorized = false" in gate
 
+    assert "scientific entity fresh v0.2 heldout gate = design frozen" in checkpoint
+    assert "59. **Scientific Entity Fresh v0.2 Held-Out Gate Design Freeze**" in roadmap
+
+
+def test_scientific_entity_fresh_v02_heldout_sample_materialization_is_current() -> None:
+    readme = _read("README.md")
+    checkpoint = _read("docs/project_state_current_v0.2.md")
+    roadmap = _read("docs/roadmap.md")
+    sample = _read("docs/scientific_entity_fresh_heldout_sample_v0.2.md")
+
+    assert (
+        "current scientific entity checkpoint = Scientific Entity Fresh v0.2 "
+        "Held-Out Sample Materialization"
+    ) in readme
+    assert (
+        "current_extension = Scientific Entity Fresh v0.2 Held-Out Sample Materialization"
+    ) in checkpoint
+    assert (
+        "latest completed slice = Scientific Entity Fresh v0.2 Held-Out Sample Materialization"
+    ) in roadmap
+    assert (
+        "next authorized slice = Scientific Entity Fresh v0.2 Prediction-Blind "
+        "Manual Annotation and Reference Freeze"
+    ) in roadmap
+    assert (
+        "next entity slice = Scientific Entity Fresh v0.2 Prediction-Blind Manual "
+        "Annotation and Reference Freeze"
+    ) in checkpoint
+
+    assert "status = materialized and strictly validated" in sample
+    assert "sample_id = scientific-entity-fresh-heldout-sample-v0.2-20260901T130232963026Z" in sample
+    assert "review_id = scientific-entity-fresh-heldout-review-v0.2-20260901T130232963026Z" in sample
+    assert "canonical input rows = 61075" in sample
+    assert "eligible non-development documents = 60997" in sample
+    assert "excluded consumed development documents = 72 / 72" in sample
+    assert "held-out/development overlap = 0" in sample
+    assert "uniform documents = 24" in sample
+    assert "type-enriched documents = 24" in sample
+    assert "selected documents = 48" in sample
+    assert "annotation rows = 96" in sample
+    assert "selected canonical IDs SHA-256 = 0c4bf55fa47192d8523a5ccd0d89b3326562ff6b464f108d330d87286feb7d7a" in sample
+    assert "strict independent validation = 43 / 43" in sample
+    assert "required failures = 0" in sample
+    assert "prediction blind = true" in sample
+    assert "candidate predictions read during sampling = false" in sample
+    assert "model inference executed = false" in sample
+    assert "evaluation executed = false" in sample
+    assert "fresh held-out reference consumed = false" in sample
+    assert "production extractor selected = false" in sample
+    assert "full-corpus build authorized = false" in sample

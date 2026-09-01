@@ -4,17 +4,17 @@
 
 ```text
 document = primary living roadmap
-accepted checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Fresh v0.2 Held-Out Gate Design Freeze
+accepted checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Fresh v0.2 Held-Out Sample Materialization
 base checkpoint = current canonical latest 61,075 with synchronized core and Discovery derived layers
 current active direction = Scientific Entity Evidence Layer
-latest completed slice = Scientific Entity Fresh v0.2 Held-Out Gate Design Freeze
-next authorized slice = Scientific Entity Fresh v0.2 Held-Out Sample materialization/validation
+latest completed slice = Scientific Entity Fresh v0.2 Held-Out Sample Materialization
+next authorized slice = Scientific Entity Fresh v0.2 Prediction-Blind Manual Annotation and Reference Freeze
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
 dataset publication = paused pending redistribution guidance
-current entity boundary = v0.2c remains frozen as the development candidate and the independent Fresh v0.2 Held-Out Gate design is now frozen before sample selection; new sample = 48 papers / 24 uniform + 24 type-enriched / zero overlap with all 72 consumed development papers / prediction-blind references; hard acceptance = exact F1 >=0.396882 plus semantic caps 43,25,150,74,74, with relaxed F1 0.414868 desirable only; sample not yet selected or consumed; production/full-corpus remains unauthorized
+current entity boundary = v0.2c remains frozen as the development candidate; Fresh v0.2 Held-Out Gate design is frozen and sample {sample_id} is materialized/validated: 48 papers / 24 uniform + 24 type-enriched / 96 blank prediction-blind rows / zero overlap with all 72 consumed development papers / selected-ID SHA-256 {sel_sha} / strict validator 43 of 43; candidate predictions not read and inference/evaluation not run; next = prediction-blind manual annotation and reference freeze; production/full-corpus remains unauthorized
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -158,6 +158,8 @@ Recently completed safe slices:
 57. **Scientific Entity Semantic Prompt Threshold Calibration v0.2b** — completed a deterministic 35-trial title/abstract threshold search over the existing v0.2a raw evidence without model inference. Ten trials passed semantic-safe eligibility. The selected trial `calibration-trial:05df528b9ef88cd383ce1c8f02e3b23e` uses `title=0.50 / abstract=0.625`, reaches combined-72 exact F1 `0.398654`, and preserves semantic guards (`model -> method 32`, `method -> task 25`, type mismatches `138`, method sink `57`), but consumed-48 exact F1 `0.396453` misses the pre-frozen `0.396882` floor by `0.000429`. Validation passed `53 / 53`. The trial landscape shows lower abstract thresholds can recover F1 only by violating semantic safety, while lower title thresholds at abstract `0.625` improve F1 and reach the raw `0.50` evidence floor; raw-floor extension v0.2c is therefore the next bounded hypothesis.
 58. **Scientific Entity Semantic Prompt Raw-Floor Candidate v0.2c** — completed the bounded raw-floor hypothesis and development freeze. The same 72 papers were re-run only with raw inference floor `0.40`, producing `1762` predictions (`+332`) and passing `91 / 91`; all `1430` v0.2a mention IDs and scores were preserved, with one additional title `method` mention at the old `0.50` boundary. Five-trial title-only calibration selected `title=0.45 / abstract=0.625`, passed all frozen development gates and `61 / 61`; selected-policy materialization produced `1077` predictions and passed `48 / 48`; controlled comparison `scientific-entity-semantic-prompt-raw-floor-comparison-v0.2c-20260830T110628936475Z` passed `45 / 45`, reproduced calibration, and recorded old-dev exact F1 `0.410959`, consumed-48 exact F1 `0.400000`, consumed-48 relaxed F1 `0.422642`, combined exact F1 `0.403677`, `model -> method 32`, `method -> task 25`, total type mismatches `140`, and method sink `58`. `candidate_ready_for_development_freeze=true`; independent v0.2 acceptance is still pending a new disjoint prediction-blind held-out.
 59. **Scientific Entity Fresh v0.2 Held-Out Gate Design Freeze** — froze the independent acceptance contract before sample selection or candidate inference. The new held-out will contain 48 deterministic papers (`24` uniform + `24` type-enriched), exclude every canonical ID from the 72-paper consumed development package, use prediction-blind manual annotation, require complete 96-row references with zero unresolved uncertainty and >=20 references per type, and gate independent v0.2 acceptance on exact F1 `>=0.396882` plus the existing semantic caps `43/25/150/74/74`. Relaxed F1 `0.414868` remains desirable rather than hard. Failure consumes the sample as development evidence and forbids retuning/reacceptance on the same held-out. The design itself selects no sample and runs no inference/evaluation.
+60. **Scientific Entity Fresh v0.2 Held-Out Sample Materialization** — materialized immutable sample `scientific-entity-fresh-heldout-sample-v0.2-20260901T130232963026Z` from the frozen gate using the current 61,075-row canonical corpus and immutable 72-paper v0.2 development exclusion. The sample contains 48 papers (`24` uniform + `24` type-enriched), 96 blank prediction-blind annotation rows, zero development overlap, and selected-ID SHA-256 `0c4bf55fa47192d8523a5ccd0d89b3326562ff6b464f108d330d87286feb7d7a`. Independent validation recomputed the sample from its parents and passed `43 / 43`. Candidate predictions were not read, model inference/evaluation were not executed, and fresh references remain unconsumed.
+
 
 
 Recommended next safe slices:
@@ -171,8 +173,9 @@ Recommended next safe slices:
 7. **Scientific Entity Semantic Prompt Threshold Calibration v0.2b — completed; hard gate failed.** The selected `title=0.50 / abstract=0.625` policy preserves semantic safety and reaches combined-72 exact F1 `0.398654`, but consumed-48 exact F1 `0.396453` misses the frozen `0.396882` floor by `0.000429`; no gate is relaxed post hoc.
 8. **Scientific Entity Semantic Prompt Raw-Floor Candidate v0.2c — development freeze completed.** Raw floor `0.40`, selected policy `title=0.45 / abstract=0.625`, 1077 materialized predictions, and controlled `24 / 48 / 72` evidence all pass the pre-frozen development gates; this is a development freeze, not independent acceptance.
 9. **Fresh v0.2 Held-Out Gate — design freeze completed.** The gate is frozen before sample selection: 48 papers (`24` uniform + `24` type-enriched), zero overlap with all 72 consumed v0.2 development papers, prediction-blind annotation, reference adequacy >=20 mentions per type, exact F1 floor `0.396882`, preserved semantic caps `43/25/150/74/74`, relaxed F1 `0.414868` desirable only, and no post-heldout tuning.
-10. **Fresh v0.2 Held-Out Sample — next.** Materialize and validate the deterministic blank 48-paper annotation package; do not run the candidate until references are manually completed and frozen.
-11. **Accepted Large-Scale Derived Entity Build — deferred.** Requires explicit production-quality acceptance and full-corpus authorization; current development results are insufficient.
+10. **Fresh v0.2 Held-Out Sample — materialized and validated.** `scientific-entity-fresh-heldout-sample-v0.2-20260901T130232963026Z` contains 48 deterministic papers (`24` uniform + `24` type-enriched), 96 blank prediction-blind rows, zero overlap with all 72 consumed development papers, frozen selected-ID SHA-256 `{sel_sha}`, and strict independent validation `43 / 43`; no candidate predictions/inference/evaluation.
+11. **Prediction-Blind Manual Annotation and Reference Freeze — next.** Complete and adjudicate the 96 rows without viewing v0.2c predictions, satisfy the pre-frozen reference-adequacy rules, then freeze immutable references before candidate inference.
+12. **Accepted Large-Scale Derived Entity Build — deferred.** Requires explicit production-quality acceptance and full-corpus authorization; current development results are insufficient.
 11. **Normalization / Linking / Product and Graph Integration — deferred.** Proceed only after entity typing quality is hardened enough that normalization will not amplify noisy evidence.
 12. **Full-text / Chunk Provenance Contract** — only after the entity line is stable and before any grounded RAG implementation.
 
@@ -5118,7 +5121,7 @@ full-corpus authorization = false
 24-paper package = dev diagnostics, never post-tuning held-out evidence
 48-paper held-out package = valid held-out evidence for v0.1; development/error-analysis evidence for any v0.2 designed from its errors
 next slice at held-out checkpoint = structured held-out error analysis / completed
-current next slice = Scientific Entity Fresh v0.2 Held-Out Sample materialization/validation
+current next slice = Scientific Entity Fresh v0.2 Prediction-Blind Manual Annotation and Reference Freeze
 ```
 
 The comparison preserves the narrow six-type product ontology. The first
