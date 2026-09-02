@@ -1,0 +1,72 @@
+schema_version: scientific_entity_fresh_heldout_reference_freeze_config_v0.2
+
+layer:
+  name: scientific_entity_fresh_heldout_reference_freeze
+  version: v0.2
+  status: tooling_frozen
+  layer_kind: prediction_blind_manual_reference_freeze
+
+sample:
+  sample_id: scientific-entity-fresh-heldout-sample-v0.2-20260901T130232963026Z
+  review_id: scientific-entity-fresh-heldout-review-v0.2-20260901T130232963026Z
+  selected_canonical_ids_sha256: 0c4bf55fa47192d8523a5ccd0d89b3326562ff6b464f108d330d87286feb7d7a
+  expected_document_count: 48
+  expected_annotation_row_count: 96
+  expected_development_overlap_count: 0
+  require_prediction_blind_sample: true
+  require_independent_sample_validation: true
+
+annotation:
+  annotation_method: manual_adjudicated
+  annotation_guideline_version: scientific_entity_annotation_guidelines_v0.1
+  annotation_passes: 1
+  source_fields:
+    - title
+    - abstract
+  entity_types:
+    - task
+    - method
+    - dataset
+    - metric
+    - model
+    - domain
+  require_all_annotation_rows_complete: true
+  require_zero_unresolved_uncertain_mentions: true
+  minimum_reference_mentions_per_type: 20
+  maximum_reference_mentions_total: 5000
+  require_surface_from_exact_source_slice: true
+  duplicate_typed_spans_allowed: false
+
+working_copy:
+  root: data/entities/scientific_entity_fresh_heldout_annotation_work/v0.2
+  filename: annotations_completed.jsonl
+  readme_filename: README.md
+  mutable_non_evidence: true
+  overwrite_allowed: false
+
+outputs:
+  frozen_root: data/entities/scientific_entity_fresh_heldout_reference/v0.2
+  immutable_directories: true
+  encoding: utf-8
+  line_ending: lf
+
+safety:
+  predictions_visible_during_annotation: false
+  automatic_annotation_allowed: false
+  automatic_review_approval_allowed: false
+  candidate_inference_allowed_before_reference_freeze: false
+  threshold_tuning_allowed: false
+  prompt_changes_allowed: false
+  model_changes_allowed: false
+  evaluation_allowed_before_reference_freeze: false
+  canonical_truth_mutation_allowed: false
+  reconcile_input_allowed: false
+  production_extractor_selected: false
+  full_corpus_build_authorized: false
+  redistribution_allowed: false
+  publication_allowed: false
+
+next_steps:
+  after_tooling_merge: prepare_prediction_blind_annotation_working_copy
+  after_annotation_complete: freeze_and_validate_fresh_v02_reference_evidence
+  after_reference_freeze: run_frozen_v02c_raw_inference_once
