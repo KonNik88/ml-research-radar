@@ -35,11 +35,11 @@ paper-centric research-discovery system.
 ## Current validated checkpoint
 
 ```text
-checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Fresh v0.2 Held-Out Sample Materialization
-current scientific entity checkpoint = Scientific Entity Fresh v0.2 Held-Out Sample Materialization
+checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Fresh v0.2 Prediction-Blind Reference Freeze Tooling
+current scientific entity checkpoint = Scientific Entity Fresh v0.2 Prediction-Blind Reference Freeze Tooling
 base checkpoint = safe canonical refresh and synchronized core/Discovery derived layers
 scientific entity status = bounded literal control + evaluation harness + completed 24-paper review + GLiNER candidate adapter
-scientific entity quality status = semantic-prompt raw-floor v0.2c remains frozen as a promising development candidate; the Fresh v0.2 Held-Out Gate is frozen and the deterministic prediction-blind held-out sample is now materialized as {sample_id}: 48 papers / 24 uniform + 24 type-enriched / 96 blank annotation rows / zero overlap with all 72 consumed development papers / selected-ID SHA-256 {sel_sha}; strict sample validation 43 / 43; candidate predictions not read, model inference/evaluation not run, fresh references not consumed; next = prediction-blind manual annotation and reference freeze; no production selection or full-corpus build
+scientific entity quality status = semantic-prompt raw-floor v0.2c remains frozen as a promising development candidate; fresh held-out sample scientific-entity-fresh-heldout-sample-v0.2-20260901T130232963026Z remains immutable and prediction-blind; reference-freeze tooling is now frozen around exact review scientific-entity-fresh-heldout-review-v0.2-20260901T130232963026Z, using a separate mutable annotation working copy and fail-closed reference freeze requiring 96/96 completed rows, zero unresolved uncertain mentions, at least 20 references for each of the six entity types, and strict parent-sample revalidation; manual annotations are not yet completed, reference evidence is not yet frozen, candidate inference/evaluation remain forbidden, and production/full-corpus remain unauthorized
 public behavior change = none
 public dense/hybrid backend = file
 experimental Qdrant endpoint = explicit
@@ -90,6 +90,7 @@ and controlled development comparison are recorded in:
 - [`docs/scientific_entity_semantic_prompt_raw_floor_comparison_v0.2c.md`](docs/scientific_entity_semantic_prompt_raw_floor_comparison_v0.2c.md)
 - [`docs/scientific_entity_fresh_heldout_gate_v0.2.md`](docs/scientific_entity_fresh_heldout_gate_v0.2.md)
 - [`docs/scientific_entity_fresh_heldout_sample_v0.2.md`](docs/scientific_entity_fresh_heldout_sample_v0.2.md)
+- [`docs/scientific_entity_fresh_heldout_reference_freeze_v0.2.md`](docs/scientific_entity_fresh_heldout_reference_freeze_v0.2.md)
 
 Current corpus and retrieval baseline:
 
@@ -855,18 +856,23 @@ Recommended order:
     prediction-blind annotation rows. Selected-ID SHA-256 is `0c4bf55fa47192d8523a5ccd0d89b3326562ff6b464f108d330d87286feb7d7a` and strict independent
     validation passes `43 / 43`. No candidate predictions were read and no inference/evaluation ran.
 
-18. **Prediction-Blind Manual Annotation and Reference Freeze — next.**
-    Complete the 96 held-out annotation rows without viewing v0.2c predictions, adjudicate all
-    uncertain mentions, require at least 20 reference mentions per entity type, then freeze the
-    immutable reference evidence before any candidate inference.
+18. **Prediction-Blind Reference Freeze Tooling — completed.**
+    The immutable sample remains untouched. Tooling creates a separate mutable annotation working
+    copy and permits immutable reference freeze only after strict parent-sample revalidation,
+    96/96 completed rows, zero unresolved uncertainty, at least 20 references per entity type,
+    and total references <=5000. Candidate inference/evaluation remain forbidden before freeze.
 
-19. **Accepted Large-Scale Derived Entity Build — deferred.**
+19. **Annotation Working Copy Preparation and Manual Annotation — next.**
+    Create the prediction-blind working copy for review `scientific-entity-fresh-heldout-review-v0.2-20260901T130232963026Z`, then manually complete and
+    adjudicate all 96 title/abstract rows without viewing v0.2c predictions.
+
+20. **Accepted Large-Scale Derived Entity Build — deferred.**
     Requires explicit production-quality acceptance and separate full-corpus authorization.
 
-18. **Normalization / Linking / Product and Graph Integration — deferred.**
+21. **Normalization / Linking / Product and Graph Integration — deferred.**
     Only after typing quality is sufficiently stable; entities remain downstream of canonical truth.
 
-19. **Full-text / Chunk Provenance / Grounded RAG — deferred.**
+22. **Full-text / Chunk Provenance / Grounded RAG — deferred.**
     Separate acquisition/evidence line after the entity layer is stable.
 
 Dataset publication remains paused pending explicit redistribution guidance.
