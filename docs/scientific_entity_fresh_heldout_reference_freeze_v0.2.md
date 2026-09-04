@@ -3,12 +3,18 @@
 ## Status
 
 ```text
-status = tooling frozen
+status = reference evidence frozen and strictly validated
 fresh sample = materialized and independently validated
-manual annotations = not yet completed
-reference evidence = not yet frozen
-model inference = forbidden
-candidate evaluation = forbidden
+manual annotations = completed 96 / 96
+reference evidence = frozen
+reference mentions = 944
+unresolved uncertain mentions = 0
+reference adequacy = passed
+strict reference validation = 44 / 44
+model inference executed = false
+candidate evaluation executed = false
+production extractor selected = false
+full-corpus build authorized = false
 ```
 
 ## Purpose
@@ -115,23 +121,74 @@ annotations against the original blank template, recomputes every reference
 mention, checks all hashes/checksums and adequacy gates, and requires fail-closed
 safety provenance.
 
+## Frozen reference evidence
+
+The prediction-blind manual annotation pass is complete and the immutable
+reference package has been materialized for the exact frozen sample/review.
+
+```text
+sample_id = scientific-entity-fresh-heldout-sample-v0.2-20260901T130232963026Z
+review_id = scientific-entity-fresh-heldout-review-v0.2-20260901T130232963026Z
+documents = 48
+annotation rows = 96
+completed annotation rows = 96
+completed annotations SHA-256 = eeb05e795831e3e3f274dc338b3261f9375bcd60975290e9169e77ad5d0ffe89
+
+reference mentions = 944
+uncertain reference mentions = 0
+minimum reference mentions per type = 20
+
+task = 150
+method = 279
+dataset = 66
+metric = 86
+model = 280
+domain = 83
+
+reference adequacy = passed
+parent sample validation failures = 0
+strict reference validator = 44 / 44
+required failures = 0
+
+prediction blind = true
+candidate predictions visible during annotation = false
+model inference executed = false
+candidate evaluation executed = false
+production extractor selected = false
+full-corpus build authorized = false
+```
+
+The frozen reference package is:
+
+```text
+data/entities/scientific_entity_fresh_heldout_reference/v0.2/scientific-entity-fresh-heldout-review-v0.2-20260901T130232963026Z/
+```
+
+The reference set is now immutable evaluation truth for the fresh v0.2 gate.
+It must not be used to retune prompts, thresholds, model choice, or sampling.
+
 ## Safety boundary
 
-Before a successful immutable reference freeze:
+The successful immutable reference freeze preserves the following boundary:
 
 ```text
 v0.2c predictions visible during annotation = false
-v0.2c inference = forbidden
+v0.2c inference executed = false
 threshold tuning = forbidden
 prompt/model changes = forbidden
-candidate evaluation = forbidden
+candidate evaluation executed = false
 canonical truth mutation = false
 production selection = false
 full-corpus build authorization = false
 ```
 
-After strict reference validation, and only then:
+Strict reference validation is complete. The next bounded slice is therefore:
 
 ```text
 next = run_frozen_v02c_raw_inference_once
+candidate = frozen v0.2c only
+threshold tuning after seeing fresh-heldout performance = forbidden
+prompt/model changes before the independent decision = forbidden
 ```
+
+The next run is an evaluation run, not a development/calibration run.
