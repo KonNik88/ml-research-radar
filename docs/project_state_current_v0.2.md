@@ -3,15 +3,15 @@
 ## Document status
 
 ```text
-status = accepted post-orchestration and scientific-entity fresh-v0.2 prediction-blind reference-freeze-tooling checkpoint
-checkpoint_date = 2026-08-30
+status = accepted post-orchestration and scientific-entity fresh-v0.2 reference-evidence-freeze checkpoint
+checkpoint_date = 2026-09-04
 supersedes_for_current_planning = docs/project_state_current_v0.1.md
 historical_detail_retained_in = docs/project_state_current_v0.1.md
 canonical_truth_changed_by_document = false
 runtime_behavior_changed_by_document = false
 generated_layers_rebuilt_by_document = false
 publishes_dataset = false
-current_extension = Scientific Entity Fresh v0.2 Prediction-Blind Reference Freeze Tooling
+current_extension = Scientific Entity Fresh v0.2 Reference Evidence Freeze
 ```
 
 This checkpoint records the accepted project state after the August 2026 safe
@@ -508,28 +508,40 @@ Recommended order:
 
 18. **Prediction-Blind Reference Freeze Tooling — completed**
    - exact parent sample remains `scientific-entity-fresh-heldout-sample-v0.2-20260901T130232963026Z` with review `scientific-entity-fresh-heldout-review-v0.2-20260901T130232963026Z` and selected-ID SHA `0c4bf55fa47192d8523a5ccd0d89b3326562ff6b464f108d330d87286feb7d7a`;
-   - immutable sample package is never edited; tooling creates a separate mutable annotation working copy;
-   - working-copy preparation and reference freeze both rerun strict parent-sample validation;
-   - only annotation completion/mentions/reviewer note may change; source identity/text/hash/stratum metadata remain immutable;
-   - freeze is fail-closed until all 96 rows are complete, unresolved uncertain mentions = `0`, each of task/method/dataset/metric/model/domain has at least `20` references, and total references <= `5000`;
-   - immutable freeze reuses established v0.1 blind-annotation/reference formats;
-   - no working copy has been executed yet, references are not frozen, and v0.2c inference/evaluation remain forbidden.
+   - immutable sample package remains untouched and all reference-freeze operations revalidate its lineage.
 
-19. **Annotation Working Copy Preparation and Manual Annotation — next**
-   - create the separate prediction-blind working copy from the immutable 96-row blank template;
-   - manually complete/adjudicate all rows without viewing v0.2c predictions;
-   - satisfy the pre-frozen reference-adequacy gate before reference freeze.
+19. **Annotation Working Copy Preparation and Manual Annotation — completed**
+   - separate mutable working copy was prepared from the immutable 96-row blank template;
+   - all `96 / 96` title/abstract rows were manually completed prediction-blind;
+   - candidate predictions were not visible during annotation;
+   - unresolved uncertain mentions = `0`;
+   - completed annotations SHA-256 = `eeb05e795831e3e3f274dc338b3261f9375bcd60975290e9169e77ad5d0ffe89`.
 
-20. **Accepted Large-Scale Derived Entity Build — deferred**
+20. **Fresh v0.2 Reference Evidence Freeze — completed**
+   - immutable reference evidence contains `944` reference mentions;
+   - per-type counts: task `150`, method `279`, dataset `66`, metric `86`, model `280`, domain `83`;
+   - minimum reference mentions per type = `20`; all six types pass;
+   - strict independent reference validation = `44 / 44` with `0` required failures;
+   - model inference executed = `false`;
+   - candidate evaluation executed = `false`;
+   - production extractor selected = `false`;
+   - full-corpus build authorized = `false`.
+
+21. **Frozen v0.2c Raw Inference — next, exactly once**
+   - run the already-frozen v0.2c raw candidate against this reference-locked fresh held-out;
+   - do not tune prompts, thresholds, model choice, or sample composition after seeing results;
+   - subsequent evaluation must apply only the acceptance gate frozen before this held-out was selected.
+
+22. **Accepted Large-Scale Derived Entity Build — deferred**
    - requires a later production-quality decision and explicit full-corpus authorization;
    - build-scoped manifest and current-canonical compatibility checks;
    - current development evidence does not authorize a 61,075-paper entity run.
 
-21. **Normalization / Linking / Product and Graph Integration — deferred**
+23. **Normalization / Linking / Product and Graph Integration — deferred**
    - avoid normalizing six-type evidence before weak types and semantic typing are hardened;
    - later add aliases, canonical entity IDs, Discovery facets, paper detail/comparison evidence, and paper–entity edges.
 
-22. **Full-text / Chunk Provenance / Grounded RAG**
+24. **Full-text / Chunk Provenance / Grounded RAG**
    - separate contract and acquisition-policy line;
    - no ungrounded chat layer.
 
@@ -625,8 +637,8 @@ scientific entity fresh v0.2 heldout gate = design frozen / 48 papers / 24 unifo
 scientific entity fresh v0.2 acceptance = exact F1 minimum 0.396882 / relaxed F1 0.414868 desirable only / semantic caps 43,25,150,74,74 / no post-heldout tuning
 scientific entity fresh v0.2 sample = materialized / scientific-entity-fresh-heldout-sample-v0.2-20260901T130232963026Z / 48 papers / 24 uniform + 24 type-enriched / 96 blank rows / overlap 0 / selected IDs sha256 0c4bf55fa47192d8523a5ccd0d89b3326562ff6b464f108d330d87286feb7d7a / strict validation 43 of 43
 scientific entity fresh v0.2 safety = candidate predictions not read / inference not run / evaluation not run / fresh reference not consumed / production false / full corpus false
-scientific entity fresh v0.2 reference-freeze tooling = frozen / separate mutable annotation work copy / 96-of-96 completion / zero unresolved uncertainty / minimum 20 references per type / immutable reference package / inference forbidden before freeze
-next entity slice = Scientific Entity Fresh v0.2 Annotation Working Copy Preparation and Manual Annotation
+scientific entity fresh v0.2 reference evidence = frozen / 96-of-96 annotations complete / 944 immutable references / zero unresolved uncertainty / per-type task=150 method=279 dataset=66 metric=86 model=280 domain=83 / strict validator 44 of 44 / candidate inference not yet executed
+next entity slice = Scientific Entity Frozen v0.2c Raw Inference — Exactly Once
 ```
 
 The project is not restarting or replacing completed work. The next entity

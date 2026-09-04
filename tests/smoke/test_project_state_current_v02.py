@@ -46,7 +46,7 @@ def test_readme_points_to_the_current_checkpoint_and_scopes_old_outputs() -> Non
     assert "docs/scientific_entity_heldout_error_analysis_v0.1.md" in text
     assert "docs/scientific_entity_semantic_prompt_candidate_v0.2a.md" in text
     assert "docs/scientific_entity_semantic_prompt_threshold_calibration_v0.2b.md" in text
-    assert "current scientific entity checkpoint = Scientific Entity Fresh v0.2 Prediction-Blind Reference Freeze Tooling" in text
+    assert "current scientific entity checkpoint = Scientific Entity Fresh v0.2 Reference Evidence Freeze" in text
     assert "completed 24-paper review" in text
 
 
@@ -55,10 +55,10 @@ def test_roadmap_advances_after_real_calibration_and_policy_freeze() -> None:
 
     assert "current active direction = Scientific Entity Evidence Layer" in text
     assert (
-        "latest completed slice = Scientific Entity Fresh v0.2 Prediction-Blind Reference Freeze Tooling"
+        "latest completed slice = Scientific Entity Fresh v0.2 Reference Evidence Freeze"
     ) in text
     assert (
-        "next authorized slice = Scientific Entity Fresh v0.2 Annotation Working Copy Preparation and Manual Annotation"
+        "next authorized slice = Scientific Entity Frozen v0.2c Raw Inference — Exactly Once"
     ) in text
     assert "Scientific Entity Evidence Contract v0.1" in text
     assert "hard max documents = 100" in text
@@ -479,32 +479,45 @@ def test_scientific_entity_fresh_v02_heldout_sample_materialization_is_preserved
     assert "production extractor selected = false" in sample
     assert "full-corpus build authorized = false" in sample
 
-
-def test_scientific_entity_fresh_v02_reference_freeze_tooling_is_current() -> None:
+def test_scientific_entity_fresh_v02_reference_evidence_freeze_is_current() -> None:
     readme = _read("README.md")
     checkpoint = _read("docs/project_state_current_v0.2.md")
     roadmap = _read("docs/roadmap.md")
     reference = _read("docs/scientific_entity_fresh_heldout_reference_freeze_v0.2.md")
 
-    assert "current scientific entity checkpoint = Scientific Entity Fresh v0.2 Prediction-Blind Reference Freeze Tooling" in readme
-    assert "current_extension = Scientific Entity Fresh v0.2 Prediction-Blind Reference Freeze Tooling" in checkpoint
-    assert "latest completed slice = Scientific Entity Fresh v0.2 Prediction-Blind Reference Freeze Tooling" in roadmap
-    assert "next authorized slice = Scientific Entity Fresh v0.2 Annotation Working Copy Preparation and Manual Annotation" in roadmap
-    assert "next entity slice = Scientific Entity Fresh v0.2 Annotation Working Copy Preparation and Manual Annotation" in checkpoint
+    assert "current scientific entity checkpoint = Scientific Entity Fresh v0.2 Reference Evidence Freeze" in readme
+    assert "current_extension = Scientific Entity Fresh v0.2 Reference Evidence Freeze" in checkpoint
+    assert "latest completed slice = Scientific Entity Fresh v0.2 Reference Evidence Freeze" in roadmap
+    assert "next authorized slice = Scientific Entity Frozen v0.2c Raw Inference — Exactly Once" in roadmap
+    assert "next entity slice = Scientific Entity Frozen v0.2c Raw Inference — Exactly Once" in checkpoint
 
-    assert "status = tooling frozen" in reference
+    assert "status = reference evidence frozen and strictly validated" in reference
     assert "sample_id = scientific-entity-fresh-heldout-sample-v0.2-20260901T130232963026Z" in reference
     assert "review_id = scientific-entity-fresh-heldout-review-v0.2-20260901T130232963026Z" in reference
     assert "selected canonical IDs SHA-256 = 0c4bf55fa47192d8523a5ccd0d89b3326562ff6b464f108d330d87286feb7d7a" in reference
     assert "documents = 48" in reference
     assert "annotation rows = 96" in reference
-    assert "all annotation_complete = true" in reference
-    assert "unresolved uncertain mentions = 0" in reference
-    assert "reference mentions per task >= 20" in reference
-    assert "reference mentions per domain >= 20" in reference
-    assert "total reference mentions <= 5000" in reference
-    assert "reference evidence = not yet frozen" in reference
-    assert "model inference = forbidden" in reference
-    assert "candidate evaluation = forbidden" in reference
+    assert "completed annotation rows = 96" in reference
+    assert "reference mentions = 944" in reference
+    assert "uncertain reference mentions = 0" in reference
+    assert "minimum reference mentions per type = 20" in reference
+    assert "task = 150" in reference
+    assert "method = 279" in reference
+    assert "dataset = 66" in reference
+    assert "metric = 86" in reference
+    assert "model = 280" in reference
+    assert "domain = 83" in reference
+    assert "reference adequacy = passed" in reference
+    assert "strict reference validator = 44 / 44" in reference
+    assert "required failures = 0" in reference
+    assert "prediction blind = true" in reference
+    assert "candidate predictions visible during annotation = false" in reference
+    assert "model inference executed = false" in reference
+    assert "candidate evaluation executed = false" in reference
+    assert "production extractor selected = false" in reference
+    assert "full-corpus build authorized = false" in reference
     assert "next = run_frozen_v02c_raw_inference_once" in reference
+
+    assert "61. **Scientific Entity Fresh v0.2 Prediction-Blind Reference Freeze Tooling**" in roadmap
+    assert "62. **Scientific Entity Fresh v0.2 Reference Evidence Freeze**" in roadmap
 
