@@ -1,0 +1,77 @@
+schema_version: scientific_entity_fresh_heldout_frozen_inference_v0.2
+
+layer:
+  name: scientific_entity_fresh_heldout_frozen_inference
+  version: v0.2
+  status: frozen_one_shot_inference_contract
+  layer_kind: independent_heldout_raw_candidate_inference
+
+candidate:
+  candidate_id: scientific-entity-semantic-prompt-raw-floor-extension-v0.2c
+  runtime_config_path: configs/scientific_entity_gliner_semantic_prompt_raw_floor_candidate_v0.2c.yaml
+  runtime_config_sha256: b9b544194183e1cdf60a4632735acb6fe24788829bd1c75941293c5cd4360da6
+  extractor_name: ml_radar_gliner_small_v2_5_semantic_prompt_raw_floor_candidate
+  extractor_version: 0.2.0c1
+  model_repository: gliner-community/gliner_small-v2.5
+  model_revision: f227d3cd637bd4e6757ae143935316d062393341
+  model_artifact_sha256: d444ff406b27affc07e3165b454c3adc9f25f228c81ede197a7b806f49d12c74
+  raw_inference_floor: 0.40
+  window_size_tokens: 320
+  window_overlap_tokens: 64
+  source_fields: [title, abstract]
+  entity_types: [task, method, dataset, metric, model, domain]
+  title_policy_threshold_after_raw_validation: 0.45
+  abstract_policy_threshold_after_raw_validation: 0.625
+  entity_type_overrides_allowed: false
+
+fresh_heldout:
+  sample_id: scientific-entity-fresh-heldout-sample-v0.2-20260901T130232963026Z
+  review_id: scientific-entity-fresh-heldout-review-v0.2-20260901T130232963026Z
+  selected_canonical_ids_sha256: 0c4bf55fa47192d8523a5ccd0d89b3326562ff6b464f108d330d87286feb7d7a
+  expected_document_count: 48
+  expected_annotation_row_count: 96
+  expected_reference_mention_count: 944
+  expected_uncertain_reference_mention_count: 0
+  expected_reference_count_by_type:
+    task: 150
+    method: 279
+    dataset: 66
+    metric: 86
+    model: 280
+    domain: 83
+  require_reference_adequacy_passed: true
+  require_strict_reference_validation: true
+
+execution:
+  input_filename: canonical_documents.sample.jsonl
+  raw_output_root: data/entities/scientific_entity_evidence/v0.1
+  build_id: scientific-entity-gliner-small-v2.5-fresh-v0.2c-20260901T130232963026Z
+  build_status: candidate
+  max_documents: 48
+  one_shot_execute: true
+  plan_runs_model_inference: false
+  overwrite_allowed: false
+  existing_gliner_builder_required: true
+  existing_gliner_validator_required: true
+
+safety:
+  reference_must_be_frozen_before_execute: true
+  raw_candidate_must_be_frozen: true
+  prompt_changes_allowed: false
+  threshold_changes_allowed: false
+  model_changes_allowed: false
+  sampling_changes_allowed: false
+  policy_application_in_this_slice: false
+  evaluation_in_this_slice: false
+  acceptance_decision_in_this_slice: false
+  canonical_truth_mutation_allowed: false
+  provider_api_allowed: false
+  reconcile_input_allowed: false
+  publication_allowed: false
+  production_extractor_selected: false
+  full_corpus_build_authorized: false
+
+next_steps:
+  after_plan: execute_frozen_v02c_raw_inference_once
+  after_execute: validate_frozen_v02c_raw_inference
+  after_validation: apply_frozen_v02c_policy_once

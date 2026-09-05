@@ -35,11 +35,11 @@ paper-centric research-discovery system.
 ## Current validated checkpoint
 
 ```text
-checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Fresh v0.2 Reference Evidence Freeze
-current scientific entity checkpoint = Scientific Entity Fresh v0.2 Reference Evidence Freeze
+checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Fresh v0.2 Frozen v0.2c Raw Inference
+current scientific entity checkpoint = Scientific Entity Fresh v0.2 Frozen v0.2c Raw Inference
 base checkpoint = safe canonical refresh and synchronized core/Discovery derived layers
 scientific entity status = bounded literal control + evaluation harness + completed 24-paper review + GLiNER candidate adapter
-scientific entity quality status = semantic-prompt raw-floor v0.2c remains frozen as a promising development candidate; fresh held-out sample scientific-entity-fresh-heldout-sample-v0.2-20260901T130232963026Z remains immutable; prediction-blind manual annotation for review scientific-entity-fresh-heldout-review-v0.2-20260901T130232963026Z is complete at 96 / 96 rows; immutable reference evidence is frozen with 944 mentions, zero unresolved uncertainty, per-type counts task=150 / method=279 / dataset=66 / metric=86 / model=280 / domain=83, all adequacy gates pass, and strict reference validation passes 44 / 44; candidate inference/evaluation have not run, no post-heldout tuning is allowed, and production/full-corpus remain unauthorized
+scientific entity quality status = semantic-prompt raw-floor v0.2c remains frozen as the development candidate; fresh held-out references remain frozen at 944 mentions; the original one-shot frozen v0.2c raw inference executed on the 48-paper fresh held-out and produced 1257 raw mentions under runtime-config SHA b9b544194183e1cdf60a4632735acb6fe24788829bd1c75941293c5cd4360da6 and extractor fingerprint e43009f1127a445ddfd01352b47825391c2d12a2059ed53b9d35f7e5b12d8f13; a faulty smoke-test cleanup subsequently deleted the local build artifact, after which tests were isolated to tmp_path and a documented exact-condition recovery rematerialized the build; the recovered run reproduced the recorded 1257 raw mentions and exact extractor fingerprint, recovery_match_passed=true, and ordinary strict raw-inference validation again passed 22 / 22; byte identity with the deleted original artifact is not claimed; policy application/evaluation/acceptance decision have not run, no post-heldout tuning is allowed, and production/full-corpus remain unauthorized
 public behavior change = none
 public dense/hybrid backend = file
 experimental Qdrant endpoint = explicit
@@ -865,22 +865,26 @@ Recommended order:
     viewing v0.2c predictions. The completed annotation file contains no unresolved uncertain mentions.
 
 20. **Fresh v0.2 Reference Evidence Freeze — completed.**
-    Immutable reference evidence now contains `944` mentions:
-    task `150`, method `279`, dataset `66`,
-    metric `86`, model `280`, domain `83`.
-    All per-type minimums pass and strict independent reference validation is `44 / 44`.
+    Immutable reference evidence contains `944` mentions and strict independent
+    reference validation is `44 / 44`.
 
-21. **Frozen v0.2c Raw Inference — next, exactly once.**
-    Run only the already-frozen v0.2c candidate on this reference-locked fresh held-out. No prompt,
-    threshold, model, or sampling changes are allowed after seeing fresh-heldout performance.
+21. **Frozen v0.2c Raw Inference — completed exactly once.**
+    Build `scientific-entity-gliner-small-v2.5-fresh-v0.2c-20260901T130232963026Z` executed on the exact 48-paper fresh held-out using frozen runtime config
+    SHA `b9b544194183e1cdf60a4632735acb6fe24788829bd1c75941293c5cd4360da6` and produced `1257` raw mentions. Model artifact/backbone checks
+    passed and strict combined validation is `22 / 22`. The raw build
+    is immutable; no second inference run is permitted.
 
-22. **Accepted Large-Scale Derived Entity Build — deferred.**
+22. **Frozen v0.2c Policy Application — next.**
+    Apply only the already-frozen `title=0.45 / abstract=0.625` thresholds with no entity-type
+    overrides. This is deterministic materialization only: no new inference and no tuning.
+
+23. **Accepted Large-Scale Derived Entity Build — deferred.**
     Requires explicit independent acceptance plus separate full-corpus authorization.
 
-23. **Normalization / Linking / Product and Graph Integration — deferred.**
+24. **Normalization / Linking / Product and Graph Integration — deferred.**
     Only after typing quality is sufficiently stable; entities remain downstream of canonical truth.
 
-24. **Full-text / Chunk Provenance / Grounded RAG — deferred.**
+25. **Full-text / Chunk Provenance / Grounded RAG — deferred.**
     Separate acquisition/evidence line after the entity layer is stable.
 
 Dataset publication remains paused pending explicit redistribution guidance.
