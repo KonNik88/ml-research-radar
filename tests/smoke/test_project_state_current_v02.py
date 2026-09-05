@@ -46,7 +46,7 @@ def test_readme_points_to_the_current_checkpoint_and_scopes_old_outputs() -> Non
     assert "docs/scientific_entity_heldout_error_analysis_v0.1.md" in text
     assert "docs/scientific_entity_semantic_prompt_candidate_v0.2a.md" in text
     assert "docs/scientific_entity_semantic_prompt_threshold_calibration_v0.2b.md" in text
-    assert "current scientific entity checkpoint = Scientific Entity Fresh v0.2 Reference Evidence Freeze" in text
+    assert "current scientific entity checkpoint = Scientific Entity Fresh v0.2 Frozen v0.2c Raw Inference" in text
     assert "completed 24-paper review" in text
 
 
@@ -55,10 +55,10 @@ def test_roadmap_advances_after_real_calibration_and_policy_freeze() -> None:
 
     assert "current active direction = Scientific Entity Evidence Layer" in text
     assert (
-        "latest completed slice = Scientific Entity Fresh v0.2 Reference Evidence Freeze"
+        "latest completed slice = Scientific Entity Fresh v0.2 Frozen v0.2c Raw Inference"
     ) in text
     assert (
-        "next authorized slice = Scientific Entity Frozen v0.2c Raw Inference — Exactly Once"
+        "next authorized slice = Scientific Entity Fresh v0.2 Frozen Policy Application"
     ) in text
     assert "Scientific Entity Evidence Contract v0.1" in text
     assert "hard max documents = 100" in text
@@ -479,17 +479,12 @@ def test_scientific_entity_fresh_v02_heldout_sample_materialization_is_preserved
     assert "production extractor selected = false" in sample
     assert "full-corpus build authorized = false" in sample
 
-def test_scientific_entity_fresh_v02_reference_evidence_freeze_is_current() -> None:
+def test_scientific_entity_fresh_v02_reference_evidence_freeze_is_preserved() -> None:
     readme = _read("README.md")
     checkpoint = _read("docs/project_state_current_v0.2.md")
     roadmap = _read("docs/roadmap.md")
     reference = _read("docs/scientific_entity_fresh_heldout_reference_freeze_v0.2.md")
 
-    assert "current scientific entity checkpoint = Scientific Entity Fresh v0.2 Reference Evidence Freeze" in readme
-    assert "current_extension = Scientific Entity Fresh v0.2 Reference Evidence Freeze" in checkpoint
-    assert "latest completed slice = Scientific Entity Fresh v0.2 Reference Evidence Freeze" in roadmap
-    assert "next authorized slice = Scientific Entity Frozen v0.2c Raw Inference — Exactly Once" in roadmap
-    assert "next entity slice = Scientific Entity Frozen v0.2c Raw Inference — Exactly Once" in checkpoint
 
     assert "status = reference evidence frozen and strictly validated" in reference
     assert "sample_id = scientific-entity-fresh-heldout-sample-v0.2-20260901T130232963026Z" in reference
@@ -520,4 +515,66 @@ def test_scientific_entity_fresh_v02_reference_evidence_freeze_is_current() -> N
 
     assert "61. **Scientific Entity Fresh v0.2 Prediction-Blind Reference Freeze Tooling**" in roadmap
     assert "62. **Scientific Entity Fresh v0.2 Reference Evidence Freeze**" in roadmap
+
+
+def test_scientific_entity_fresh_v02_frozen_raw_inference_is_current() -> None:
+    readme = _read("README.md")
+    checkpoint = _read("docs/project_state_current_v0.2.md")
+    roadmap = _read("docs/roadmap.md")
+    inference = _read("docs/scientific_entity_fresh_heldout_frozen_inference_v0.2.md")
+    recovery = _read("docs/scientific_entity_fresh_heldout_frozen_inference_recovery_v0.2.md")
+
+    assert "current scientific entity checkpoint = Scientific Entity Fresh v0.2 Frozen v0.2c Raw Inference" in readme
+    assert "current_extension = Scientific Entity Fresh v0.2 Frozen v0.2c Raw Inference" in checkpoint
+    assert "latest completed slice = Scientific Entity Fresh v0.2 Frozen v0.2c Raw Inference" in roadmap
+    assert "next authorized slice = Scientific Entity Fresh v0.2 Frozen Policy Application" in roadmap
+    assert "next entity slice = Scientific Entity Fresh v0.2 Frozen Policy Application" in checkpoint
+
+    assert "status = one-shot raw inference executed and strictly validated" in inference
+    assert "build_id = scientific-entity-gliner-small-v2.5-fresh-v0.2c-20260901T130232963026Z" in inference
+    assert "runtime config SHA-256 = b9b544194183e1cdf60a4632735acb6fe24788829bd1c75941293c5cd4360da6" in inference
+    assert "input documents = 48" in inference
+    assert "raw mentions = 1257" in inference
+    assert "extractor fingerprint = e43009f1127a445ddfd01352b47825391c2d12a2059ed53b9d35f7e5b12d8f13" in inference
+    assert "model artifact verified = true" in inference
+    assert "backbone config verified = true" in inference
+    assert "runtime device = NVIDIA GeForce RTX 2070 SUPER" in inference
+    assert "inference duration seconds = 10.334789" in inference
+    assert "peak CUDA memory bytes = 418029568" in inference
+    assert "reference validation failures = 0" in inference
+    assert "raw-build validation failures = 0" in inference
+    assert "strict combined validator = 22 / 22" in inference
+    assert "required failures = 0" in inference
+    assert "model inference executed = true" in inference
+    assert "policy applied = false" in inference
+    assert "evaluation executed = false" in inference
+    assert "acceptance decision made = false" in inference
+    assert "canonical truth mutated = false" in inference
+    assert "production extractor selected = false" in inference
+    assert "full-corpus build authorized = false" in inference
+    assert "next = apply_frozen_v02c_policy_once" in inference
+
+    assert "## Artifact-loss incident and documented recovery" in inference
+    assert "recovery reason = faulty_smoke_test_deleted_successful_one_shot_raw_artifact" in inference
+    assert "recovered raw mentions = 1257" in inference
+    assert "raw mention count match = true" in inference
+    assert "recovered extractor fingerprint = e43009f1127a445ddfd01352b47825391c2d12a2059ed53b9d35f7e5b12d8f13" in inference
+    assert "extractor fingerprint match = true" in inference
+    assert "recovery match passed = true" in inference
+    assert "byte identity with deleted original artifact verifiable = false" in inference
+
+    assert "## Recovery outcome" in recovery
+    assert "recovery phase complete = true" in recovery
+    assert "original one-shot execution observed = true" in recovery
+    assert "original artifact available before recovery = false" in recovery
+    assert "recovered raw mentions = 1257" in recovery
+    assert "raw mention count match = true" in recovery
+    assert "recovered extractor fingerprint = e43009f1127a445ddfd01352b47825391c2d12a2059ed53b9d35f7e5b12d8f13" in recovery
+    assert "extractor fingerprint match = true" in recovery
+    assert "recovery match passed = true" in recovery
+    assert "strict validator = 22 / 22" in recovery
+    assert "next = apply_frozen_v02c_policy_once" in recovery
+
+    assert "63. **Scientific Entity Fresh v0.2 Frozen v0.2c Raw Inference**" in roadmap
+    assert "64. **Scientific Entity Fresh v0.2 Raw Artifact Recovery and Test Isolation Hotfix**" in roadmap
 

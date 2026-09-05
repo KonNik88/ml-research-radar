@@ -3,15 +3,15 @@
 ## Document status
 
 ```text
-status = accepted post-orchestration and scientific-entity fresh-v0.2 reference-evidence-freeze checkpoint
-checkpoint_date = 2026-09-04
+status = accepted post-orchestration and scientific-entity fresh-v0.2 frozen-raw-inference checkpoint
+checkpoint_date = 2026-09-05
 supersedes_for_current_planning = docs/project_state_current_v0.1.md
 historical_detail_retained_in = docs/project_state_current_v0.1.md
 canonical_truth_changed_by_document = false
 runtime_behavior_changed_by_document = false
 generated_layers_rebuilt_by_document = false
 publishes_dataset = false
-current_extension = Scientific Entity Fresh v0.2 Reference Evidence Freeze
+current_extension = Scientific Entity Fresh v0.2 Frozen v0.2c Raw Inference
 ```
 
 This checkpoint records the accepted project state after the August 2026 safe
@@ -518,30 +518,52 @@ Recommended order:
    - completed annotations SHA-256 = `eeb05e795831e3e3f274dc338b3261f9375bcd60975290e9169e77ad5d0ffe89`.
 
 20. **Fresh v0.2 Reference Evidence Freeze — completed**
-   - immutable reference evidence contains `944` reference mentions;
-   - per-type counts: task `150`, method `279`, dataset `66`, metric `86`, model `280`, domain `83`;
-   - minimum reference mentions per type = `20`; all six types pass;
-   - strict independent reference validation = `44 / 44` with `0` required failures;
-   - model inference executed = `false`;
-   - candidate evaluation executed = `false`;
+   - immutable reference evidence remains fixed at `944` mentions with strict validation `44 / 44`.
+
+21. **Frozen v0.2c Raw Inference — completed exactly once**
+   - build ID = `scientific-entity-gliner-small-v2.5-fresh-v0.2c-20260901T130232963026Z`;
+   - frozen runtime config SHA-256 = `b9b544194183e1cdf60a4632735acb6fe24788829bd1c75941293c5cd4360da6`;
+   - input documents = `48`; raw mentions = `1257`;
+   - extractor fingerprint = `e43009f1127a445ddfd01352b47825391c2d12a2059ed53b9d35f7e5b12d8f13`;
+   - model artifact verified = `true`; backbone config verified = `true`;
+   - runtime device = `NVIDIA GeForce RTX 2070 SUPER`; inference duration = `10.334789` seconds; peak CUDA memory = `418029568` bytes;
+   - reference validation failures = `0`; raw-build validation failures = `0`;
+   - strict combined validation = `22 / 22` with `0` required failures;
+   - model inference executed = `true`;
+   - policy applied = `false`;
+   - evaluation executed = `false`;
+   - acceptance decision made = `false`;
+   - canonical truth mutated = `false`;
    - production extractor selected = `false`;
    - full-corpus build authorized = `false`.
 
-21. **Frozen v0.2c Raw Inference — next, exactly once**
-   - run the already-frozen v0.2c raw candidate against this reference-locked fresh held-out;
-   - do not tune prompts, thresholds, model choice, or sample composition after seeing results;
-   - subsequent evaluation must apply only the acceptance gate frozen before this held-out was selected.
+22. **Frozen v0.2c Raw Artifact Recovery — completed incident correction**
+   - after the original successful one-shot run and green `22 / 22` validation, a non-isolated smoke-test cleanup deleted the fixed local raw build;
+   - the test suite was corrected so writable fixed-build fixtures live only under pytest `tmp_path`;
+   - recovery was explicitly recorded as rematerialization after accidental deletion, not as a new held-out experiment;
+   - recovered raw mention count = `1257`, matching the recorded original `1257`;
+   - recovered extractor fingerprint = `e43009f1127a445ddfd01352b47825391c2d12a2059ed53b9d35f7e5b12d8f13`, matching the recorded original;
+   - `recovery_match_passed = true`;
+   - byte identity with the deleted original artifact cannot be proven because independent original file checksums were not preserved before deletion;
+   - no policy, evaluation, acceptance decision, threshold/model/prompt/sample change, or post-heldout tuning occurred during recovery;
+   - ordinary strict raw-inference validation again passes `22 / 22`.
 
-22. **Accepted Large-Scale Derived Entity Build — deferred**
+23. **Frozen v0.2c Policy Application — next**
+   - apply only frozen thresholds `title=0.45 / abstract=0.625`, with no entity-type overrides;
+   - do not rerun model inference;
+   - do not tune thresholds or inspect/calibrate against held-out metrics;
+   - evaluation remains a later explicit slice.
+
+24. **Accepted Large-Scale Derived Entity Build — deferred**
    - requires a later production-quality decision and explicit full-corpus authorization;
    - build-scoped manifest and current-canonical compatibility checks;
    - current development evidence does not authorize a 61,075-paper entity run.
 
-23. **Normalization / Linking / Product and Graph Integration — deferred**
+25. **Normalization / Linking / Product and Graph Integration — deferred**
    - avoid normalizing six-type evidence before weak types and semantic typing are hardened;
    - later add aliases, canonical entity IDs, Discovery facets, paper detail/comparison evidence, and paper–entity edges.
 
-24. **Full-text / Chunk Provenance / Grounded RAG**
+26. **Full-text / Chunk Provenance / Grounded RAG**
    - separate contract and acquisition-policy line;
    - no ungrounded chat layer.
 
@@ -637,8 +659,8 @@ scientific entity fresh v0.2 heldout gate = design frozen / 48 papers / 24 unifo
 scientific entity fresh v0.2 acceptance = exact F1 minimum 0.396882 / relaxed F1 0.414868 desirable only / semantic caps 43,25,150,74,74 / no post-heldout tuning
 scientific entity fresh v0.2 sample = materialized / scientific-entity-fresh-heldout-sample-v0.2-20260901T130232963026Z / 48 papers / 24 uniform + 24 type-enriched / 96 blank rows / overlap 0 / selected IDs sha256 0c4bf55fa47192d8523a5ccd0d89b3326562ff6b464f108d330d87286feb7d7a / strict validation 43 of 43
 scientific entity fresh v0.2 safety = candidate predictions not read / inference not run / evaluation not run / fresh reference not consumed / production false / full corpus false
-scientific entity fresh v0.2 reference evidence = frozen / 96-of-96 annotations complete / 944 immutable references / zero unresolved uncertainty / per-type task=150 method=279 dataset=66 metric=86 model=280 domain=83 / strict validator 44 of 44 / candidate inference not yet executed
-next entity slice = Scientific Entity Frozen v0.2c Raw Inference — Exactly Once
+scientific entity fresh v0.2 raw inference = original one-shot executed / build scientific-entity-gliner-small-v2.5-fresh-v0.2c-20260901T130232963026Z / 48 docs / 1257 raw mentions / extractor fingerprint e43009f1127a445ddfd01352b47825391c2d12a2059ed53b9d35f7e5b12d8f13 / faulty smoke-test cleanup deleted the local artifact after green validation / tests isolated to tmp_path / documented exact-condition recovery reproduced 1257 raw mentions and the same extractor fingerprint / recovery match passed / strict validator again 22 of 22 / byte identity with deleted original not claimed / policy not applied / evaluation not run / acceptance not decided
+next entity slice = Scientific Entity Fresh v0.2 Frozen Policy Application
 ```
 
 The project is not restarting or replacing completed work. The next entity
