@@ -46,7 +46,7 @@ def test_readme_points_to_the_current_checkpoint_and_scopes_old_outputs() -> Non
     assert "docs/scientific_entity_heldout_error_analysis_v0.1.md" in text
     assert "docs/scientific_entity_semantic_prompt_candidate_v0.2a.md" in text
     assert "docs/scientific_entity_semantic_prompt_threshold_calibration_v0.2b.md" in text
-    assert "current scientific entity checkpoint = Scientific Entity Fresh v0.2 Frozen v0.2c Raw Inference" in text
+    assert "current scientific entity checkpoint = Scientific Entity Fresh v0.2 Frozen v0.2c Policy Application" in text
     assert "completed 24-paper review" in text
 
 
@@ -55,10 +55,10 @@ def test_roadmap_advances_after_real_calibration_and_policy_freeze() -> None:
 
     assert "current active direction = Scientific Entity Evidence Layer" in text
     assert (
-        "latest completed slice = Scientific Entity Fresh v0.2 Frozen v0.2c Raw Inference"
+        "latest completed slice = Scientific Entity Fresh v0.2 Frozen v0.2c Policy Application"
     ) in text
     assert (
-        "next authorized slice = Scientific Entity Fresh v0.2 Frozen Policy Application"
+        "next authorized slice = Scientific Entity Fresh v0.2 Independent Evaluation"
     ) in text
     assert "Scientific Entity Evidence Contract v0.1" in text
     assert "hard max documents = 100" in text
@@ -517,18 +517,13 @@ def test_scientific_entity_fresh_v02_reference_evidence_freeze_is_preserved() ->
     assert "62. **Scientific Entity Fresh v0.2 Reference Evidence Freeze**" in roadmap
 
 
-def test_scientific_entity_fresh_v02_frozen_raw_inference_is_current() -> None:
+def test_scientific_entity_fresh_v02_frozen_raw_inference_is_preserved() -> None:
     readme = _read("README.md")
     checkpoint = _read("docs/project_state_current_v0.2.md")
     roadmap = _read("docs/roadmap.md")
     inference = _read("docs/scientific_entity_fresh_heldout_frozen_inference_v0.2.md")
     recovery = _read("docs/scientific_entity_fresh_heldout_frozen_inference_recovery_v0.2.md")
 
-    assert "current scientific entity checkpoint = Scientific Entity Fresh v0.2 Frozen v0.2c Raw Inference" in readme
-    assert "current_extension = Scientific Entity Fresh v0.2 Frozen v0.2c Raw Inference" in checkpoint
-    assert "latest completed slice = Scientific Entity Fresh v0.2 Frozen v0.2c Raw Inference" in roadmap
-    assert "next authorized slice = Scientific Entity Fresh v0.2 Frozen Policy Application" in roadmap
-    assert "next entity slice = Scientific Entity Fresh v0.2 Frozen Policy Application" in checkpoint
 
     assert "status = one-shot raw inference executed and strictly validated" in inference
     assert "build_id = scientific-entity-gliner-small-v2.5-fresh-v0.2c-20260901T130232963026Z" in inference
@@ -577,4 +572,41 @@ def test_scientific_entity_fresh_v02_frozen_raw_inference_is_current() -> None:
 
     assert "63. **Scientific Entity Fresh v0.2 Frozen v0.2c Raw Inference**" in roadmap
     assert "64. **Scientific Entity Fresh v0.2 Raw Artifact Recovery and Test Isolation Hotfix**" in roadmap
+
+def test_scientific_entity_fresh_v02_frozen_policy_application_is_current() -> None:
+    readme = _read("README.md")
+    checkpoint = _read("docs/project_state_current_v0.2.md")
+    roadmap = _read("docs/roadmap.md")
+    policy = _read("docs/scientific_entity_fresh_heldout_frozen_policy_v0.2.md")
+
+    assert "current scientific entity checkpoint = Scientific Entity Fresh v0.2 Frozen v0.2c Policy Application" in readme
+    assert "current_extension = Scientific Entity Fresh v0.2 Frozen v0.2c Policy Application" in checkpoint
+    assert "latest completed slice = Scientific Entity Fresh v0.2 Frozen v0.2c Policy Application" in roadmap
+    assert "next authorized slice = Scientific Entity Fresh v0.2 Independent Evaluation" in roadmap
+    assert "next entity slice = Scientific Entity Fresh v0.2 Independent Evaluation" in checkpoint
+
+    assert "status = frozen policy applied and strictly validated" in policy
+    assert "build_id = scientific-entity-gliner-small-v2.5-fresh-v0.2c-policy-20260901T130232963026Z" in policy
+    assert "input predictions = 1257" in policy
+    assert "selected predictions = 773" in policy
+    assert "rejected predictions = 484" in policy
+    assert "fresh policy config SHA-256 = 9375fc73ce5ff8cf757891bca2f2ca5461b9e140439ef5c589aa3888d5064abb" in policy
+    assert "development policy semantic SHA-256 = 9ad8d4f6728e49e04ed4bdc4cec6f4d2a23db82d55af71b4f71f33dabf84f62c" in policy
+    assert "title threshold = 0.45" in policy
+    assert "abstract threshold = 0.625" in policy
+    assert "entity-type overrides = none" in policy
+    assert "raw inference validation failures = 0" in policy
+    assert "strict policy validator = 37 / 37" in policy
+    assert "required failures = 0" in policy
+    assert "new model inference executed = false" in policy
+    assert "threshold tuning executed = false" in policy
+    assert "reference comparison executed = false" in policy
+    assert "evaluation executed = false" in policy
+    assert "acceptance decision made = false" in policy
+    assert "canonical truth mutated = false" in policy
+    assert "production extractor selected = false" in policy
+    assert "full corpus authorized = false" in policy
+    assert "evaluate_frozen_v02c_policy_once" in policy
+
+    assert "65. **Scientific Entity Fresh v0.2 Frozen v0.2c Policy Application**" in roadmap
 
