@@ -1,0 +1,69 @@
+schema_version: scientific_entity_fresh_heldout_frozen_policy_v0.2
+
+layer:
+  name: scientific_entity_fresh_heldout_frozen_policy
+  version: v0.2
+  status: frozen_policy_application_contract
+  layer_kind: independent_heldout_policy_filtered_candidate_evidence
+
+candidate:
+  candidate_id: scientific-entity-semantic-prompt-raw-floor-extension-v0.2c
+  raw_build_id: scientific-entity-gliner-small-v2.5-fresh-v0.2c-20260901T130232963026Z
+  raw_build_root: data/entities/scientific_entity_evidence/v0.1
+  expected_document_count: 48
+  expected_raw_mention_count: 1257
+  expected_raw_extractor_fingerprint: e43009f1127a445ddfd01352b47825391c2d12a2059ed53b9d35f7e5b12d8f13
+
+fresh_heldout:
+  sample_id: scientific-entity-fresh-heldout-sample-v0.2-20260901T130232963026Z
+  review_id: scientific-entity-fresh-heldout-review-v0.2-20260901T130232963026Z
+  selected_canonical_ids_sha256: 0c4bf55fa47192d8523a5ccd0d89b3326562ff6b464f108d330d87286feb7d7a
+  expected_reference_mention_count: 944
+
+policy_origin:
+  development_policy_config_path: configs/scientific_entity_semantic_prompt_raw_floor_policy_v0.2c.yaml
+  development_policy_config_sha256: 9ad8d4f6728e49e04ed4bdc4cec6f4d2a23db82d55af71b4f71f33dabf84f62c
+  calibration_id: scientific-entity-semantic-prompt-raw-floor-calibration-v0.2c-20260830T104242195583Z
+  selected_trial_id: calibration-trial:adcd020d8bce5af1ff157f4303e0b171
+  input_threshold: 0.40
+  threshold_is_inclusive: true
+  default_threshold: 0.40
+  source_field_thresholds:
+    title: 0.45
+    abstract: 0.625
+  entity_type_thresholds: {}
+
+extractor:
+  name: ml_radar_gliner_small_v2_5_fresh_v02c_frozen_policy
+  version: 0.2c.0
+  environment_lock_path: requirements/requirements.entities_gliner.lock.txt
+
+execution:
+  output_root: data/entities/scientific_entity_fresh_heldout_policy/v0.2
+  build_id: scientific-entity-gliner-small-v2.5-fresh-v0.2c-policy-20260901T130232963026Z
+  build_status: candidate
+  one_shot_execute: true
+  overwrite_allowed: false
+  plan_runs_model_inference: false
+  plan_runs_evaluation: false
+
+safety:
+  raw_inference_must_validate_first: true
+  new_model_inference_allowed: false
+  threshold_tuning_allowed: false
+  prompt_changes_allowed: false
+  model_changes_allowed: false
+  sampling_changes_allowed: false
+  reference_comparison_allowed: false
+  evaluation_in_this_slice: false
+  acceptance_decision_in_this_slice: false
+  canonical_truth_mutation_allowed: false
+  reconcile_input_allowed: false
+  publication_allowed: false
+  production_extractor_selected: false
+  full_corpus_build_authorized: false
+
+next_steps:
+  after_plan: execute_frozen_v02c_policy_once
+  after_execute: validate_frozen_v02c_policy_application
+  after_validation: evaluate_frozen_v02c_policy_once

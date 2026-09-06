@@ -3,15 +3,15 @@
 ## Document status
 
 ```text
-status = accepted post-orchestration and scientific-entity fresh-v0.2 frozen-raw-inference checkpoint
-checkpoint_date = 2026-09-05
+status = accepted post-orchestration and scientific-entity fresh-v0.2 frozen-policy-application checkpoint
+checkpoint_date = 2026-09-06
 supersedes_for_current_planning = docs/project_state_current_v0.1.md
 historical_detail_retained_in = docs/project_state_current_v0.1.md
 canonical_truth_changed_by_document = false
 runtime_behavior_changed_by_document = false
 generated_layers_rebuilt_by_document = false
 publishes_dataset = false
-current_extension = Scientific Entity Fresh v0.2 Frozen v0.2c Raw Inference
+current_extension = Scientific Entity Fresh v0.2 Frozen v0.2c Policy Application
 ```
 
 This checkpoint records the accepted project state after the August 2026 safe
@@ -548,22 +548,41 @@ Recommended order:
    - no policy, evaluation, acceptance decision, threshold/model/prompt/sample change, or post-heldout tuning occurred during recovery;
    - ordinary strict raw-inference validation again passes `22 / 22`.
 
-23. **Frozen v0.2c Policy Application — next**
-   - apply only frozen thresholds `title=0.45 / abstract=0.625`, with no entity-type overrides;
-   - do not rerun model inference;
-   - do not tune thresholds or inspect/calibrate against held-out metrics;
-   - evaluation remains a later explicit slice.
+23. **Frozen v0.2c Policy Application — completed**
+   - policy build ID = `scientific-entity-gliner-small-v2.5-fresh-v0.2c-policy-20260901T130232963026Z`;
+   - parent raw predictions = `1257`;
+   - frozen title threshold = `0.45` inclusive;
+   - frozen abstract threshold = `0.625` inclusive;
+   - entity-type overrides = none;
+   - selected predictions = `773`; rejected predictions = `484`;
+   - fresh policy config SHA-256 = `9375fc73ce5ff8cf757891bca2f2ca5461b9e140439ef5c589aa3888d5064abb`;
+   - development policy semantic SHA-256 = `9ad8d4f6728e49e04ed4bdc4cec6f4d2a23db82d55af71b4f71f33dabf84f62c`;
+   - strict policy validation = `37 / 37` with `0` required failures;
+   - new model inference executed = `false`;
+   - threshold tuning executed = `false`;
+   - reference comparison executed = `false`;
+   - evaluation executed = `false`;
+   - acceptance decision made = `false`;
+   - canonical truth mutated = `false`;
+   - production extractor selected = `false`;
+   - full-corpus build authorized = `false`.
 
-24. **Accepted Large-Scale Derived Entity Build — deferred**
+24. **Independent Fresh v0.2 Evaluation — next**
+   - compare only the frozen `773` selected predictions with the frozen `944` human references;
+   - compute only the already-defined exact/relaxed metrics and frozen semantic-confusion gates;
+   - apply the acceptance gate frozen before sample selection;
+   - no prompt, threshold, model, sample, taxonomy, or matching-policy tuning is permitted after seeing results.
+
+25. **Accepted Large-Scale Derived Entity Build — deferred**
    - requires a later production-quality decision and explicit full-corpus authorization;
    - build-scoped manifest and current-canonical compatibility checks;
    - current development evidence does not authorize a 61,075-paper entity run.
 
-25. **Normalization / Linking / Product and Graph Integration — deferred**
+26. **Normalization / Linking / Product and Graph Integration — deferred**
    - avoid normalizing six-type evidence before weak types and semantic typing are hardened;
    - later add aliases, canonical entity IDs, Discovery facets, paper detail/comparison evidence, and paper–entity edges.
 
-26. **Full-text / Chunk Provenance / Grounded RAG**
+27. **Full-text / Chunk Provenance / Grounded RAG**
    - separate contract and acquisition-policy line;
    - no ungrounded chat layer.
 
@@ -659,8 +678,9 @@ scientific entity fresh v0.2 heldout gate = design frozen / 48 papers / 24 unifo
 scientific entity fresh v0.2 acceptance = exact F1 minimum 0.396882 / relaxed F1 0.414868 desirable only / semantic caps 43,25,150,74,74 / no post-heldout tuning
 scientific entity fresh v0.2 sample = materialized / scientific-entity-fresh-heldout-sample-v0.2-20260901T130232963026Z / 48 papers / 24 uniform + 24 type-enriched / 96 blank rows / overlap 0 / selected IDs sha256 0c4bf55fa47192d8523a5ccd0d89b3326562ff6b464f108d330d87286feb7d7a / strict validation 43 of 43
 scientific entity fresh v0.2 safety = candidate predictions not read / inference not run / evaluation not run / fresh reference not consumed / production false / full corpus false
-scientific entity fresh v0.2 raw inference = original one-shot executed / build scientific-entity-gliner-small-v2.5-fresh-v0.2c-20260901T130232963026Z / 48 docs / 1257 raw mentions / extractor fingerprint e43009f1127a445ddfd01352b47825391c2d12a2059ed53b9d35f7e5b12d8f13 / faulty smoke-test cleanup deleted the local artifact after green validation / tests isolated to tmp_path / documented exact-condition recovery reproduced 1257 raw mentions and the same extractor fingerprint / recovery match passed / strict validator again 22 of 22 / byte identity with deleted original not claimed / policy not applied / evaluation not run / acceptance not decided
-next entity slice = Scientific Entity Fresh v0.2 Frozen Policy Application
+scientific entity fresh v0.2 raw inference = original one-shot executed / 1257 raw mentions / documented exact-condition recovery preserved / strict validator 22 of 22
+scientific entity fresh v0.2 frozen policy = applied exactly once / build scientific-entity-gliner-small-v2.5-fresh-v0.2c-policy-20260901T130232963026Z / input 1257 / selected 773 / rejected 484 / title 0.45 / abstract 0.625 / no overrides / strict validator 37 of 37 / no reference comparison / no evaluation / no acceptance decision
+next entity slice = Scientific Entity Fresh v0.2 Independent Evaluation
 ```
 
 The project is not restarting or replacing completed work. The next entity
