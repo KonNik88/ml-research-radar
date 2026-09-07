@@ -9,13 +9,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Sequence
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
-
 from radar_core.contracts.scientific_entity_evidence import (
+    EXTRACTOR_SCHEMA_VERSION,
     MANIFEST_SCHEMA_VERSION,
     MENTION_SCHEMA_VERSION,
     EntityEvidenceBuildStatus,
     ScientificEntityEvidenceManifest,
+    ScientificEntityExtractorDescriptor,
     ScientificEntityMentionEvidence,
     ScientificEntitySourceField,
     ScientificEntityType,
@@ -23,31 +23,27 @@ from radar_core.contracts.scientific_entity_evidence import (
     build_extractor_fingerprint,
     sha256_text,
 )
-from radar_core.contracts.scientific_entity_gliner_frozen_policy import (
-    EVIDENCE_LINEAGE_SCHEMA_VERSION,
-    ScientificEntityFrozenPolicyEvidenceLineage,
-)
+from radar_core.contracts.scientific_entity_gliner_calibration import ScientificEntityThresholdPolicy
 from radar_core.contracts.scientific_entity_fresh_heldout_frozen_policy import (
+    FrozenPolicyDerivationManifest,
+    FrozenPolicyLineage,
     ScientificEntityFreshHeldoutFrozenPolicyConfig,
     ScientificEntityFreshHeldoutFrozenPolicyError,
     load_scientific_entity_fresh_heldout_frozen_policy_config,
 )
-from radar_core.contracts.scientific_entity_semantic_prompt_raw_floor_policy import (
-    load_raw_floor_policy_config,
-)
 from radar_core.entities.scientific_entity_gliner_calibration import filter_predictions
-from radar_core.entities.scientific_entity_gliner_frozen_policy import (
-    build_policy_filtered_extractor_descriptor,
+from radar_core.entities.scientific_entity_semantic_prompt_raw_floor_policy import (
+    load_raw_floor_policy_config,
+    policy_config_sha256,
 )
 
-REPORT_NAME = "scientific_entity_fresh_heldout_frozen_policy_v02"
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG = PROJECT_ROOT / "configs" / "scientific_entity_fresh_heldout_frozen_policy_v0.2.yaml"
 DEFAULT_CANONICAL = PROJECT_ROOT / "data" / "analytics" / "reconciled" / "canonical_documents.jsonl"
-DERIVATION_SCHEMA_VERSION = "scientific_entity_fresh_heldout_frozen_policy_derivation_v0.2"
+REPORT_NAME = "scientific_entity_fresh_heldout_frozen_policy_v02"
 QUALITY_SCHEMA_VERSION = "scientific_entity_fresh_heldout_frozen_policy_quality_v0.2"
 OUTPUT_SCHEMA_VERSION = "scientific_entity_fresh_heldout_frozen_policy_output_v0.2"
-CHECKSUM_FILES = (
+REQUIRED_FILES = (
     "mentions.jsonl",
     "manifest.json",
     "derivation_manifest.json",
@@ -55,71 +51,17 @@ CHECKSUM_FILES = (
     "data_quality_summary.json",
     "schema.json",
     "README.md",
+    "checksums.txt",
 )
+CHECKSUM_FILES = REQUIRED_FILES[:-1]
 
 
-class FreshHeldoutPolicyBuildError(RuntimeError):
-    """Raised when fresh-heldout frozen policy application cannot be reproduced safely."""
+class FrozenPolicyBuildError(RuntimeError):
+    """Raised when fresh-heldout frozen policy materialization is unsafe or inconsistent."""
 
 
-class FreshHeldoutPolicyDerivationManifest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    schema_version: str = Field(pattern=r"^scientific_entity_fresh_heldout_frozen_policy_derivation_v0\.2$")
-    build_id: str = Field(min_length=1)
-    generated_at_utc: datetime
-    candidate_id: str = Field(min_length=1)
-    sample_id: str = Field(min_length=1)
-    review_id: str = Field(min_length=1)
-    selected_canonical_ids_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    reference_mention_count: int = Field(ge=1)
-    parent_build_id: str = Field(min_length=1)
-    parent_manifest_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    parent_mentions_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    parent_extractor_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
-    development_policy_config_path: str = Field(min_length=1)
-    development_policy_config_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    calibration_id: str = Field(min_length=1)
-    selected_trial_id: str = Field(min_length=1)
-    input_threshold: float
-    title_threshold: float
-    abstract_threshold: float
-    entity_type_overrides: dict[str, float]
-    input_prediction_count: int = Field(ge=1)
-    selected_prediction_count: int = Field(ge=0)
-    rejected_prediction_count: int = Field(ge=0)
-    candidate_extractor_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
-    lineage_file: str
-    lineage_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    lineage_count: int = Field(ge=0)
-    mention_id_preserved: bool
-    evidence_id_recomputed: bool
-    confidence_preserved: bool
-    parent_model_inference_already_executed: bool
-    new_model_inference_executed: bool
-    threshold_tuning_executed: bool
-    reference_comparison_executed: bool
-    evaluation_executed: bool
-    acceptance_decision_made: bool
-    canonical_truth_mutated: bool
-    production_extractor_selected: bool
-    full_corpus_build_authorized: bool
-
-    @model_validator(mode="after")
-    def validate_counts(self):
-        if self.selected_prediction_count + self.rejected_prediction_count != self.input_prediction_count:
-            raise ValueError("selected + rejected must equal input")
-        if self.lineage_count != self.selected_prediction_count:
-            raise ValueError("lineage count must equal selected prediction count")
-        if self.entity_type_overrides:
-            raise ValueError("entity-type overrides must remain empty")
-        return self
-
-
-def _resolve(project_root: Path, value: str | Path) -> Path:
-    path = Path(value)
-    if not path.is_absolute():
-        path = project_root / path
-    return path.resolve()
+def _canonical_json(payload: Any) -> str:
+    return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
 def _sha256_file(path: Path) -> str:
@@ -130,44 +72,10 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _canonical_json(payload: Any) -> str:
-    return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-
-
-def _policy_config_sha256(config) -> str:
-    return sha256_text(_canonical_json(config.model_dump(mode="json")))
-
-
-def fresh_policy_config_sha256(config: ScientificEntityFreshHeldoutFrozenPolicyConfig) -> str:
-    return sha256_text(_canonical_json(config.model_dump(mode="json")))
-
-
-def _read_json(path: Path) -> dict[str, Any]:
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict):
-        raise FreshHeldoutPolicyBuildError(f"Expected JSON object: {path}")
-    return payload
-
-
-def _read_jsonl(path: Path) -> list[dict[str, Any]]:
-    rows = []
-    with path.open("r", encoding="utf-8") as handle:
-        for line_number, line in enumerate(handle, start=1):
-            if not line.strip():
-                raise FreshHeldoutPolicyBuildError(f"Blank JSONL line: {path}:{line_number}")
-            payload = json.loads(line)
-            if not isinstance(payload, dict):
-                raise FreshHeldoutPolicyBuildError(f"Expected JSON object: {path}:{line_number}")
-            rows.append(payload)
-    return rows
-
-
-def _jsonl_bytes(rows: Sequence[Any]) -> bytes:
-    chunks = []
-    for row in rows:
-        payload = row.model_dump(mode="json") if hasattr(row, "model_dump") else row
-        chunks.append(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
-    return (("\n".join(chunks) + "\n") if chunks else "").encode("utf-8")
+def _semantic_yaml_sha256(path: Path) -> str:
+    import yaml
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    return sha256_text(_canonical_json(payload))
 
 
 def _json_bytes(payload: Any) -> bytes:
@@ -176,120 +84,258 @@ def _json_bytes(payload: Any) -> bytes:
     return (json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8")
 
 
-def _validate_policy_origin(project_root: Path, contract: ScientificEntityFreshHeldoutFrozenPolicyConfig) -> dict[str, Any]:
-    policy_path = _resolve(project_root, contract.policy_origin.development_policy_config_path)
+def _jsonl_bytes(rows: Sequence[Any]) -> bytes:
+    lines = []
+    for row in rows:
+        payload = row.model_dump(mode="json") if hasattr(row, "model_dump") else row
+        lines.append(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+    return (("\n".join(lines) + "\n") if lines else "").encode("utf-8")
+
+
+def _read_json(path: Path) -> dict[str, Any]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise FrozenPolicyBuildError(f"Expected JSON object: {path}")
+    return payload
+
+
+def _read_jsonl(path: Path) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    with path.open("r", encoding="utf-8") as handle:
+        for line_number, line in enumerate(handle, start=1):
+            if not line.strip():
+                raise FrozenPolicyBuildError(f"Blank JSONL line: {path}:{line_number}")
+            payload = json.loads(line)
+            if not isinstance(payload, dict):
+                raise FrozenPolicyBuildError(f"Expected JSON object: {path}:{line_number}")
+            rows.append(payload)
+    return rows
+
+
+def _resolve(project_root: Path, value: str | Path) -> Path:
+    path = Path(value)
+    if not path.is_absolute():
+        path = project_root / path
+    return path.resolve()
+
+
+def _validate_frozen_policy_config(*, project_root: Path, contract: ScientificEntityFreshHeldoutFrozenPolicyConfig) -> dict[str, Any]:
+    policy_path = _resolve(project_root, contract.candidate.frozen_policy_config_path)
     if not policy_path.is_file():
         raise FileNotFoundError(policy_path)
-    development = load_raw_floor_policy_config(policy_path)
-    semantic_sha = _policy_config_sha256(development)
-    expected = contract.policy_origin
-    if semantic_sha != expected.development_policy_config_sha256:
-        raise ScientificEntityFreshHeldoutFrozenPolicyError("development v0.2c policy config SHA drifted")
-    if development.candidate.candidate_id != contract.candidate.candidate_id:
-        raise ScientificEntityFreshHeldoutFrozenPolicyError("development policy candidate_id drifted")
-    if development.candidate.calibration_id != expected.calibration_id:
-        raise ScientificEntityFreshHeldoutFrozenPolicyError("development policy calibration_id drifted")
-    if development.candidate.selected_trial_id != expected.selected_trial_id:
-        raise ScientificEntityFreshHeldoutFrozenPolicyError("development policy selected_trial_id drifted")
-    if float(development.policy.input_threshold) != expected.input_threshold:
-        raise ScientificEntityFreshHeldoutFrozenPolicyError("development policy input threshold drifted")
-    if development.policy.source_field_thresholds != expected.source_field_thresholds:
-        raise ScientificEntityFreshHeldoutFrozenPolicyError("development source-field thresholds drifted")
-    if development.policy.entity_type_thresholds:
-        raise ScientificEntityFreshHeldoutFrozenPolicyError("development policy unexpectedly has type overrides")
-    return {
-        "policy_path": policy_path,
-        "semantic_sha256": semantic_sha,
-        "calibration_id": development.candidate.calibration_id,
-        "selected_trial_id": development.candidate.selected_trial_id,
+    semantic_sha = _semantic_yaml_sha256(policy_path)
+    if semantic_sha != contract.candidate.frozen_policy_config_sha256:
+        raise ScientificEntityFreshHeldoutFrozenPolicyError("Frozen v0.2c policy config SHA-256 drifted")
+    policy = load_raw_floor_policy_config(policy_path)
+    model_sha = policy_config_sha256(policy)
+    if model_sha != semantic_sha:
+        raise ScientificEntityFreshHeldoutFrozenPolicyError("Frozen policy semantic SHA implementation drifted")
+    checks = {
+        "candidate_id": policy.candidate.candidate_id == contract.candidate.candidate_id,
+        "calibration_id": policy.candidate.calibration_id == contract.candidate.calibration_id,
+        "selected_trial_id": policy.candidate.selected_trial_id == contract.candidate.selected_trial_id,
+        "input_threshold": policy.policy.input_threshold == contract.policy.input_threshold,
+        "default_threshold": policy.policy.default_threshold == contract.policy.default_threshold,
+        "title_threshold": float(policy.policy.source_field_thresholds[ScientificEntitySourceField.TITLE]) == contract.policy.title_threshold,
+        "abstract_threshold": float(policy.policy.source_field_thresholds[ScientificEntitySourceField.ABSTRACT]) == contract.policy.abstract_threshold,
+        "entity_type_overrides": not policy.policy.entity_type_thresholds and not contract.policy.entity_type_overrides,
+        "source_development_policy_fresh_heldout_forbidden": policy.safety.fresh_heldout_consumption_allowed is False,
+        "model_inference_forbidden": policy.safety.model_inference_allowed is False,
+        "threshold_tuning_forbidden": policy.safety.threshold_tuning_allowed is False,
+        "production_not_selected": policy.safety.production_extractor_selected is False,
+        "full_corpus_not_authorized": policy.safety.full_corpus_build_authorized is False,
     }
+    failed = [name for name, ok in checks.items() if not ok]
+    if failed:
+        raise ScientificEntityFreshHeldoutFrozenPolicyError("Frozen v0.2c policy semantics drifted: " + ", ".join(failed))
+    return {"policy_path": policy_path, "policy_sha256": semantic_sha, "policy": policy}
 
 
-def _validate_raw_parent(
+def _validate_raw_inference(
     *,
     project_root: Path,
-    contract: ScientificEntityFreshHeldoutFrozenPolicyConfig,
     sample_dir: Path,
     reference_dir: Path,
     development_package_dir: Path,
     canonical_path: Path,
-) -> tuple[ScientificEntityEvidenceManifest, tuple[ScientificEntityMentionEvidence, ...], dict[str, Any]]:
-    from radar_core.entities.scientific_entity_fresh_heldout_frozen_inference import validate_frozen_inference
-
+    model_cache_dir: Path | None,
+) -> dict[str, Any]:
+    from radar_core.entities.scientific_entity_fresh_heldout_frozen_inference import (
+        DEFAULT_CONFIG as RAW_CONFIG,
+        validate_frozen_inference,
+    )
     checks, summary = validate_frozen_inference(
         project_root=project_root,
-        config_path=project_root / "configs" / "scientific_entity_fresh_heldout_frozen_inference_v0.2.yaml",
+        config_path=RAW_CONFIG,
         sample_dir=sample_dir,
         reference_dir=reference_dir,
         development_package_dir=development_package_dir,
         canonical_path=canonical_path,
+        model_cache_dir=model_cache_dir,
     )
-    failed = [name for name, ok, _ in checks if not ok]
-    if failed or summary.get("required_failed_count") != 0:
-        raise FreshHeldoutPolicyBuildError("raw inference validation failed: " + ", ".join(failed))
-    if summary.get("build_id") != contract.candidate.raw_build_id:
-        raise FreshHeldoutPolicyBuildError("raw build_id drifted")
-    if summary.get("raw_mention_count") != contract.candidate.expected_raw_mention_count:
-        raise FreshHeldoutPolicyBuildError("raw mention count drifted")
-    if summary.get("input_document_count") != contract.candidate.expected_document_count:
-        raise FreshHeldoutPolicyBuildError("raw document count drifted")
-    if summary.get("reference_mention_count") != contract.fresh_heldout.expected_reference_mention_count:
-        raise FreshHeldoutPolicyBuildError("reference lineage drifted")
+    if summary.get("required_failed_count"):
+        failed = [name for name, ok, _ in checks if not ok]
+        raise FrozenPolicyBuildError("Frozen raw inference validation failed: " + ", ".join(failed))
+    return summary
 
-    parent_dir = _resolve(project_root, contract.candidate.raw_build_root) / contract.candidate.raw_build_id
-    manifest_path = parent_dir / "manifest.json"
-    mentions_path = parent_dir / "mentions.jsonl"
-    manifest = ScientificEntityEvidenceManifest.model_validate(_read_json(manifest_path))
-    rows = tuple(ScientificEntityMentionEvidence.model_validate(x) for x in _read_jsonl(mentions_path))
+
+def _assert_raw_matches_contract(summary: dict[str, Any], contract: ScientificEntityFreshHeldoutFrozenPolicyConfig) -> None:
+    expected = {
+        "candidate_id": contract.candidate.candidate_id,
+        "sample_id": contract.fresh_heldout.sample_id,
+        "review_id": contract.fresh_heldout.review_id,
+        "build_id": contract.candidate.raw_build_id,
+        "input_document_count": contract.fresh_heldout.expected_document_count,
+        "raw_mention_count": contract.candidate.expected_raw_prediction_count,
+        "reference_mention_count": contract.fresh_heldout.expected_reference_mention_count,
+        "model_inference_executed": True,
+        "policy_applied": False,
+        "evaluation_executed": False,
+        "acceptance_decision_made": False,
+        "required_failed_count": 0,
+    }
+    mismatched = [key for key, value in expected.items() if summary.get(key) != value]
+    if mismatched:
+        raise ScientificEntityFreshHeldoutFrozenPolicyError(
+            "Frozen raw inference lineage drifted: " + ", ".join(mismatched)
+        )
+
+
+def _load_parent(*, project_root: Path, contract: ScientificEntityFreshHeldoutFrozenPolicyConfig) -> tuple[ScientificEntityEvidenceManifest, tuple[ScientificEntityMentionEvidence, ...], Path]:
+    raw_contract_path = _resolve(project_root, contract.candidate.raw_inference_contract_path)
+    if _semantic_yaml_sha256(raw_contract_path) != contract.candidate.raw_inference_contract_sha256:
+        raise ScientificEntityFreshHeldoutFrozenPolicyError("Frozen raw-inference contract SHA-256 drifted")
+    from radar_core.contracts.scientific_entity_fresh_heldout_frozen_inference import (
+        load_scientific_entity_fresh_heldout_frozen_inference_config,
+    )
+    raw_contract = load_scientific_entity_fresh_heldout_frozen_inference_config(raw_contract_path)
+    if raw_contract.execution.build_id != contract.candidate.raw_build_id:
+        raise ScientificEntityFreshHeldoutFrozenPolicyError("Raw build ID drifted from frozen policy parent")
+    raw_dir = _resolve(project_root, raw_contract.execution.raw_output_root) / raw_contract.execution.build_id
+    manifest = ScientificEntityEvidenceManifest.model_validate(_read_json(raw_dir / "manifest.json"))
+    if manifest.build_id != contract.candidate.raw_build_id:
+        raise FrozenPolicyBuildError("Raw parent build_id mismatch")
+    if manifest.status != EntityEvidenceBuildStatus.CANDIDATE:
+        raise FrozenPolicyBuildError("Fresh policy parent must remain candidate raw evidence")
+    if manifest.mention_count != contract.candidate.expected_raw_prediction_count:
+        raise FrozenPolicyBuildError("Raw parent mention count drifted")
     if manifest.extractor_fingerprint != contract.candidate.expected_raw_extractor_fingerprint:
-        raise FreshHeldoutPolicyBuildError("raw extractor fingerprint drifted")
-    if manifest.mentions_sha256 != _sha256_file(mentions_path):
-        raise FreshHeldoutPolicyBuildError("raw mentions checksum mismatch")
-    if len(rows) != contract.candidate.expected_raw_mention_count:
-        raise FreshHeldoutPolicyBuildError("raw mention row count drifted")
-    return manifest, rows, summary
+        raise FrozenPolicyBuildError("Raw parent extractor fingerprint drifted")
+    mentions_path = raw_dir / manifest.mentions_file
+    if _sha256_file(mentions_path) != manifest.mentions_sha256:
+        raise FrozenPolicyBuildError("Raw parent mentions checksum mismatch")
+    mentions = tuple(ScientificEntityMentionEvidence.model_validate(row) for row in _read_jsonl(mentions_path))
+    if len(mentions) != contract.candidate.expected_raw_prediction_count:
+        raise FrozenPolicyBuildError("Raw parent JSONL count drifted")
+    if any(row.build_id != manifest.build_id for row in mentions):
+        raise FrozenPolicyBuildError("Raw parent mention build_id mismatch")
+    if any(row.extractor_fingerprint != manifest.extractor_fingerprint for row in mentions):
+        raise FrozenPolicyBuildError("Raw parent mention extractor fingerprint mismatch")
+    return manifest, mentions, raw_dir
+
+
+def _threshold_policy(contract: ScientificEntityFreshHeldoutFrozenPolicyConfig) -> ScientificEntityThresholdPolicy:
+    return ScientificEntityThresholdPolicy(
+        default_threshold=contract.policy.default_threshold,
+        source_field_thresholds={
+            ScientificEntitySourceField.TITLE: contract.policy.title_threshold,
+            ScientificEntitySourceField.ABSTRACT: contract.policy.abstract_threshold,
+        },
+        entity_type_thresholds={},
+    )
+
+
+def _code_revision(project_root: Path) -> str:
+    relative_paths = (
+        "radar_core/contracts/scientific_entity_fresh_heldout_frozen_policy.py",
+        "radar_core/entities/scientific_entity_fresh_heldout_frozen_policy.py",
+        "radar_core/entities/scientific_entity_semantic_prompt_raw_floor_policy.py",
+        "radar_core/entities/scientific_entity_gliner_calibration.py",
+    )
+    digest = hashlib.sha256()
+    for relative in relative_paths:
+        path = project_root / relative
+        if not path.is_file():
+            raise FrozenPolicyBuildError(f"Policy code revision file is missing: {path}")
+        normalized = path.read_text(encoding="utf-8").replace("\r\n", "\n").replace("\r", "\n")
+        digest.update(relative.encode("utf-8")); digest.update(b"\0")
+        digest.update(normalized.encode("utf-8")); digest.update(b"\0")
+    return "scientific-entity-fresh-policy-sha256:" + digest.hexdigest()
+
+
+def _build_descriptor(
+    *,
+    project_root: Path,
+    contract: ScientificEntityFreshHeldoutFrozenPolicyConfig,
+    parent_manifest: ScientificEntityEvidenceManifest,
+) -> ScientificEntityExtractorDescriptor:
+    semantic_payload = {
+        "fresh_policy_contract": contract.model_dump(mode="json"),
+        "frozen_policy_config_sha256": contract.candidate.frozen_policy_config_sha256,
+        "raw_inference_contract_sha256": contract.candidate.raw_inference_contract_sha256,
+        "parent_raw_extractor_fingerprint": parent_manifest.extractor_fingerprint,
+        "calibration_id": contract.candidate.calibration_id,
+        "selected_trial_id": contract.candidate.selected_trial_id,
+    }
+    parent = parent_manifest.extractor
+    return ScientificEntityExtractorDescriptor(
+        schema_version=EXTRACTOR_SCHEMA_VERSION,
+        name=contract.extractor.name,
+        version=contract.extractor.version,
+        kind=parent.kind,
+        code_revision=_code_revision(project_root),
+        config_sha256=sha256_text(_canonical_json(semantic_payload)),
+        environment_sha256=parent.environment_sha256,
+        model_name=parent.model_name,
+        model_revision=parent.model_revision,
+        model_artifact_sha256=parent.model_artifact_sha256,
+        model_license=parent.model_license,
+    )
 
 
 def _materialize(
-    *,
     parents: Sequence[ScientificEntityMentionEvidence],
+    *,
     contract: ScientificEntityFreshHeldoutFrozenPolicyConfig,
     build_id: str,
     fingerprint: str,
-):
+    parent_build_id: str,
+) -> tuple[tuple[ScientificEntityMentionEvidence, ...], tuple[FrozenPolicyLineage, ...]]:
     selected = filter_predictions(
         parents,
-        policy=contract.policy_origin.threshold_policy(),
-        input_threshold=contract.policy_origin.input_threshold,
+        policy=_threshold_policy(contract),
+        input_threshold=contract.policy.input_threshold,
     )
-    rows = []
-    lineage = []
+    rows: list[ScientificEntityMentionEvidence] = []
+    lineage: list[FrozenPolicyLineage] = []
     for parent in selected:
         payload = parent.model_dump(mode="json")
-        payload.update({
-            "build_id": build_id,
-            "extractor_fingerprint": fingerprint,
-            "evidence_id": build_evidence_id(
-                mention_id=parent.mention_id,
-                extractor_fingerprint=fingerprint,
-            ),
-        })
+        payload.update(
+            build_id=build_id,
+            extractor_fingerprint=fingerprint,
+            evidence_id=build_evidence_id(mention_id=parent.mention_id, extractor_fingerprint=fingerprint),
+        )
         candidate = ScientificEntityMentionEvidence.model_validate(payload)
         if candidate.mention_id != parent.mention_id:
-            raise FreshHeldoutPolicyBuildError("mention_id changed during policy materialization")
-        if candidate.confidence_score != parent.confidence_score:
-            raise FreshHeldoutPolicyBuildError("confidence score changed during policy materialization")
+            raise FrozenPolicyBuildError("mention_id changed during frozen policy filtering")
+        if candidate.evidence_id == parent.evidence_id:
+            raise FrozenPolicyBuildError("policy-aware evidence_id must differ from raw parent")
+        if candidate.confidence_score != parent.confidence_score or candidate.confidence_kind != parent.confidence_kind:
+            raise FrozenPolicyBuildError("confidence changed during frozen policy filtering")
         rows.append(candidate)
-        lineage.append(ScientificEntityFrozenPolicyEvidenceLineage(
-            schema_version=EVIDENCE_LINEAGE_SCHEMA_VERSION,
+        lineage.append(FrozenPolicyLineage(
             build_id=build_id,
-            parent_build_id=parent.build_id,
+            parent_build_id=parent_build_id,
+            calibration_id=contract.candidate.calibration_id,
+            selected_trial_id=contract.candidate.selected_trial_id,
             mention_id=parent.mention_id,
             parent_evidence_id=parent.evidence_id,
             candidate_evidence_id=candidate.evidence_id,
         ))
     if len({row.mention_id for row in rows}) != len(rows):
-        raise FreshHeldoutPolicyBuildError("selected mention_ids must remain unique")
+        raise FrozenPolicyBuildError("Selected mention IDs must remain unique")
+    if len({row.evidence_id for row in rows}) != len(rows):
+        raise FrozenPolicyBuildError("Selected evidence IDs must remain unique")
     return tuple(rows), tuple(lineage)
 
 
@@ -299,70 +345,22 @@ def _quality(build_id: str, parent_count: int, rows: Sequence[ScientificEntityMe
     return {
         "schema_version": QUALITY_SCHEMA_VERSION,
         "build_id": build_id,
+        "input_document_count": 48,
         "input_prediction_count": parent_count,
         "selected_prediction_count": len(rows),
         "rejected_prediction_count": parent_count - len(rows),
-        "selected_by_source_field": dict(sorted(by_field.items())),
-        "selected_by_entity_type": dict(sorted(by_type.items())),
+        "selected_prediction_count_by_source_field": {field.value: by_field[field.value] for field in ScientificEntitySourceField},
+        "selected_prediction_count_by_entity_type": {kind.value: by_type[kind.value] for kind in ScientificEntityType},
         "input_threshold": 0.4,
         "title_threshold": 0.45,
         "abstract_threshold": 0.625,
         "entity_type_overrides": {},
-        "new_model_inference_executed": False,
+        "model_inference_executed": False,
         "threshold_tuning_executed": False,
-        "reference_comparison_executed": False,
+        "reference_labels_used_for_filtering": False,
         "evaluation_executed": False,
         "acceptance_decision_made": False,
     }
-
-
-def _schema() -> dict[str, Any]:
-    return {
-        "schema_version": OUTPUT_SCHEMA_VERSION,
-        "mention_schema_version": MENTION_SCHEMA_VERSION,
-        "manifest_schema_version": MANIFEST_SCHEMA_VERSION,
-        "derivation_schema_version": DERIVATION_SCHEMA_VERSION,
-        "evidence_lineage_schema_version": EVIDENCE_LINEAGE_SCHEMA_VERSION,
-        "quality_schema_version": QUALITY_SCHEMA_VERSION,
-        "serialization": {"encoding": "utf-8", "line_ending": "lf"},
-        "mentions_json_schema": ScientificEntityMentionEvidence.model_json_schema(),
-        "manifest_json_schema": ScientificEntityEvidenceManifest.model_json_schema(),
-        "derivation_json_schema": FreshHeldoutPolicyDerivationManifest.model_json_schema(),
-    }
-
-
-def _readme(build_id: str, parent_build_id: str, selected: int, rejected: int) -> str:
-    return "\n".join([
-        "# Scientific Entity Fresh Held-Out Frozen v0.2c Policy Evidence",
-        "",
-        "Immutable policy-filtered candidate evidence for the fresh 48-paper independent held-out.",
-        "The policy was frozen on development evidence before this held-out was sampled.",
-        "No model inference, threshold tuning, reference comparison, evaluation, or acceptance decision occurs here.",
-        "",
-        f"- build_id: `{build_id}`",
-        f"- parent_build_id: `{parent_build_id}`",
-        f"- selected_prediction_count: `{selected}`",
-        f"- rejected_prediction_count: `{rejected}`",
-        "- title threshold: `0.45`",
-        "- abstract threshold: `0.625`",
-        "",
-    ])
-
-
-def _write_output(output_dir: Path, payloads: dict[str, bytes]) -> None:
-    output_dir.parent.mkdir(parents=True, exist_ok=True)
-    if output_dir.exists():
-        raise FileExistsError(f"Immutable policy build already exists: {output_dir}")
-    staging = Path(tempfile.mkdtemp(prefix=f".{output_dir.name}.tmp-", dir=output_dir.parent))
-    try:
-        for name, content in payloads.items():
-            (staging / name).write_bytes(content)
-        checksums = [f"{_sha256_file(staging / name)}  {name}" for name in CHECKSUM_FILES]
-        (staging / "checksums.txt").write_text("\n".join(checksums) + "\n", encoding="utf-8", newline="\n")
-        staging.replace(output_dir)
-    except Exception:
-        shutil.rmtree(staging, ignore_errors=True)
-        raise
 
 
 def plan_or_execute_frozen_policy(
@@ -373,86 +371,78 @@ def plan_or_execute_frozen_policy(
     reference_dir: Path,
     development_package_dir: Path,
     canonical_path: Path,
+    model_cache_dir: Path | None = None,
     execute: bool = False,
     generated_at_utc: datetime | None = None,
 ) -> dict[str, Any]:
     project_root = project_root.resolve()
     contract = load_scientific_entity_fresh_heldout_frozen_policy_config(config_path.resolve())
-    contract_sha = fresh_policy_config_sha256(contract)
-    policy_origin = _validate_policy_origin(project_root, contract)
-    parent_manifest, parent_mentions, raw_summary = _validate_raw_parent(
+    policy_info = _validate_frozen_policy_config(project_root=project_root, contract=contract)
+    raw_summary = _validate_raw_inference(
         project_root=project_root,
-        contract=contract,
         sample_dir=sample_dir.resolve(),
         reference_dir=reference_dir.resolve(),
         development_package_dir=development_package_dir.resolve(),
         canonical_path=canonical_path.resolve(),
+        model_cache_dir=model_cache_dir,
     )
-    output_dir = _resolve(project_root, contract.execution.output_root) / contract.execution.build_id
-    already_applied = output_dir.exists()
-    if execute and already_applied:
+    _assert_raw_matches_contract(raw_summary, contract)
+
+    output_root = _resolve(project_root, contract.execution.output_root)
+    output_dir = output_root / contract.execution.build_id
+    already_executed = output_dir.exists()
+    if execute and already_executed:
         raise FileExistsError(f"Frozen v0.2c fresh-heldout policy is one-shot and already exists: {output_dir}")
 
-    descriptor = build_policy_filtered_extractor_descriptor(
-        extractor_name=contract.extractor.name,
-        extractor_version=contract.extractor.version,
-        environment_lock_path=contract.extractor.environment_lock_path,
-        config_sha256=contract_sha,
-        parent_manifest=parent_manifest,
-        project_root=project_root,
-    )
-    fingerprint = build_extractor_fingerprint(descriptor)
-    if fingerprint == parent_manifest.extractor_fingerprint:
-        raise FreshHeldoutPolicyBuildError("policy-aware extractor fingerprint must differ from raw parent")
-    rows, lineage = _materialize(
-        parents=parent_mentions,
-        contract=contract,
-        build_id=contract.execution.build_id,
-        fingerprint=fingerprint,
-    )
-    rejected = len(parent_mentions) - len(rows)
-
-    report = {
+    report: dict[str, Any] = {
         "report": REPORT_NAME,
         "mode": "execute" if execute else "plan",
         "phase_complete": False,
         "candidate_id": contract.candidate.candidate_id,
         "sample_id": contract.fresh_heldout.sample_id,
         "review_id": contract.fresh_heldout.review_id,
-        "parent_build_id": parent_manifest.build_id,
-        "parent_raw_mention_count": len(parent_mentions),
-        "parent_raw_extractor_fingerprint": parent_manifest.extractor_fingerprint,
-        "reference_mention_count": raw_summary["reference_mention_count"],
-        "raw_inference_validation_required_failed_count": raw_summary["required_failed_count"],
-        "fresh_policy_config_sha256": contract_sha,
-        "development_policy_config_sha256": policy_origin["semantic_sha256"],
-        "calibration_id": contract.policy_origin.calibration_id,
-        "selected_trial_id": contract.policy_origin.selected_trial_id,
-        "title_threshold": contract.policy_origin.source_field_thresholds[ScientificEntitySourceField.TITLE],
-        "abstract_threshold": contract.policy_origin.source_field_thresholds[ScientificEntitySourceField.ABSTRACT],
+        "raw_build_id": contract.candidate.raw_build_id,
+        "raw_mention_count": raw_summary["raw_mention_count"],
+        "raw_extractor_fingerprint": contract.candidate.expected_raw_extractor_fingerprint,
+        "raw_validation_required_failed_count": raw_summary["required_failed_count"],
+        "frozen_policy_config_sha256": policy_info["policy_sha256"],
+        "calibration_id": contract.candidate.calibration_id,
+        "selected_trial_id": contract.candidate.selected_trial_id,
+        "title_threshold": contract.policy.title_threshold,
+        "abstract_threshold": contract.policy.abstract_threshold,
         "entity_type_overrides": {},
-        "selected_prediction_count": len(rows),
-        "rejected_prediction_count": rejected,
         "build_id": contract.execution.build_id,
-        "policy_already_applied": already_applied,
-        "plan_runs_model_inference": False,
-        "new_model_inference_executed": False,
+        "output_dir": str(output_dir).replace("\\", "/"),
+        "one_shot_already_executed": already_executed,
+        "plan_runs_policy_filtering": False,
+        "model_inference_executed": False,
+        "policy_applied": False,
         "threshold_tuning_executed": False,
-        "reference_comparison_executed": False,
+        "reference_labels_used_for_filtering": False,
         "evaluation_executed": False,
         "acceptance_decision_made": False,
         "canonical_truth_mutated": False,
         "production_extractor_selected": False,
         "full_corpus_build_authorized": False,
-        "output_dir": str(output_dir).replace("\\", "/"),
-        "next_slice": contract.next_steps.after_plan if not execute else contract.next_steps.after_execute,
+        "next_slice": contract.next_steps.after_plan,
     }
     if not execute:
         return report
 
-    now = (generated_at_utc or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    parent_manifest, parent_mentions, _ = _load_parent(project_root=project_root, contract=contract)
+    descriptor = _build_descriptor(project_root=project_root, contract=contract, parent_manifest=parent_manifest)
+    fingerprint = build_extractor_fingerprint(descriptor)
+    rows, lineage = _materialize(
+        parent_mentions,
+        contract=contract,
+        build_id=contract.execution.build_id,
+        fingerprint=fingerprint,
+        parent_build_id=parent_manifest.build_id,
+    )
+    now = generated_at_utc or datetime.now(timezone.utc)
+    if now.tzinfo is None or now.utcoffset() != timezone.utc.utcoffset(now):
+        raise FrozenPolicyBuildError("generated_at_utc must use UTC")
     mentions_bytes = _jsonl_bytes(rows)
-    lineage_bytes = _jsonl_bytes(lineage)
     manifest = ScientificEntityEvidenceManifest(
         schema_version=MANIFEST_SCHEMA_VERSION,
         build_id=contract.execution.build_id,
@@ -472,64 +462,116 @@ def plan_or_execute_frozen_policy(
         may_be_used_as_reconcile_input=False,
         publication_ready=False,
     )
-    derivation = FreshHeldoutPolicyDerivationManifest(
-        schema_version=DERIVATION_SCHEMA_VERSION,
+    derivation = FrozenPolicyDerivationManifest(
         build_id=contract.execution.build_id,
-        generated_at_utc=now,
+        parent_build_id=parent_manifest.build_id,
         candidate_id=contract.candidate.candidate_id,
         sample_id=contract.fresh_heldout.sample_id,
         review_id=contract.fresh_heldout.review_id,
-        selected_canonical_ids_sha256=contract.fresh_heldout.selected_canonical_ids_sha256,
-        reference_mention_count=contract.fresh_heldout.expected_reference_mention_count,
-        parent_build_id=parent_manifest.build_id,
-        parent_manifest_sha256=_sha256_file(_resolve(project_root, contract.candidate.raw_build_root) / contract.candidate.raw_build_id / "manifest.json"),
-        parent_mentions_sha256=_sha256_file(_resolve(project_root, contract.candidate.raw_build_root) / contract.candidate.raw_build_id / "mentions.jsonl"),
+        runtime_config_sha256=contract.candidate.runtime_config_sha256,
+        frozen_policy_config_sha256=contract.candidate.frozen_policy_config_sha256,
+        calibration_id=contract.candidate.calibration_id,
+        selected_trial_id=contract.candidate.selected_trial_id,
+        development_policy_build_id=contract.candidate.development_policy_build_id,
         parent_extractor_fingerprint=parent_manifest.extractor_fingerprint,
-        development_policy_config_path=contract.policy_origin.development_policy_config_path,
-        development_policy_config_sha256=policy_origin["semantic_sha256"],
-        calibration_id=contract.policy_origin.calibration_id,
-        selected_trial_id=contract.policy_origin.selected_trial_id,
-        input_threshold=contract.policy_origin.input_threshold,
-        title_threshold=contract.policy_origin.source_field_thresholds[ScientificEntitySourceField.TITLE],
-        abstract_threshold=contract.policy_origin.source_field_thresholds[ScientificEntitySourceField.ABSTRACT],
-        entity_type_overrides={},
-        input_prediction_count=len(parent_mentions),
-        selected_prediction_count=len(rows),
-        rejected_prediction_count=rejected,
         candidate_extractor_fingerprint=fingerprint,
-        lineage_file="evidence_lineage.jsonl",
-        lineage_sha256=hashlib.sha256(lineage_bytes).hexdigest(),
-        lineage_count=len(lineage),
+        input_threshold=0.4,
+        title_threshold=0.45,
+        abstract_threshold=0.625,
+        entity_type_overrides={},
+        input_prediction_count=1257,
+        selected_prediction_count=len(rows),
+        rejected_prediction_count=1257-len(rows),
         mention_id_preserved=True,
         evidence_id_recomputed=True,
         confidence_preserved=True,
-        parent_model_inference_already_executed=True,
-        new_model_inference_executed=False,
+        model_inference_executed=False,
         threshold_tuning_executed=False,
-        reference_comparison_executed=False,
+        reference_labels_used_for_filtering=False,
         evaluation_executed=False,
         acceptance_decision_made=False,
         canonical_truth_mutated=False,
+        may_be_used_as_reconcile_input=False,
         production_extractor_selected=False,
         full_corpus_build_authorized=False,
+        publication_ready=False,
     )
     quality = _quality(contract.execution.build_id, len(parent_mentions), rows)
-    payloads = {
-        "mentions.jsonl": mentions_bytes,
-        "manifest.json": _json_bytes(manifest),
-        "derivation_manifest.json": _json_bytes(derivation),
-        "evidence_lineage.jsonl": lineage_bytes,
-        "data_quality_summary.json": _json_bytes(quality),
-        "schema.json": _json_bytes(_schema()),
-        "README.md": _readme(contract.execution.build_id, parent_manifest.build_id, len(rows), rejected).encode("utf-8"),
+    schema = {
+        "schema_version": OUTPUT_SCHEMA_VERSION,
+        "mentions_schema_version": MENTION_SCHEMA_VERSION,
+        "derivation_schema_version": derivation.schema_version,
+        "lineage_schema_version": FrozenPolicyLineage.model_fields["schema_version"].default,
+        "identity_semantics": {
+            "mention_id": "preserved from raw parent",
+            "evidence_id": "recomputed from mention_id plus policy-aware extractor fingerprint",
+            "confidence": "preserved model score; policy is selection only",
+        },
     }
-    _write_output(output_dir, payloads)
-    report["phase_complete"] = True
-    report["policy_already_applied"] = True
+    readme = "\n".join([
+        "# Scientific Entity Fresh Held-Out Frozen Policy v0.2", "",
+        "This immutable build applies the already-frozen v0.2c source-field thresholds to the already-frozen fresh-heldout raw predictions.", "",
+        f"- parent raw build: `{parent_manifest.build_id}`",
+        f"- input predictions: `{len(parent_mentions)}`",
+        f"- selected predictions: `{len(rows)}`",
+        f"- rejected predictions: `{len(parent_mentions)-len(rows)}`",
+        "- title threshold: `0.45`",
+        "- abstract threshold: `0.625`",
+        "- entity-type overrides: none",
+        "- model inference executed: `false`",
+        "- threshold tuning executed: `false`",
+        "- reference labels used for filtering: `false`",
+        "- evaluation executed: `false`",
+        "- acceptance decision made: `false`", "",
+        "This build is candidate evaluation input only. It is not production-selected and does not authorize a full-corpus build.", "",
+    ])
+
+    output_dir.parent.mkdir(parents=True, exist_ok=True)
+    staging = Path(tempfile.mkdtemp(prefix=f".{contract.execution.build_id}.tmp-", dir=output_dir.parent))
+    try:
+        (staging / "mentions.jsonl").write_bytes(mentions_bytes)
+        (staging / "manifest.json").write_bytes(_json_bytes(manifest))
+        (staging / "derivation_manifest.json").write_bytes(_json_bytes(derivation))
+        (staging / "evidence_lineage.jsonl").write_bytes(_jsonl_bytes(lineage))
+        (staging / "data_quality_summary.json").write_bytes(_json_bytes(quality))
+        (staging / "schema.json").write_bytes(_json_bytes(schema))
+        (staging / "README.md").write_text(readme, encoding="utf-8", newline="\n")
+        checksum_lines = [f"{_sha256_file(staging / filename)}  {filename}" for filename in CHECKSUM_FILES]
+        (staging / "checksums.txt").write_text("\n".join(checksum_lines) + "\n", encoding="utf-8", newline="\n")
+        staging.rename(output_dir)
+    except Exception:
+        if staging.exists():
+            shutil.rmtree(staging)
+        raise
+
+    report.update({
+        "phase_complete": True,
+        "one_shot_already_executed": True,
+        "policy_applied": True,
+        "selected_prediction_count": len(rows),
+        "rejected_prediction_count": len(parent_mentions)-len(rows),
+        "policy_extractor_fingerprint": fingerprint,
+        "next_slice": contract.next_steps.after_execute,
+    })
     return report
 
 
-def validate_frozen_policy_application(
+def _text_is_utf8_lf(path: Path) -> tuple[bool, str | None]:
+    raw = path.read_bytes()
+    if raw.startswith(b"\xef\xbb\xbf"):
+        return False, "UTF-8 BOM is forbidden"
+    if b"\r" in raw:
+        return False, "CR/CRLF is forbidden"
+    try:
+        raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        return False, f"invalid UTF-8: {exc}"
+    if raw and not raw.endswith(b"\n"):
+        return False, "text file must end with LF"
+    return True, None
+
+
+def validate_frozen_policy_build(
     *,
     project_root: Path,
     config_path: Path,
@@ -537,123 +579,116 @@ def validate_frozen_policy_application(
     reference_dir: Path,
     development_package_dir: Path,
     canonical_path: Path,
-):
+    model_cache_dir: Path | None = None,
+) -> tuple[list[tuple[str, bool, str]], dict[str, Any]]:
+    project_root = project_root.resolve()
     contract = load_scientific_entity_fresh_heldout_frozen_policy_config(config_path.resolve())
-    contract_sha = fresh_policy_config_sha256(contract)
-    policy_origin = _validate_policy_origin(project_root, contract)
-    parent_manifest, parent_mentions, raw_summary = _validate_raw_parent(
+    policy_info = _validate_frozen_policy_config(project_root=project_root, contract=contract)
+    raw_summary = _validate_raw_inference(
         project_root=project_root,
-        contract=contract,
         sample_dir=sample_dir.resolve(),
         reference_dir=reference_dir.resolve(),
         development_package_dir=development_package_dir.resolve(),
         canonical_path=canonical_path.resolve(),
+        model_cache_dir=model_cache_dir,
     )
-    output_dir = _resolve(project_root, contract.execution.output_root) / contract.execution.build_id
-    checks = []
-    def add(name, ok, detail=""):
+    _assert_raw_matches_contract(raw_summary, contract)
+    checks: list[tuple[str, bool, str]] = []
+    def add(name: str, ok: bool, detail: Any = "") -> None:
         checks.append((name, bool(ok), str(detail)))
 
+    output_dir = _resolve(project_root, contract.execution.output_root) / contract.execution.build_id
     add("raw_inference_validation_passed", raw_summary["required_failed_count"] == 0, raw_summary["required_failed_count"])
-    add("output_directory_exists", output_dir.is_dir(), output_dir)
-    required = (*CHECKSUM_FILES, "checksums.txt")
-    add("required_files_present", output_dir.is_dir() and all((output_dir / x).is_file() for x in required), required)
+    add("build_directory_exists", output_dir.is_dir(), output_dir)
     if not output_dir.is_dir():
-        failed = [name for name, ok, _ in checks if not ok]
-        return checks, {
-            "report": REPORT_NAME,
-            "build_id": contract.execution.build_id,
-            "parent_build_id": contract.candidate.raw_build_id,
-            "input_prediction_count": None,
-            "selected_prediction_count": None,
-            "rejected_prediction_count": None,
-            "total_checks": len(checks),
-            "required_failed_count": len(failed),
-            "next_slice": contract.next_steps.after_validation,
-        }
-
-    checksum_lines = (output_dir / "checksums.txt").read_text(encoding="utf-8").splitlines()
-    checksum_map = {}
-    for line in checksum_lines:
-        if "  " in line:
-            digest, name = line.split("  ", 1)
-            checksum_map[name] = digest
-    add("checksums_cover_required_files", set(checksum_map) == set(CHECKSUM_FILES), sorted(checksum_map))
-    add("checksums_match", all(checksum_map.get(name) == _sha256_file(output_dir / name) for name in CHECKSUM_FILES), "")
+        return checks, _validation_summary(checks, contract, raw_summary, None)
+    files = {p.name for p in output_dir.iterdir() if p.is_file()}
+    dirs = {p.name for p in output_dir.iterdir() if p.is_dir()}
+    add("required_files_exact", files == set(REQUIRED_FILES), sorted(files))
+    add("nested_directories_absent", not dirs, sorted(dirs))
+    if files != set(REQUIRED_FILES):
+        return checks, _validation_summary(checks, contract, raw_summary, None)
+    for filename in REQUIRED_FILES:
+        ok, detail = _text_is_utf8_lf(output_dir / filename)
+        add(f"utf8_lf::{filename}", ok, detail or "")
+    checksum_rows: dict[str, str] = {}
+    for line in (output_dir / "checksums.txt").read_text(encoding="utf-8").splitlines():
+        parts = line.split("  ", 1)
+        if len(parts) == 2:
+            checksum_rows[parts[1]] = parts[0]
+    add("checksums_cover_exact_files", set(checksum_rows) == set(CHECKSUM_FILES), sorted(checksum_rows))
+    for filename in CHECKSUM_FILES:
+        add(f"checksum::{filename}", checksum_rows.get(filename) == _sha256_file(output_dir / filename), filename)
 
     manifest = ScientificEntityEvidenceManifest.model_validate(_read_json(output_dir / "manifest.json"))
-    derivation = FreshHeldoutPolicyDerivationManifest.model_validate(_read_json(output_dir / "derivation_manifest.json"))
+    derivation = FrozenPolicyDerivationManifest.model_validate(_read_json(output_dir / "derivation_manifest.json"))
+    mentions = tuple(ScientificEntityMentionEvidence.model_validate(row) for row in _read_jsonl(output_dir / "mentions.jsonl"))
+    lineage = tuple(FrozenPolicyLineage.model_validate(row) for row in _read_jsonl(output_dir / "evidence_lineage.jsonl"))
     quality = _read_json(output_dir / "data_quality_summary.json")
-    rows = tuple(ScientificEntityMentionEvidence.model_validate(x) for x in _read_jsonl(output_dir / "mentions.jsonl"))
-    lineage = _read_jsonl(output_dir / "evidence_lineage.jsonl")
-
-    descriptor = build_policy_filtered_extractor_descriptor(
-        extractor_name=contract.extractor.name,
-        extractor_version=contract.extractor.version,
-        environment_lock_path=contract.extractor.environment_lock_path,
-        config_sha256=contract_sha,
-        parent_manifest=parent_manifest,
-        project_root=project_root,
-    )
-    fingerprint = build_extractor_fingerprint(descriptor)
+    parent_manifest, parent_mentions, _ = _load_parent(project_root=project_root, contract=contract)
+    expected_descriptor = _build_descriptor(project_root=project_root, contract=contract, parent_manifest=parent_manifest)
+    expected_fingerprint = build_extractor_fingerprint(expected_descriptor)
     expected_rows, expected_lineage = _materialize(
-        parents=parent_mentions,
+        parent_mentions,
         contract=contract,
         build_id=contract.execution.build_id,
-        fingerprint=fingerprint,
+        fingerprint=expected_fingerprint,
+        parent_build_id=parent_manifest.build_id,
     )
-    expected_mentions_bytes = _jsonl_bytes(expected_rows)
-    expected_lineage_bytes = _jsonl_bytes(expected_lineage)
 
     add("build_id_exact", manifest.build_id == contract.execution.build_id, manifest.build_id)
-    add("candidate_status", manifest.status.value == contract.execution.build_status, manifest.status.value)
+    add("candidate_status", manifest.status == EntityEvidenceBuildStatus.CANDIDATE, manifest.status)
     add("parent_build_id_exact", derivation.parent_build_id == contract.candidate.raw_build_id, derivation.parent_build_id)
-    add("sample_id_exact", derivation.sample_id == contract.fresh_heldout.sample_id, derivation.sample_id)
-    add("review_id_exact", derivation.review_id == contract.fresh_heldout.review_id, derivation.review_id)
-    add("reference_count_exact", derivation.reference_mention_count == 944, derivation.reference_mention_count)
-    add("fresh_policy_extractor_config_sha_exact", manifest.extractor.config_sha256 == contract_sha, manifest.extractor.config_sha256)
-    add("development_policy_sha_exact", derivation.development_policy_config_sha256 == policy_origin["semantic_sha256"], derivation.development_policy_config_sha256)
-    add("calibration_id_exact", derivation.calibration_id == contract.policy_origin.calibration_id, derivation.calibration_id)
-    add("selected_trial_id_exact", derivation.selected_trial_id == contract.policy_origin.selected_trial_id, derivation.selected_trial_id)
-    add("title_threshold_exact", derivation.title_threshold == 0.45, derivation.title_threshold)
-    add("abstract_threshold_exact", derivation.abstract_threshold == 0.625, derivation.abstract_threshold)
-    add("no_type_overrides", derivation.entity_type_overrides == {}, derivation.entity_type_overrides)
-    add("input_count_1257", derivation.input_prediction_count == 1257, derivation.input_prediction_count)
-    add("counts_sum", derivation.selected_prediction_count + derivation.rejected_prediction_count == 1257, "")
-    add("manifest_selected_count_exact", manifest.mention_count == derivation.selected_prediction_count == len(rows), (manifest.mention_count, derivation.selected_prediction_count, len(rows)))
-    add("mentions_checksum_exact", manifest.mentions_sha256 == _sha256_file(output_dir / "mentions.jsonl"), manifest.mentions_sha256)
-    add("materialization_reproduces_exact_mentions", (output_dir / "mentions.jsonl").read_bytes() == expected_mentions_bytes, "")
-    add("lineage_reproduces_exact", (output_dir / "evidence_lineage.jsonl").read_bytes() == expected_lineage_bytes, "")
-    add("lineage_count_exact", len(lineage) == len(rows), len(lineage))
-    add("policy_extractor_fingerprint_exact", manifest.extractor_fingerprint == fingerprint == derivation.candidate_extractor_fingerprint, manifest.extractor_fingerprint)
-    add("policy_extractor_differs_from_raw", fingerprint != parent_manifest.extractor_fingerprint, fingerprint)
-    add("quality_selected_count_exact", quality.get("selected_prediction_count") == len(rows), quality.get("selected_prediction_count"))
-    add("quality_rejected_count_exact", quality.get("rejected_prediction_count") == 1257 - len(rows), quality.get("rejected_prediction_count"))
-    add("new_model_inference_false", derivation.new_model_inference_executed is False, derivation.new_model_inference_executed)
-    add("threshold_tuning_false", derivation.threshold_tuning_executed is False, derivation.threshold_tuning_executed)
-    add("reference_comparison_false", derivation.reference_comparison_executed is False, derivation.reference_comparison_executed)
-    add("evaluation_false", derivation.evaluation_executed is False, derivation.evaluation_executed)
-    add("acceptance_decision_false", derivation.acceptance_decision_made is False, derivation.acceptance_decision_made)
+    add("input_prediction_count_1257", derivation.input_prediction_count == 1257, derivation.input_prediction_count)
+    add("selected_plus_rejected_equals_input", derivation.selected_prediction_count + derivation.rejected_prediction_count == 1257, "")
+    add("manifest_selected_count_exact", manifest.mention_count == derivation.selected_prediction_count == len(mentions), manifest.mention_count)
+    add("quality_counts_exact", quality.get("selected_prediction_count") == len(mentions) and quality.get("rejected_prediction_count") == 1257-len(mentions), quality)
+    add("policy_config_sha_exact", derivation.frozen_policy_config_sha256 == policy_info["policy_sha256"] == contract.candidate.frozen_policy_config_sha256, derivation.frozen_policy_config_sha256)
+    add("runtime_config_sha_exact", derivation.runtime_config_sha256 == contract.candidate.runtime_config_sha256, derivation.runtime_config_sha256)
+    add("selected_trial_exact", derivation.selected_trial_id == contract.candidate.selected_trial_id, derivation.selected_trial_id)
+    add("thresholds_exact", derivation.title_threshold == 0.45 and derivation.abstract_threshold == 0.625 and not derivation.entity_type_overrides, "")
+    add("parent_fingerprint_exact", derivation.parent_extractor_fingerprint == contract.candidate.expected_raw_extractor_fingerprint, derivation.parent_extractor_fingerprint)
+    add("candidate_fingerprint_exact", manifest.extractor_fingerprint == derivation.candidate_extractor_fingerprint == expected_fingerprint, manifest.extractor_fingerprint)
+    add("extractor_fingerprint_changed", expected_fingerprint != parent_manifest.extractor_fingerprint, expected_fingerprint)
+    add("mention_ids_exact_filtered_subset", [row.mention_id for row in mentions] == [row.mention_id for row in expected_rows], len(mentions))
+    add("evidence_ids_exact", [row.evidence_id for row in mentions] == [row.evidence_id for row in expected_rows], len(mentions))
+    add("lineage_exact", [row.model_dump(mode="json") for row in lineage] == [row.model_dump(mode="json") for row in expected_lineage], len(lineage))
+    add("confidence_preserved", all(row.confidence_score == parent.confidence_score and row.confidence_kind == parent.confidence_kind for row, parent in [(row, {p.mention_id:p for p in parent_mentions}[row.mention_id]) for row in mentions]), "")
+    add("model_inference_not_run_by_policy", derivation.model_inference_executed is False, "")
+    add("threshold_tuning_not_run", derivation.threshold_tuning_executed is False, "")
+    add("reference_labels_not_used_for_filtering", derivation.reference_labels_used_for_filtering is False, "")
+    add("evaluation_not_run", derivation.evaluation_executed is False, "")
+    add("acceptance_not_decided", derivation.acceptance_decision_made is False, "")
     add("canonical_truth_not_mutated", manifest.canonical_truth_mutated is False and derivation.canonical_truth_mutated is False, "")
     add("production_not_selected", derivation.production_extractor_selected is False, "")
     add("full_corpus_not_authorized", derivation.full_corpus_build_authorized is False, "")
 
+    return checks, _validation_summary(checks, contract, raw_summary, derivation)
+
+
+def _validation_summary(
+    checks: list[tuple[str, bool, str]],
+    contract: ScientificEntityFreshHeldoutFrozenPolicyConfig,
+    raw_summary: dict[str, Any],
+    derivation: FrozenPolicyDerivationManifest | None,
+) -> dict[str, Any]:
     failed = [name for name, ok, _ in checks if not ok]
-    summary = {
+    return {
         "report": REPORT_NAME,
         "candidate_id": contract.candidate.candidate_id,
         "sample_id": contract.fresh_heldout.sample_id,
         "review_id": contract.fresh_heldout.review_id,
+        "raw_build_id": contract.candidate.raw_build_id,
+        "raw_mention_count": raw_summary.get("raw_mention_count"),
         "build_id": contract.execution.build_id,
-        "parent_build_id": contract.candidate.raw_build_id,
-        "input_prediction_count": derivation.input_prediction_count,
-        "selected_prediction_count": derivation.selected_prediction_count,
-        "rejected_prediction_count": derivation.rejected_prediction_count,
-        "reference_mention_count": derivation.reference_mention_count,
-        "raw_inference_validation_required_failed_count": raw_summary["required_failed_count"],
-        "new_model_inference_executed": False,
+        "selected_prediction_count": None if derivation is None else derivation.selected_prediction_count,
+        "rejected_prediction_count": None if derivation is None else derivation.rejected_prediction_count,
+        "title_threshold": 0.45,
+        "abstract_threshold": 0.625,
+        "model_inference_executed_by_policy": False,
+        "policy_applied": derivation is not None,
         "threshold_tuning_executed": False,
-        "reference_comparison_executed": False,
+        "reference_labels_used_for_filtering": False,
         "evaluation_executed": False,
         "acceptance_decision_made": False,
         "canonical_truth_mutated": False,
@@ -663,4 +698,3 @@ def validate_frozen_policy_application(
         "required_failed_count": len(failed),
         "next_slice": contract.next_steps.after_validation,
     }
-    return checks, summary
