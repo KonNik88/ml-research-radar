@@ -39,7 +39,7 @@ checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Fresh v0.
 current scientific entity checkpoint = Scientific Entity Fresh v0.2 Frozen v0.2c Policy Application
 base checkpoint = safe canonical refresh and synchronized core/Discovery derived layers
 scientific entity status = bounded literal control + evaluation harness + completed 24-paper review + GLiNER candidate adapter
-scientific entity quality status = semantic-prompt raw-floor v0.2c remains the frozen development candidate; fresh held-out references remain frozen at 944 mentions; frozen raw inference remains fixed at 1257 raw predictions and strict validation 22 / 22 after documented artifact recovery; the pre-frozen v0.2c policy was applied exactly once under fresh-policy config SHA 9375fc73ce5ff8cf757891bca2f2ca5461b9e140439ef5c589aa3888d5064abb using title>=0.45 / abstract>=0.625 with no entity-type overrides; policy build scientific-entity-gliner-small-v2.5-fresh-v0.2c-policy-20260901T130232963026Z deterministically selected 773 predictions and rejected 484; strict policy validation passes 37 / 37 with zero required failures; no new model inference, threshold tuning, reference comparison, evaluation, or acceptance decision occurred; the next authorized slice is independent evaluation against the frozen 944-reference truth using the pre-frozen acceptance gate, and production/full-corpus remain unauthorized
+scientific entity quality status = semantic-prompt raw-floor v0.2c remains frozen as the development candidate; fresh held-out references remain frozen at 944 mentions; frozen raw inference remains fixed at 1257 raw mentions and strict validation 22 / 22; the pre-frozen source-field policy title=0.45 / abstract=0.625 with no entity-type overrides was applied exactly once to that raw build, selecting 773 predictions and rejecting 484; policy extractor fingerprint 77af105871b227daa0d8c9e5501839addf229004795490a63bebe4f02672cf52; strict frozen-policy validation passed 46 / 46; the policy application performed no model inference, no threshold tuning, and did not use reference labels for filtering; independent evaluation and acceptance decision have not run, no post-heldout tuning is allowed, and production/full-corpus remain unauthorized
 public behavior change = none
 public dense/hybrid backend = file
 experimental Qdrant endpoint = explicit
@@ -874,15 +874,15 @@ Recommended order:
     passed and strict combined validation is `22 / 22`. The raw build
     is immutable; no second inference run is permitted.
 
-22. **Frozen v0.2c Policy Application — completed.**
-    Build `scientific-entity-gliner-small-v2.5-fresh-v0.2c-policy-20260901T130232963026Z` applied only the already-frozen `title=0.45 / abstract=0.625`
-    thresholds with no entity-type overrides. From `1257` parent raw predictions it selected
-    `773` and rejected `484`; strict validation passes `37 / 37`. No new inference, tuning,
-    reference comparison, evaluation, or acceptance decision occurred.
+22. **Frozen v0.2c Policy Application — completed exactly once.**
+    Build `scientific-entity-semantic-prompt-raw-floor-policy-fresh-v0.2c-20260901T130232963026Z` applied only the already-frozen
+    `title=0.45 / abstract=0.625` thresholds with no entity-type overrides to `1257` raw predictions.
+    It selected `773` and rejected `484` predictions; strict validation is `46 / 46`.
+    No model inference, threshold tuning, reference-label filtering, evaluation, or acceptance decision occurred.
 
-23. **Independent Fresh v0.2 Evaluation — next.**
-    Compare only the frozen `773` selected predictions with the frozen `944` human references
-    and apply the acceptance gate frozen before sample selection. No post-heldout tuning is allowed.
+23. **Fresh v0.2 Independent Evaluation — next.**
+    Compare only the frozen `773` selected predictions against the frozen `944` references and apply
+    the acceptance gate frozen before sample selection. No post-heldout tuning is permitted.
 
 24. **Accepted Large-Scale Derived Entity Build — deferred.**
     Requires explicit independent acceptance plus separate full-corpus authorization.

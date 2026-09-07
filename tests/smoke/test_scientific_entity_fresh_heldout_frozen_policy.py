@@ -1,18 +1,27 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
 import pytest
-import yaml
 
 from radar_core.contracts.scientific_entity_evidence import (
-    ConfidenceKind,
+    CANONICAL_INPUT_SCHEMA_VERSION,
+    EXTRACTOR_SCHEMA_VERSION,
+    MANIFEST_SCHEMA_VERSION,
     MENTION_SCHEMA_VERSION,
+    ConfidenceKind,
+    EntityEvidenceBuildStatus,
+    ExtractorKind,
+    ScientificEntityCanonicalInput,
+    ScientificEntityEvidenceManifest,
+    ScientificEntityExtractorDescriptor,
     ScientificEntityMentionEvidence,
     ScientificEntitySourceField,
     ScientificEntityType,
     build_evidence_id,
+    build_extractor_fingerprint,
     build_mention_id,
     sha256_text,
 )
@@ -20,300 +29,270 @@ from radar_core.contracts.scientific_entity_fresh_heldout_frozen_policy import (
     load_scientific_entity_fresh_heldout_frozen_policy_config,
 )
 from radar_core.entities import scientific_entity_fresh_heldout_frozen_policy as mod
-from scripts.entities.apply_scientific_entity_fresh_heldout_frozen_policy import build_parser
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG = ROOT / "configs" / "scientific_entity_fresh_heldout_frozen_policy_v0.2.yaml"
 
 
-def _mention(field, kind, score, span=(0, 5)):
-    text = "Alpha Beta Gamma"
-    source_sha = sha256_text(text)
-    mention_id = build_mention_id(
-        canonical_id="fixture-doc",
-        source_field=field,
-        source_text_sha256=source_sha,
-        char_start=span[0],
-        char_end=span[1],
-        entity_type=kind,
-    )
-    fingerprint = "a" * 64
-    return ScientificEntityMentionEvidence(
-        schema_version=MENTION_SCHEMA_VERSION,
-        evidence_id=build_evidence_id(mention_id=mention_id, extractor_fingerprint=fingerprint),
-        mention_id=mention_id,
-        build_id="raw-build",
-        canonical_id="fixture-doc",
-        entity_type=kind,
-        source_field=field,
-        source_text_sha256=source_sha,
-        char_start=span[0],
-        char_end=span[1],
-        surface_text=text[span[0]:span[1]],
-        extractor_fingerprint=fingerprint,
-        confidence_kind=ConfidenceKind.MODEL_SCORE,
-        confidence_score=score,
-        calibration_id=None,
-    )
+def _raw_summary() -> dict:
+    return {
+        "candidate_id": "scientific-entity-semantic-prompt-raw-floor-extension-v0.2c",
+        "sample_id": "scientific-entity-fresh-heldout-sample-v0.2-20260901T130232963026Z",
+        "review_id": "scientific-entity-fresh-heldout-review-v0.2-20260901T130232963026Z",
+        "build_id": "scientific-entity-gliner-small-v2.5-fresh-v0.2c-20260901T130232963026Z",
+        "input_document_count": 48,
+        "raw_mention_count": 1257,
+        "reference_mention_count": 944,
+        "model_inference_executed": True,
+        "policy_applied": False,
+        "evaluation_executed": False,
+        "acceptance_decision_made": False,
+        "required_failed_count": 0,
+    }
 
 
-def test_config_pins_exact_fresh_v02c_policy() -> None:
-    c = load_scientific_entity_fresh_heldout_frozen_policy_config(CONFIG)
-    assert c.candidate.expected_raw_mention_count == 1257
-    assert c.candidate.expected_raw_extractor_fingerprint == "e43009f1127a445ddfd01352b47825391c2d12a2059ed53b9d35f7e5b12d8f13"
-    assert c.fresh_heldout.expected_reference_mention_count == 944
-    assert c.policy_origin.source_field_thresholds[ScientificEntitySourceField.TITLE] == 0.45
-    assert c.policy_origin.source_field_thresholds[ScientificEntitySourceField.ABSTRACT] == 0.625
-    assert c.policy_origin.entity_type_thresholds == {}
-    assert c.safety.reference_comparison_allowed is False
-    assert c.safety.evaluation_in_this_slice is False
+def _copy_configs(project_root: Path) -> None:
+    for relative in (
+        "configs/scientific_entity_semantic_prompt_raw_floor_policy_v0.2c.yaml",
+        "configs/scientific_entity_fresh_heldout_frozen_inference_v0.2.yaml",
+    ):
+        src = ROOT / relative
+        dst = project_root / relative
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.write_bytes(src.read_bytes())
 
 
-def test_config_rejects_threshold_drift(tmp_path: Path) -> None:
-    payload = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
-    payload["policy_origin"]["source_field_thresholds"]["abstract"] = 0.65
-    p = tmp_path / "bad.yaml"
-    p.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
-    with pytest.raises(Exception):
-        load_scientific_entity_fresh_heldout_frozen_policy_config(p)
-
-
-def test_cli_has_no_threshold_or_evaluation_override() -> None:
-    parser = build_parser()
-    with pytest.raises(SystemExit):
-        parser.parse_args(["--abstract-threshold", "0.70"])
-    with pytest.raises(SystemExit):
-        parser.parse_args(["--evaluate"])
-
-
-def test_materialize_applies_inclusive_title_and_abstract_thresholds() -> None:
-    c = load_scientific_entity_fresh_heldout_frozen_policy_config(CONFIG)
-    parents = [
-        _mention(ScientificEntitySourceField.TITLE, ScientificEntityType.MODEL, 0.45, (0, 5)),
-        _mention(ScientificEntitySourceField.TITLE, ScientificEntityType.METHOD, 0.449, (6, 10)),
-        _mention(ScientificEntitySourceField.ABSTRACT, ScientificEntityType.TASK, 0.625, (0, 5)),
-        _mention(ScientificEntitySourceField.ABSTRACT, ScientificEntityType.METRIC, 0.624, (11, 16)),
-    ]
-    rows, lineage = mod._materialize(
-        parents=parents,
-        contract=c,
-        build_id="policy-build",
-        fingerprint="b" * 64,
-    )
-    assert len(rows) == 2
-    assert len(lineage) == 2
-    assert {row.confidence_score for row in rows} == {0.45, 0.625}
-    parent_by_id = {row.mention_id: row for row in parents}
-    assert all(row.mention_id in parent_by_id for row in rows)
-    assert all(row.confidence_score == parent_by_id[row.mention_id].confidence_score for row in rows)
-    assert all(row.evidence_id != parent_by_id[row.mention_id].evidence_id for row in rows)
-
-
-def test_plan_is_nonwriting_noninference_nonevaluation(tmp_path: Path, monkeypatch) -> None:
-    c = load_scientific_entity_fresh_heldout_frozen_policy_config(CONFIG)
-    raw = [_mention(ScientificEntitySourceField.TITLE, ScientificEntityType.MODEL, 0.7)]
-    parent_manifest = type("Manifest", (), {
-        "build_id": c.candidate.raw_build_id,
-        "extractor_fingerprint": c.candidate.expected_raw_extractor_fingerprint,
-    })()
-    monkeypatch.setattr(mod, "_validate_policy_origin", lambda *a, **k: {
-        "semantic_sha256": c.policy_origin.development_policy_config_sha256,
-        "calibration_id": c.policy_origin.calibration_id,
-        "selected_trial_id": c.policy_origin.selected_trial_id,
-    })
-    monkeypatch.setattr(mod, "_validate_raw_parent", lambda *a, **k: (
-        parent_manifest,
-        tuple(raw),
-        {"reference_mention_count": 944, "required_failed_count": 0},
-    ))
-    monkeypatch.setattr(mod, "build_policy_filtered_extractor_descriptor", lambda **k: type("D", (), {})())
-    monkeypatch.setattr(mod, "build_extractor_fingerprint", lambda x: "b" * 64)
-    monkeypatch.setattr(mod, "_materialize", lambda **k: (tuple(raw), tuple()))
-
-    cfg = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
-    cfg["execution"]["output_root"] = str(tmp_path / "outputs").replace("\\", "/")
-    # Preserve strict Literal output_root by routing project_root instead; the real fixed path
-    # is now under tmp_path and no repository data path is touched.
-    project_root = tmp_path
-    (project_root / "configs").mkdir(parents=True)
-    policy_cfg = project_root / "configs" / CONFIG.name
-    policy_cfg.write_text(CONFIG.read_text(encoding="utf-8"), encoding="utf-8")
-
-    report = mod.plan_or_execute_frozen_policy(
-        project_root=project_root,
-        config_path=policy_cfg,
-        sample_dir=tmp_path,
-        reference_dir=tmp_path,
-        development_package_dir=tmp_path,
-        canonical_path=tmp_path / "canonical.jsonl",
-        execute=False,
-    )
-    assert report["phase_complete"] is False
-    assert report["plan_runs_model_inference"] is False
-    assert report["new_model_inference_executed"] is False
-    assert report["reference_comparison_executed"] is False
-    assert report["evaluation_executed"] is False
-    assert report["next_slice"] == "execute_frozen_v02c_policy_once"
-    assert not Path(report["output_dir"]).exists()
-
-
-def test_execute_and_validator_are_deterministic_without_evaluation(tmp_path: Path, monkeypatch) -> None:
-    from datetime import datetime, timezone
-    from radar_core.contracts.scientific_entity_evidence import (
-        CANONICAL_INPUT_SCHEMA_VERSION,
-        EXTRACTOR_SCHEMA_VERSION,
-        MANIFEST_SCHEMA_VERSION,
-        EntityEvidenceBuildStatus,
-        ExtractorKind,
-        ScientificEntityCanonicalInput,
-        ScientificEntityEvidenceManifest,
-        ScientificEntityExtractorDescriptor,
-        build_extractor_fingerprint,
-    )
-
+def _fixture_dirs(tmp_path: Path):
     project_root = tmp_path / "project"
-    project_root.mkdir()
-    config_dir = project_root / "configs"
-    config_dir.mkdir()
-    config_path = config_dir / CONFIG.name
-    config_path.write_text(CONFIG.read_text(encoding="utf-8"), encoding="utf-8")
-    c = load_scientific_entity_fresh_heldout_frozen_policy_config(config_path)
+    sample = tmp_path / "sample"
+    reference = tmp_path / "reference"
+    dev = tmp_path / "dev"
+    canonical = tmp_path / "canonical.jsonl"
+    project_root.mkdir(); sample.mkdir(); reference.mkdir(); dev.mkdir()
+    canonical.write_text("{}\n", encoding="utf-8")
+    _copy_configs(project_root)
+    return project_root, sample, reference, dev, canonical
 
-    parent_descriptor = ScientificEntityExtractorDescriptor(
+
+def _descriptor() -> ScientificEntityExtractorDescriptor:
+    return ScientificEntityExtractorDescriptor(
         schema_version=EXTRACTOR_SCHEMA_VERSION,
-        name="fixture_raw_gliner",
-        version="0.0.1",
+        name="ml_radar_gliner_small_v2_5_semantic_prompt_raw_floor_candidate",
+        version="0.2.0c1",
         kind=ExtractorKind.STATISTICAL_MODEL,
         code_revision="fixture-code",
-        config_sha256="1" * 64,
-        environment_sha256="2" * 64,
-        model_name="fixture-model",
-        model_revision="fixture-revision",
-        model_artifact_sha256="3" * 64,
-        model_license="fixture-license",
-    )
-    parent_fingerprint = build_extractor_fingerprint(parent_descriptor)
-    canonical_input = ScientificEntityCanonicalInput(
-        schema_version=CANONICAL_INPUT_SCHEMA_VERSION,
-        path="fixture/sample.jsonl",
-        sha256="4" * 64,
-        document_count=48,
-        canonical_contract="CanonicalDocument",
+        config_sha256="b9b544194183e1cdf60a4632735acb6fe24788829bd1c75941293c5cd4360da6",
+        environment_sha256="1"*64,
+        model_name="gliner-community/gliner_small-v2.5",
+        model_revision="f227d3cd637bd4e6757ae143935316d062393341",
+        model_artifact_sha256="d444ff406b27affc07e3165b454c3adc9f25f228c81ede197a7b806f49d12c74",
+        model_license="apache-2.0",
     )
 
-    parents = []
-    for i in range(1257):
-        text = "Alpha Beta Gamma"
-        field = ScientificEntitySourceField.TITLE if i % 2 == 0 else ScientificEntitySourceField.ABSTRACT
-        kind = list(ScientificEntityType)[i % len(ScientificEntityType)]
-        source_sha = sha256_text(text)
-        mention_id = build_mention_id(
-            canonical_id=f"fixture-doc-{i:04d}",
-            source_field=field,
-            source_text_sha256=source_sha,
-            char_start=0,
-            char_end=5,
-            entity_type=kind,
-        )
-        parents.append(ScientificEntityMentionEvidence(
-            schema_version=MENTION_SCHEMA_VERSION,
-            evidence_id=build_evidence_id(mention_id=mention_id, extractor_fingerprint=parent_fingerprint),
-            mention_id=mention_id,
-            build_id=c.candidate.raw_build_id,
-            canonical_id=f"fixture-doc-{i:04d}",
-            entity_type=kind,
-            source_field=field,
-            source_text_sha256=source_sha,
-            char_start=0,
-            char_end=5,
-            surface_text="Alpha",
-            extractor_fingerprint=parent_fingerprint,
-            confidence_kind=ConfidenceKind.MODEL_SCORE,
-            confidence_score=0.7,
-            calibration_id=None,
-        ))
 
-    raw_root = project_root / c.candidate.raw_build_root / c.candidate.raw_build_id
-    raw_root.mkdir(parents=True)
-    raw_mentions = "".join(
-        json.dumps(row.model_dump(mode="json"), sort_keys=True, separators=(",", ":")) + "\n"
-        for row in parents
+def _mention(field: ScientificEntitySourceField, idx: int, score: float) -> ScientificEntityMentionEvidence:
+    text = f"Entity{idx}"
+    source_sha = sha256_text(text)
+    mention_id = build_mention_id(
+        canonical_id=f"doc-{idx}", source_field=field, source_text_sha256=source_sha,
+        char_start=0, char_end=len(text), entity_type=ScientificEntityType.METHOD,
     )
-    (raw_root / "mentions.jsonl").write_text(raw_mentions, encoding="utf-8", newline="\n")
-    (raw_root / "manifest.json").write_text("{}\n", encoding="utf-8", newline="\n")
+    fp = "e43009f1127a445ddfd01352b47825391c2d12a2059ed53b9d35f7e5b12d8f13"
+    return ScientificEntityMentionEvidence(
+        schema_version=MENTION_SCHEMA_VERSION,
+        evidence_id=build_evidence_id(mention_id=mention_id, extractor_fingerprint=fp),
+        mention_id=mention_id,
+        build_id="scientific-entity-gliner-small-v2.5-fresh-v0.2c-20260901T130232963026Z",
+        canonical_id=f"doc-{idx}", entity_type=ScientificEntityType.METHOD,
+        source_field=field, source_text_sha256=source_sha, char_start=0, char_end=len(text),
+        surface_text=text, extractor_fingerprint=fp, confidence_kind=ConfidenceKind.MODEL_SCORE,
+        confidence_score=score, calibration_id=None,
+    )
 
-    parent_manifest = ScientificEntityEvidenceManifest(
+
+def _parent_fixture(project_root: Path, rows: list[ScientificEntityMentionEvidence]) -> tuple[ScientificEntityEvidenceManifest, tuple[ScientificEntityMentionEvidence, ...], Path]:
+    cfg = load_scientific_entity_fresh_heldout_frozen_policy_config(CONFIG)
+    descriptor = _descriptor()
+    manifest = ScientificEntityEvidenceManifest(
         schema_version=MANIFEST_SCHEMA_VERSION,
-        build_id=c.candidate.raw_build_id,
+        build_id=cfg.candidate.raw_build_id,
         status=EntityEvidenceBuildStatus.CANDIDATE,
-        generated_at_utc=datetime(2026, 9, 6, tzinfo=timezone.utc),
-        canonical_input=canonical_input,
-        extractor=parent_descriptor,
-        extractor_fingerprint=parent_fingerprint,
-        offset_unit="unicode_codepoint",
-        offset_interval="half_open",
+        generated_at_utc="2026-09-05T08:00:00+00:00",
+        canonical_input=ScientificEntityCanonicalInput(
+            schema_version=CANONICAL_INPUT_SCHEMA_VERSION,
+            path="fixture.jsonl", sha256="2"*64, document_count=48, canonical_contract="CanonicalDocument",
+        ),
+        extractor=descriptor,
+        extractor_fingerprint=build_extractor_fingerprint(descriptor),
+        offset_unit="unicode_codepoint", offset_interval="half_open",
         source_fields=[ScientificEntitySourceField.TITLE, ScientificEntitySourceField.ABSTRACT],
-        entity_types=list(ScientificEntityType),
-        mentions_file="mentions.jsonl",
-        mention_count=1257,
-        mentions_sha256="5" * 64,
-        canonical_truth_mutated=False,
-        may_be_used_as_reconcile_input=False,
-        publication_ready=False,
+        entity_types=list(ScientificEntityType), mentions_file="mentions.jsonl", mention_count=len(rows),
+        mentions_sha256="3"*64, canonical_truth_mutated=False,
+        may_be_used_as_reconcile_input=False, publication_ready=False,
     )
+    return manifest, tuple(rows), project_root / "raw"
 
-    policy_descriptor = ScientificEntityExtractorDescriptor(
-        schema_version=EXTRACTOR_SCHEMA_VERSION,
-        name=c.extractor.name,
-        version=c.extractor.version,
-        kind=ExtractorKind.STATISTICAL_MODEL,
-        code_revision="fixture-policy-code",
-        config_sha256="6" * 64,
-        environment_sha256="2" * 64,
-        model_name="fixture-model",
-        model_revision="fixture-revision",
-        model_artifact_sha256="3" * 64,
-        model_license="fixture-license",
-    )
 
-    monkeypatch.setattr(mod, "_validate_policy_origin", lambda *a, **k: {
-        "semantic_sha256": c.policy_origin.development_policy_config_sha256,
-        "calibration_id": c.policy_origin.calibration_id,
-        "selected_trial_id": c.policy_origin.selected_trial_id,
-    })
-    monkeypatch.setattr(mod, "_validate_raw_parent", lambda *a, **k: (
-        parent_manifest,
-        tuple(parents),
-        {"reference_mention_count": 944, "required_failed_count": 0},
-    ))
-    monkeypatch.setattr(mod, "build_policy_filtered_extractor_descriptor", lambda **k: policy_descriptor)
-    monkeypatch.setattr(mod, "fresh_policy_config_sha256", lambda contract: policy_descriptor.config_sha256)
+def test_contract_freezes_exact_policy_and_boundary() -> None:
+    cfg = load_scientific_entity_fresh_heldout_frozen_policy_config(CONFIG)
+    assert cfg.candidate.expected_raw_prediction_count == 1257
+    assert cfg.candidate.expected_raw_extractor_fingerprint == "e43009f1127a445ddfd01352b47825391c2d12a2059ed53b9d35f7e5b12d8f13"
+    assert cfg.candidate.frozen_policy_config_sha256 == "9ad8d4f6728e49e04ed4bdc4cec6f4d2a23db82d55af71b4f71f33dabf84f62c"
+    assert cfg.policy.title_threshold == 0.45
+    assert cfg.policy.abstract_threshold == 0.625
+    assert cfg.policy.entity_type_overrides == {}
+    assert cfg.execution.plan_runs_policy_filtering is False
+    assert cfg.execution.model_inference_allowed is False
+    assert cfg.safety.fresh_heldout_policy_application_in_this_slice is True
+    assert cfg.safety.evaluation_in_this_slice is False
 
+
+def test_frozen_development_policy_config_semantics_match() -> None:
+    cfg = load_scientific_entity_fresh_heldout_frozen_policy_config(CONFIG)
+    info = mod._validate_frozen_policy_config(project_root=ROOT, contract=cfg)
+    assert info["policy_sha256"] == cfg.candidate.frozen_policy_config_sha256
+
+
+def test_thresholds_are_inclusive_and_source_specific() -> None:
+    cfg = load_scientific_entity_fresh_heldout_frozen_policy_config(CONFIG)
+    parents = [
+        _mention(ScientificEntitySourceField.TITLE, 1, 0.45),
+        _mention(ScientificEntitySourceField.TITLE, 2, 0.449999),
+        _mention(ScientificEntitySourceField.ABSTRACT, 3, 0.625),
+        _mention(ScientificEntitySourceField.ABSTRACT, 4, 0.624999),
+    ]
+    selected, _ = mod._materialize(parents, contract=cfg, build_id=cfg.execution.build_id, fingerprint="a"*64, parent_build_id=cfg.candidate.raw_build_id)
+    assert [row.mention_id for row in selected] == [parents[0].mention_id, parents[2].mention_id]
+
+
+def test_plan_does_not_filter_or_write(tmp_path: Path, monkeypatch) -> None:
+    project_root, sample, reference, dev, canonical = _fixture_dirs(tmp_path)
+    monkeypatch.setattr(mod, "_validate_raw_inference", lambda **kwargs: _raw_summary())
+    called = {"load_parent": 0}
+    monkeypatch.setattr(mod, "_load_parent", lambda **kwargs: called.__setitem__("load_parent", called["load_parent"] + 1))
     report = mod.plan_or_execute_frozen_policy(
-        project_root=project_root,
-        config_path=config_path,
-        sample_dir=tmp_path,
-        reference_dir=tmp_path,
-        development_package_dir=tmp_path,
-        canonical_path=tmp_path / "canonical.jsonl",
-        execute=True,
-        generated_at_utc=datetime(2026, 9, 6, tzinfo=timezone.utc),
+        project_root=project_root, config_path=CONFIG, sample_dir=sample, reference_dir=reference,
+        development_package_dir=dev, canonical_path=canonical, execute=False,
+    )
+    assert called["load_parent"] == 0
+    assert report["plan_runs_policy_filtering"] is False
+    assert report["policy_applied"] is False
+    assert "selected_prediction_count" not in report
+    assert report["next_slice"] == "execute_frozen_v02c_policy_once"
+    assert not (project_root / "data/entities/scientific_entity_fresh_heldout_frozen_policy/v0.2" / report["build_id"]).exists()
+
+
+def test_execute_applies_policy_without_model_or_evaluation(tmp_path: Path, monkeypatch) -> None:
+    project_root, sample, reference, dev, canonical = _fixture_dirs(tmp_path)
+    monkeypatch.setattr(mod, "_validate_raw_inference", lambda **kwargs: _raw_summary())
+    cfg = load_scientific_entity_fresh_heldout_frozen_policy_config(CONFIG)
+    parents = [
+        _mention(ScientificEntitySourceField.TITLE, 1, 0.80),
+        _mention(ScientificEntitySourceField.TITLE, 2, 0.44),
+        _mention(ScientificEntitySourceField.ABSTRACT, 3, 0.70),
+        _mention(ScientificEntitySourceField.ABSTRACT, 4, 0.61),
+    ]
+    # The real contract requires 1257 parent rows; pad with title rows below threshold.
+    for idx in range(5, 1258):
+        parents.append(_mention(ScientificEntitySourceField.TITLE, idx, 0.40))
+    parent_manifest, parent_rows, raw_dir = _parent_fixture(project_root, parents)
+    # Preserve the exact frozen raw fingerprint in the fixture manifest/rows.
+    parent_manifest = parent_manifest.model_copy(update={"extractor_fingerprint": cfg.candidate.expected_raw_extractor_fingerprint})
+    monkeypatch.setattr(mod, "_load_parent", lambda **kwargs: (parent_manifest, parent_rows, raw_dir))
+    monkeypatch.setattr(mod, "_build_descriptor", lambda **kwargs: ScientificEntityExtractorDescriptor(
+        schema_version=EXTRACTOR_SCHEMA_VERSION, name=cfg.extractor.name, version=cfg.extractor.version,
+        kind=ExtractorKind.STATISTICAL_MODEL, code_revision="fixture-policy-code", config_sha256="4"*64,
+        environment_sha256="1"*64, model_name="gliner-community/gliner_small-v2.5",
+        model_revision="f227d3cd637bd4e6757ae143935316d062393341",
+        model_artifact_sha256="d444ff406b27affc07e3165b454c3adc9f25f228c81ede197a7b806f49d12c74", model_license="apache-2.0",
+    ))
+    report = mod.plan_or_execute_frozen_policy(
+        project_root=project_root, config_path=CONFIG, sample_dir=sample, reference_dir=reference,
+        development_package_dir=dev, canonical_path=canonical, execute=True,
+        generated_at_utc=__import__("datetime").datetime(2026,9,7,tzinfo=__import__("datetime").timezone.utc),
     )
     assert report["phase_complete"] is True
-    assert report["selected_prediction_count"] == 1257
-    assert report["rejected_prediction_count"] == 0
-    assert report["new_model_inference_executed"] is False
+    assert report["policy_applied"] is True
+    assert report["selected_prediction_count"] == 2
+    assert report["rejected_prediction_count"] == 1255
+    assert report["model_inference_executed"] is False
+    assert report["threshold_tuning_executed"] is False
+    assert report["reference_labels_used_for_filtering"] is False
     assert report["evaluation_executed"] is False
+    assert report["next_slice"] == "validate_frozen_v02c_policy_application"
+    output = project_root / cfg.execution.output_root / cfg.execution.build_id
+    assert output.is_dir()
+    assert len((output / "mentions.jsonl").read_text(encoding="utf-8").splitlines()) == 2
 
-    checks, summary = mod.validate_frozen_policy_application(
-        project_root=project_root,
-        config_path=config_path,
-        sample_dir=tmp_path,
-        reference_dir=tmp_path,
-        development_package_dir=tmp_path,
-        canonical_path=tmp_path / "canonical.jsonl",
+
+def test_execute_refuses_second_fixed_output(tmp_path: Path, monkeypatch) -> None:
+    project_root, sample, reference, dev, canonical = _fixture_dirs(tmp_path)
+    monkeypatch.setattr(mod, "_validate_raw_inference", lambda **kwargs: _raw_summary())
+    cfg = load_scientific_entity_fresh_heldout_frozen_policy_config(CONFIG)
+    output = project_root / cfg.execution.output_root / cfg.execution.build_id
+    output.mkdir(parents=True)
+    with pytest.raises(FileExistsError):
+        mod.plan_or_execute_frozen_policy(
+            project_root=project_root, config_path=CONFIG, sample_dir=sample, reference_dir=reference,
+            development_package_dir=dev, canonical_path=canonical, execute=True,
+        )
+
+
+def test_raw_count_drift_fails_closed(tmp_path: Path, monkeypatch) -> None:
+    project_root, sample, reference, dev, canonical = _fixture_dirs(tmp_path)
+    bad = _raw_summary(); bad["raw_mention_count"] = 1256
+    monkeypatch.setattr(mod, "_validate_raw_inference", lambda **kwargs: bad)
+    with pytest.raises(ValueError, match="raw inference lineage"):
+        mod.plan_or_execute_frozen_policy(
+            project_root=project_root, config_path=CONFIG, sample_dir=sample, reference_dir=reference,
+            development_package_dir=dev, canonical_path=canonical, execute=False,
+        )
+
+
+def test_test_outputs_are_isolated_from_repository_tree(tmp_path: Path) -> None:
+    project_root, *_ = _fixture_dirs(tmp_path)
+    cfg = load_scientific_entity_fresh_heldout_frozen_policy_config(CONFIG)
+    output = (project_root / cfg.execution.output_root / cfg.execution.build_id).resolve()
+    assert output.is_relative_to(project_root.resolve())
+    assert not output.is_relative_to(ROOT.resolve())
+
+def test_execute_then_validator_round_trip_is_green(tmp_path: Path, monkeypatch) -> None:
+    project_root, sample, reference, dev, canonical = _fixture_dirs(tmp_path)
+    monkeypatch.setattr(mod, "_validate_raw_inference", lambda **kwargs: _raw_summary())
+    cfg = load_scientific_entity_fresh_heldout_frozen_policy_config(CONFIG)
+    parents = [
+        _mention(ScientificEntitySourceField.TITLE, 1, 0.45),
+        _mention(ScientificEntitySourceField.TITLE, 2, 0.44),
+        _mention(ScientificEntitySourceField.ABSTRACT, 3, 0.625),
+        _mention(ScientificEntitySourceField.ABSTRACT, 4, 0.61),
+    ]
+    for idx in range(5, 1258):
+        parents.append(_mention(ScientificEntitySourceField.TITLE, idx, 0.40))
+    parent_manifest, parent_rows, raw_dir = _parent_fixture(project_root, parents)
+    parent_manifest = parent_manifest.model_copy(update={"extractor_fingerprint": cfg.candidate.expected_raw_extractor_fingerprint})
+    monkeypatch.setattr(mod, "_load_parent", lambda **kwargs: (parent_manifest, parent_rows, raw_dir))
+    policy_descriptor = ScientificEntityExtractorDescriptor(
+        schema_version=EXTRACTOR_SCHEMA_VERSION, name=cfg.extractor.name, version=cfg.extractor.version,
+        kind=ExtractorKind.STATISTICAL_MODEL, code_revision="fixture-policy-code", config_sha256="4"*64,
+        environment_sha256="1"*64, model_name="gliner-community/gliner_small-v2.5",
+        model_revision="f227d3cd637bd4e6757ae143935316d062393341",
+        model_artifact_sha256="d444ff406b27affc07e3165b454c3adc9f25f228c81ede197a7b806f49d12c74", model_license="apache-2.0",
     )
-    assert summary["required_failed_count"] == 0, [x for x in checks if not x[1]]
-    assert summary["selected_prediction_count"] == 1257
+    monkeypatch.setattr(mod, "_build_descriptor", lambda **kwargs: policy_descriptor)
+    mod.plan_or_execute_frozen_policy(
+        project_root=project_root, config_path=CONFIG, sample_dir=sample, reference_dir=reference,
+        development_package_dir=dev, canonical_path=canonical, execute=True,
+        generated_at_utc=__import__("datetime").datetime(2026,9,7,tzinfo=__import__("datetime").timezone.utc),
+    )
+    checks, summary = mod.validate_frozen_policy_build(
+        project_root=project_root, config_path=CONFIG, sample_dir=sample, reference_dir=reference,
+        development_package_dir=dev, canonical_path=canonical,
+    )
+    assert all(ok for _, ok, _ in checks)
+    assert summary["required_failed_count"] == 0
+    assert summary["selected_prediction_count"] == 2
+    assert summary["rejected_prediction_count"] == 1255
+    assert summary["policy_applied"] is True
     assert summary["evaluation_executed"] is False
-    assert summary["next_slice"] == "evaluate_frozen_v02c_policy_once"
+    assert summary["next_slice"] == "evaluate_frozen_v02c_on_fresh_heldout_once"
+

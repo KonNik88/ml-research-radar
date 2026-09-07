@@ -3,8 +3,8 @@
 ## Document status
 
 ```text
-status = accepted post-orchestration and scientific-entity fresh-v0.2 frozen-policy-application checkpoint
-checkpoint_date = 2026-09-06
+status = accepted post-orchestration and scientific-entity fresh-v0.2 frozen-policy checkpoint
+checkpoint_date = 2026-09-07
 supersedes_for_current_planning = docs/project_state_current_v0.1.md
 historical_detail_retained_in = docs/project_state_current_v0.1.md
 canonical_truth_changed_by_document = false
@@ -548,30 +548,27 @@ Recommended order:
    - no policy, evaluation, acceptance decision, threshold/model/prompt/sample change, or post-heldout tuning occurred during recovery;
    - ordinary strict raw-inference validation again passes `22 / 22`.
 
-23. **Frozen v0.2c Policy Application — completed**
-   - policy build ID = `scientific-entity-gliner-small-v2.5-fresh-v0.2c-policy-20260901T130232963026Z`;
-   - parent raw predictions = `1257`;
-   - frozen title threshold = `0.45` inclusive;
-   - frozen abstract threshold = `0.625` inclusive;
-   - entity-type overrides = none;
+23. **Frozen v0.2c Policy Application — completed exactly once**
+   - policy build ID = `scientific-entity-semantic-prompt-raw-floor-policy-fresh-v0.2c-20260901T130232963026Z`;
+   - parent raw build = `scientific-entity-gliner-small-v2.5-fresh-v0.2c-20260901T130232963026Z`;
+   - raw predictions = `1257`;
+   - frozen thresholds = `title=0.45 / abstract=0.625`, with no entity-type overrides;
    - selected predictions = `773`; rejected predictions = `484`;
-   - fresh policy config SHA-256 = `9375fc73ce5ff8cf757891bca2f2ca5461b9e140439ef5c589aa3888d5064abb`;
-   - development policy semantic SHA-256 = `9ad8d4f6728e49e04ed4bdc4cec6f4d2a23db82d55af71b4f71f33dabf84f62c`;
-   - strict policy validation = `37 / 37` with `0` required failures;
-   - new model inference executed = `false`;
+   - policy extractor fingerprint = `77af105871b227daa0d8c9e5501839addf229004795490a63bebe4f02672cf52`;
+   - model inference executed by policy = `false`;
    - threshold tuning executed = `false`;
-   - reference comparison executed = `false`;
+   - reference labels used for filtering = `false`;
+   - strict policy validation = `46 / 46` with `0` required failures;
    - evaluation executed = `false`;
    - acceptance decision made = `false`;
    - canonical truth mutated = `false`;
    - production extractor selected = `false`;
    - full-corpus build authorized = `false`.
 
-24. **Independent Fresh v0.2 Evaluation — next**
-   - compare only the frozen `773` selected predictions with the frozen `944` human references;
-   - compute only the already-defined exact/relaxed metrics and frozen semantic-confusion gates;
-   - apply the acceptance gate frozen before sample selection;
-   - no prompt, threshold, model, sample, taxonomy, or matching-policy tuning is permitted after seeing results.
+24. **Fresh v0.2 Independent Evaluation — next**
+   - compare only the frozen `773` selected predictions against the frozen `944` reference mentions;
+   - apply the acceptance gate frozen before fresh-heldout sample selection;
+   - no prompt, threshold, model, sample, taxonomy, or post-heldout tuning is permitted.
 
 25. **Accepted Large-Scale Derived Entity Build — deferred**
    - requires a later production-quality decision and explicit full-corpus authorization;
@@ -678,8 +675,8 @@ scientific entity fresh v0.2 heldout gate = design frozen / 48 papers / 24 unifo
 scientific entity fresh v0.2 acceptance = exact F1 minimum 0.396882 / relaxed F1 0.414868 desirable only / semantic caps 43,25,150,74,74 / no post-heldout tuning
 scientific entity fresh v0.2 sample = materialized / scientific-entity-fresh-heldout-sample-v0.2-20260901T130232963026Z / 48 papers / 24 uniform + 24 type-enriched / 96 blank rows / overlap 0 / selected IDs sha256 0c4bf55fa47192d8523a5ccd0d89b3326562ff6b464f108d330d87286feb7d7a / strict validation 43 of 43
 scientific entity fresh v0.2 safety = candidate predictions not read / inference not run / evaluation not run / fresh reference not consumed / production false / full corpus false
-scientific entity fresh v0.2 raw inference = original one-shot executed / 1257 raw mentions / documented exact-condition recovery preserved / strict validator 22 of 22
-scientific entity fresh v0.2 frozen policy = applied exactly once / build scientific-entity-gliner-small-v2.5-fresh-v0.2c-policy-20260901T130232963026Z / input 1257 / selected 773 / rejected 484 / title 0.45 / abstract 0.625 / no overrides / strict validator 37 of 37 / no reference comparison / no evaluation / no acceptance decision
+scientific entity fresh v0.2 raw inference = original one-shot executed / build scientific-entity-gliner-small-v2.5-fresh-v0.2c-20260901T130232963026Z / 48 docs / 1257 raw mentions / extractor fingerprint e43009f1127a445ddfd01352b47825391c2d12a2059ed53b9d35f7e5b12d8f13 / faulty smoke-test cleanup deleted the local artifact after green validation / tests isolated to tmp_path / documented exact-condition recovery reproduced 1257 raw mentions and the same extractor fingerprint / recovery match passed / strict validator again 22 of 22 / byte identity with deleted original not claimed / policy not applied / evaluation not run / acceptance not decided
+scientific entity fresh v0.2 frozen policy = executed exactly once / 1257 raw predictions / 773 selected / 484 rejected / title 0.45 / abstract 0.625 / no type overrides / policy extractor fingerprint 77af105871b227daa0d8c9e5501839addf229004795490a63bebe4f02672cf52 / strict validator 46 of 46 / no model inference / no threshold tuning / no reference-label filtering / evaluation not run / acceptance not decided
 next entity slice = Scientific Entity Fresh v0.2 Independent Evaluation
 ```
 
