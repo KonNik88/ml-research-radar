@@ -46,7 +46,7 @@ def test_readme_points_to_the_current_checkpoint_and_scopes_old_outputs() -> Non
     assert "docs/scientific_entity_heldout_error_analysis_v0.1.md" in text
     assert "docs/scientific_entity_semantic_prompt_candidate_v0.2a.md" in text
     assert "docs/scientific_entity_semantic_prompt_threshold_calibration_v0.2b.md" in text
-    assert "current scientific entity checkpoint = Scientific Entity Fresh v0.2 Frozen v0.2c Policy Application" in text
+    assert "current scientific entity checkpoint = Scientific Entity Fresh v0.2 Independent Evaluation" in text
     assert "completed 24-paper review" in text
 
 
@@ -55,10 +55,10 @@ def test_roadmap_advances_after_real_calibration_and_policy_freeze() -> None:
 
     assert "current active direction = Scientific Entity Evidence Layer" in text
     assert (
-        "latest completed slice = Scientific Entity Fresh v0.2 Frozen v0.2c Policy Application"
+        "latest completed slice = Scientific Entity Fresh v0.2 Independent Evaluation"
     ) in text
     assert (
-        "next authorized slice = Scientific Entity Fresh v0.2 Independent Evaluation"
+        "next authorized slice = Scientific Entity Fresh v0.2 Immutable Acceptance Decision"
     ) in text
     assert "Scientific Entity Evidence Contract v0.1" in text
     assert "hard max documents = 100" in text
@@ -517,19 +517,20 @@ def test_scientific_entity_fresh_v02_reference_evidence_freeze_is_preserved() ->
     assert "62. **Scientific Entity Fresh v0.2 Reference Evidence Freeze**" in roadmap
 
 
-def test_scientific_entity_fresh_v02_frozen_policy_is_current() -> None:
+def test_scientific_entity_fresh_v02_independent_evaluation_is_current() -> None:
     readme = _read("README.md")
     checkpoint = _read("docs/project_state_current_v0.2.md")
     roadmap = _read("docs/roadmap.md")
     inference = _read("docs/scientific_entity_fresh_heldout_frozen_inference_v0.2.md")
     recovery = _read("docs/scientific_entity_fresh_heldout_frozen_inference_recovery_v0.2.md")
     policy = _read("docs/scientific_entity_fresh_heldout_frozen_policy_v0.2.md")
+    evaluation = _read("docs/scientific_entity_fresh_heldout_evaluation_v0.2.md")
 
-    assert "current scientific entity checkpoint = Scientific Entity Fresh v0.2 Frozen v0.2c Policy Application" in readme
-    assert "current_extension = Scientific Entity Fresh v0.2 Frozen v0.2c Policy Application" in checkpoint
-    assert "latest completed slice = Scientific Entity Fresh v0.2 Frozen v0.2c Policy Application" in roadmap
-    assert "next authorized slice = Scientific Entity Fresh v0.2 Independent Evaluation" in roadmap
-    assert "next entity slice = Scientific Entity Fresh v0.2 Independent Evaluation" in checkpoint
+    assert "current scientific entity checkpoint = Scientific Entity Fresh v0.2 Independent Evaluation" in readme
+    assert "current_extension = Scientific Entity Fresh v0.2 Independent Evaluation" in checkpoint
+    assert "latest completed slice = Scientific Entity Fresh v0.2 Independent Evaluation" in roadmap
+    assert "next authorized slice = Scientific Entity Fresh v0.2 Immutable Acceptance Decision" in roadmap
+    assert "next entity slice = Scientific Entity Fresh v0.2 Immutable Acceptance Decision" in checkpoint
 
     assert "status = one-shot raw inference executed and strictly validated" in inference
     assert "build_id = scientific-entity-gliner-small-v2.5-fresh-v0.2c-20260901T130232963026Z" in inference
@@ -579,6 +580,29 @@ def test_scientific_entity_fresh_v02_frozen_policy_is_current() -> None:
     assert "63. **Scientific Entity Fresh v0.2 Frozen v0.2c Raw Inference**" in roadmap
     assert "64. **Scientific Entity Fresh v0.2 Raw Artifact Recovery and Test Isolation Hotfix**" in roadmap
     assert "65. **Scientific Entity Fresh v0.2 Frozen v0.2c Policy Application**" in roadmap
+    assert "66. **Scientific Entity Fresh v0.2 Independent Evaluation**" in roadmap
+
+    assert "## Executed evaluation result" in evaluation
+    assert "evaluation_id = scientific-entity-evaluation-fresh-v0.2c-20260901T130232963026Z" in evaluation
+    assert "references = 944" in evaluation
+    assert "predictions = 773" in evaluation
+    assert "exact precision = 0.443726" in evaluation
+    assert "exact recall = 0.363347" in evaluation
+    assert "exact F1 = 0.399534" in evaluation
+    assert "relaxed precision = 0.472186" in evaluation
+    assert "relaxed recall = 0.386653" in evaluation
+    assert "relaxed F1 = 0.42516" in evaluation
+    assert "model -> method = 70" in evaluation
+    assert "method -> task = 15" in evaluation
+    assert "total type mismatch = 166" in evaluation
+    assert "method predicted-type mismatch sink = 84" in evaluation
+    assert "maximum predicted-type mismatch sink = method:84" in evaluation
+    assert "base evaluation validation = 69 / 69" in evaluation
+    assert "wrapper strict validation = 19 / 19" in evaluation
+    assert "evaluation executed = true" in evaluation
+    assert "acceptance decision made = false" in evaluation
+    assert "threshold tuning executed = false" in evaluation
+    assert "next = make_immutable_v02c_acceptance_decision_without_tuning" in evaluation
 
     assert "## Executed policy materialization" in policy
     assert "build_id = scientific-entity-semantic-prompt-raw-floor-policy-fresh-v0.2c-20260901T130232963026Z" in policy

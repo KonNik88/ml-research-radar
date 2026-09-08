@@ -1,0 +1,81 @@
+schema_version: scientific_entity_fresh_heldout_evaluation_v0.2
+
+layer:
+  name: scientific_entity_fresh_heldout_evaluation
+  version: v0.2
+  status: frozen_one_shot_independent_evaluation_contract
+  layer_kind: independent_heldout_quality_evidence
+
+candidate:
+  candidate_id: scientific-entity-semantic-prompt-raw-floor-extension-v0.2c
+  policy_contract_path: configs/scientific_entity_fresh_heldout_frozen_policy_v0.2.yaml
+  policy_contract_semantic_sha256: 7e2ed7151529a6b8d5ce526d9125d5b76dd2287103fc637408e10bf21a89b5ae
+  policy_build_id: scientific-entity-semantic-prompt-raw-floor-policy-fresh-v0.2c-20260901T130232963026Z
+  expected_prediction_count: 773
+  expected_policy_extractor_fingerprint: 77af105871b227daa0d8c9e5501839addf229004795490a63bebe4f02672cf52
+  title_threshold: 0.45
+  abstract_threshold: 0.625
+  entity_type_overrides: {}
+
+fresh_heldout:
+  gate_config_path: configs/scientific_entity_fresh_heldout_gate_v0.2.yaml
+  gate_config_semantic_sha256: 353276e75adacf445146bdc3046fdaedc04e01588b0bbd76a11a5dc2b48a1efe
+  sample_id: scientific-entity-fresh-heldout-sample-v0.2-20260901T130232963026Z
+  review_id: scientific-entity-fresh-heldout-review-v0.2-20260901T130232963026Z
+  sample_documents_file: canonical_documents.sample.jsonl
+  reference_review_manifest_file: review_manifest.json
+  reference_mentions_file: reference_mentions.jsonl
+  expected_document_count: 48
+  expected_reference_mention_count: 944
+
+base_evaluator:
+  config_path: configs/scientific_entity_evaluation_v0.1.yaml
+  config_semantic_sha256: 79dec3b87349d7edc2acd34bd9f9fa398d34efa5e6ecec97fb0e7492f322958a
+  matching_identity: exact_plus_relaxed_char_iou_v0.1
+  relaxed_min_char_iou: 0.5
+  decimal_places: 6
+
+acceptance_gate_snapshot:
+  minimum_exact_f1: 0.396882
+  desirable_minimum_relaxed_f1: 0.414868
+  relaxed_f1_is_hard_gate: false
+  maximum_model_to_method_count: 43
+  maximum_method_to_task_count: 25
+  maximum_total_type_mismatch_count: 150
+  maximum_method_semantic_sink_count: 74
+  maximum_any_predicted_type_mismatch_sink_count: 74
+  no_post_heldout_tuning: true
+  decision_made_in_this_slice: false
+
+execution:
+  output_root: data/entities/scientific_entity_fresh_heldout_evaluation/v0.2
+  evaluation_id: scientific-entity-evaluation-fresh-v0.2c-20260901T130232963026Z
+  status: candidate
+  max_documents: 48
+  one_shot_execute: true
+  plan_runs_evaluation: false
+  overwrite_allowed: false
+
+safety:
+  policy_build_must_validate_before_execute: true
+  reference_evidence_must_validate_before_execute: true
+  plan_may_expose_quality_metrics: false
+  model_inference_allowed: false
+  threshold_tuning_allowed: false
+  prompt_changes_allowed: false
+  model_changes_allowed: false
+  sampling_changes_allowed: false
+  taxonomy_changes_allowed: false
+  reference_labels_used_for_evaluation: true
+  reference_labels_used_for_filtering: false
+  acceptance_decision_in_this_slice: false
+  canonical_truth_mutation_allowed: false
+  reconcile_input_allowed: false
+  publication_allowed: false
+  production_extractor_selected: false
+  full_corpus_build_authorized: false
+
+next_steps:
+  after_plan: execute_frozen_v02c_fresh_heldout_evaluation_once
+  after_execute: validate_frozen_v02c_fresh_heldout_evaluation
+  after_validation: make_immutable_v02c_acceptance_decision_without_tuning
