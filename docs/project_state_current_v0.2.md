@@ -3,15 +3,15 @@
 ## Document status
 
 ```text
-status = accepted post-orchestration and scientific-entity fresh-v0.2 frozen-policy checkpoint
-checkpoint_date = 2026-09-07
+status = accepted post-orchestration and scientific-entity fresh-v0.2 independent-evaluation checkpoint
+checkpoint_date = 2026-09-08
 supersedes_for_current_planning = docs/project_state_current_v0.1.md
 historical_detail_retained_in = docs/project_state_current_v0.1.md
 canonical_truth_changed_by_document = false
 runtime_behavior_changed_by_document = false
 generated_layers_rebuilt_by_document = false
 publishes_dataset = false
-current_extension = Scientific Entity Fresh v0.2 Frozen v0.2c Policy Application
+current_extension = Scientific Entity Fresh v0.2 Independent Evaluation
 ```
 
 This checkpoint records the accepted project state after the August 2026 safe
@@ -565,21 +565,40 @@ Recommended order:
    - production extractor selected = `false`;
    - full-corpus build authorized = `false`.
 
-24. **Fresh v0.2 Independent Evaluation — next**
-   - compare only the frozen `773` selected predictions against the frozen `944` reference mentions;
-   - apply the acceptance gate frozen before fresh-heldout sample selection;
-   - no prompt, threshold, model, sample, taxonomy, or post-heldout tuning is permitted.
+24. **Fresh v0.2 Independent Evaluation — completed exactly once**
+   - evaluation ID = `scientific-entity-evaluation-fresh-v0.2c-20260901T130232963026Z`;
+   - documents = `48`; frozen references = `944`; frozen predictions = `773`;
+   - exact precision / recall / F1 = `0.443726 / 0.363347 / 0.399534`;
+   - relaxed precision / recall / F1 = `0.472186 / 0.386653 / 0.42516`;
+   - `model -> method = 70`;
+   - `method -> task = 15`;
+   - total type mismatch count = `166`;
+   - method predicted-type mismatch sink = `84`;
+   - maximum predicted-type mismatch sink = `method:84`;
+   - base evaluation validation = `69 / 69`;
+   - wrapper strict validation = `19 / 19` with `0` required failures;
+   - evaluation executed = `true`;
+   - acceptance decision made = `false`;
+   - threshold tuning executed = `false`;
+   - model inference executed = `false`;
+   - production extractor selected = `false`;
+   - full-corpus build authorized = `false`.
 
-25. **Accepted Large-Scale Derived Entity Build — deferred**
+25. **Immutable v0.2c Acceptance Decision — next**
+   - consume only the immutable evaluation artifact plus the frozen gate;
+   - make the deterministic ACCEPT/REJECT decision without tuning;
+   - do not change prompt, threshold, model, taxonomy, sample, or references.
+
+26. **Accepted Large-Scale Derived Entity Build — deferred**
    - requires a later production-quality decision and explicit full-corpus authorization;
    - build-scoped manifest and current-canonical compatibility checks;
    - current development evidence does not authorize a 61,075-paper entity run.
 
-26. **Normalization / Linking / Product and Graph Integration — deferred**
+27. **Normalization / Linking / Product and Graph Integration — deferred**
    - avoid normalizing six-type evidence before weak types and semantic typing are hardened;
    - later add aliases, canonical entity IDs, Discovery facets, paper detail/comparison evidence, and paper–entity edges.
 
-27. **Full-text / Chunk Provenance / Grounded RAG**
+28. **Full-text / Chunk Provenance / Grounded RAG**
    - separate contract and acquisition-policy line;
    - no ungrounded chat layer.
 
@@ -677,7 +696,8 @@ scientific entity fresh v0.2 sample = materialized / scientific-entity-fresh-hel
 scientific entity fresh v0.2 safety = candidate predictions not read / inference not run / evaluation not run / fresh reference not consumed / production false / full corpus false
 scientific entity fresh v0.2 raw inference = original one-shot executed / build scientific-entity-gliner-small-v2.5-fresh-v0.2c-20260901T130232963026Z / 48 docs / 1257 raw mentions / extractor fingerprint e43009f1127a445ddfd01352b47825391c2d12a2059ed53b9d35f7e5b12d8f13 / faulty smoke-test cleanup deleted the local artifact after green validation / tests isolated to tmp_path / documented exact-condition recovery reproduced 1257 raw mentions and the same extractor fingerprint / recovery match passed / strict validator again 22 of 22 / byte identity with deleted original not claimed / policy not applied / evaluation not run / acceptance not decided
 scientific entity fresh v0.2 frozen policy = executed exactly once / 1257 raw predictions / 773 selected / 484 rejected / title 0.45 / abstract 0.625 / no type overrides / policy extractor fingerprint 77af105871b227daa0d8c9e5501839addf229004795490a63bebe4f02672cf52 / strict validator 46 of 46 / no model inference / no threshold tuning / no reference-label filtering / evaluation not run / acceptance not decided
-next entity slice = Scientific Entity Fresh v0.2 Independent Evaluation
+scientific entity fresh v0.2 independent evaluation = executed exactly once / 48 docs / 944 references / 773 predictions / exact F1 0.399534 / relaxed F1 0.42516 / model->method 70 / method->task 15 / total mismatch 166 / method sink 84 / max sink method:84 / base validator 69 of 69 / wrapper validator 19 of 19 / acceptance decision not made / no tuning
+next entity slice = Scientific Entity Fresh v0.2 Immutable Acceptance Decision
 ```
 
 The project is not restarting or replacing completed work. The next entity

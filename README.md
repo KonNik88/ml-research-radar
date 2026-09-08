@@ -35,11 +35,11 @@ paper-centric research-discovery system.
 ## Current validated checkpoint
 
 ```text
-checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Fresh v0.2 Frozen v0.2c Policy Application
-current scientific entity checkpoint = Scientific Entity Fresh v0.2 Frozen v0.2c Policy Application
+checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Fresh v0.2 Independent Evaluation
+current scientific entity checkpoint = Scientific Entity Fresh v0.2 Independent Evaluation
 base checkpoint = safe canonical refresh and synchronized core/Discovery derived layers
 scientific entity status = bounded literal control + evaluation harness + completed 24-paper review + GLiNER candidate adapter
-scientific entity quality status = semantic-prompt raw-floor v0.2c remains frozen as the development candidate; fresh held-out references remain frozen at 944 mentions; frozen raw inference remains fixed at 1257 raw mentions and strict validation 22 / 22; the pre-frozen source-field policy title=0.45 / abstract=0.625 with no entity-type overrides was applied exactly once to that raw build, selecting 773 predictions and rejecting 484; policy extractor fingerprint 77af105871b227daa0d8c9e5501839addf229004795490a63bebe4f02672cf52; strict frozen-policy validation passed 46 / 46; the policy application performed no model inference, no threshold tuning, and did not use reference labels for filtering; independent evaluation and acceptance decision have not run, no post-heldout tuning is allowed, and production/full-corpus remain unauthorized
+scientific entity quality status = frozen v0.2c fresh-heldout evaluation completed exactly once on 773 frozen selected predictions versus 944 frozen reference mentions; exact P/R/F1 = 0.443726/0.363347/0.399534; relaxed P/R/F1 = 0.472186/0.386653/0.42516; semantic measurements: model->method=70, method->task=15, total type mismatch=166, method sink=84, maximum predicted-type mismatch sink=method:84; base evaluation validation passed 69/69 and wrapper strict validation passed 19/19; evaluation executed=true, threshold tuning=false, acceptance decision not yet materialized; the observed evaluation exceeds several pre-frozen semantic hard caps, so the next slice is an immutable no-tuning acceptance decision; production/full-corpus remain unauthorized
 public behavior change = none
 public dense/hybrid backend = file
 experimental Qdrant endpoint = explicit
@@ -880,17 +880,25 @@ Recommended order:
     It selected `773` and rejected `484` predictions; strict validation is `46 / 46`.
     No model inference, threshold tuning, reference-label filtering, evaluation, or acceptance decision occurred.
 
-23. **Fresh v0.2 Independent Evaluation — next.**
-    Compare only the frozen `773` selected predictions against the frozen `944` references and apply
-    the acceptance gate frozen before sample selection. No post-heldout tuning is permitted.
+23. **Fresh v0.2 Independent Evaluation — completed exactly once.**
+    Evaluation `scientific-entity-evaluation-fresh-v0.2c-20260901T130232963026Z` compared the frozen `773` selected predictions against the frozen `944` references.
+    Exact P/R/F1 = `0.443726/0.363347/0.399534`; relaxed P/R/F1 = `0.472186/0.386653/0.42516`.
+    Semantic measurements: `model→method=70`, `method→task=15`, total type mismatch `166`,
+    method sink `84`, maximum predicted-type mismatch sink `method:84`.
+    Base evaluation validation passed `69/69` and wrapper strict validation `19/19`.
+    No inference, filtering, tuning, or acceptance decision occurred.
 
-24. **Accepted Large-Scale Derived Entity Build — deferred.**
+24. **Immutable v0.2c Acceptance Decision — next.**
+    Consume only the immutable evaluation artifact plus the already-frozen gate and emit the deterministic
+    ACCEPT/REJECT decision without tuning or changing any prompt, threshold, model, sample, or taxonomy.
+
+25. **Accepted Large-Scale Derived Entity Build — deferred.**
     Requires explicit independent acceptance plus separate full-corpus authorization.
 
-25. **Normalization / Linking / Product and Graph Integration — deferred.**
+26. **Normalization / Linking / Product and Graph Integration — deferred.**
     Only after typing quality is sufficiently stable; entities remain downstream of canonical truth.
 
-26. **Full-text / Chunk Provenance / Grounded RAG — deferred.**
+27. **Full-text / Chunk Provenance / Grounded RAG — deferred.**
     Separate acquisition/evidence line after the entity layer is stable.
 
 Dataset publication remains paused pending explicit redistribution guidance.
