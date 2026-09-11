@@ -35,11 +35,11 @@ paper-centric research-discovery system.
 ## Current validated checkpoint
 
 ```text
-checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Fresh v0.2 Independent Evaluation
-current scientific entity checkpoint = Scientific Entity Fresh v0.2 Independent Evaluation
+checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Fresh v0.2c Immutable Acceptance Decision
+current scientific entity checkpoint = Scientific Entity Fresh v0.2c Immutable Acceptance Decision
 base checkpoint = safe canonical refresh and synchronized core/Discovery derived layers
 scientific entity status = bounded literal control + evaluation harness + completed 24-paper review + GLiNER candidate adapter
-scientific entity quality status = frozen v0.2c fresh-heldout evaluation completed exactly once on 773 frozen selected predictions versus 944 frozen reference mentions; exact P/R/F1 = 0.443726/0.363347/0.399534; relaxed P/R/F1 = 0.472186/0.386653/0.42516; semantic measurements: model->method=70, method->task=15, total type mismatch=166, method sink=84, maximum predicted-type mismatch sink=method:84; base evaluation validation passed 69/69 and wrapper strict validation passed 19/19; evaluation executed=true, threshold tuning=false, acceptance decision not yet materialized; the observed evaluation exceeds several pre-frozen semantic hard caps, so the next slice is an immutable no-tuning acceptance decision; production/full-corpus remain unauthorized
+scientific entity quality status = frozen v0.2c fresh-heldout evaluation completed exactly once on 773 frozen selected predictions versus 944 frozen reference mentions; exact P/R/F1 = 0.443726/0.363347/0.399534; relaxed P/R/F1 = 0.472186/0.386653/0.42516; semantic measurements: model->method=70, method->task=15, total type mismatch=166, method sink=84, maximum predicted-type mismatch sink=method:84; immutable acceptance decision `scientific-entity-fresh-heldout-acceptance-decision-v0.2c-20260901T130232963026Z` = `reject_v02c_independent_acceptance`; 2/6 hard criteria passed and 4/6 failed, while the 1/1 desirable relaxed-F1 criterion passed; strict decision validation passed 39/39 with required_failed_count=0; this is a valid scientific REJECT, not an engineering validation failure; production/full-corpus remain unauthorized; next = typing-focused diagnostics and v0.3 design hardening
 public behavior change = none
 public dense/hybrid backend = file
 experimental Qdrant endpoint = explicit
@@ -888,17 +888,26 @@ Recommended order:
     Base evaluation validation passed `69/69` and wrapper strict validation `19/19`.
     No inference, filtering, tuning, or acceptance decision occurred.
 
-24. **Immutable v0.2c Acceptance Decision — next.**
-    Consume only the immutable evaluation artifact plus the already-frozen gate and emit the deterministic
-    ACCEPT/REJECT decision without tuning or changing any prompt, threshold, model, sample, or taxonomy.
+24. **Immutable v0.2c Acceptance Decision — completed exactly once; independent acceptance rejected.**
+    Decision `scientific-entity-fresh-heldout-acceptance-decision-v0.2c-20260901T130232963026Z` consumed only the immutable evaluation artifact and pre-frozen gate.
+    Result = `reject_v02c_independent_acceptance`: hard criteria passed `2/6`, desirable criteria passed `1/1`.
+    Hard failures are `maximum_model_to_method_count`, `maximum_total_type_mismatch_count`,
+    `maximum_method_semantic_sink_count`, and `maximum_any_predicted_type_mismatch_sink_count`.
+    Strict decision validation passed `39/39` with `required_failed_count=0`; no evaluation recomputation,
+    model inference, policy reapplication, threshold tuning, gate change, or canonical mutation occurred.
 
-25. **Accepted Large-Scale Derived Entity Build — deferred.**
-    Requires explicit independent acceptance plus separate full-corpus authorization.
+25. **Typing-Focused Diagnostics and v0.3 Design Hardening — next.**
+    The 48-paper fresh held-out is now consumed diagnostic/development evidence if inspected for v0.3.
+    Diagnose semantic typing failures, especially `model→method=70`, method sink `84`, and total type mismatch `166`.
+    Any future v0.3 candidate developed from these errors requires a new disjoint prediction-blind held-out for independent acceptance.
 
-26. **Normalization / Linking / Product and Graph Integration — deferred.**
+26. **Accepted Large-Scale Derived Entity Build — deferred.**
+    Requires a future independently accepted candidate plus separate full-corpus authorization.
+
+27. **Normalization / Linking / Product and Graph Integration — deferred.**
     Only after typing quality is sufficiently stable; entities remain downstream of canonical truth.
 
-27. **Full-text / Chunk Provenance / Grounded RAG — deferred.**
+28. **Full-text / Chunk Provenance / Grounded RAG — deferred.**
     Separate acquisition/evidence line after the entity layer is stable.
 
 Dataset publication remains paused pending explicit redistribution guidance.

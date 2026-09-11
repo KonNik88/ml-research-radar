@@ -1,0 +1,64 @@
+schema_version: scientific_entity_fresh_heldout_acceptance_decision_v0.2
+
+layer:
+  name: scientific_entity_fresh_heldout_acceptance_decision
+  version: v0.2
+  status: immutable_one_shot_acceptance_decision_contract
+  layer_kind: independent_heldout_acceptance_decision
+
+candidate:
+  candidate_id: scientific-entity-semantic-prompt-raw-floor-extension-v0.2c
+  sample_id: scientific-entity-fresh-heldout-sample-v0.2-20260901T130232963026Z
+  review_id: scientific-entity-fresh-heldout-review-v0.2-20260901T130232963026Z
+  policy_build_id: scientific-entity-semantic-prompt-raw-floor-policy-fresh-v0.2c-20260901T130232963026Z
+  policy_extractor_fingerprint: 77af105871b227daa0d8c9e5501839addf229004795490a63bebe4f02672cf52
+  expected_document_count: 48
+  expected_reference_mention_count: 944
+  expected_prediction_count: 773
+
+evaluation:
+  config_path: configs/scientific_entity_fresh_heldout_evaluation_v0.2.yaml
+  config_semantic_sha256: 2b104363ade805da1a3a1b0b57139941ce13b06198c61260b2b28fc488556793
+  evaluation_id: scientific-entity-evaluation-fresh-v0.2c-20260901T130232963026Z
+  manifest_sha256: 59209b0897aeaea07c71209f5031f4f136ff097af0e42ea31c3c79c07d92b00b
+  metrics_sha256: bb3725eb06cb74980b756cb2b90b268d5a1d876601561fe2230bf5df809fd196
+  errors_sha256: 8bc7c726a70b3d6ecd4605270bbaa7c902d9f260c7b30c238268dbef5268cca7
+  checksums_sha256: ccd465ed541680bc20a38b76f6ab4eb051744b07a33cf005e21997dd5140747b
+  required_validation_failed_count: 0
+
+gate:
+  config_path: configs/scientific_entity_fresh_heldout_gate_v0.2.yaml
+  config_semantic_sha256: 353276e75adacf445146bdc3046fdaedc04e01588b0bbd76a11a5dc2b48a1efe
+  decision_role: independent_v02_candidate_acceptance_gate
+  all_hard_gates_required_for_acceptance: true
+  relaxed_f1_is_desirable_not_hard: true
+  no_post_heldout_tuning: true
+
+execution:
+  output_root: data/entities/scientific_entity_fresh_heldout_acceptance_decision/v0.2
+  decision_id: scientific-entity-fresh-heldout-acceptance-decision-v0.2c-20260901T130232963026Z
+  one_shot_execute: true
+  plan_runs_decision: false
+  overwrite_allowed: false
+
+safety:
+  evaluation_recomputation_allowed: false
+  model_inference_allowed: false
+  policy_reapplication_allowed: false
+  threshold_tuning_allowed: false
+  prompt_changes_allowed: false
+  model_changes_allowed: false
+  sampling_changes_allowed: false
+  taxonomy_changes_allowed: false
+  gate_changes_allowed: false
+  canonical_truth_mutation_allowed: false
+  reconcile_input_allowed: false
+  provider_api_allowed: false
+  production_extractor_selected: false
+  full_corpus_build_authorized: false
+  publication_allowed: false
+
+next_steps:
+  after_plan: execute_immutable_v02c_acceptance_decision_once
+  after_execute: validate_immutable_v02c_acceptance_decision
+  after_validation: close_v02c_and_begin_typing_focused_diagnostics

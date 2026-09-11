@@ -46,7 +46,7 @@ def test_readme_points_to_the_current_checkpoint_and_scopes_old_outputs() -> Non
     assert "docs/scientific_entity_heldout_error_analysis_v0.1.md" in text
     assert "docs/scientific_entity_semantic_prompt_candidate_v0.2a.md" in text
     assert "docs/scientific_entity_semantic_prompt_threshold_calibration_v0.2b.md" in text
-    assert "current scientific entity checkpoint = Scientific Entity Fresh v0.2 Independent Evaluation" in text
+    assert "current scientific entity checkpoint = Scientific Entity Fresh v0.2c Immutable Acceptance Decision" in text
     assert "completed 24-paper review" in text
 
 
@@ -55,10 +55,10 @@ def test_roadmap_advances_after_real_calibration_and_policy_freeze() -> None:
 
     assert "current active direction = Scientific Entity Evidence Layer" in text
     assert (
-        "latest completed slice = Scientific Entity Fresh v0.2 Independent Evaluation"
+        "latest completed slice = Scientific Entity Fresh v0.2c Immutable Acceptance Decision"
     ) in text
     assert (
-        "next authorized slice = Scientific Entity Fresh v0.2 Immutable Acceptance Decision"
+        "next authorized slice = Scientific Entity v0.2c Typing-Focused Diagnostics and v0.3 Design Hardening"
     ) in text
     assert "Scientific Entity Evidence Contract v0.1" in text
     assert "hard max documents = 100" in text
@@ -517,7 +517,7 @@ def test_scientific_entity_fresh_v02_reference_evidence_freeze_is_preserved() ->
     assert "62. **Scientific Entity Fresh v0.2 Reference Evidence Freeze**" in roadmap
 
 
-def test_scientific_entity_fresh_v02_independent_evaluation_is_current() -> None:
+def test_scientific_entity_fresh_v02c_acceptance_decision_is_current() -> None:
     readme = _read("README.md")
     checkpoint = _read("docs/project_state_current_v0.2.md")
     roadmap = _read("docs/roadmap.md")
@@ -525,12 +525,13 @@ def test_scientific_entity_fresh_v02_independent_evaluation_is_current() -> None
     recovery = _read("docs/scientific_entity_fresh_heldout_frozen_inference_recovery_v0.2.md")
     policy = _read("docs/scientific_entity_fresh_heldout_frozen_policy_v0.2.md")
     evaluation = _read("docs/scientific_entity_fresh_heldout_evaluation_v0.2.md")
+    decision = _read("docs/scientific_entity_fresh_heldout_acceptance_decision_v0.2.md")
 
-    assert "current scientific entity checkpoint = Scientific Entity Fresh v0.2 Independent Evaluation" in readme
-    assert "current_extension = Scientific Entity Fresh v0.2 Independent Evaluation" in checkpoint
-    assert "latest completed slice = Scientific Entity Fresh v0.2 Independent Evaluation" in roadmap
-    assert "next authorized slice = Scientific Entity Fresh v0.2 Immutable Acceptance Decision" in roadmap
-    assert "next entity slice = Scientific Entity Fresh v0.2 Immutable Acceptance Decision" in checkpoint
+    assert "current scientific entity checkpoint = Scientific Entity Fresh v0.2c Immutable Acceptance Decision" in readme
+    assert "current_extension = Scientific Entity Fresh v0.2c Immutable Acceptance Decision" in checkpoint
+    assert "latest completed slice = Scientific Entity Fresh v0.2c Immutable Acceptance Decision" in roadmap
+    assert "next authorized slice = Scientific Entity v0.2c Typing-Focused Diagnostics and v0.3 Design Hardening" in roadmap
+    assert "next entity slice = Scientific Entity v0.2c Typing-Focused Diagnostics and v0.3 Design Hardening" in checkpoint
 
     assert "status = one-shot raw inference executed and strictly validated" in inference
     assert "build_id = scientific-entity-gliner-small-v2.5-fresh-v0.2c-20260901T130232963026Z" in inference
@@ -581,6 +582,8 @@ def test_scientific_entity_fresh_v02_independent_evaluation_is_current() -> None
     assert "64. **Scientific Entity Fresh v0.2 Raw Artifact Recovery and Test Isolation Hotfix**" in roadmap
     assert "65. **Scientific Entity Fresh v0.2 Frozen v0.2c Policy Application**" in roadmap
     assert "66. **Scientific Entity Fresh v0.2 Independent Evaluation**" in roadmap
+    assert "67. **Scientific Entity Fresh v0.2c Immutable Acceptance Decision**" in roadmap
+    assert "68. **Scientific Entity v0.2c Typing-Focused Diagnostics and v0.3 Design Hardening**" in roadmap
 
     assert "## Executed evaluation result" in evaluation
     assert "evaluation_id = scientific-entity-evaluation-fresh-v0.2c-20260901T130232963026Z" in evaluation
@@ -603,6 +606,26 @@ def test_scientific_entity_fresh_v02_independent_evaluation_is_current() -> None
     assert "acceptance decision made = false" in evaluation
     assert "threshold tuning executed = false" in evaluation
     assert "next = make_immutable_v02c_acceptance_decision_without_tuning" in evaluation
+    assert "## Successor immutable acceptance decision" in evaluation
+    assert "decision = reject_v02c_independent_acceptance" in evaluation
+    assert "strict decision validation = 39 / 39" in evaluation
+    assert "required_failed_count = 0" in evaluation
+
+    assert "# Scientific Entity Fresh Held-Out Immutable Acceptance Decision v0.2" in decision
+    assert "decision_id = scientific-entity-fresh-heldout-acceptance-decision-v0.2c-20260901T130232963026Z" in decision
+    assert "decision = reject_v02c_independent_acceptance" in decision
+    assert "hard criteria passed = 2 / 6" in decision
+    assert "desirable criteria passed = 1 / 1" in decision
+    assert "maximum_model_to_method_count" in decision
+    assert "maximum_total_type_mismatch_count" in decision
+    assert "maximum_method_semantic_sink_count" in decision
+    assert "maximum_any_predicted_type_mismatch_sink_count" in decision
+    assert "total_checks = 39" in decision
+    assert "required_failed_count = 0" in decision
+    assert "A correct REJECT is intentionally engineering-green" in decision
+    assert "production extractor selected = false" in decision
+    assert "full-corpus build authorized = false" in decision
+    assert "new disjoint prediction-blind held-out" in decision
 
     assert "## Executed policy materialization" in policy
     assert "build_id = scientific-entity-semantic-prompt-raw-floor-policy-fresh-v0.2c-20260901T130232963026Z" in policy
