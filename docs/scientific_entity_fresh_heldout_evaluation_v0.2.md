@@ -152,3 +152,38 @@ Strict evaluation validation is complete. The next bounded slice is:
 ```text
 next = make_immutable_v02c_acceptance_decision_without_tuning
 ```
+
+## Successor immutable acceptance decision
+
+This evaluation slice remains historically unchanged: it computed evidence and did not itself make the acceptance decision.
+
+The subsequent bounded acceptance-decision slice consumed this immutable evaluation artifact plus the already-frozen gate and materialized exactly one decision:
+
+```text
+decision_id = scientific-entity-fresh-heldout-acceptance-decision-v0.2c-20260901T130232963026Z
+decision = reject_v02c_independent_acceptance
+
+hard criteria passed = 2 / 6
+desirable criteria passed = 1 / 1
+
+failed hard criteria =
+- maximum_model_to_method_count
+- maximum_total_type_mismatch_count
+- maximum_method_semantic_sink_count
+- maximum_any_predicted_type_mismatch_sink_count
+
+strict decision validation = 39 / 39
+required_failed_count = 0
+```
+
+The exact-F1 hard floor and method→task hard cap passed. The relaxed-F1 target also passed, but it is desirable rather than hard. The candidate was rejected because four pre-frozen semantic typing hard constraints failed. A valid REJECT is a scientific outcome, not an engineering validator failure.
+
+No evaluation recomputation, model inference, policy reapplication, threshold tuning, gate change, canonical mutation, production selection, or full-corpus authorization occurred during decision materialization.
+
+Current follow-on:
+
+```text
+next = typing_focused_diagnostics_and_v03_design_hardening
+```
+
+If the fresh 48-paper errors are inspected for future candidate design, this held-out becomes consumed diagnostic/development evidence and cannot be reused as independent v0.3 acceptance evidence.

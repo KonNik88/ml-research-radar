@@ -4,17 +4,17 @@
 
 ```text
 document = primary living roadmap
-accepted checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Fresh v0.2 Independent Evaluation
+accepted checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Fresh v0.2c Immutable Acceptance Decision
 base checkpoint = current canonical latest 61,075 with synchronized core and Discovery derived layers
 current active direction = Scientific Entity Evidence Layer
-latest completed slice = Scientific Entity Fresh v0.2 Independent Evaluation
-next authorized slice = Scientific Entity Fresh v0.2 Immutable Acceptance Decision
+latest completed slice = Scientific Entity Fresh v0.2c Immutable Acceptance Decision
+next authorized slice = Scientific Entity v0.2c Typing-Focused Diagnostics and v0.3 Design Hardening
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
 dataset publication = paused pending redistribution guidance
-current entity boundary = independent fresh-heldout evaluation `scientific-entity-evaluation-fresh-v0.2c-20260901T130232963026Z` completed exactly once on `773` frozen predictions versus `944` frozen references; exact F1 `0.399534`, relaxed F1 `0.42516`, model->method `70`, method->task `15`, total mismatch `166`, method sink `84`, maximum sink `method:84`; base evaluator validation `69/69` and wrapper strict validation `19/19` are green; acceptance decision has not yet been materialized, no post-heldout tuning is permitted, and production/full-corpus remains unauthorized
+current entity boundary = immutable acceptance decision `scientific-entity-fresh-heldout-acceptance-decision-v0.2c-20260901T130232963026Z` = `reject_v02c_independent_acceptance`; independent fresh-heldout evaluation used `773` frozen predictions versus `944` frozen references with exact F1 `0.399534` and relaxed F1 `0.42516`; hard criteria passed `2/6` and failed `4/6` (`model->method=70 > 43`, total mismatch `166 > 150`, method sink `84 > 74`, maximum sink `84 > 74`), while method->task and exact-F1 hard criteria passed and the relaxed-F1 desirable criterion passed; decision strict validation `39/39`, required_failed_count `0`; no post-heldout tuning, production selection, or full-corpus authorization occurred
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -165,6 +165,8 @@ Recently completed safe slices:
 64. **Scientific Entity Fresh v0.2 Raw Artifact Recovery and Test Isolation Hotfix** — after the successful original one-shot inference and green `22 / 22` validation, a smoke-test cleanup defect deleted the real fixed local build. All writable fixed-build tests were isolated to pytest `tmp_path`; a separate recovery audit preserved the original observed facts and rematerialized the exact frozen candidate once. Recovered raw mentions `1257` matched the recorded original `1257`; recovered extractor fingerprint `e43009f1127a445ddfd01352b47825391c2d12a2059ed53b9d35f7e5b12d8f13` matched exactly; `recovery_match_passed=true`; ordinary strict validation again passed `22 / 22`. Byte identity with the deleted original artifact is not asserted. No policy, evaluation, acceptance decision, or post-heldout tuning occurred.
 65. **Scientific Entity Fresh v0.2 Frozen v0.2c Policy Application** — applied the pre-frozen `title=0.45 / abstract=0.625` source-field policy with no type overrides exactly once to `1257` raw predictions. Immutable build `scientific-entity-semantic-prompt-raw-floor-policy-fresh-v0.2c-20260901T130232963026Z` selected `773` and rejected `484` predictions; policy extractor fingerprint `77af105871b227daa0d8c9e5501839addf229004795490a63bebe4f02672cf52`; strict validator `46 / 46` with zero required failures. No model inference, threshold tuning, reference-label filtering, evaluation, acceptance decision, canonical mutation, production selection, or full-corpus authorization occurred.
 66. **Scientific Entity Fresh v0.2 Independent Evaluation** — evaluation `scientific-entity-evaluation-fresh-v0.2c-20260901T130232963026Z` compared the frozen `773` selected predictions against `944` frozen reference mentions exactly once. Exact P/R/F1 `0.443726/0.363347/0.399534`; relaxed P/R/F1 `0.472186/0.386653/0.42516`; model->method `70`, method->task `15`, total type mismatch `166`, method sink `84`, max sink `method:84`. Base evaluation validation `69/69` and wrapper strict validation `19/19` passed with zero required failures. No threshold tuning, model inference, acceptance decision, production selection, or full-corpus authorization occurred.
+67. **Scientific Entity Fresh v0.2c Immutable Acceptance Decision** — decision `scientific-entity-fresh-heldout-acceptance-decision-v0.2c-20260901T130232963026Z` consumed only the immutable evaluation artifact plus the pre-frozen gate and produced deterministic `reject_v02c_independent_acceptance`. Hard criteria passed `2/6`; desirable criteria passed `1/1`. Exact F1 and method->task passed, while model->method `70 > 43`, total mismatch `166 > 150`, method sink `84 > 74`, and maximum sink `84 > 74` failed. Strict decision validation passed `39/39` with `required_failed_count=0`; no evaluation recomputation, inference, policy reapplication, tuning, gate change, canonical mutation, production selection, or full-corpus authorization occurred.
+68. **Scientific Entity v0.2c Typing-Focused Diagnostics and v0.3 Design Hardening** — next bounded research slice after formal v0.2c closeout. The fresh 48-paper held-out becomes consumed diagnostic/development evidence once its errors are inspected. Focus first on model->method confusion, method sink, and total type mismatch; future design options remain hypotheses. Any v0.3 candidate influenced by these diagnostics requires a new disjoint prediction-blind held-out for independent acceptance.
 
 
 
@@ -5139,7 +5141,7 @@ full-corpus authorization = false
 24-paper package = dev diagnostics, never post-tuning held-out evidence
 48-paper held-out package = valid held-out evidence for v0.1; development/error-analysis evidence for any v0.2 designed from its errors
 next slice at held-out checkpoint = structured held-out error analysis / completed
-current next slice = Scientific Entity Fresh v0.2 Immutable Acceptance Decision
+current next slice = Scientific Entity v0.2c Typing-Focused Diagnostics and v0.3 Design Hardening
 ```
 
 The comparison preserves the narrow six-type product ontology. The first
