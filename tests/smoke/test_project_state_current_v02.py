@@ -46,7 +46,7 @@ def test_readme_points_to_the_current_checkpoint_and_scopes_old_outputs() -> Non
     assert "docs/scientific_entity_heldout_error_analysis_v0.1.md" in text
     assert "docs/scientific_entity_semantic_prompt_candidate_v0.2a.md" in text
     assert "docs/scientific_entity_semantic_prompt_threshold_calibration_v0.2b.md" in text
-    assert "current scientific entity checkpoint = Scientific Entity Fresh v0.2c Immutable Acceptance Decision" in text
+    assert "current scientific entity checkpoint = Scientific Entity Typing Diagnostics Preparation v0.3" in text
     assert "completed 24-paper review" in text
 
 
@@ -55,10 +55,10 @@ def test_roadmap_advances_after_real_calibration_and_policy_freeze() -> None:
 
     assert "current active direction = Scientific Entity Evidence Layer" in text
     assert (
-        "latest completed slice = Scientific Entity Fresh v0.2c Immutable Acceptance Decision"
+        "latest completed slice = Scientific Entity Typing Diagnostics Preparation v0.3"
     ) in text
     assert (
-        "next authorized slice = Scientific Entity v0.2c Typing-Focused Diagnostics and v0.3 Design Hardening"
+        "next authorized slice = Scientific Entity Typing Root-Cause Review v0.3"
     ) in text
     assert "Scientific Entity Evidence Contract v0.1" in text
     assert "hard max documents = 100" in text
@@ -517,7 +517,7 @@ def test_scientific_entity_fresh_v02_reference_evidence_freeze_is_preserved() ->
     assert "62. **Scientific Entity Fresh v0.2 Reference Evidence Freeze**" in roadmap
 
 
-def test_scientific_entity_fresh_v02c_acceptance_decision_is_current() -> None:
+def test_scientific_entity_v03_typing_diagnostics_preparation_is_current() -> None:
     readme = _read("README.md")
     checkpoint = _read("docs/project_state_current_v0.2.md")
     roadmap = _read("docs/roadmap.md")
@@ -526,12 +526,13 @@ def test_scientific_entity_fresh_v02c_acceptance_decision_is_current() -> None:
     policy = _read("docs/scientific_entity_fresh_heldout_frozen_policy_v0.2.md")
     evaluation = _read("docs/scientific_entity_fresh_heldout_evaluation_v0.2.md")
     decision = _read("docs/scientific_entity_fresh_heldout_acceptance_decision_v0.2.md")
+    typing = _read("docs/scientific_entity_typing_diagnostics_v0.3.md")
 
-    assert "current scientific entity checkpoint = Scientific Entity Fresh v0.2c Immutable Acceptance Decision" in readme
-    assert "current_extension = Scientific Entity Fresh v0.2c Immutable Acceptance Decision" in checkpoint
-    assert "latest completed slice = Scientific Entity Fresh v0.2c Immutable Acceptance Decision" in roadmap
-    assert "next authorized slice = Scientific Entity v0.2c Typing-Focused Diagnostics and v0.3 Design Hardening" in roadmap
-    assert "next entity slice = Scientific Entity v0.2c Typing-Focused Diagnostics and v0.3 Design Hardening" in checkpoint
+    assert "current scientific entity checkpoint = Scientific Entity Typing Diagnostics Preparation v0.3" in readme
+    assert "current_extension = Scientific Entity Typing Diagnostics Preparation v0.3" in checkpoint
+    assert "latest completed slice = Scientific Entity Typing Diagnostics Preparation v0.3" in roadmap
+    assert "next authorized slice = Scientific Entity Typing Root-Cause Review v0.3" in roadmap
+    assert "next entity slice = Scientific Entity Typing Root-Cause Review v0.3" in checkpoint
 
     assert "status = one-shot raw inference executed and strictly validated" in inference
     assert "build_id = scientific-entity-gliner-small-v2.5-fresh-v0.2c-20260901T130232963026Z" in inference
@@ -583,7 +584,8 @@ def test_scientific_entity_fresh_v02c_acceptance_decision_is_current() -> None:
     assert "65. **Scientific Entity Fresh v0.2 Frozen v0.2c Policy Application**" in roadmap
     assert "66. **Scientific Entity Fresh v0.2 Independent Evaluation**" in roadmap
     assert "67. **Scientific Entity Fresh v0.2c Immutable Acceptance Decision**" in roadmap
-    assert "68. **Scientific Entity v0.2c Typing-Focused Diagnostics and v0.3 Design Hardening**" in roadmap
+    assert "68. **Scientific Entity Typing Diagnostics Preparation v0.3**" in roadmap
+    assert "69. **Scientific Entity Typing Root-Cause Review v0.3**" in roadmap
 
     assert "## Executed evaluation result" in evaluation
     assert "evaluation_id = scientific-entity-evaluation-fresh-v0.2c-20260901T130232963026Z" in evaluation
@@ -626,6 +628,22 @@ def test_scientific_entity_fresh_v02c_acceptance_decision_is_current() -> None:
     assert "production extractor selected = false" in decision
     assert "full-corpus build authorized = false" in decision
     assert "new disjoint prediction-blind held-out" in decision
+
+    assert "# Scientific Entity Typing Diagnostics v0.3" in typing
+    assert "analysis_id = scientific-entity-typing-diagnostics-v0.3-20260912T122700872330Z" in typing
+    assert "type mismatches = 166" in typing
+    assert "same-span type mismatches = 131" in typing
+    assert "same-span share = 0.789157" in typing
+    assert "model -> method = 70" in typing
+    assert "method -> task = 15" in typing
+    assert "method sink = 84" in typing
+    assert "confidence >= 0.8 = 85" in typing
+    assert "confidence >= 0.9 = 51" in typing
+    assert "root causes assigned = false" in typing
+    assert "strict validation = 33 / 33" in typing
+    assert "required_failed_count = 0" in typing
+    assert "next = review_typing_cases_and_assign_root_causes" in typing
+    assert "new disjoint prediction-blind held-out" in typing
 
     assert "## Executed policy materialization" in policy
     assert "build_id = scientific-entity-semantic-prompt-raw-floor-policy-fresh-v0.2c-20260901T130232963026Z" in policy
