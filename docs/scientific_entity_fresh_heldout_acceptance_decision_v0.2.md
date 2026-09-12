@@ -159,10 +159,36 @@ production extractor selected = false
 full-corpus build authorized = false
 ```
 
-## Next research slice
+## Next research slice at decision time
 
-The formal v0.2c experiment is closed. The next bounded research direction is typing-focused diagnostics followed by v0.3 design hardening.
+The formal v0.2c experiment is closed. At the decision checkpoint, the next bounded research direction was typing-focused diagnostics followed by v0.3 design hardening.
 
 Once the 48 fresh-heldout papers are inspected for error analysis, they become consumed diagnostic/development evidence. They must never again be used as independent acceptance evidence for a candidate influenced by those diagnostics.
 
 Any future v0.3 candidate requires a new disjoint prediction-blind held-out for independent acceptance.
+
+
+## Successor typing diagnostics preparation
+
+The bounded successor preparation has now been completed from the immutable rejected evaluation evidence:
+
+```text
+analysis_id = scientific-entity-typing-diagnostics-v0.3-20260912T122700872330Z
+type_mismatch_count = 166
+same_span_type_mismatch_count = 131
+same_span_type_mismatch_share = 0.789157
+model_to_method_count = 70
+method_to_task_count = 15
+method_sink_count = 84
+maximum_sink = method:84
+high_confidence_at_0_8_count = 85
+high_confidence_at_0_9_count = 51
+root_causes_assigned = false
+strict_validation = 33 / 33
+required_failed_count = 0
+next = review_typing_cases_and_assign_root_causes
+```
+
+This successor analysis does not alter or reopen the immutable v0.2c acceptance decision. It performs no model inference, threshold tuning, policy reapplication, evaluation recomputation, gate change, canonical mutation, production selection, or full-corpus authorization.
+
+The prepared 48-paper held-out evidence is now consumed diagnostic/development evidence. Any v0.3 candidate influenced by its review requires a new disjoint prediction-blind held-out for independent acceptance.

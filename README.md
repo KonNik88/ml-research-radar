@@ -35,11 +35,11 @@ paper-centric research-discovery system.
 ## Current validated checkpoint
 
 ```text
-checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Fresh v0.2c Immutable Acceptance Decision
-current scientific entity checkpoint = Scientific Entity Fresh v0.2c Immutable Acceptance Decision
+checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Typing Diagnostics Preparation v0.3
+current scientific entity checkpoint = Scientific Entity Typing Diagnostics Preparation v0.3
 base checkpoint = safe canonical refresh and synchronized core/Discovery derived layers
-scientific entity status = bounded literal control + evaluation harness + completed 24-paper review + GLiNER candidate adapter
-scientific entity quality status = frozen v0.2c fresh-heldout evaluation completed exactly once on 773 frozen selected predictions versus 944 frozen reference mentions; exact P/R/F1 = 0.443726/0.363347/0.399534; relaxed P/R/F1 = 0.472186/0.386653/0.42516; semantic measurements: model->method=70, method->task=15, total type mismatch=166, method sink=84, maximum predicted-type mismatch sink=method:84; immutable acceptance decision `scientific-entity-fresh-heldout-acceptance-decision-v0.2c-20260901T130232963026Z` = `reject_v02c_independent_acceptance`; 2/6 hard criteria passed and 4/6 failed, while the 1/1 desirable relaxed-F1 criterion passed; strict decision validation passed 39/39 with required_failed_count=0; this is a valid scientific REJECT, not an engineering validation failure; production/full-corpus remain unauthorized; next = typing-focused diagnostics and v0.3 design hardening
+scientific entity status = bounded literal control + evaluation harness + completed 24-paper review + GLiNER candidate adapter + formal v0.2c REJECT + immutable typing-diagnostics preparation
+scientific entity quality status = frozen v0.2c fresh-heldout evaluation completed exactly once on 773 frozen selected predictions versus 944 frozen reference mentions; exact P/R/F1 = 0.443726/0.363347/0.399534; relaxed P/R/F1 = 0.472186/0.386653/0.42516; immutable acceptance decision `scientific-entity-fresh-heldout-acceptance-decision-v0.2c-20260901T130232963026Z` = `reject_v02c_independent_acceptance`; typing diagnostics preparation `scientific-entity-typing-diagnostics-v0.3-20260912T122700872330Z` consumed the formally rejected held-out as development evidence and deterministically materialized all 166 type mismatches; 131/166 = 0.789157 are same-span type mismatches, model->method=70, method->task=15, method sink=84, maximum sink=method:84, 85 cases have prediction confidence >=0.8 and 51 >=0.9; root causes remain unassigned; strict diagnostics validation passed 33/33 with required_failed_count=0; no model inference, threshold tuning, policy reapplication, evaluation recomputation, canonical mutation, production selection, or full-corpus authorization occurred; next = human root-cause review across the prepared 166 cases
 public behavior change = none
 public dense/hybrid backend = file
 experimental Qdrant endpoint = explicit
@@ -896,18 +896,27 @@ Recommended order:
     Strict decision validation passed `39/39` with `required_failed_count=0`; no evaluation recomputation,
     model inference, policy reapplication, threshold tuning, gate change, or canonical mutation occurred.
 
-25. **Typing-Focused Diagnostics and v0.3 Design Hardening — next.**
-    The 48-paper fresh held-out is now consumed diagnostic/development evidence if inspected for v0.3.
-    Diagnose semantic typing failures, especially `model→method=70`, method sink `84`, and total type mismatch `166`.
-    Any future v0.3 candidate developed from these errors requires a new disjoint prediction-blind held-out for independent acceptance.
+25. **Scientific Entity Typing Diagnostics Preparation v0.3 — completed exactly once.**
+    Analysis `scientific-entity-typing-diagnostics-v0.3-20260912T122700872330Z` consumed only the formally rejected fresh-v0.2c held-out after the immutable acceptance decision authorized it as development evidence.
+    It materialized all `166` type mismatches into immutable diagnostic cases and a human-review template.
+    `131 / 166 = 0.789157` are same-span mismatches; `model→method=70`, `method→task=15`, method sink `84`, maximum sink `method:84`.
+    High-confidence mismatches remain material: `85` cases at confidence `>=0.8` and `51` at `>=0.9`.
+    Root causes were deliberately not assigned automatically. Strict validation passed `33 / 33` with `required_failed_count=0`.
+    No inference, tuning, policy reapplication, evaluation recomputation, canonical mutation, production selection, or full-corpus authorization occurred.
 
-26. **Accepted Large-Scale Derived Entity Build — deferred.**
+26. **Scientific Entity Typing Root-Cause Review v0.3 — next.**
+    Review all `166 / 166` prepared mismatch cases under a fixed human-review contract, preserving factual case fields and assigning bounded root-cause/action labels only.
+    The review must separate clear semantic mistyping from taxonomy ambiguity, annotation issues, compound/nested entities, insufficient context, and other bounded causes.
+    Only after the completed review may one bounded v0.3 typing hypothesis be designed.
+    Any v0.3 candidate influenced by these diagnostics requires a new disjoint prediction-blind held-out for independent acceptance.
+
+27. **Accepted Large-Scale Derived Entity Build — deferred.**
     Requires a future independently accepted candidate plus separate full-corpus authorization.
 
-27. **Normalization / Linking / Product and Graph Integration — deferred.**
+28. **Normalization / Linking / Product and Graph Integration — deferred.**
     Only after typing quality is sufficiently stable; entities remain downstream of canonical truth.
 
-28. **Full-text / Chunk Provenance / Grounded RAG — deferred.**
+29. **Full-text / Chunk Provenance / Grounded RAG — deferred.**
     Separate acquisition/evidence line after the entity layer is stable.
 
 Dataset publication remains paused pending explicit redistribution guidance.

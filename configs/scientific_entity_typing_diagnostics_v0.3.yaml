@@ -1,0 +1,50 @@
+schema_version: scientific_entity_typing_diagnostics_config_v0.3
+analysis_name: scientific_entity_typing_diagnostics
+analysis_version: v0.3
+expected:
+  evaluation_id: scientific-entity-evaluation-fresh-v0.2c-20260901T130232963026Z
+  decision_id: scientific-entity-fresh-heldout-acceptance-decision-v0.2c-20260901T130232963026Z
+  decision: reject_v02c_independent_acceptance
+  evaluation_manifest_sha256: 59209b0897aeaea07c71209f5031f4f136ff097af0e42ea31c3c79c07d92b00b
+  evaluation_errors_sha256: 8bc7c726a70b3d6ecd4605270bbaa7c902d9f260c7b30c238268dbef5268cca7
+  document_count: 48
+  reference_mention_count: 944
+  prediction_mention_count: 773
+  type_mismatch_count: 166
+  model_to_method_count: 70
+  method_to_task_count: 15
+  method_sink_count: 84
+  maximum_sink_type: method
+  maximum_sink_count: 84
+review:
+  context_radius_chars: 120
+  high_confidence_thresholds: [0.8, 0.9]
+  root_cause_labels:
+    - clear_semantic_mistyping
+    - taxonomy_boundary_ambiguity
+    - annotation_reference_issue
+    - compound_or_nested_entity
+    - insufficient_context
+    - other
+  recommended_action_labels:
+    - prompt_or_label_definition
+    - second_stage_typer
+    - ambiguity_rejection
+    - annotation_guideline
+    - span_handling
+    - no_change
+    - other
+output:
+  root: data/entities/scientific_entity_typing_diagnostics/v0.3
+safety:
+  analysis_only: true
+  model_inference_allowed: false
+  threshold_tuning_allowed: false
+  policy_reapply_allowed: false
+  evaluation_recompute_allowed: false
+  canonical_truth_mutation_allowed: false
+  production_extractor_selection_allowed: false
+  full_corpus_build_authorized: false
+next_steps:
+  after_prepare: review_typing_cases_and_assign_root_causes
+  after_review: design_one_bounded_v03_typing_hypothesis
