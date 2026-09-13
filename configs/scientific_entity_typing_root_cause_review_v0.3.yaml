@@ -1,0 +1,62 @@
+schema_version: scientific_entity_typing_root_cause_review_config_v0.3
+review_name: scientific_entity_typing_root_cause_review
+review_version: v0.3
+
+parent:
+  analysis_id: scientific-entity-typing-diagnostics-v0.3-20260912T122700872330Z
+  evaluation_id: scientific-entity-evaluation-fresh-v0.2c-20260901T130232963026Z
+  decision_id: scientific-entity-fresh-heldout-acceptance-decision-v0.2c-20260901T130232963026Z
+  diagnostic_manifest_sha256: 6cea251e57be775c470a45ba00213457bb7c6b02a9180184c99c780eff458e02
+  diagnostic_summary_sha256: ce96afdb9b4d38a6f898f0ade899207069b5c42b8689fb9558f264210a49d4ac
+  typing_cases_sha256: 635b6471cd06729f60eb9222e461cc2bac1a874cd648545bf3b8e8de490bc278
+  review_template_sha256: d9421d489940c2e25c38cd91096e63bb62ee5a6e3c2b67f7a6b2c1619258dd1c
+  type_mismatch_count: 166
+  same_span_type_mismatch_count: 131
+  model_to_method_count: 70
+  method_to_task_count: 15
+  method_sink_count: 84
+
+review:
+  ambiguity_levels:
+    - none
+    - low
+    - medium
+    - high
+  root_cause_labels:
+    - clear_semantic_mistyping
+    - taxonomy_boundary_ambiguity
+    - annotation_reference_issue
+    - compound_or_nested_entity
+    - insufficient_context
+    - other
+  recommended_action_labels:
+    - prompt_or_label_definition
+    - second_stage_typer
+    - ambiguity_rejection
+    - annotation_guideline
+    - span_handling
+    - no_change
+    - other
+  note_required_for_other: true
+  working_copy_may_be_partial: true
+  finalization_requires_all_complete: true
+
+output:
+  working_root: data/entities/scientific_entity_typing_root_cause_review_work/v0.3
+  final_root: data/entities/scientific_entity_typing_root_cause_review/v0.3
+
+safety:
+  human_review_only: true
+  model_inference_allowed: false
+  threshold_tuning_allowed: false
+  policy_reapply_allowed: false
+  evaluation_recompute_allowed: false
+  canonical_truth_mutation_allowed: false
+  production_extractor_selection_allowed: false
+  full_corpus_build_authorized: false
+  automatic_root_cause_assignment_allowed: false
+  automatic_candidate_selection_allowed: false
+
+next_steps:
+  after_prepare: complete_human_root_cause_review
+  after_finalize: inspect_root_cause_summary_and_select_one_bounded_v03_hypothesis
