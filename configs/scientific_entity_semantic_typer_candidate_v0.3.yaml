@@ -1,0 +1,99 @@
+schema_version: scientific_entity_semantic_typer_candidate_v0.3
+
+candidate:
+  candidate_id: scientific-entity-semantic-typer-candidate-v0.3-h1
+  status: development_candidate_design_frozen
+  hypothesis: target_focused_second_stage_semantic_typing_over_frozen_spans
+  upstream_runtime_config_path: configs/scientific_entity_gliner_semantic_prompt_raw_floor_candidate_v0.2c.yaml
+  upstream_candidate_id: scientific-entity-semantic-prompt-raw-floor-extension-v0.2c
+  canonical_entity_types:
+    - task
+    - method
+    - dataset
+    - metric
+    - model
+    - domain
+
+parent_evidence:
+  evaluation_id: scientific-entity-evaluation-fresh-v0.2c-20260901T130232963026Z
+  evaluation_root: data/entities/scientific_entity_fresh_heldout_evaluation/v0.2
+  root_cause_review_id: scientific-entity-typing-root-cause-review-v0.3-20260913T113148085810Z
+  root_cause_review_root: data/entities/scientific_entity_typing_root_cause_review/v0.3
+  typing_diagnostics_id: scientific-entity-typing-diagnostics-v0.3-20260912T122700872330Z
+  typing_diagnostics_root: data/entities/scientific_entity_typing_diagnostics/v0.3
+  expected_document_count: 48
+  expected_reference_mention_count: 944
+  expected_prediction_mention_count: 773
+  expected_type_mismatch_count: 166
+  expected_same_span_type_mismatch_count: 131
+  expected_same_span_reference_issue_count: 6
+
+semantic_typing:
+  strategy: target_focused_gliner_multi_label_rescoring
+  synthetic_target_prefix: "Target entity: "
+  synthetic_context_prefix: "Context: "
+  target_marker: "[TARGET]"
+  context_left_chars: 240
+  context_right_chars: 240
+  inference_threshold: 0.0
+  flat_ner: false
+  multi_label: true
+  selection: highest_exact_target_score
+  tie_breaker: canonical_entity_type_order
+  unscorable_policy: preserve_baseline_type
+  labels:
+    - entity_type: task
+      prompt: "task: prediction problem, learning objective, or research objective being solved; not an algorithm, model, dataset, metric, or field"
+    - entity_type: method
+      prompt: "method: algorithm, training procedure, optimization strategy, or computational technique; not a named model architecture or task"
+    - entity_type: dataset
+      prompt: "dataset: named dataset, benchmark dataset, corpus, or data collection used as data; not a research field or metric"
+    - entity_type: metric
+      prompt: "metric: quantitative evaluation metric, score, measured property, or efficiency measure; not a dataset, task, model, or method"
+    - entity_type: model
+      prompt: "model: named machine learning or statistical model, model family, neural network, or architecture; not a training procedure or general algorithm"
+    - entity_type: domain
+      prompt: "domain: research field, scientific domain, application area, or data domain; not a dataset, task, method, model, or metric"
+
+development:
+  role: consumed_fresh_v02c_development_evidence_only
+  include_exact_baseline_matches: true
+  include_same_span_type_mismatches: true
+  include_different_span_cases: false
+  include_false_positive_cases: false
+  include_false_negative_cases: false
+  primary_metric_excludes_reference_issue: true
+  preserve_source_order: true
+  development_root: data/entities/scientific_entity_semantic_typer_development/v0.3
+  required_files:
+    - manifest.json
+    - development_cases.jsonl
+    - summary.json
+    - README.md
+    - checksums.txt
+
+development_gate:
+  minimum_typer_coverage: 0.95
+  minimum_same_span_accuracy_delta: 0.01
+  minimum_net_corrected_cases: 5
+  maximum_regression_rate: 0.05
+  minimum_model_to_method_reduction_fraction: 0.10
+  maximum_macro_f1_drop: 0.0
+  decision_role: development_candidate_gate_not_independent_acceptance
+
+safety:
+  model_inference_allowed_in_prepare: false
+  threshold_tuning_allowed: false
+  span_mutation_allowed: false
+  taxonomy_changes_allowed: false
+  canonical_truth_mutation_allowed: false
+  production_extractor_selection_allowed: false
+  full_corpus_build_authorized: false
+  publication_allowed: false
+  root_cause_labels_as_model_features_allowed: false
+  baseline_type_as_model_feature_allowed: false
+  future_candidate_requires_new_independent_heldout: true
+
+next_steps:
+  after_prepare: run_bounded_semantic_typer_candidate_inference_on_materialized_same_span_cases
+  after_candidate_inference: compare_candidate_against_frozen_v02c_baseline_with_regression_guardrails
