@@ -1,0 +1,38 @@
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
+from radar_core.entities.scientific_entity_semantic_typer_evaluation import (
+    validate_semantic_typer_development_evaluation,
+)
+
+ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_CONFIG = ROOT / "configs" / "scientific_entity_semantic_typer_candidate_v0.3.yaml"
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Validate Scientific Entity Semantic Typer v0.3 development evaluation.")
+    parser.add_argument("--package-dir", type=Path, required=True)
+    parser.add_argument("--prediction-dir", type=Path, required=True)
+    parser.add_argument("--evaluation-dir", type=Path, required=True)
+    parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
+    parser.add_argument("--strict", action="store_true")
+    args = parser.parse_args(argv)
+    checks, summary = validate_semantic_typer_development_evaluation(
+        project_root=ROOT, config_path=args.config, package_dir=args.package_dir,
+        prediction_dir=args.prediction_dir, evaluation_dir=args.evaluation_dir,
+    )
+    for key in ("report", "validation_scope", "evaluation_id", "decision", "all_gates_passed", "total_checks", "required_failed_count", "next_slice"):
+        if key in summary:
+            print(f"[OK] {key}={summary[key]}")
+    if args.strict and summary.get("required_failed_count", 0):
+        for name, ok, detail in checks:
+            if not ok:
+                print(f"[FAIL] {name}: {detail}")
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
