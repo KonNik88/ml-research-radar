@@ -1,0 +1,68 @@
+schema_version: scientific_entity_semantic_typer_revision_analysis_v0.3
+
+analysis:
+  analysis_id_prefix: scientific-entity-semantic-typer-revision-analysis-v0.3
+  parent_candidate_id: scientific-entity-semantic-typer-candidate-v0.3-h1
+  expected_parent_decision: reject_candidate
+  expected_case_count: 474
+  expected_primary_metric_eligible_count: 468
+  expected_corrected_errors: 51
+  expected_introduced_regressions: 83
+  expected_net_corrected_cases: -32
+  expected_baseline_model_to_method_count: 65
+
+policy_family:
+  policy_id: scientific-entity-semantic-typer-candidate-v0.3-h2-selective-model-over-method
+  baseline_type: method
+  semantic_typer_type: model
+  score_field: score_margin
+  operator: ">="
+  preserve_baseline_otherwise: true
+  use_baseline_type_as_post_inference_policy_condition_only: true
+  threshold_grid:
+    - 0.00
+    - 0.05
+    - 0.10
+    - 0.15
+    - 0.20
+    - 0.25
+    - 0.30
+    - 0.35
+    - 0.40
+    - 0.45
+    - 0.50
+    - 0.55
+    - 0.60
+    - 0.65
+    - 0.70
+    - 0.75
+    - 0.80
+    - 0.85
+    - 0.90
+  selection_rule: lowest_interior_threshold_in_three_point_all_gate_pass_plateau
+  plateau_points: 3
+
+reuse_development_gates:
+  minimum_typer_coverage: 0.95
+  minimum_same_span_accuracy_delta: 0.01
+  minimum_net_corrected_cases: 5
+  maximum_regression_rate: 0.05
+  minimum_model_to_method_reduction_fraction: 0.10
+  maximum_macro_f1_drop: 0.0
+
+safety:
+  consumed_development_evidence_only: true
+  new_model_inference_allowed: false
+  model_inference_threshold_tuning_allowed: false
+  policy_margin_threshold_calibration_allowed: true
+  span_mutation_allowed: false
+  taxonomy_changes_allowed: false
+  canonical_truth_mutation_allowed: false
+  production_extractor_selection_allowed: false
+  full_corpus_build_authorized: false
+  independent_acceptance_executed: false
+  future_candidate_requires_new_independent_heldout: true
+
+next_steps:
+  if_selected: materialize_and_freeze_h2_selective_override_policy_then_prepare_new_independent_heldout
+  if_not_selected: inspect_revision_analysis_and_define_new_bounded_hypothesis
