@@ -1,0 +1,61 @@
+schema_version: scientific_entity_semantic_typer_h2_frozen_policy_v0.3
+
+candidate:
+  candidate_id: scientific-entity-semantic-typer-candidate-v0.3-h2
+  status: frozen_for_independent_acceptance_preparation
+  hypothesis: selective_model_over_method_override_over_frozen_h1_semantic_typer
+  semantic_typer_candidate_id: scientific-entity-semantic-typer-candidate-v0.3-h1
+  semantic_typer_config_path: configs/scientific_entity_semantic_typer_candidate_v0.3.yaml
+  upstream_baseline_candidate_id: scientific-entity-semantic-prompt-raw-floor-extension-v0.2c
+
+lineage:
+  revision_analysis_id: scientific-entity-semantic-typer-revision-analysis-v0.3-20260916T155434556495Z
+  parent_evaluation_id: scientific-entity-semantic-typer-development-evaluation-v0.3-20260916T152354530075Z
+  parent_prediction_id: scientific-entity-semantic-typer-predictions-v0.3-20260916T151728352718Z
+  expected_parent_decision: reject_candidate
+  expected_case_count: 474
+  expected_primary_metric_eligible_count: 468
+
+policy:
+  policy_id: scientific-entity-semantic-typer-candidate-v0.3-h2-selective-model-over-method
+  baseline_type: method
+  semantic_typer_type: model
+  score_field: score_margin
+  operator: ">="
+  margin_threshold: 0.10
+  preserve_baseline_otherwise: true
+  use_baseline_type_as_post_inference_policy_condition_only: true
+  selection_rule: lowest_interior_threshold_in_three_point_all_gate_pass_plateau
+  selected_plateau_thresholds:
+    - 0.05
+    - 0.10
+    - 0.15
+
+expected_development_reproduction:
+  override_count: 33
+  corrected_errors: 24
+  introduced_regressions: 9
+  wrong_to_wrong_changes: 0
+  net_corrected_cases: 15
+  regression_rate: 0.026239
+  same_span_accuracy_delta: 0.032051
+  macro_f1_delta: 0.011061
+  model_to_method_after_count: 41
+  model_to_method_reduction_fraction: 0.369231
+
+safety:
+  consumed_development_evidence_only: true
+  new_model_inference_allowed: false
+  model_inference_threshold_tuning_allowed: false
+  policy_margin_threshold_calibration_allowed: false
+  span_mutation_allowed: false
+  taxonomy_changes_allowed: false
+  canonical_truth_mutation_allowed: false
+  production_extractor_selection_allowed: false
+  full_corpus_build_authorized: false
+  publication_allowed: false
+  independent_acceptance_executed: false
+  future_candidate_requires_new_independent_heldout: true
+
+next_steps:
+  after_freeze: prepare_new_disjoint_prediction_blind_heldout_for_h2_independent_acceptance
