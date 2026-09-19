@@ -1,0 +1,87 @@
+schema_version: scientific_entity_semantic_typer_h2_fresh_heldout_sample_config_v0.3
+
+layer:
+  name: scientific_entity_semantic_typer_h2_fresh_heldout_sample
+  version: v0.3
+  status: frozen_for_materialization
+  layer_kind: independent_prediction_blind_heldout_sample
+
+candidate:
+  candidate_id: scientific-entity-semantic-typer-candidate-v0.3-h2-selective-model-over-method
+  freeze_id: scientific-entity-semantic-typer-h2-frozen-candidate-v0.3-20260919T083718533083Z
+  candidate_fingerprint_sha256: 6d3782fb1f2cc7219b7083bcf381c17c546491425e817c0f5620ff145bfa6966
+  expected_freeze_manifest_sha256: 9f665c001c3a6b90ac4e56a8c4d26322008ab219e470453d86ee54fde68bb881
+  expected_frozen_candidate_sha256: 3deff1a18eb5ad680d6e3df638d03cbc36596656508ed592fdcafecf2dd04964
+
+consumed_evidence_exclusion:
+  development_package_id: scientific-entity-semantic-prompt-development-v0.2a-20260829T140201009151Z
+  expected_development_document_count: 72
+  expected_development_manifest_sha256: 3948ce835a2778713811a8cf29b08f3207e5b6eacfb7eea448f474bd9e6dcd36
+  expected_development_canonical_sha256: 6a1dd3f1dbf7b7a05ec733c32bd17319927cfbdb9e53ea757bad714299920b32
+  previous_fresh_heldout_sample_id: scientific-entity-fresh-heldout-sample-v0.2-20260901T130232963026Z
+  expected_previous_heldout_document_count: 48
+  expected_previous_heldout_manifest_sha256: 077f5851fd3340b190263c0ba7d21d63147074a7eed9299621593e3e5c6edb36
+  expected_previous_heldout_selected_ids_sha256: 0c4bf55fa47192d8523a5ccd0d89b3326562ff6b464f108d330d87286feb7d7a
+  expected_union_document_count: 120
+  require_zero_overlap_between_consumed_sets: true
+  exclude_all_consumed_documents: true
+
+sampling:
+  sampling_algorithm: deterministic_hash_uniform_and_type_enriched_v0.3_h2
+  sampling_seed: ml-research-radar-scientific-entity-h2-fresh-heldout-v0.3
+  canonical_input_path: data/analytics/reconciled/canonical_documents.jsonl
+  require_title: true
+  require_abstract: true
+  uniform_document_count: 24
+  type_enriched_documents_per_type: 4
+  expected_document_count: 48
+  expected_annotation_row_count: 96
+  candidate_pool_per_stratum: 512
+  source_fields:
+    - title
+    - abstract
+  enrichment_terms:
+    task:
+      - classification
+      - named entity recognition
+      - machine translation
+    method:
+      - contrastive learning
+      - transfer learning
+      - naive Bayes
+    dataset:
+      - ImageNet
+      - CIFAR-10
+      - benchmark dataset
+    metric:
+      - F1 score
+      - accuracy
+      - BLEU
+    model:
+      - BERT
+      - transformer model
+      - language model
+    domain:
+      - medical imaging
+      - natural language processing
+      - computer vision
+
+blindness:
+  prediction_blind: true
+  annotations_initially_empty: true
+  candidate_predictions_may_be_read_during_sampling: false
+  h1_predictions_may_be_read_during_sampling: false
+  h2_inference_allowed_before_reference_freeze: false
+  require_frozen_candidate_identity_before_sampling: true
+
+safety:
+  model_inference_allowed: false
+  evaluation_allowed: false
+  threshold_tuning_allowed: false
+  policy_revision_allowed: false
+  canonical_truth_mutation_allowed: false
+  production_extractor_selection_allowed: false
+  full_corpus_build_authorized: false
+
+next_steps:
+  after_sample_validation: prediction_blind_manual_annotation_and_reference_freeze_for_h2
