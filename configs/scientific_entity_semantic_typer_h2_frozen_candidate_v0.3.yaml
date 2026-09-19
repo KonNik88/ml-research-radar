@@ -1,0 +1,49 @@
+schema_version: scientific_entity_semantic_typer_h2_frozen_candidate_v0.3
+
+candidate:
+  candidate_id: scientific-entity-semantic-typer-candidate-v0.3-h2-selective-model-over-method
+  status: frozen_for_new_independent_acceptance
+  hypothesis: selective_model_over_method_override_over_frozen_h1_semantic_scores
+  parent_semantic_typer_candidate_id: scientific-entity-semantic-typer-candidate-v0.3-h1
+  parent_semantic_typer_config_path: configs/scientific_entity_semantic_typer_candidate_v0.3.yaml
+  parent_upstream_candidate_id: scientific-entity-semantic-prompt-raw-floor-extension-v0.2c
+
+selected_policy:
+  baseline_type: method
+  semantic_typer_type: model
+  score_field: score_margin
+  operator: ">="
+  threshold: 0.10
+  preserve_baseline_otherwise: true
+  selection_rule: lowest_interior_threshold_in_three_point_all_gate_pass_plateau
+  expected_plateau_thresholds:
+    - 0.05
+    - 0.10
+    - 0.15
+  expected_selected_net_corrected_cases: 15
+  expected_selected_regression_rate: 0.026239
+  expected_selected_same_span_accuracy_delta: 0.032051
+
+freeze:
+  freeze_id_prefix: scientific-entity-semantic-typer-h2-frozen-candidate-v0.3
+  output_root: data/entities/scientific_entity_semantic_typer_h2_frozen_candidate/v0.3
+  required_revision_parent_candidate_id: scientific-entity-semantic-typer-candidate-v0.3-h1
+  required_revision_policy_status: selected
+  required_revision_analysis_schema_version: scientific_entity_semantic_typer_revision_analysis_manifest_v0.3
+
+safety:
+  development_evidence_consumed: true
+  new_model_inference_allowed: false
+  threshold_tuning_allowed: false
+  policy_revision_allowed_during_freeze: false
+  span_mutation_allowed: false
+  taxonomy_changes_allowed: false
+  canonical_truth_mutation_allowed: false
+  production_extractor_selection_allowed: false
+  full_corpus_build_authorized: false
+  publication_allowed: false
+  independent_acceptance_executed: false
+  future_candidate_requires_new_independent_heldout: true
+
+next_steps:
+  after_freeze: prepare_new_disjoint_prediction_blind_heldout_for_h2_independent_acceptance
