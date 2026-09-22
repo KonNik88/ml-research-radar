@@ -1,0 +1,129 @@
+schema_version: scientific_entity_semantic_typer_h2_independent_acceptance_gate_v0.3
+
+layer:
+  name: scientific_entity_semantic_typer_h2_independent_acceptance_gate
+  version: v0.3
+  status: design_frozen_before_independent_evaluation
+  layer_kind: independent_comparative_acceptance_preregistration
+
+candidate_lineage:
+  candidate_id: scientific-entity-semantic-typer-candidate-v0.3-h2-selective-model-over-method
+  candidate_fingerprint_sha256: 6d3782fb1f2cc7219b7083bcf381c17c546491425e817c0f5620ff145bfa6966
+  freeze_id: scientific-entity-semantic-typer-h2-frozen-candidate-v0.3-20260919T083718533083Z
+  frozen_candidate_config_path: configs/scientific_entity_semantic_typer_h2_frozen_candidate_v0.3.yaml
+  frozen_candidate_dir: data/entities/scientific_entity_semantic_typer_h2_frozen_candidate/v0.3/scientific-entity-semantic-typer-h2-frozen-candidate-v0.3-20260919T083718533083Z
+  expected_freeze_manifest_sha256: 9f665c001c3a6b90ac4e56a8c4d26322008ab219e470453d86ee54fde68bb881
+  expected_frozen_candidate_sha256: 3deff1a18eb5ad680d6e3df638d03cbc36596656508ed592fdcafecf2dd04964
+  baseline_type: method
+  semantic_typer_type: model
+  score_field: score_margin
+  operator: ">="
+  threshold: 0.10
+  preserve_baseline_otherwise: true
+
+fresh_heldout_lineage:
+  sample_id: scientific-entity-fresh-heldout-sample-v0.3-20260919T093837653829Z
+  review_id: scientific-entity-fresh-heldout-review-v0.3-20260919T093837653829Z
+  sample_dir: data/entities/scientific_entity_fresh_heldout_sample/v0.3/scientific-entity-fresh-heldout-sample-v0.3-20260919T093837653829Z
+  sample_config_path: configs/scientific_entity_semantic_typer_h2_fresh_heldout_sample_v0.3.yaml
+  expected_sample_manifest_sha256: 9ba9799c0d5b20b91e4059c7117fa6d6d015fb6ae1fc8f59f9058e52bd093c80
+  expected_selected_canonical_ids_sha256: bbd0f209705c8a8ff02fea7fa732741b9cf9981d24a79909c618726fed8608f8
+  expected_document_count: 48
+  expected_annotation_row_count: 96
+  expected_consumed_union_document_count: 120
+  require_zero_consumed_overlap: true
+  require_prediction_blind: true
+  require_reference_not_frozen_at_contract_freeze: true
+  require_h2_inference_not_executed_at_contract_freeze: true
+  require_evaluation_not_executed_at_contract_freeze: true
+
+reference_adequacy:
+  annotation_method: manual_adjudicated
+  annotation_guideline_version: scientific_entity_annotation_guidelines_v0.1
+  prediction_blind: true
+  require_all_annotation_rows_complete: true
+  require_zero_unresolved_uncertain_mentions: true
+  minimum_reference_mentions_per_type: 20
+  required_entity_types:
+    - task
+    - method
+    - dataset
+    - metric
+    - model
+    - domain
+  require_exact_source_slice_surface: true
+  duplicate_typed_spans_allowed: false
+  automatic_annotation_allowed: false
+  automatic_approval_allowed: false
+  candidate_inference_only_after_reference_freeze: true
+
+comparative_acceptance:
+  decision_role: independent_h2_bounded_semantic_typing_intervention_acceptance_gate
+  minimum_typer_coverage: 0.95
+  minimum_same_span_accuracy_delta: 0.01
+  minimum_net_corrected_cases: 5
+  maximum_regression_rate: 0.05
+  minimum_model_to_method_reduction_fraction: 0.10
+  minimum_macro_f1_delta: 0.0
+  minimum_exact_f1: 0.396882
+  exact_f1_floor_origin: independent_v01_heldout_exact_f1
+  desirable_minimum_relaxed_f1: 0.414868
+  relaxed_f1_floor_role: desirable_not_hard
+  require_reference_adequacy: true
+  require_candidate_fingerprint_match: true
+  require_all_comparative_gates: true
+  require_exact_f1_hard_gate: true
+  require_relaxed_f1_as_hard_gate: false
+  required_metric_missing_denominator_policy: fail_closed_evidence_insufficient
+  no_post_heldout_tuning: true
+  all_hard_gates_required_for_acceptance: true
+
+historical_diagnostics:
+  compute_model_to_method_count: true
+  historical_maximum_model_to_method_count: 43
+  compute_method_to_task_count: true
+  historical_maximum_method_to_task_count: 25
+  compute_total_type_mismatch_count: true
+  historical_maximum_total_type_mismatch_count: 150
+  compute_method_semantic_sink_count: true
+  historical_maximum_method_semantic_sink_count: 74
+  compute_max_predicted_type_mismatch_sink_count: true
+  historical_maximum_any_predicted_type_mismatch_sink_count: 74
+  historical_raw_count_caps_are_hard_h2_gates: false
+  require_corrected_errors: true
+  require_introduced_regressions: true
+  require_model_to_method_direct_corrections: true
+  require_model_to_method_wrong_to_wrong: true
+
+decision_semantics:
+  if_all_hard_gates_pass: accept_h2_as_independently_validated_bounded_semantic_typing_intervention
+  if_any_hard_gate_fails: reject_h2_independent_acceptance
+  pass_does_not_select_production_extractor: true
+  pass_does_not_authorize_full_corpus_build: true
+  failed_heldout_becomes_consumed_evidence: true
+  future_candidate_after_failure_requires_new_independent_heldout: true
+  heldout_may_not_be_reused_for_retuning_and_reacceptance: true
+
+safety:
+  contract_slice_reads_human_reference_results: false
+  contract_slice_runs_baseline_inference: false
+  contract_slice_runs_h2_inference: false
+  contract_slice_runs_evaluation: false
+  contract_slice_makes_acceptance_decision: false
+  contract_slice_consumes_fresh_heldout: false
+  model_inference_allowed_before_reference_freeze: false
+  threshold_tuning_allowed: false
+  policy_revision_allowed: false
+  span_mutation_allowed: false
+  taxonomy_changes_allowed: false
+  canonical_truth_mutation_allowed: false
+  production_extractor_selection_allowed: false
+  full_corpus_build_authorized: false
+  publication_allowed: false
+
+next_steps:
+  after_gate_freeze: build_h2_prediction_blind_reference_freeze_tooling
+  after_reference_tooling: prediction_blind_manual_annotation
+  after_reference_freeze: run_frozen_h2_independent_inference
+  after_inference_validation: run_h2_independent_comparative_evaluation
+  after_evaluation_validation: make_immutable_h2_independent_acceptance_decision
