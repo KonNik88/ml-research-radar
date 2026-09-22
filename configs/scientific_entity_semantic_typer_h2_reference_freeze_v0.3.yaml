@@ -1,0 +1,84 @@
+schema_version: scientific_entity_semantic_typer_h2_reference_freeze_config_v0.3
+
+layer:
+  name: scientific_entity_semantic_typer_h2_reference_freeze
+  version: v0.3
+  status: tooling_frozen
+  layer_kind: prediction_blind_manual_reference_freeze
+
+candidate:
+  candidate_id: scientific-entity-semantic-typer-candidate-v0.3-h2-selective-model-over-method
+  candidate_fingerprint_sha256: 6d3782fb1f2cc7219b7083bcf381c17c546491425e817c0f5620ff145bfa6966
+
+acceptance_gate:
+  config_path: configs/scientific_entity_semantic_typer_h2_independent_acceptance_gate_v0.3.yaml
+  expected_canonical_config_sha256: 3ed17739796807046269b88aab40ced2cc10ca1e45ff67dc8965a98070c17a89
+  require_gate_frozen_before_annotation: true
+
+sample:
+  sample_id: scientific-entity-fresh-heldout-sample-v0.3-20260919T093837653829Z
+  review_id: scientific-entity-fresh-heldout-review-v0.3-20260919T093837653829Z
+  expected_sample_manifest_sha256: 9ba9799c0d5b20b91e4059c7117fa6d6d015fb6ae1fc8f59f9058e52bd093c80
+  selected_canonical_ids_sha256: bbd0f209705c8a8ff02fea7fa732741b9cf9981d24a79909c618726fed8608f8
+  expected_document_count: 48
+  expected_annotation_row_count: 96
+  expected_consumed_union_document_count: 120
+  expected_consumed_union_overlap_count: 0
+  require_prediction_blind_sample: true
+  require_independent_sample_validation: true
+
+annotation:
+  annotation_method: manual_adjudicated
+  annotation_guideline_version: scientific_entity_annotation_guidelines_v0.1
+  annotation_passes: 1
+  source_fields:
+    - title
+    - abstract
+  entity_types:
+    - task
+    - method
+    - dataset
+    - metric
+    - model
+    - domain
+  require_all_annotation_rows_complete: true
+  require_zero_unresolved_uncertain_mentions: true
+  minimum_reference_mentions_per_type: 20
+  maximum_reference_mentions_total: 5000
+  require_surface_from_exact_source_slice: true
+  duplicate_typed_spans_allowed: false
+
+working_copy:
+  root: data/entities/scientific_entity_semantic_typer_h2_annotation_work/v0.3
+  filename: annotations_completed.jsonl
+  readme_filename: README.md
+  mutable_non_evidence: true
+  overwrite_allowed: false
+
+outputs:
+  frozen_root: data/entities/scientific_entity_semantic_typer_h2_reference/v0.3
+  immutable_directories: true
+  encoding: utf-8
+  line_ending: lf
+
+safety:
+  predictions_visible_during_annotation: false
+  automatic_annotation_allowed: false
+  automatic_review_approval_allowed: false
+  h2_inference_allowed_before_reference_freeze: false
+  threshold_tuning_allowed: false
+  policy_revision_allowed: false
+  span_mutation_allowed: false
+  taxonomy_changes_allowed: false
+  evaluation_allowed_before_reference_freeze: false
+  canonical_truth_mutation_allowed: false
+  reconcile_input_allowed: false
+  production_extractor_selected: false
+  full_corpus_build_authorized: false
+  redistribution_allowed: false
+  publication_allowed: false
+
+next_steps:
+  after_tooling_merge: prepare_h2_prediction_blind_annotation_working_copy
+  after_annotation_complete: freeze_and_validate_h2_v03_reference_evidence
+  after_reference_freeze: run_frozen_h2_independent_inference
