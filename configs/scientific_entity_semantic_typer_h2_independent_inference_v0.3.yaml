@@ -1,0 +1,61 @@
+schema_version: scientific_entity_semantic_typer_h2_independent_inference_v0.3
+
+candidate:
+  candidate_id: scientific-entity-semantic-typer-candidate-v0.3-h2-selective-model-over-method
+  candidate_fingerprint_sha256: 6d3782fb1f2cc7219b7083bcf381c17c546491425e817c0f5620ff145bfa6966
+  frozen_candidate_config_path: configs/scientific_entity_semantic_typer_h2_frozen_candidate_v0.3.yaml
+  parent_semantic_typer_candidate_id: scientific-entity-semantic-typer-candidate-v0.3-h1
+  parent_semantic_typer_config_path: configs/scientific_entity_semantic_typer_candidate_v0.3.yaml
+  parent_semantic_typer_config_sha256: 1d7972d965f88743fc6bc419f22e751aa94218984288974c247cdbe884712c36
+  upstream_baseline_candidate_id: scientific-entity-semantic-prompt-raw-floor-extension-v0.2c
+  upstream_runtime_config_path: configs/scientific_entity_gliner_semantic_prompt_raw_floor_candidate_v0.2c.yaml
+  upstream_runtime_config_sha256: b9b544194183e1cdf60a4632735acb6fe24788829bd1c75941293c5cd4360da6
+  upstream_policy_config_path: configs/scientific_entity_semantic_prompt_raw_floor_policy_v0.2c.yaml
+  upstream_policy_config_sha256: 9ad8d4f6728e49e04ed4bdc4cec6f4d2a23db82d55af71b4f71f33dabf84f62c
+
+lineage:
+  acceptance_gate_config_path: configs/scientific_entity_semantic_typer_h2_independent_acceptance_gate_v0.3.yaml
+  acceptance_gate_config_sha256: 3ed17739796807046269b88aab40ced2cc10ca1e45ff67dc8965a98070c17a89
+  sample_config_path: configs/scientific_entity_semantic_typer_h2_fresh_heldout_sample_v0.3.yaml
+  reference_config_path: configs/scientific_entity_semantic_typer_h2_reference_freeze_v0.3.yaml
+  sample_id: scientific-entity-fresh-heldout-sample-v0.3-20260919T093837653829Z
+  review_id: scientific-entity-fresh-heldout-review-v0.3-20260919T093837653829Z
+  expected_document_count: 48
+
+execution:
+  output_root: data/entities/scientific_entity_semantic_typer_h2_independent_inference/v0.3
+  inference_id_prefix: scientific-entity-semantic-typer-h2-independent-inference-v0.3
+  source_fields:
+    - title
+    - abstract
+  raw_input_threshold: 0.40
+  baseline_title_threshold: 0.45
+  baseline_abstract_threshold: 0.625
+  h2_baseline_type: method
+  h2_semantic_typer_type: model
+  h2_score_field: score_margin
+  h2_operator: ">="
+  h2_threshold: 0.10
+  preserve_baseline_otherwise: true
+
+safety:
+  reference_must_be_frozen_before_execute: true
+  plan_runs_model_inference: false
+  reference_labels_used_for_case_construction: false
+  reference_labels_used_as_model_features: false
+  threshold_tuning_allowed: false
+  policy_revision_allowed: false
+  span_mutation_allowed: false
+  taxonomy_changes_allowed: false
+  evaluation_allowed_in_this_slice: false
+  acceptance_decision_allowed_in_this_slice: false
+  canonical_truth_mutation_allowed: false
+  production_extractor_selection_allowed: false
+  full_corpus_build_authorized: false
+  publication_allowed: false
+  overwrite_allowed: false
+
+next_steps:
+  after_plan: execute_frozen_h2_independent_inference_once
+  after_execute: validate_h2_v03_independent_inference_evidence
+  after_validation: run_h2_independent_comparative_evaluation
