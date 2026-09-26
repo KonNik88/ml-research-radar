@@ -4,7 +4,7 @@ import hashlib
 import json
 import math
 from dataclasses import dataclass
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping, Protocol, Sequence
 
 from radar_core.contracts.scientific_entity_evidence import ScientificEntityType
 from radar_core.contracts.scientific_entity_semantic_typer_candidate import (
@@ -17,6 +17,14 @@ from radar_core.entities.scientific_entity_gliner import GLiNERBackend
 
 class ScientificEntitySemanticTyperError(ValueError):
     """Raised when target-focused semantic typing cannot be executed safely."""
+
+
+class SemanticTyperCaseLike(Protocol):
+    case_id: str
+    surface_text: str
+    baseline_entity_type: ScientificEntityType
+    left_context: str
+    right_context: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,7 +51,7 @@ def _label_maps(config: ScientificEntitySemanticTyperConfig) -> tuple[tuple[str,
 def _build_synthetic_text(
     *,
     config: ScientificEntitySemanticTyperConfig,
-    case: SemanticTyperDevelopmentCase,
+    case: SemanticTyperCaseLike,
     left_context: str,
     right_context: str,
 ) -> SyntheticTypingInput:
@@ -66,7 +74,7 @@ def _build_synthetic_text(
 def prepare_synthetic_input(
     *,
     config: ScientificEntitySemanticTyperConfig,
-    case: SemanticTyperDevelopmentCase,
+    case: SemanticTyperCaseLike,
     backend: GLiNERBackend,
 ) -> SyntheticTypingInput:
     """Build bounded target-focused text and refuse silent tokenizer truncation.
@@ -142,10 +150,10 @@ def _parse_exact_target_scores(
     return scores
 
 
-def type_development_case(
+def type_semantic_case(
     *,
     config: ScientificEntitySemanticTyperConfig,
-    case: SemanticTyperDevelopmentCase,
+    case: SemanticTyperCaseLike,
     backend: GLiNERBackend,
 ) -> SemanticTyperPrediction:
     prompts, type_by_prompt = _label_maps(config)
@@ -212,6 +220,15 @@ def type_development_case(
     )
 
 
+def type_development_case(
+    *,
+    config: ScientificEntitySemanticTyperConfig,
+    case: SemanticTyperDevelopmentCase,
+    backend: GLiNERBackend,
+) -> SemanticTyperPrediction:
+    return type_semantic_case(config=config, case=case, backend=backend)
+
+
 def semantic_typer_identity_payload(config: ScientificEntitySemanticTyperConfig) -> dict[str, Any]:
     return {
         "candidate_id": config.candidate.candidate_id,
@@ -244,9 +261,11 @@ def semantic_typer_fingerprint(config: ScientificEntitySemanticTyperConfig) -> s
 
 __all__ = [
     "ScientificEntitySemanticTyperError",
+    "SemanticTyperCaseLike",
     "SyntheticTypingInput",
     "prepare_synthetic_input",
     "semantic_typer_fingerprint",
     "semantic_typer_identity_payload",
     "type_development_case",
+    "type_semantic_case",
 ]
