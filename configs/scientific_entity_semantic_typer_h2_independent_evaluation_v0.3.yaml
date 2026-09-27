@@ -1,0 +1,92 @@
+schema_version: scientific_entity_semantic_typer_h2_independent_evaluation_v0.3
+
+layer:
+  name: scientific_entity_semantic_typer_h2_independent_evaluation
+  version: v0.3
+  status: frozen_one_shot_independent_comparative_evaluation
+  layer_kind: independent_comparative_quality_evidence
+
+candidate:
+  candidate_id: scientific-entity-semantic-typer-candidate-v0.3-h2-selective-model-over-method
+  candidate_fingerprint_sha256: 6d3782fb1f2cc7219b7083bcf381c17c546491425e817c0f5620ff145bfa6966
+
+acceptance_gate:
+  config_path: configs/scientific_entity_semantic_typer_h2_independent_acceptance_gate_v0.3.yaml
+  config_sha256: 3ed17739796807046269b88aab40ced2cc10ca1e45ff67dc8965a98070c17a89
+  minimum_typer_coverage: 0.95
+  minimum_same_span_accuracy_delta: 0.01
+  minimum_net_corrected_cases: 5
+  maximum_regression_rate: 0.05
+  minimum_model_to_method_reduction_fraction: 0.10
+  minimum_macro_f1_delta: 0.0
+  minimum_exact_f1: 0.396882
+  desirable_minimum_relaxed_f1: 0.414868
+  relaxed_f1_is_hard_gate: false
+  missing_required_denominator_policy: fail_closed_evidence_insufficient
+
+inference:
+  config_path: configs/scientific_entity_semantic_typer_h2_independent_inference_v0.3.yaml
+  inference_id: scientific-entity-semantic-typer-h2-independent-inference-v0.3-20260927T102527705827Z
+  expected_document_count: 48
+  expected_baseline_prediction_count: 830
+  expected_h2_prediction_count: 830
+  expected_typer_coverage: 0.983133
+  expected_h2_override_count: 39
+
+fresh_heldout:
+  sample_id: scientific-entity-fresh-heldout-sample-v0.3-20260919T093837653829Z
+  review_id: scientific-entity-fresh-heldout-review-v0.3-20260919T093837653829Z
+  sample_documents_file: canonical_documents.sample.jsonl
+  reference_review_manifest_file: review_manifest.json
+  reference_mentions_file: reference_mentions.jsonl
+  expected_document_count: 48
+  expected_reference_mention_count: 929
+
+base_evaluator:
+  config_path: configs/scientific_entity_evaluation_v0.1.yaml
+  matching_identity: exact_plus_relaxed_char_iou_v0.1
+  relaxed_min_char_iou: 0.5
+  decimal_places: 6
+
+comparative:
+  same_span_pairing: exact_span_type_agnostic_deterministic_v0.3
+  regression_rate_denominator: baseline_correct_same_span_cases
+  model_to_method_reduction_denominator: baseline_model_to_method_same_span_cases
+  macro_f1_scope: same_span_six_type_classification
+  require_nonzero_same_span_pair_count: true
+  require_nonzero_baseline_correct_count: true
+  require_nonzero_baseline_model_to_method_count: true
+  require_nonzero_reference_support_for_all_six_types: true
+  materialize_corrected_errors: true
+  materialize_introduced_regressions: true
+  materialize_model_to_method_direct_corrections: true
+  materialize_model_to_method_wrong_to_wrong: true
+
+execution:
+  output_root: data/entities/scientific_entity_semantic_typer_h2_independent_evaluation/v0.3
+  evaluation_id: scientific-entity-semantic-typer-h2-independent-evaluation-v0.3-20260927T102527705827Z
+  one_shot_execute: true
+  plan_runs_evaluation: false
+  overwrite_allowed: false
+
+safety:
+  inference_must_validate_before_execute: true
+  reference_must_be_frozen_before_execute: true
+  plan_may_expose_quality_metrics: false
+  model_inference_allowed: false
+  threshold_tuning_allowed: false
+  policy_revision_allowed: false
+  span_mutation_allowed: false
+  taxonomy_changes_allowed: false
+  reference_labels_used_for_evaluation: true
+  reference_labels_used_for_filtering: false
+  acceptance_decision_allowed_in_this_slice: false
+  canonical_truth_mutation_allowed: false
+  production_extractor_selection_allowed: false
+  full_corpus_build_authorized: false
+  publication_allowed: false
+
+next_steps:
+  after_plan: execute_h2_v03_independent_comparative_evaluation_once
+  after_execute: validate_h2_v03_independent_comparative_evaluation
+  after_validation: make_immutable_h2_independent_acceptance_decision
