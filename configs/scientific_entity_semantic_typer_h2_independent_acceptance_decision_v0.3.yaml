@@ -1,0 +1,52 @@
+schema_version: scientific_entity_semantic_typer_h2_independent_acceptance_decision_v0.3
+
+layer:
+  name: scientific_entity_semantic_typer_h2_independent_acceptance_decision
+  version: v0.3
+  status: immutable_one_shot_independent_acceptance_decision
+  layer_kind: bounded_semantic_typing_intervention_decision
+
+candidate:
+  candidate_id: scientific-entity-semantic-typer-candidate-v0.3-h2-selective-model-over-method
+  candidate_fingerprint_sha256: 6d3782fb1f2cc7219b7083bcf381c17c546491425e817c0f5620ff145bfa6966
+  sample_id: scientific-entity-fresh-heldout-sample-v0.3-20260919T093837653829Z
+  review_id: scientific-entity-fresh-heldout-review-v0.3-20260919T093837653829Z
+  inference_id: scientific-entity-semantic-typer-h2-independent-inference-v0.3-20260927T102527705827Z
+  evaluation_id: scientific-entity-semantic-typer-h2-independent-evaluation-v0.3-20260927T102527705827Z
+
+frozen_inputs:
+  gate_config_path: configs/scientific_entity_semantic_typer_h2_independent_acceptance_gate_v0.3.yaml
+  gate_config_sha256: 3ed17739796807046269b88aab40ced2cc10ca1e45ff67dc8965a98070c17a89
+  evaluation_config_path: configs/scientific_entity_semantic_typer_h2_independent_evaluation_v0.3.yaml
+  expected_evaluation_document_count: 48
+  expected_reference_mention_count: 929
+  expected_baseline_prediction_count: 830
+  expected_h2_prediction_count: 830
+
+execution:
+  output_root: data/entities/scientific_entity_semantic_typer_h2_independent_acceptance_decision/v0.3
+  decision_id: scientific-entity-semantic-typer-h2-independent-acceptance-decision-v0.3-20260927T102527705827Z
+  one_shot_execute: true
+  overwrite_allowed: false
+  plan_makes_decision: false
+  plan_exposes_quality_metrics: false
+
+safety:
+  require_strict_independent_evaluation_validation: true
+  require_reference_adequacy: true
+  require_candidate_fingerprint: true
+  require_frozen_gate_integrity: true
+  allow_threshold_tuning: false
+  allow_policy_revision: false
+  allow_model_inference: false
+  allow_re_evaluation_in_decision_slice: false
+  allow_canonical_truth_mutation: false
+  allow_reconcile_input: false
+  production_extractor_selected: false
+  full_corpus_build_authorized: false
+  publication_ready: false
+
+next_steps:
+  after_plan: commit_immutable_h2_acceptance_decision_tooling_before_execute
+  after_execute: validate_immutable_h2_independent_acceptance_decision
+  after_validation: record_h2_independent_acceptance_and_plan_separate_production_authorization
