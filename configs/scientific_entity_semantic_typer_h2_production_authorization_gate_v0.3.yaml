@@ -1,0 +1,75 @@
+schema_version: scientific_entity_semantic_typer_h2_production_authorization_gate_v0.3
+
+layer:
+  name: scientific_entity_semantic_typer_h2_production_authorization_gate
+  version: v0.3
+  status: preregistered_after_independent_acceptance_before_production_authorization
+  layer_kind: bounded_semantic_typing_production_authorization_preregistration
+
+acceptance_lineage:
+  candidate_id: scientific-entity-semantic-typer-candidate-v0.3-h2-selective-model-over-method
+  candidate_fingerprint_sha256: 6d3782fb1f2cc7219b7083bcf381c17c546491425e817c0f5620ff145bfa6966
+  acceptance_decision_id: scientific-entity-semantic-typer-h2-independent-acceptance-decision-v0.3-20260927T102527705827Z
+  required_acceptance_decision: accept_h2_as_independently_validated_bounded_semantic_typing_intervention
+  acceptance_decision_config_path: configs/scientific_entity_semantic_typer_h2_independent_acceptance_decision_v0.3.yaml
+  acceptance_decision_config_sha256: 0f36f9bf8683a0d2b2726d82d12d67fcb6fab1de22a20d5d1bd52d7a3e491dff
+  expected_decision_validation_total_checks: 24
+  expected_decision_validation_required_failed_count: 0
+
+bounded_intervention:
+  baseline_type: method
+  semantic_typer_type: model
+  score_field: score_margin
+  operator: ">="
+  threshold: 0.10
+  preserve_baseline_otherwise: true
+  source_surface_policy: reuse_frozen_upstream_candidate_surface_without_expansion
+  span_mutation_allowed: false
+  span_split_merge_allowed: false
+  new_span_generation_allowed: false
+  taxonomy_changes_allowed: false
+  threshold_tuning_allowed: false
+  policy_revision_allowed: false
+
+production_authorization_prerequisites:
+  require_independent_acceptance_decision: true
+  require_strict_decision_validation: true
+  require_exact_candidate_fingerprint: true
+  require_exact_frozen_h2_policy: true
+  require_exact_canonical_input_snapshot_before_authorization_execute: true
+  require_canonical_input_sha256: true
+  require_canonical_document_count: true
+  require_timestamped_candidate_output: true
+  require_immutable_build_id: true
+  require_plan_before_execute: true
+  require_no_reference_labels_in_full_corpus_build: true
+  require_no_heldout_feedback_into_policy: true
+  require_rebuildable_derived_output: true
+  require_candidate_validation_before_promotion: true
+  require_separate_promotion_decision: true
+
+safety:
+  gate_slice_runs_model_inference: false
+  gate_slice_runs_full_corpus_extraction: false
+  gate_slice_reads_human_reference_mentions: false
+  gate_slice_mutates_canonical_truth: false
+  gate_slice_selects_production_extractor: false
+  gate_slice_authorizes_full_corpus_candidate_build: false
+  gate_slice_authorizes_latest_promotion: false
+  gate_slice_authorizes_publication: false
+  overwrite_latest_allowed: false
+  canonical_truth_mutation_allowed: false
+  production_latest_promotion_requires_separate_decision: true
+
+future_authorization_boundary:
+  authorization_may_only_enable_timestamped_full_corpus_candidate_materialization: true
+  authorization_must_bind_exact_canonical_snapshot: true
+  authorization_must_bind_exact_candidate_fingerprint: true
+  authorization_must_preserve_frozen_h2_policy: true
+  authorization_does_not_imply_latest_promotion: true
+  authorization_does_not_imply_publication: true
+
+next_steps:
+  after_gate_validation: build_h2_production_authorization_record_tooling
+  after_authorization_record_validation: run_h2_full_corpus_candidate_materialization
+  after_candidate_materialization_validation: make_separate_h2_production_promotion_decision
