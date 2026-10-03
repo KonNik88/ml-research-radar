@@ -1,0 +1,77 @@
+schema_version: scientific_entity_semantic_typer_h2_production_authorization_v0.3
+
+layer:
+  name: scientific_entity_semantic_typer_h2_production_authorization
+  version: v0.3
+  status: immutable_one_shot_candidate_materialization_authorization
+  layer_kind: bounded_semantic_typing_candidate_materialization_authorization
+
+lineage:
+  production_authorization_gate_config_path: configs/scientific_entity_semantic_typer_h2_production_authorization_gate_v0.3.yaml
+  production_authorization_gate_config_sha256: 6e2101150cc3f06b07901ca58ecc31f72b7ed6c2c8bd884d08c7e173d92645a1
+  expected_gate_validation_total_checks: 17
+  expected_gate_validation_required_failed_count: 0
+  candidate_id: scientific-entity-semantic-typer-candidate-v0.3-h2-selective-model-over-method
+  candidate_fingerprint_sha256: 6d3782fb1f2cc7219b7083bcf381c17c546491425e817c0f5620ff145bfa6966
+  acceptance_decision_id: scientific-entity-semantic-typer-h2-independent-acceptance-decision-v0.3-20260927T102527705827Z
+  required_acceptance_decision: accept_h2_as_independently_validated_bounded_semantic_typing_intervention
+
+bounded_intervention:
+  baseline_type: method
+  semantic_typer_type: model
+  score_field: score_margin
+  operator: ">="
+  threshold: 0.10
+  preserve_baseline_otherwise: true
+  source_surface_policy: reuse_frozen_upstream_candidate_surface_without_expansion
+  span_mutation_allowed: false
+  span_split_merge_allowed: false
+  new_span_generation_allowed: false
+  taxonomy_changes_allowed: false
+  threshold_tuning_allowed: false
+  policy_revision_allowed: false
+
+authorization_boundary:
+  authorization_scope: one_timestamped_full_corpus_candidate_materialization
+  authorized_candidate_build_count: 1
+  exact_canonical_snapshot_required: true
+  same_canonical_snapshot_required_at_build: true
+  same_candidate_fingerprint_required_at_build: true
+  same_frozen_h2_policy_required_at_build: true
+  timestamped_candidate_output_required: true
+  immutable_build_id_required: true
+  reference_labels_allowed_in_build: false
+  heldout_feedback_into_policy_allowed: false
+  candidate_validation_required_before_promotion: true
+  separate_promotion_decision_required: true
+  production_latest_promotion_authorized: false
+  latest_overwrite_allowed: false
+  canonical_truth_mutation_allowed: false
+  publication_authorized: false
+
+execution:
+  output_root: data/entities/scientific_entity_semantic_typer_h2_production_authorization/v0.3
+  authorization_id_prefix: scientific-entity-semantic-typer-h2-production-authorization-v0.3
+  canonical_sha256_prefix_length: 16
+  candidate_fingerprint_prefix_length: 8
+  one_shot_execute: true
+  overwrite_allowed: false
+  plan_writes_output: false
+  plan_authorizes_candidate_build: false
+  plan_exposes_quality_metrics: false
+
+safety:
+  model_inference_executed_in_this_slice: false
+  full_corpus_extraction_executed_in_this_slice: false
+  human_reference_mentions_read_in_this_slice: false
+  threshold_tuning_executed: false
+  policy_revision_executed: false
+  canonical_truth_mutated: false
+  production_latest_extractor_selected: false
+  production_latest_promotion_authorized: false
+  publication_authorized: false
+
+next_steps:
+  after_plan: commit_h2_production_authorization_record_tooling_before_execute
+  after_execute: validate_immutable_h2_production_authorization_record
+  after_validation: build_h2_full_corpus_candidate_materialization_tooling
