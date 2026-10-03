@@ -1,0 +1,72 @@
+schema_version: scientific_entity_semantic_typer_h2_full_corpus_candidate_v0.3
+
+layer:
+  name: scientific_entity_semantic_typer_h2_full_corpus_candidate
+  version: v0.3
+  status: authorized_timestamped_candidate_materialization
+  layer_kind: derived_scientific_entity_candidate_materialization
+
+authorization:
+  authorization_id: scientific-entity-semantic-typer-h2-production-authorization-v0.3-3cc6e3c779fee351-6d3782fb
+  authorization_config_path: configs/scientific_entity_semantic_typer_h2_production_authorization_v0.3.yaml
+  authorization_config_sha256: 78ea64454059cffff1be2808c62b1170238db5414cfe451c52d34d5f67c81ded
+  expected_authorization_validation_total_checks: 30
+  expected_authorization_validation_required_failed_count: 0
+  authorized_candidate_build_count: 1
+
+canonical_snapshot:
+  path: data/analytics/reconciled/canonical_documents.jsonl
+  sha256: 3cc6e3c779fee351bcab605ad1b804acf0e4f8365718db96dad398959420b6ff
+  document_count: 61075
+  canonical_contract: CanonicalDocument
+
+frozen_runtime:
+  runtime_config_path: configs/scientific_entity_gliner_semantic_prompt_raw_floor_candidate_v0.2c.yaml
+  runtime_config_sha256: b9b544194183e1cdf60a4632735acb6fe24788829bd1c75941293c5cd4360da6
+  baseline_policy_config_path: configs/scientific_entity_semantic_prompt_raw_floor_policy_v0.2c.yaml
+  baseline_policy_config_sha256: 9ad8d4f6728e49e04ed4bdc4cec6f4d2a23db82d55af71b4f71f33dabf84f62c
+  semantic_typer_config_path: configs/scientific_entity_semantic_typer_candidate_v0.3.yaml
+  semantic_typer_config_sha256: 1d7972d965f88743fc6bc419f22e751aa94218984288974c247cdbe884712c36
+  semantic_typer_fingerprint_sha256: 3b495a25f1f4a80f435d983db9002e8d324427fc427ea1b27433062c64708bce
+
+frozen_h2:
+  candidate_id: scientific-entity-semantic-typer-candidate-v0.3-h2-selective-model-over-method
+  candidate_fingerprint_sha256: 6d3782fb1f2cc7219b7083bcf381c17c546491425e817c0f5620ff145bfa6966
+  baseline_type: method
+  semantic_typer_type: model
+  score_field: score_margin
+  operator: ">="
+  threshold: 0.10
+  preserve_baseline_otherwise: true
+  semantic_typer_scope: baseline_method_mentions_only_semantics_preserving_optimization
+  span_mutation_allowed: false
+  new_span_generation_allowed: false
+  taxonomy_changes_allowed: false
+
+execution:
+  output_root: data/entities/scientific_entity_semantic_typer_h2_full_corpus_candidate/v0.3
+  build_id_prefix: scientific-entity-semantic-typer-h2-full-corpus-candidate-v0.3
+  one_successful_build_per_authorization: true
+  immutable_output: true
+  overwrite_allowed: false
+  plan_writes_output: false
+  plan_runs_model_inference: false
+  stream_outputs: true
+  progress_every_documents: 250
+
+safety:
+  exact_authorized_canonical_snapshot_required: true
+  human_reference_mentions_allowed: false
+  threshold_tuning_allowed: false
+  policy_revision_allowed: false
+  canonical_truth_mutation_allowed: false
+  production_latest_promotion_authorized: false
+  latest_overwrite_allowed: false
+  publication_authorized: false
+  candidate_validation_required_before_promotion: true
+  separate_promotion_decision_required: true
+
+next_steps:
+  after_plan: commit_h2_full_corpus_candidate_tooling_before_execute
+  after_execute: validate_h2_full_corpus_candidate_materialization
+  after_validation: review_h2_full_corpus_candidate_and_build_promotion_gate
