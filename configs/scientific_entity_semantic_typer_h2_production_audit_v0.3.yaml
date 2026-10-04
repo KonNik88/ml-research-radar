@@ -1,0 +1,90 @@
+schema_version: scientific_entity_semantic_typer_h2_production_audit_v0.3
+
+layer:
+  name: scientific_entity_semantic_typer_h2_production_audit
+  version: v0.3
+  status: preregistered_prediction_blind_production_audit
+  layer_kind: derived_scientific_entity_promotion_safety_audit
+
+candidate:
+  build_id: scientific-entity-semantic-typer-h2-full-corpus-candidate-v0.3-20261003T121605823276Z
+  candidate_dir: data/entities/scientific_entity_semantic_typer_h2_full_corpus_candidate/v0.3/scientific-entity-semantic-typer-h2-full-corpus-candidate-v0.3-20261003T121605823276Z
+  candidate_id: scientific-entity-semantic-typer-candidate-v0.3-h2-selective-model-over-method
+  candidate_fingerprint_sha256: 6d3782fb1f2cc7219b7083bcf381c17c546491425e817c0f5620ff145bfa6966
+  materialization_fingerprint_sha256: 5c528cab17e2d48c812f6013fbd4f7d966d8e0ccab5eff4e86de166e92641366
+  expected_full_corpus_validation_total_checks: 42
+  expected_full_corpus_validation_required_failed_count: 0
+  baseline_prediction_count: 846264
+  baseline_method_count: 260200
+  h2_override_count: 33469
+  final_mention_count: 846264
+
+canonical_snapshot:
+  path: data/analytics/reconciled/canonical_documents.jsonl
+  sha256: 3cc6e3c779fee351bcab605ad1b804acf0e4f8365718db96dad398959420b6ff
+  document_count: 61075
+
+sampling:
+  audit_id: scientific-entity-semantic-typer-h2-production-audit-v0.3-20261003T121605823276Z
+  selection_seed_sha256: c9f59b80ef8de317827d38ba0fbd6e420d14ddbc05935f8da0351e6e4180407f
+  blind_order_seed_sha256: c24a4ff3858a622bbe02c2a84d71d4dee5a1161bafa8db7dc8a0f8868977dc8e
+  override_count: 100
+  preserved_method_count: 100
+  fallback_method_count: 40
+  total_count: 240
+  sample_unit: baseline_method_mention
+  deterministic_hash_rank_sampling: true
+  annotation_order_hides_stratum: true
+
+annotation:
+  allowed_entity_types: [task, method, dataset, metric, model, domain]
+  allowed_span_statuses: [valid_entity_span, boundary_issue, not_an_entity, uncertain]
+  confidence_levels: [high, medium, low]
+  prediction_blind: true
+  stratum_hidden: true
+  candidate_prediction_hidden: true
+  semantic_scores_hidden: true
+  reference_freeze_required_before_unblinding: true
+
+promotion_gates:
+  # These gates are frozen before audit annotation. They are safety gates, not corpus-wide accuracy estimates.
+  max_overall_uncertain_rate: 0.10
+  max_overall_not_entity_rate: 0.15
+  min_override_usable_count: 80
+  min_override_reference_model_rate: 0.45
+  max_override_reference_method_rate: 0.30
+  min_override_net_model_minus_method_rate: 0.15
+  min_preserved_usable_count: 80
+  min_preserved_reference_method_rate: 0.50
+  max_preserved_reference_model_rate: 0.30
+  min_fallback_usable_count: 30
+  max_fallback_unresolved_or_not_entity_rate: 0.25
+  boundary_issue_rate_is_diagnostic_only: true
+  thresholds_may_not_be_revised_after_annotation_starts: true
+
+execution:
+  output_root: data/entities/scientific_entity_semantic_typer_h2_production_audit/v0.3
+  annotation_work_root: data/entities/scientific_entity_semantic_typer_h2_production_audit_annotation_work/v0.3
+  immutable_sample_output: true
+  overwrite_allowed: false
+  plan_writes_output: false
+  plan_reads_candidate_predictions: false
+  plan_exposes_sampled_strata: false
+
+safety:
+  new_model_inference_allowed: false
+  threshold_tuning_allowed: false
+  h2_policy_revision_allowed: false
+  candidate_mutation_allowed: false
+  canonical_truth_mutation_allowed: false
+  production_latest_promotion_authorized: false
+  latest_overwrite_allowed: false
+  publication_authorized: false
+  blind_annotation_required: true
+  separate_reference_freeze_required: true
+  separate_promotion_decision_required: true
+
+next_steps:
+  after_plan: commit_h2_production_audit_sample_tooling_before_execute
+  after_execute: complete_prediction_blind_h2_production_audit_annotation
+  after_annotation: freeze_h2_production_audit_reference_then_evaluate_promotion_gate
