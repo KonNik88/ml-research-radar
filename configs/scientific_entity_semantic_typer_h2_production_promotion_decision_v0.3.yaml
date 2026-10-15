@@ -1,0 +1,86 @@
+schema_version: scientific_entity_semantic_typer_h2_production_promotion_decision_v0.3
+
+layer:
+  name: scientific_entity_semantic_typer_h2_production_promotion_decision
+  version: v0.3
+  status: immutable_one_shot_controlled_promotion_authorization
+  layer_kind: scientific_entity_production_promotion_decision
+
+lineage:
+  authorization_id: scientific-entity-semantic-typer-h2-production-authorization-v0.3-3cc6e3c779fee351-6d3782fb
+  authorization_manifest_sha256: 0288986406e84b7ec76fd4c006892710313d4e9e95cd911f0b656c43e34d024f
+  authorization_record_sha256: 378b8f441deafc19c408d6f10dbf696a3e075d78ac874d8379c84e1f730939bd
+  candidate_build_id: scientific-entity-semantic-typer-h2-full-corpus-candidate-v0.3-20261003T121605823276Z
+  candidate_manifest_sha256: 64d4a728ef24891673b6915bdd7e41c3e241078b6f02077337607ea9b1177f62
+  candidate_summary_sha256: 6db5877c2c98e1e33044890008738868091899d2122cde1f5f5e3d3a4551a1e2
+  candidate_final_mentions_sha256: 518f3984d3dcd2aa5e2a84c96eec2fadce8b6dc6b49eef0d7a908533145394c1
+  reference_id: scientific-entity-semantic-typer-h2-production-audit-reference-v0.3-20261003T121605823276Z
+  reference_manifest_sha256: 1c262a675402216e530424484cc8c7a45777622838dd72fbbd8efd6d92502fa9
+  reference_summary_sha256: 2455ae25986cb166f6792bd767e27b058d6781fda12363c2b6f3ab93199b981a
+  reference_annotations_sha256: 60c4eaa43077820369ac9cfbbfb42e90f7e690f27a5af9efd43b67507f2ce886
+  evaluation_id: scientific-entity-semantic-typer-h2-production-audit-evaluation-v0.3-20261003T121605823276Z
+  evaluation_manifest_sha256: 16ad9dddc2d6524644322631c1b0f188254f5a78168d096ca670e1d094cbc302
+  evaluation_summary_sha256: fed651a38abf69a9e55597b93c88cee4803cbc9f29988d1f05e0e731235c49de
+  evaluation_gate_results_sha256: d440d42c22b41d7720a719cb53abbeaba27d504d13ef8407682f87d302a8a41f
+  evaluation_case_evaluations_sha256: d43b7c76c834819a016c09d3009b675e3fd245d4c6310ba43c1c777324499406
+  candidate_id: scientific-entity-semantic-typer-candidate-v0.3-h2-selective-model-over-method
+  candidate_fingerprint_sha256: 6d3782fb1f2cc7219b7083bcf381c17c546491425e817c0f5620ff145bfa6966
+  materialization_fingerprint_sha256: 5c528cab17e2d48c812f6013fbd4f7d966d8e0ccab5eff4e86de166e92641366
+  canonical_sha256: 3cc6e3c779fee351bcab605ad1b804acf0e4f8365718db96dad398959420b6ff
+  canonical_document_count: 61075
+
+decision_prerequisites:
+  authorization_made_required: true
+  full_corpus_candidate_build_authorized_required: true
+  exact_candidate_build_required: true
+  exact_candidate_final_mentions_sha256_required: true
+  frozen_reference_required: true
+  evaluation_all_hard_gates_pass_required: true
+  evaluation_gate_verdict_required: pass_h2_production_audit_gate
+  expected_gate_count: 11
+  threshold_revision_forbidden: true
+  model_inference_in_decision_forbidden: true
+  threshold_tuning_forbidden: true
+  policy_revision_forbidden: true
+  candidate_mutation_forbidden: true
+  canonical_truth_mutation_forbidden: true
+
+promotion_boundary:
+  authorization_scope: one_controlled_candidate_to_trusted_latest_promotion
+  authorized_promotion_count: 1
+  exact_candidate_build_required_at_promotion: true
+  exact_candidate_final_mentions_sha256_required_at_promotion: true
+  backup_previous_trusted_latest_required: true
+  rollback_path_required: true
+  post_promotion_validation_required: true
+  promotion_execution_allowed_in_this_slice: false
+  latest_overwrite_allowed_in_this_slice: false
+  canonical_truth_mutation_allowed: false
+  publication_authorized: false
+
+execution:
+  output_root: data/entities/scientific_entity_semantic_typer_h2_production_promotion_decision/v0.3
+  decision_id: scientific-entity-semantic-typer-h2-production-promotion-decision-v0.3-20261003T121605823276Z
+  one_shot_execute: true
+  overwrite_allowed: false
+  plan_writes_output: false
+  plan_makes_promotion_decision: false
+  plan_authorizes_production_latest_promotion: false
+
+safety:
+  candidate_prediction_files_read_in_this_slice: false
+  model_inference_executed_in_this_slice: false
+  evaluation_recomputed_in_this_slice: false
+  threshold_tuning_executed: false
+  policy_revision_executed: false
+  candidate_mutated: false
+  canonical_truth_mutated: false
+  promotion_executed: false
+  latest_overwritten: false
+  publication_authorized: false
+
+next_steps:
+  after_plan: commit_h2_production_promotion_decision_tooling_before_execute
+  after_execute: validate_immutable_h2_production_promotion_decision
+  after_validation_pass: build_controlled_h2_production_latest_promotion_tooling
+  after_validation_fail: fix_h2_production_promotion_decision_artifact
