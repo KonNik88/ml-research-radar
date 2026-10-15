@@ -1,0 +1,87 @@
+schema_version: scientific_entity_semantic_typer_h2_production_audit_evaluation_v0.3
+
+layer:
+  name: scientific_entity_semantic_typer_h2_production_audit_evaluation
+  version: v0.3
+  status: frozen_one_shot_unblinded_production_audit_evaluation
+  layer_kind: derived_scientific_entity_promotion_safety_evidence
+
+lineage:
+  audit_id: scientific-entity-semantic-typer-h2-production-audit-v0.3-20261003T121605823276Z
+  reference_id: scientific-entity-semantic-typer-h2-production-audit-reference-v0.3-20261003T121605823276Z
+  candidate_build_id: scientific-entity-semantic-typer-h2-full-corpus-candidate-v0.3-20261003T121605823276Z
+  candidate_id: scientific-entity-semantic-typer-candidate-v0.3-h2-selective-model-over-method
+  candidate_fingerprint_sha256: 6d3782fb1f2cc7219b7083bcf381c17c546491425e817c0f5620ff145bfa6966
+  materialization_fingerprint_sha256: 5c528cab17e2d48c812f6013fbd4f7d966d8e0ccab5eff4e86de166e92641366
+  canonical_sha256: 3cc6e3c779fee351bcab605ad1b804acf0e4f8365718db96dad398959420b6ff
+  canonical_document_count: 61075
+  audit_config_path: configs/scientific_entity_semantic_typer_h2_production_audit_v0.3.yaml
+  audit_config_canonical_sha256: c1f0f786c44149a3c5decbe96d96baf3ce778be3798929fe6064b05accfe9de9
+  reference_freeze_config_path: configs/scientific_entity_semantic_typer_h2_production_audit_reference_freeze_v0.3.yaml
+  reference_freeze_config_canonical_sha256: 82f058248696f6cd9828b81e33e20f9538d0521ac76e6c8bf84335aefaed626e
+  expected_audit_case_count: 240
+  expected_reference_row_count: 240
+  expected_override_count: 100
+  expected_preserved_method_count: 100
+  expected_fallback_method_count: 40
+  expected_candidate_validation_total_checks: 42
+  expected_candidate_validation_required_failed_count: 0
+  expected_audit_sample_validation_total_checks: 27
+  expected_audit_sample_validation_required_failed_count: 0
+  expected_reference_validation_total_checks: 23
+  expected_reference_validation_required_failed_count: 0
+
+evaluation:
+  usable_span_statuses: [valid_entity_span, boundary_issue]
+  reference_type_rate_denominator: usable_cases_only
+  overall_rate_denominator: all_240_audit_cases
+  fallback_unresolved_or_not_entity_rate_denominator: all_fallback_cases
+  boundary_issue_rate_is_diagnostic_only: true
+  materialize_case_level_unblinded_evidence: true
+  materialize_baseline_vs_final_correctness: true
+
+promotion_gates:
+  max_overall_uncertain_rate: 0.10
+  max_overall_not_entity_rate: 0.15
+  min_override_usable_count: 80
+  min_override_reference_model_rate: 0.45
+  max_override_reference_method_rate: 0.30
+  min_override_net_model_minus_method_rate: 0.15
+  min_preserved_usable_count: 80
+  min_preserved_reference_method_rate: 0.50
+  max_preserved_reference_model_rate: 0.30
+  min_fallback_usable_count: 30
+  max_fallback_unresolved_or_not_entity_rate: 0.25
+  thresholds_may_not_be_revised: true
+
+execution:
+  output_root: data/entities/scientific_entity_semantic_typer_h2_production_audit_evaluation/v0.3
+  evaluation_id: scientific-entity-semantic-typer-h2-production-audit-evaluation-v0.3-20261003T121605823276Z
+  one_shot_execute: true
+  overwrite_allowed: false
+  plan_writes_output: false
+  plan_reads_candidate_predictions: false
+  plan_reconstructs_sampled_strata: false
+  plan_exposes_quality_metrics: false
+
+safety:
+  frozen_reference_required_before_execute: true
+  unblinding_allowed_on_execute: true
+  candidate_prediction_files_may_be_read_on_execute: true
+  sampled_strata_may_be_reconstructed_on_execute: true
+  promotion_gate_evaluation_allowed_on_execute: true
+  model_inference_allowed: false
+  threshold_tuning_allowed: false
+  h2_policy_revision_allowed: false
+  candidate_mutation_allowed: false
+  canonical_truth_mutation_allowed: false
+  promotion_decision_allowed_in_this_slice: false
+  production_latest_promotion_authorized: false
+  latest_overwrite_allowed: false
+  publication_authorized: false
+
+next_steps:
+  after_plan: commit_h2_production_audit_evaluation_tooling_before_execute
+  after_execute: validate_h2_production_audit_evaluation
+  after_validation_pass: make_immutable_h2_production_promotion_decision
+  after_validation_fail: fix_h2_production_audit_evaluation_artifact
