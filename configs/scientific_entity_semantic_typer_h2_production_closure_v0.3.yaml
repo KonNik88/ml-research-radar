@@ -1,0 +1,66 @@
+schema_version: scientific_entity_semantic_typer_h2_production_closure_v0.3
+
+layer:
+  name: scientific_entity_semantic_typer_h2_production_closure
+  version: v0.3
+  status: immutable_production_milestone_closure
+  layer_kind: scientific_entity_production_lifecycle_closure
+
+lineage:
+  decision_id: scientific-entity-semantic-typer-h2-production-promotion-decision-v0.3-20261003T121605823276Z
+  decision_sha256: 5670685f7cfd9fd56df3233325442334bd83755d3a95ec0f9b6c35bd23f643f0
+  decision_manifest_sha256: d7590c944ee3910ea47dc88610a84532686d97415069d4c90075fa57fb72f9cb
+  decision_checksums_sha256: 8462ebc45dcd4f35430fc0ea72394daa4914fb20993d783d19006d8994f08b7c
+  promotion_id: scientific-entity-semantic-typer-h2-production-latest-promotion-v0.3-20261003T121605823276Z
+  promotion_record_sha256: 108fe16af9c9574da41af24243f4fcfdd4f28c427a63be18f40f28a3694dcb60
+  promotion_manifest_sha256: 2b5be7fb950d2b3a9d8f63374ba8c94fca129f6266da2d56f5301f6616f6530c
+  promotion_post_validation_sha256: ca9ef4eff4af5762bb804187394beb79dfdab5e0951a33d58f5b2df503265a94
+  promotion_checksums_sha256: 39fffb486dedf9d453e16f257c673659d57325b9231f408540e891f6ebee8626
+  trusted_latest_pointer_sha256: e064748461dbfcf29e7b60b969acf99143e935cbc2bce39d6d74d855fdcacfa7
+  candidate_build_id: scientific-entity-semantic-typer-h2-full-corpus-candidate-v0.3-20261003T121605823276Z
+  candidate_id: scientific-entity-semantic-typer-candidate-v0.3-h2-selective-model-over-method
+  candidate_fingerprint_sha256: 6d3782fb1f2cc7219b7083bcf381c17c546491425e817c0f5620ff145bfa6966
+  materialization_fingerprint_sha256: 5c528cab17e2d48c812f6013fbd4f7d966d8e0ccab5eff4e86de166e92641366
+  candidate_final_mentions_sha256: 518f3984d3dcd2aa5e2a84c96eec2fadce8b6dc6b49eef0d7a908533145394c1
+  final_mention_count: 846264
+  h2_override_count: 33469
+  canonical_sha256: 3cc6e3c779fee351bcab605ad1b804acf0e4f8365718db96dad398959420b6ff
+  canonical_document_count: 61075
+
+inputs:
+  decision_root: data/entities/scientific_entity_semantic_typer_h2_production_promotion_decision/v0.3
+  promotion_root: data/entities/scientific_entity_semantic_typer_h2_production_latest_promotion/v0.3
+  trusted_latest_path: data/entities/scientific_entity_production/v0.3/latest.json
+
+execution:
+  output_root: data/entities/scientific_entity_semantic_typer_h2_production_closure/v0.3
+  closure_id: scientific-entity-semantic-typer-h2-production-closure-v0.3-20261003T121605823276Z
+  one_shot_execute: true
+  overwrite_closure_record_allowed: false
+  plan_writes_output: false
+
+closure_policy:
+  trusted_production_baseline_established: true
+  h2_v03_lifecycle_closed: true
+  future_h2_v03_tuning_allowed: false
+  historical_production_audit_reference_reuse_for_tuning_allowed: false
+  future_quality_work_requires_new_version: true
+  future_full_ner_coverage_audit_requires_fresh_prediction_blind_sample: true
+  production_latest_remains_active: true
+  rollback_remains_available: true
+  publication_authorized: false
+
+safety:
+  exact_trusted_target_sha_recheck_required: true
+  exact_trusted_target_line_count_recheck_required: true
+  trusted_latest_mutation_allowed: false
+  candidate_mutation_allowed: false
+  canonical_truth_mutation_allowed: false
+  model_inference_allowed: false
+  threshold_tuning_allowed: false
+  policy_revision_allowed: false
+
+next_steps:
+  after_plan: commit_h2_v03_production_closure_tooling_before_execute
+  after_execute: validate_immutable_h2_v03_production_closure
+  after_validation_pass: plan_prediction_blind_full_ner_coverage_audit
