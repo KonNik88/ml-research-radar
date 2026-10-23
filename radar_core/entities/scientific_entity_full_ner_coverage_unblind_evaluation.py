@@ -250,7 +250,7 @@ def _collect_predictions(path: Path, rows: list[FullNerCoverageAnnotationRow], *
     selected: dict[tuple[str, str], list[FullNerUnblindPrediction]] = {key: [] for key in fields}
     wanted_ids = {key[0] for key in fields}
     id_regex = re.compile(rb'"canonical_id"\s*:\s*"([^"\\]+)"')
-    seen_ids: set[str] = set()
+    seen_ids: dict[str, tuple[str, str, str, int, int, str]] = {}
     digest = sha256()
     line_count = 0
     with path.open("rb") as reader:
@@ -282,9 +282,20 @@ def _collect_predictions(path: Path, rows: list[FullNerCoverageAnnotationRow], *
             if (record.char_end > len(reference.source_text) or
                 reference.source_text[record.char_start:record.char_end] != record.surface_text):
                 raise FullNerUnblindError(f"Invalid prediction boundaries/surface at case={reference.audit_case_id}")
-            if record.final_mention_id in seen_ids:
-                raise FullNerUnblindError("Duplicate final_mention_id among selected predictions")
-            seen_ids.add(record.final_mention_id)
+            # 9C expressly preserves duplicate prediction *rows*: one matching
+            # gold mention can use only one row, so any surplus copy is FP.
+            # The stable final_mention_id identifies a semantic span, NOT a
+            # unique row/event in the full-corpus candidate JSONL.
+            identity = (
+                record.canonical_id, record.source_field.value,
+                record.source_text_sha256, record.char_start, record.char_end,
+                record.final_entity_type.value,
+            )
+            prior_identity = seen_ids.setdefault(record.final_mention_id, identity)
+            if prior_identity != identity:
+                raise FullNerUnblindError(
+                    "Conflicting identities share a selected final_mention_id"
+                )
             selected[key].append(FullNerUnblindPrediction(
                 schema_version="scientific_entity_full_ner_coverage_unblind_prediction_v0.1",
                 audit_case_id=reference.audit_case_id, canonical_id=reference.canonical_id,
