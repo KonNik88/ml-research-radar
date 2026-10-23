@@ -150,7 +150,7 @@ def test_prediction_stream_sha_count_and_target_selection(tmp_path: Path,monkeyp
     path = tmp_path / "final_mentions.jsonl"
     raw = (json.dumps(payload)+"\n"+json.dumps({"canonical_id":"unrelated", "source_field":"title"})+"\n").encode()
     path.write_bytes(raw)
-    monkeypatch.setattr(mod.H2FullCorpusFinalMention, "model_validate", classmethod(lambda cls,obj: SimpleNamespace(**{**obj, "final_entity_type": SimpleNamespace(value=obj["final_entity_type"])})))
+    monkeypatch.setattr(mod.H2FullCorpusFinalMention, "model_validate", classmethod(lambda cls,obj: SimpleNamespace(**{**obj, "source_field": SimpleNamespace(value=obj["source_field"]), "final_entity_type": SimpleNamespace(value=obj["final_entity_type"])})))
     selected, lines = _collect_predictions(path,[row],expected_hash=hashlib.sha256(raw).hexdigest(),expected_count=2,expected_build="build")
     assert lines == 2 and len(selected[("paper01", "title")]) == 1
     with pytest.raises(FullNerUnblindError,match="SHA/count mismatch"):
@@ -166,7 +166,7 @@ def test_prediction_stream_rejects_source_drift(tmp_path: Path,monkeypatch:pytes
     path=tmp_path / "final_mentions.jsonl"
     raw=(json.dumps(payload)+"\n").encode()
     path.write_bytes(raw)
-    monkeypatch.setattr(mod.H2FullCorpusFinalMention, "model_validate", classmethod(lambda cls,obj: SimpleNamespace(**{**obj, "final_entity_type": SimpleNamespace(value=obj["final_entity_type"])})))
+    monkeypatch.setattr(mod.H2FullCorpusFinalMention, "model_validate", classmethod(lambda cls,obj: SimpleNamespace(**{**obj, "source_field": SimpleNamespace(value=obj["source_field"]), "final_entity_type": SimpleNamespace(value=obj["final_entity_type"])})))
     with pytest.raises(FullNerUnblindError,match="Source text drift"):
         _collect_predictions(path,[row],expected_hash=hashlib.sha256(raw).hexdigest(),expected_count=1,expected_build="build")
 
@@ -245,3 +245,64 @@ def test_real_h2_candidate_record_contract_selected(tmp_path: Path):
     assert count == 1
     match = selected[(row.canonical_id,row.source_field)][0]
     assert match.entity_type == "task" and match.final_mention_id == item["final_mention_id"]
+
+
+def test_prediction_stream_preserves_same_id_duplicate_rows_as_fp(tmp_path: Path):
+    """9C: identical predictions are separate occurrences, not a hard error."""
+    row = _field()
+    payload = {
+        "schema_version":"scientific_entity_semantic_typer_h2_full_corpus_final_mention_v0.3",
+        "build_id":"build", "candidate_evidence_id":"evidence:" + "1" * 32,
+        "final_mention_id":"mention:" + "2" * 32,
+        "canonical_id":row.canonical_id, "source_field":row.source_field,
+        "source_text_sha256":row.source_text_sha256,
+        "char_start":0, "char_end":4, "surface_text":"ABCD",
+        "baseline_prediction_evidence_id":"evidence:" + "3" * 32,
+        "baseline_entity_type":"model", "baseline_confidence_score":0.91,
+        "h2_override_applied":False, "final_entity_type":"model",
+        "materialization_fingerprint_sha256":"4" * 64,
+    }
+    duplicate = {**payload,
+                 "candidate_evidence_id":"evidence:" + "5" * 32,
+                 "baseline_prediction_evidence_id":"evidence:" + "6" * 32}
+    path = tmp_path / "final_mentions.jsonl"
+    raw = b"".join((json.dumps(p, sort_keys=True) + "\n").encode() for p in [payload, duplicate])
+    path.write_bytes(raw)
+    selected, count = _collect_predictions(
+        path, [row], expected_hash=hashlib.sha256(raw).hexdigest(),
+        expected_count=2, expected_build="build")
+    assert count == 2
+    predictions = selected[(row.canonical_id, row.source_field)]
+    assert len(predictions) == 2
+    assert predictions[0].final_mention_id == predictions[1].final_mention_id
+    scores, cases, _, _ = _metrics([row], selected, sensitivity=False)
+    assert scores["balanced"]["typed_exact"]["tp"] == 1
+    assert scores["balanced"]["typed_exact"]["fp"] == 1
+    assert scores["balanced"]["typed_exact"]["fn"] == 0
+    assert cases[0]["prediction_count"] == 2
+
+
+def test_prediction_stream_rejects_conflicting_identity_for_same_id(tmp_path: Path):
+    """A reused ID for a different span remains a fail-closed integrity error."""
+    row = _field("ABCD XY")
+    payload = {
+        "schema_version":"scientific_entity_semantic_typer_h2_full_corpus_final_mention_v0.3",
+        "build_id":"build", "candidate_evidence_id":"evidence:" + "1" * 32,
+        "final_mention_id":"mention:" + "2" * 32,
+        "canonical_id":row.canonical_id, "source_field":row.source_field,
+        "source_text_sha256":row.source_text_sha256,
+        "char_start":0, "char_end":4, "surface_text":"ABCD",
+        "baseline_prediction_evidence_id":"evidence:" + "3" * 32,
+        "baseline_entity_type":"model", "baseline_confidence_score":0.91,
+        "h2_override_applied":False, "final_entity_type":"model",
+        "materialization_fingerprint_sha256":"4" * 64,
+    }
+    conflict = {**payload, "char_start":5, "char_end":7, "surface_text":"XY",
+                "candidate_evidence_id":"evidence:" + "5" * 32,
+                "baseline_prediction_evidence_id":"evidence:" + "6" * 32}
+    path = tmp_path / "final_mentions.jsonl"
+    raw = b"".join((json.dumps(p, sort_keys=True) + "\n").encode() for p in [payload, conflict])
+    path.write_bytes(raw)
+    with pytest.raises(FullNerUnblindError, match="Conflicting identities"):
+        _collect_predictions(path, [row], expected_hash=hashlib.sha256(raw).hexdigest(),
+                             expected_count=2, expected_build="build")
