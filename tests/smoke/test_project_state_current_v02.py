@@ -53,10 +53,14 @@ def test_readme_points_to_the_current_checkpoint_and_scopes_old_outputs() -> Non
 def test_roadmap_advances_after_real_calibration_and_policy_freeze() -> None:
     text = _read("docs/roadmap.md")
 
-    assert "current active direction = Scientific Entity Evidence Layer" in text
     assert (
-        "latest completed slice = Scientific Entity Typing Diagnostics Preparation v0.3"
-    ) in text
+               "current active direction = post-NER serving/retrieval "
+               "read-only inventory; next vertical slice not yet selected"
+           ) in text
+    assert (
+               "latest completed slice = Scientific Entity NER Cycle Closure v0.3 "
+               "(documentation; 9D/9E completed)"
+           ) in text
     assert (
         "next authorized slice = Scientific Entity Typing Root-Cause Review v0.3"
     ) in text
@@ -517,7 +521,7 @@ def test_scientific_entity_fresh_v02_reference_evidence_freeze_is_preserved() ->
     assert "62. **Scientific Entity Fresh v0.2 Reference Evidence Freeze**" in roadmap
 
 
-def test_scientific_entity_v03_typing_diagnostics_preparation_is_current() -> None:
+def test_scientific_entity_v03_typing_diagnostics_history_is_preserved() -> None:
     readme = _read("README.md")
     checkpoint = _read("docs/project_state_current_v0.2.md")
     roadmap = _read("docs/roadmap.md")
@@ -528,10 +532,19 @@ def test_scientific_entity_v03_typing_diagnostics_preparation_is_current() -> No
     decision = _read("docs/scientific_entity_fresh_heldout_acceptance_decision_v0.2.md")
     typing = _read("docs/scientific_entity_typing_diagnostics_v0.3.md")
 
-    assert "current scientific entity checkpoint = Scientific Entity Typing Diagnostics Preparation v0.3" in readme
+    assert (
+               "current scientific entity checkpoint = trusted H2 v0.3 production; "
+               "active NER research cycle closed"
+           ) in readme
     assert "current_extension = Scientific Entity Typing Diagnostics Preparation v0.3" in checkpoint
-    assert "latest completed slice = Scientific Entity Typing Diagnostics Preparation v0.3" in roadmap
-    assert "next authorized slice = Scientific Entity Typing Root-Cause Review v0.3" in roadmap
+    assert (
+               "latest completed slice = Scientific Entity NER Cycle Closure v0.3 "
+               "(documentation; 9D/9E completed)"
+           ) in roadmap
+    assert (
+               "next authorized slice = read-only inventory of current retrieval / "
+               "API / Postgres / vector serving / Discovery state"
+           ) in roadmap
     assert "next entity slice = Scientific Entity Typing Root-Cause Review v0.3" in checkpoint
 
     assert "status = one-shot raw inference executed and strictly validated" in inference

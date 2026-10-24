@@ -4,17 +4,17 @@
 
 ```text
 document = primary living roadmap
-accepted checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Typing Diagnostics Preparation v0.3
+accepted checkpoint = Current Project State Checkpoint v0.2 (2026-10-24 extension) / Scientific Entity NER Cycle Closure v0.3
 base checkpoint = current canonical latest 61,075 with synchronized core and Discovery derived layers
-current active direction = Scientific Entity Evidence Layer
-latest completed slice = Scientific Entity Typing Diagnostics Preparation v0.3
-next authorized slice = Scientific Entity Typing Root-Cause Review v0.3
+current active direction = post-NER serving/retrieval read-only inventory; next vertical slice not yet selected
+latest completed slice = Scientific Entity NER Cycle Closure v0.3 (documentation; 9D/9E completed)
+next authorized slice = read-only inventory of current retrieval / API / Postgres / vector serving / Discovery state
 public Qdrant promotion = not performed
 public dense/hybrid backend = file
 experimental Qdrant serving transport = gRPC
 fallback = absent
 dataset publication = paused pending redistribution guidance
-current entity boundary = immutable v0.2c acceptance REJECT remains frozen; typing diagnostics preparation `scientific-entity-typing-diagnostics-v0.3-20260912T122700872330Z` consumed the rejected fresh held-out as development evidence and materialized all `166` type mismatches; `131` are same-span (`0.789157`), `model->method=70`, `method->task=15`, method sink `84`, maximum sink `method:84`, `85` cases have confidence >=0.8 and `51` >=0.9; root causes are not assigned automatically; strict diagnostics validation `33/33`, required_failed_count `0`; no inference, tuning, policy reapplication, evaluation recomputation, canonical mutation, production selection, or full-corpus authorization occurred
+current entity boundary = v0.2c independent REJECT remains historical; H2 v0.3 was separately accepted and materialized as trusted latest over 61,075 papers / 846,264 mentions; 9D balanced full-field typed-exact F1=0.3881464265; v0.4 deferred; new production inference not authorized; publication paused
 ```
 
 This roadmap describes the current validated state of **ML Research Radar**, the
@@ -22,32 +22,69 @@ architectural invariants that must remain stable, and the recommended order of
 future work.
 
 The project prefers complete, validated vertical slices over broad feature
-expansion. The safe canonical refresh, core/Discovery synchronization,
-operational runbook, and phase-based orchestration entrypoint are complete and
-green. Older Qdrant, graph, and dataset outputs remain separate build-scoped
-candidates rather than silently becoming current against canonical latest.
-Scientific Entity Evidence is the active functional direction. Its executable
-mention-evidence contract, bounded deterministic literal baseline, independently
-validated evaluation harness, deterministic sampling, and prediction-blind
-annotation workflow are complete. The first real-paper execution is also
-complete: 24 papers, 48 title/abstract rows, 435 reference mentions, 30 literal
-predictions, and a green 69-check evaluation validator. A pinned, bounded
-GLiNER candidate adapter is now implemented and its first immutable bounded
-candidate build is independently validated: 24 papers, 546 mentions, and 91
-of 91 build checks. Its model weights and auxiliary DeBERTa config are
-independently pinned and verified. The exact/relaxed comparison is complete:
-exact F1 is `0.358817`, relaxed F1 is `0.397554`, and the independent
-evaluation validator passed `69 / 69`. GLiNER is retained as the leading
-bounded candidate without promotion. The read-only calibration layer now
-declares 127 global/source-pair/type-probe trials, keeps type probes diagnostic,
-and independently reproduces immutable output. Its tracked fixture is green.
-The real candidate calibration and policy review are complete: calibration `scientific-entity-gliner-dev-calibration-v0.1-20260823T152930597192Z` passed `53 / 53` strict checks and freezes the balanced source-field dev policy `title >= 0.55` / `abstract >= 0.65`. That policy was materialized and evaluated once on a new disjoint 48-paper prediction-blind held-out package with 881 references. The held-out exact F1 is `0.396882` and relaxed F1 is `0.414868`; generalization passed, but production/full-corpus promotion remains forbidden. Structured error analysis is complete: analysis `scientific-entity-heldout-error-analysis-v0.1-20260828T121239202063Z` passed `398 / 398` strict checks and selected semantic prompt disambiguation as the first v0.2 hypothesis. That controlled v0.2a experiment is complete. A zero-overlap 72-paper development package produced a 1430-prediction raw build and a 977-prediction unchanged-policy build; comparison `scientific-entity-semantic-prompt-comparison-v0.2a-20260829T145954260189Z` validated with `required_failed_count=0`. The follow-on v0.2b threshold calibration is now also complete: calibration `scientific-entity-semantic-prompt-threshold-calibration-v0.2b-20260830T093225845167Z` evaluated 35 policies, found 10 semantic-safe trials, and selected `title=0.50 / abstract=0.625`. Combined-72 exact F1 reached `0.398654`, while consumed-48 exact F1 `0.396453` missed the frozen `0.396882` floor by `0.000429`; semantic guardrails passed and strict validation passed `53 / 53`. Because the selected title threshold equaled the raw `0.50` input floor, v0.2c lowered only the raw inference floor to `0.40` on the same 72-paper development pool. The resulting raw build emitted `1762` predictions and passed `91 / 91`; five-trial title calibration selected `0.45 / 0.625` with `4 / 5` semantic-safe trials and passed `61 / 61`; the immutable policy materialized `1077` predictions and passed `48 / 48`; controlled comparison `scientific-entity-semantic-prompt-raw-floor-comparison-v0.2c-20260830T110628936475Z` passed `45 / 45`, reproduced calibration, and recorded combined exact F1 `0.403677`, consumed-48 exact F1 `0.400000`, relaxed F1 `0.422642`, `model -> method 32`, `method -> task 25`, total type mismatches `140`, and method sink `58`. All frozen development gates passed at that development checkpoint. Subsequent fresh held-out evaluation and immutable acceptance decision formally rejected v0.2c under the pre-frozen semantic gate. Typing diagnostics preparation `scientific-entity-typing-diagnostics-v0.3-20260912T122700872330Z` is now complete and strictly validated; the next authorized action is human root-cause review of the prepared 166 type-mismatch cases, not model retuning or production/full-corpus promotion.
+expansion. The canonical corpus remains at **61,075 papers** with synchronized
+August 2026 core retrieval/Postgres/Discovery outputs. Older Qdrant, graph,
+and dataset generations remain separately build-scoped; their later freshness
+must not be inferred from this documentation update.
+
+The active Scientific Entity NER research cycle ended on **2026-10-24** with a
+trusted, unchanged **H2 v0.3** full-corpus materialization and a rigorously
+validated independent **9D full-field audit**. Its primary typed-exact F1 is
+`0.3881464265` on a 60-title / 60-abstract balanced sample, not a
+population-weighted corpus estimate. The v0.4 research line is deferred.
+The separate **v0.2c rejection remains valid for v0.2c** and was not reversed
+retroactively. See Section 0A and the accepted NER closure document.
+
+Next: assess existing retrieval/serving/API/Discovery capabilities read-only
+before choosing a new development slice. Do not launch NER inference, public
+promotion, publication, or broad infrastructure rewrites in this documentation
+phase.
+---
+
+## 0A. Accepted October 2026 transition — NER research closed
+
+**This section is authoritative for current next-step planning.** Later long
+NER subsections retain their historical, dated experimental decisions (including
+the original v0.2c REJECT and 2026-09-12 “no production” status).
+
+| Current layer or decision | Verified historical evidence | Current meaning |
+|---|---|---|
+| Canonical truth | 61,075 papers; SHA `3cc6e3c779fee351bcab605ad1b804acf0e4f8365718db96dad398959420b6ff` | Paper identity and source of truth unchanged |
+| Retrieval / Postgres / Discovery | Accepted synchronized August 2026 build | Live/current serving compatibility needs read-only verification |
+| Experimental Qdrant and local graph outputs | Older 60,954-paper generations | Not silently promoted or assumed synchronized |
+| H2 v0.3 production | 846,264 final mentions; 33,469 `method→model` overrides | Trusted latest remains unchanged |
+| H2 immutable artifact | SHA `518f3984d3dcd2aa5e2a84c96eec2fadce8b6dc6b49eef0d7a908533145394c1` | Rebuildable derived evidence, not canonical truth |
+| 9D full NER audit | 120 fields, 972 mentions, 904 certain; strict `22/22` | Typed-exact P/R/F1 `0.4088127295 / 0.3694690265 / 0.3881464265`; balanced sample only |
+| v0.4-A review | 76 diagnostic queue entries; 30 preliminary notes | 46 deferred; no new training labels or accepted v0.4 model |
+| NER v0.4 | Deferred | Future work requires fresh dev + separate disjoint heldout and new authorization |
+| Publication | Paused | No automatic export or public release authorized |
+
+Trusted NER latest: `data/entities/scientific_entity_production/v0.3/latest.json`;
+candidate build:
+`scientific-entity-semantic-typer-h2-full-corpus-candidate-v0.3-20261003T121605823276Z`.
+
+**Current next authorized task:** perform a *read-only* inventory of existing
+file lexical/dense/hybrid retrieval, Golden Set, API endpoints, Postgres,
+Qdrant/vector experiments, current build compatibility, and Discovery UI.
+Then choose one product-facing vertical slice against the real present state;
+do not reimplement existing features. NER usage in API/DB/UI is **not yet
+asserted** by the NER closure and must be verified before product integration.
+
+Reference documents:
+
+- [`docs/scientific_entity_ner_cycle_closure_v0.3.md`](scientific_entity_ner_cycle_closure_v0.3.md): latest NER decision, provenance, F1 caveats, v0.4 backlog.
+- [`docs/scientific_entity_v04_root_cause_triage_30_v0.1.md`](scientific_entity_v04_root_cause_triage_30_v0.1.md): 30-case preliminary triage, not gold.
+- [`docs/project_state_current_v0.2.md`](project_state_current_v0.2.md): current checkpoint with historical September detail.
+
+No canonical rebuild, production pointer change, model inference, tuning,
+publication, Qdrant promotion, or new serving behavior is authorized by this
+roadmap synchronization.
 
 ---
 
 ## 0. Current Project State Checkpoint v0.2
 
-Status: **accepted documentation / transfer / design-hardening baseline**
+Status: **accepted historical base (September 2026), extended by Section 0A for October 2026**
 
 The current accepted project-state checkpoint is documented in:
 
@@ -75,7 +112,7 @@ publishes_dataset = false
 creates_runtime_graph = false
 ```
 
-Accepted current direction:
+Accepted **September 2026** direction (historical; superseded for active planning by Section 0A):
 
 ```text
 operational source-observation identity = completed
@@ -93,14 +130,14 @@ Scientific Entity Candidate Extractor Selection and Adapter v0.1 = completed as 
 Bounded Scientific Entity GLiNER Candidate Adapter v0.1 = implemented; immutable candidate build validated
 Scientific Entity GLiNER Pilot Comparison v0.1 = completed descriptive evidence; retained for calibration, not promoted
 Bounded Scientific Entity GLiNER Dev Calibration v0.1 = real candidate execution complete / strict validation green / balanced source-field dev policy frozen
-full-corpus entity generation = not authorized; v0.1 held-out acceptance is bounded and not a production/full-corpus promotion
+as_of_2026_09_12: full-corpus entity generation = not authorized for the then-current candidate; H2 v0.3 later separately accepted
 Scientific Entity Fresh v0.2c independent acceptance = rejected under pre-frozen semantic gate
 Scientific Entity Typing Diagnostics Preparation v0.3 = completed / scientific-entity-typing-diagnostics-v0.3-20260912T122700872330Z / strict 33 of 33
-next Scientific Entity slice = Scientific Entity Typing Root-Cause Review v0.3
+as_of_2026_09_12: next Scientific Entity slice = Scientific Entity Typing Root-Cause Review v0.3 (later superseded)
 GraphRAG / Qdrant promotion / scheduler orchestration = deferred
 ```
 
-Recently completed safe slices:
+Historical completed-slice ledger through September 2026 (newer H2/9D/9E work is in Section 0A and the closure document):
 
 1. **Current State Checkpoint v0.1** — consolidate the accepted project state and layer boundaries.
 2. **Graph Review Evidence Pack v0.1** — local read-only evidence pack for Citation / Reference Graph and Paper–Artifact Graph manual review support.
@@ -170,7 +207,7 @@ Recently completed safe slices:
 66. **Scientific Entity Fresh v0.2 Independent Evaluation** — evaluation `scientific-entity-evaluation-fresh-v0.2c-20260901T130232963026Z` compared the frozen `773` selected predictions against `944` frozen reference mentions exactly once. Exact P/R/F1 `0.443726/0.363347/0.399534`; relaxed P/R/F1 `0.472186/0.386653/0.42516`; model->method `70`, method->task `15`, total type mismatch `166`, method sink `84`, max sink `method:84`. Base evaluation validation `69/69` and wrapper strict validation `19/19` passed with zero required failures. No threshold tuning, model inference, acceptance decision, production selection, or full-corpus authorization occurred.
 67. **Scientific Entity Fresh v0.2c Immutable Acceptance Decision** — decision `scientific-entity-fresh-heldout-acceptance-decision-v0.2c-20260901T130232963026Z` consumed only the immutable evaluation artifact plus the pre-frozen gate and produced deterministic `reject_v02c_independent_acceptance`. Hard criteria passed `2/6`; desirable criteria passed `1/1`. Exact F1 and method->task passed, while model->method `70 > 43`, total mismatch `166 > 150`, method sink `84 > 74`, and maximum sink `84 > 74` failed. Strict decision validation passed `39/39` with `required_failed_count=0`; no evaluation recomputation, inference, policy reapplication, tuning, gate change, canonical mutation, production selection, or full-corpus authorization occurred.
 68. **Scientific Entity Typing Diagnostics Preparation v0.3** — completed exactly once after formal v0.2c closeout. Analysis `scientific-entity-typing-diagnostics-v0.3-20260912T122700872330Z` consumed the formally rejected fresh held-out only as development evidence and materialized `166` type-mismatch cases plus a human-review template. `131 / 166 = 0.789157` are same-span; `model->method=70`, `method->task=15`, method sink `84`, max sink `method:84`; `85` cases have confidence `>=0.8` and `51` have confidence `>=0.9`. Root causes remain unassigned; strict validation `33/33`, required failures `0`; no inference/tuning/re-evaluation occurred.
-69. **Scientific Entity Typing Root-Cause Review v0.3** — next bounded research slice. Review all `166 / 166` prepared mismatch cases under a fixed human-review contract, preserve factual fields, assign bounded root-cause/action labels, and only then design one bounded v0.3 typing hypothesis. Any influenced v0.3 candidate requires a new disjoint prediction-blind held-out for independent acceptance.
+69. **Scientific Entity Typing Root-Cause Review v0.3 — historical September proposal, superseded.** At that checkpoint a 166-case review was planned. Subsequent H1/H2 experiments, H2 production acceptance, 9D evaluation and v0.4 diagnostic closure are tracked in the dedicated Scientific Entity closure document. Do not restart this item as the current project's next slice.
 
 
 
@@ -180,7 +217,7 @@ Recently completed safe slices:
 
 
 
-Recommended next safe slices:
+Historical September “next safe slices” (not the current October 2026 work plan):
 
 1. **Bounded GLiNER Dev Calibration Execution — completed.** The real 24-paper run produced 127 trials, 69 eligible trials and 29 Pareto points; strict validation passed 53 / 53.
 2. **Candidate Policy Review and Freeze — completed.** Balanced `title >= 0.55 / abstract >= 0.65` is frozen as the single dev policy; type probes remain diagnostic only.
@@ -209,7 +246,7 @@ Recommended next safe slices:
 
 Explicit immediate non-goals:
 
-- no full-corpus entity extraction;
+- no **new** full-corpus entity extraction under this docs-only sync; trusted H2 v0.3 already exists;
 - no entity fields added to canonical documents;
 - no model promotion before an accepted evaluation harness;
 - no GraphRAG implementation;
@@ -2532,7 +2569,12 @@ no graph DB materialization
 no canonical/retrieval/Qdrant/Postgres/ranking/publication changes
 ```
 
-## 6. Near-term roadmap
+## 6. Historical near-term implementation ledger (pre-2026-10-24)
+
+Some steps in this long historical section were implemented after their initial
+design text was written. Current priorities are governed by Section 0A;
+this section is not authorization to resume NER v0.4 or promote older builds.
+
 
 ### 6.1 Graph Review Evidence Pack v0.1
 
@@ -3081,7 +3123,7 @@ larger Golden Set expansion
 dataset publication
 Neo4j / graph runtime
 GraphRAG
-NER/entity extraction promotion
+new NER candidate promotion / v0.4 (H2 v0.3 is already trusted latest)
 full-text RAG
 Airflow / Kafka / Kubernetes
 production observability stack

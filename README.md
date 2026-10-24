@@ -35,11 +35,16 @@ paper-centric research-discovery system.
 ## Current validated checkpoint
 
 ```text
-checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity Typing Diagnostics Preparation v0.3
-current scientific entity checkpoint = Scientific Entity Typing Diagnostics Preparation v0.3
-base checkpoint = safe canonical refresh and synchronized core/Discovery derived layers
-scientific entity status = bounded literal control + evaluation harness + completed 24-paper review + GLiNER candidate adapter + formal v0.2c REJECT + immutable typing-diagnostics preparation
-scientific entity quality status = frozen v0.2c fresh-heldout evaluation completed exactly once on 773 frozen selected predictions versus 944 frozen reference mentions; exact P/R/F1 = 0.443726/0.363347/0.399534; relaxed P/R/F1 = 0.472186/0.386653/0.42516; immutable acceptance decision `scientific-entity-fresh-heldout-acceptance-decision-v0.2c-20260901T130232963026Z` = `reject_v02c_independent_acceptance`; typing diagnostics preparation `scientific-entity-typing-diagnostics-v0.3-20260912T122700872330Z` consumed the formally rejected held-out as development evidence and deterministically materialized all 166 type mismatches; 131/166 = 0.789157 are same-span type mismatches, model->method=70, method->task=15, method sink=84, maximum sink=method:84, 85 cases have prediction confidence >=0.8 and 51 >=0.9; root causes remain unassigned; strict diagnostics validation passed 33/33 with required_failed_count=0; no model inference, threshold tuning, policy reapplication, evaluation recomputation, canonical mutation, production selection, or full-corpus authorization occurred; next = human root-cause review across the prepared 166 cases
+checkpoint = Current Project State Checkpoint v0.2 / Scientific Entity NER Cycle Closure v0.3 (2026-10-24)
+current scientific entity checkpoint = trusted H2 v0.3 production; active NER research cycle closed
+base checkpoint = safe canonical refresh, 61,075 papers, synchronized core/Discovery derived layers
+scientific entity status = H2 v0.3 trusted latest: 846,264 final mentions; 33,469 method→model overrides; immutable full-corpus candidate and controlled promotion/rollback
+scientific entity production pointer = data/entities/scientific_entity_production/v0.3/latest.json
+scientific entity quality status = independent 9D full-NER audit completed on 120 fields (60 titles + 60 abstracts): 972 reference mentions, 904 certain, 68 uncertain; typed-exact P/R/F1 = 0.4088127295 / 0.3694690265 / 0.3881464265; strict validation 22/22; balanced audit is not a corpus-wide population estimate
+scientific entity diagnostics = 9E completed; 76 historical cases prepared, 30 preliminarily reviewed, 46 deferred
+scientific entity research direction = v0.4 deferred; any improvement requires new development data and independent heldout evidence
+historical entity decision = independent v0.2c REJECT remains valid for v0.2c only; H2 v0.3 has separate acceptance lineage
+current active direction = read-only retrieval / API / Postgres / vector-serving / Discovery inventory; next product slice not yet selected
 public behavior change = none
 public dense/hybrid backend = file
 experimental Qdrant endpoint = explicit
@@ -51,6 +56,16 @@ recommended refresh entrypoint = scripts.update.run_refresh_operational_flow
 
 The transfer-safe current-state record is
 [`docs/project_state_current_v0.2.md`](docs/project_state_current_v0.2.md).
+
+Current Scientific Entity cycle closure and the historical 30-case diagnostic
+triage are documented in:
+
+- [`docs/scientific_entity_ner_cycle_closure_v0.3.md`](docs/scientific_entity_ner_cycle_closure_v0.3.md)
+- [`docs/scientific_entity_v04_root_cause_triage_30_v0.1.md`](docs/scientific_entity_v04_root_cause_triage_30_v0.1.md)
+
+The earlier v0.1–v0.2c documents linked below are historical experiment evidence.
+Their negative or non-production decisions must not be misread as the current
+status of the separately accepted H2 v0.3 production baseline.
 
 The aggregate real-paper pilot record is
 [`docs/scientific_entity_literal_baseline_pilot_evaluation_v0.1.md`](docs/scientific_entity_literal_baseline_pilot_evaluation_v0.1.md).
@@ -729,9 +744,17 @@ requirements.
 
 ---
 
-## Near-term roadmap
+## Historical Scientific Entity research roadmap (through September 2026)
 
-Recommended order:
+The numbered steps below preserve the research progression and decisions as
+originally recorded through September 2026. **They are an historical ledger,
+not current instructions or authorization to rerun models.** In particular,
+the former “next” and “deferred” labels in steps 26–29 were written before the
+separate H2 acceptance, trusted full-corpus promotion, 9D audit, and 9E closure.
+For current next steps, consult the October 2026 checkpoint above and the
+current roadmap.
+
+Original sequence:
 
 1. **Scientific Entity Evidence Contract v0.1 — implemented.**
    The accepted foundation defines mention/evidence identity, six entity types,
@@ -904,14 +927,16 @@ Recommended order:
     Root causes were deliberately not assigned automatically. Strict validation passed `33 / 33` with `required_failed_count=0`.
     No inference, tuning, policy reapplication, evaluation recomputation, canonical mutation, production selection, or full-corpus authorization occurred.
 
-26. **Scientific Entity Typing Root-Cause Review v0.3 — next.**
+26. **Scientific Entity Typing Root-Cause Review v0.3 — originally planned next (historical).**
     Review all `166 / 166` prepared mismatch cases under a fixed human-review contract, preserving factual case fields and assigning bounded root-cause/action labels only.
     The review must separate clear semantic mistyping from taxonomy ambiguity, annotation issues, compound/nested entities, insufficient context, and other bounded causes.
     Only after the completed review may one bounded v0.3 typing hypothesis be designed.
     Any v0.3 candidate influenced by these diagnostics requires a new disjoint prediction-blind held-out for independent acceptance.
 
-27. **Accepted Large-Scale Derived Entity Build — deferred.**
-    Requires a future independently accepted candidate plus separate full-corpus authorization.
+27. **Accepted Large-Scale Derived Entity Build — deferred in the original September plan; subsequently completed for accepted H2 v0.3.**
+    The original plan required independent acceptance and separate full-corpus authorization.
+    Those conditions were subsequently satisfied for the separately accepted H2 v0.3 line;
+    this entry is retained as historical planning evidence.
 
 28. **Normalization / Linking / Product and Graph Integration — deferred.**
     Only after typing quality is sufficiently stable; entities remain downstream of canonical truth.
@@ -922,6 +947,24 @@ Recommended order:
 Dataset publication remains paused pending explicit redistribution guidance.
 Qdrant promotion, new embeddings, Airflow, and GraphRAG remain deferred until a
 measured requirement justifies their separate acceptance slices.
+
+---
+
+## Current next step after NER closure (October 2026)
+
+**Read-only inventory first.** Compare the existing 61,075-paper canonical,
+retrieval and Discovery generation against Postgres, FastAPI, Streamlit, Golden
+Set, and the separately build-scoped experimental Qdrant/graph outputs.
+Confirm what already works, identify staleness or integration gaps, and then
+choose a bounded user-facing search/serving improvement. Do not duplicate
+features already implemented.
+
+Scientific Entity H2 v0.3 remains the trusted production baseline. Entity
+normalization/linking and product integration have **not** been established as
+completed by the NER cycle closure. Any future v0.4 experiment requires fresh
+development evidence and a disjoint acceptance set. No inference, full-corpus
+rebuild, production/latest promotion, public publication, or default search
+behavior change is authorized by this documentation update.
 
 ---
 

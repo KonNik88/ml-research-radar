@@ -5,14 +5,23 @@
 ```text
 status = accepted post-orchestration and scientific-entity typing-diagnostics-preparation checkpoint
 checkpoint_date = 2026-09-12
+latest_documentation_update = 2026-10-24
 supersedes_for_current_planning = docs/project_state_current_v0.1.md
 historical_detail_retained_in = docs/project_state_current_v0.1.md
+current_entity_decision = retain trusted H2 v0.3; NER active research cycle closed; v0.4 deferred
+active_next_action = read-only current serving/retrieval inventory; next vertical slice not yet selected
 canonical_truth_changed_by_document = false
 runtime_behavior_changed_by_document = false
 generated_layers_rebuilt_by_document = false
 publishes_dataset = false
 current_extension = Scientific Entity Typing Diagnostics Preparation v0.3
+latest_documentation_extension = Scientific Entity NER Research Cycle Closure v0.3
 ```
+
+The detailed Scientific Entity research chronology below is preserved as the
+2026-09-12 checkpoint. Its September next-step and no-production markers are
+**historical**, superseded for current planning by Section 0 below and
+[`docs/scientific_entity_ner_cycle_closure_v0.3.md`](scientific_entity_ner_cycle_closure_v0.3.md).
 
 This checkpoint records the accepted project state after the August 2026 safe
 canonical refresh, derived-layer synchronization, operational refresh runbook,
@@ -70,6 +79,71 @@ selected-policy materialization, and controlled development comparison are recor
 - [`docs/scientific_entity_fresh_heldout_evaluation_v0.2.md`](scientific_entity_fresh_heldout_evaluation_v0.2.md)
 - [`docs/scientific_entity_fresh_heldout_acceptance_decision_v0.2.md`](scientific_entity_fresh_heldout_acceptance_decision_v0.2.md)
 - [`docs/scientific_entity_typing_diagnostics_v0.3.md`](scientific_entity_typing_diagnostics_v0.3.md)
+
+---
+
+## 0. Current October 2026 extension — NER cycle closure and handoff
+
+**As of 2026-10-24**, the Scientific Entity active research cycle is closed;
+**trusted production H2 v0.3 remains unchanged**. This is a documentation
+checkpoint, not a new model acceptance, promotion, full-corpus build, or public
+release. The historical September development and rejection decisions below
+remain true *for their original candidates and dates*. In particular, the
+independent rejection of **v0.2c** is not the acceptance decision for H2 v0.3.
+
+Current accepted markers:
+
+```text
+canonical_papers = 61,075
+canonical_sha256 = 3cc6e3c779fee351bcab605ad1b804acf0e4f8365718db96dad398959420b6ff
+trusted_ner = H2 v0.3 (selective semantic typer)
+trusted_ner_latest = data/entities/scientific_entity_production/v0.3/latest.json
+trusted_candidate_build = scientific-entity-semantic-typer-h2-full-corpus-candidate-v0.3-20261003T121605823276Z
+trusted_final_mention_rows = 846,264
+trusted_final_mentions_sha256 = 518f3984d3dcd2aa5e2a84c96eec2fadce8b6dc6b49eef0d7a908533145394c1
+h2_method_to_model_overrides = 33,469
+ner_active_research_cycle = closed; deferred v0.4 backlog
+new_model_selection_or_full_corpus_inference = not authorized by this checkpoint
+publication_authorized = false
+```
+
+Independent full-field evaluation (not a population-weighted corpus estimate):
+
+```text
+sample = 120 full fields (60 title + 60 abstract)
+frozen_reference_mentions = 972
+certain_reference_mentions = 904
+uncertain_reference_mentions = 68
+selected_predictions = 851
+primary_scored_predictions = 817
+primary_metric = typed_exact
+precision = 0.408812729498164
+recall = 0.3694690265486726
+f1 = 0.3881464264962231
+tp = 334
+fp = 483
+fn = 570
+independent_9d_strict_validation = 22 / 22
+```
+
+The 9E analysis and the later v0.4-A diagnostic work produced a 76-item
+historical review queue. Only **30/76** received preliminary qualitative notes;
+all original review items remain `pending`, and no new training labels or
+independent held-out claims were created. Production, reference, and scoring
+policy are unchanged. Improvement/tuning of v0.4 is **deferred**.
+
+**Next authorized project action:** read-only inventory of existing retrieval,
+Postgres, file/vector serving, API, and Discovery paths and their build/compatibility
+state. Select the next vertical slice only after inspecting the actual current
+repository; do not assume the older Qdrant/graph/dataset build-scoped outputs
+have been synchronized or promoted.
+
+Authoritative detail:
+
+- [`docs/scientific_entity_ner_cycle_closure_v0.3.md`](scientific_entity_ner_cycle_closure_v0.3.md) — final NER decision, lineage, metrics, and v0.4 backlog.
+- [`docs/scientific_entity_v04_root_cause_triage_30_v0.1.md`](scientific_entity_v04_root_cause_triage_30_v0.1.md) — preliminary historical review of 30 cases, not new gold.
+- [`docs/scientific_entity_full_ner_coverage_results_review_v0.1.md`](scientific_entity_full_ner_coverage_results_review_v0.1.md) — quantitative 9E evaluation review.
+- [`docs/roadmap.md`](roadmap.md) — living roadmap and next-layer planning.
 
 ---
 
@@ -134,6 +208,21 @@ of file-backed truth. They must remain rebuildable.
 ---
 
 ## 3. Current layer-state matrix
+
+The earlier rows retain their **September 2026 build-scoped/historical** status;
+for Scientific Entity the latest accepted state is below. Neither the previous
+v0.2c rejection nor the historical “full corpus not authorized” comments about
+that candidate supersede the separately authorized H2 v0.3 production line.
+
+| October 2026 Scientific Entity layer | Accepted state | Evidence / boundary |
+|---|---|---|
+| H2 v0.3 trusted production | complete / unchanged | 61,075 papers; 846,264 mentions; 33,469 selective overrides; trusted latest pointer |
+| H2 lifecycle and rollback | completed | Controlled promotion, validation and closure; no new promotion by this document |
+| Full-field audit 9A–9D | completed / immutable | 120 fields; 972 references; primary typed-exact F1 `0.3881464265`; strict 9D `22/22` |
+| 9E + v0.4-A root-cause diagnostics | preliminary review / stopped | 76 queued; 30 reviewed qualitatively; 46 deferred; not new gold |
+| v0.4 training or independent acceptance | deferred / not started | No candidate tuning on disclosed 9D fields; new disjoint dev and heldout required |
+| NER DB/API/UI integration | not asserted | Verify actual serving surfaces before starting another slice |
+
 
 | Layer | Accepted state | Baseline identity | Current interpretation |
 |---|---|---|---|
@@ -321,7 +410,13 @@ is authorized by this checkpoint.
 
 ---
 
-## 8. Accepted next functional direction
+## 8. Historical September next functional direction (superseded)
+
+The sequence and restrictions below describe the **2026-09-12** planning
+snapshot. They are retained for provenance, not an instruction to restart the
+166-case review or redo accepted H2 v0.3 production. Current next action is
+in Section 0 and the NER cycle-closure document.
+
 
 The next macro-layer is:
 
@@ -369,7 +464,14 @@ linking.
 
 ---
 
-## 9. Next bounded slices
+## 9. Historical September bounded slices (superseded for current planning)
+
+Items 1–30 below are the original development chronology and September proposals.
+A subsequently accepted H2 v0.3 production lifecycle and 9A–9E evaluation are
+summarized in Section 0 and fully documented by the closure record. The older
+“next”, “not authorized”, and “production=false” flags are *dated statements*,
+not current global project flags.
+
 
 Recommended order:
 
@@ -657,7 +759,7 @@ no Kafka/Ray/Kubernetes expansion
 no Neo4j or graph DB materialization
 no GraphRAG implementation
 no full-text acquisition
-no full-corpus entity extraction before candidate and held-out acceptance
+no NEW full-corpus entity extraction without a new independent candidate acceptance and explicit authorization; H2 v0.3 already completed its authorized production build
 no entity fields added to canonical documents
 ```
 
@@ -668,6 +770,26 @@ retry, observability, or multi-machine requirement exists.
 ---
 
 ## 11. Transfer-safe summary
+
+**Current 2026-10-24 transfer override (authoritative over dated September lines
+in the long summary block below):**
+
+```text
+current_macro_direction = post-NER serving/retrieval state inventory; exact next slice pending selection
+current_ner = trusted H2 v0.3; active research cycle closed
+current_ner_full_corpus = 61,075 papers / 846,264 final mention rows
+current_ner_final_mentions_sha256 = 518f3984d3dcd2aa5e2a84c96eec2fadce8b6dc6b49eef0d7a908533145394c1
+current_full_ner_9d_typed_exact_f1 = 0.3881464264962231 (balanced 60 title / 60 abstract)
+current_v04_root_cause_review = 30 preliminary notes / 76 queued; 46 deferred
+current_ner_retraining_or_new_inference = deferred
+current_ner_db_api_ui_availability = requires read-only inventory; not asserted
+current_publication = paused; not authorized
+```
+
+The following long-form transfer block is retained verbatim **as a September
+2026 historical research ledger**. Its `production model selected = false` and
+`next entity slice = ...` lines apply to the September candidate stage only.
+
 
 ```text
 canonical latest = 61,075
