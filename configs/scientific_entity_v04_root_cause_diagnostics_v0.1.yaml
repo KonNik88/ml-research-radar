@@ -1,0 +1,24 @@
+schema_version: scientific_entity_v04_root_cause_diagnostics_config_v0.1
+review_id: scientific-entity-v04-root-cause-review-v0.1-3cc6e3c779fee351
+evaluation_id: scientific-entity-full-ner-coverage-unblind-evaluation-v0.1-3cc6e3c779fee351
+reference_id: scientific-entity-full-ner-coverage-reference-v0.1-3cc6e3c779fee351
+evaluation_dir: data/entities/scientific_entity_full_ner_coverage_unblind_evaluation/v0.1/scientific-entity-full-ner-coverage-unblind-evaluation-v0.1-3cc6e3c779fee351
+reference_annotations_path: data/entities/scientific_entity_full_ner_coverage_reference/v0.1/scientific-entity-full-ner-coverage-reference-v0.1-3cc6e3c779fee351/annotations.jsonl
+output_dir: data/entities/scientific_entity_v04_root_cause_review_work/v0.1/scientific-entity-v04-root-cause-review-v0.1-3cc6e3c779fee351
+expected_reference_annotations_sha256: 95e231b4187de26fa57d9c71b3ec74c4d5303ce3c22c5a96560059c948235c75
+expected_evaluation_cases: 120
+expected_evaluation_predictions: 851
+sampling_seed: scientific-entity-v04-historical-error-review-v0.1
+quotas:
+  residual_fn: 20
+  residual_fp: 20
+  type_only_exact_span: 16
+  boundary_only_same_type: 8
+  boundary_and_type: 6
+  zero_prediction_title: 6
+max_review_items_per_field: 4
+model_inference_allowed: false
+production_prediction_file_read_allowed: false
+historical_evaluation_only: true
+threshold_tuning_allowed: false
+publication_authorized: false
